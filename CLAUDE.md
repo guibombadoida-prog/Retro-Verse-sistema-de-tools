@@ -1,0 +1,78 @@
+# CLAUDE.md — Retro-Verse / Sistema de Tools
+
+## Escopo desta sessão e deste repositório
+
+**Somente ferramentas (`Tool`) do Roblox Studio.** O trabalho é converter modelos em Tools conformes.
+
+Fora de escopo — recusar e redirecionar: NPCs, sistemas de mapa, economia, DataStore, UI de jogo,
+matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate que as serve.
+
+## Ordem de precedência das regras
+
+1. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence em qualquer conflito
+2. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
+3. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
+4. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+
+Ler as diretrizes **antes** de escrever qualquer Lua. Elas não são sugestão de estilo: várias
+proibições existem porque o oposto já causou bug em produção (ordem de `Name`/`Parent` na tag
+`creator`, `:Emit` no servidor, `tick()` alimentando `CFrame`).
+
+## Invariantes que nunca podem ser quebrados
+
+| Invariante | Verificação prática |
+|---|---|
+| Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
+| Tool é autocontida | Apagar o Acervo do place não quebra Tool nenhuma |
+| Núcleo é a única porta de regra de combate | Zero `canDamage` / `IsTeamMate` / `TagHumanoid` fora de `NucleoCombate.lua` |
+| Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `_G.Combate.transmitirVFX` + `VFXRemote` |
+| Toda chamada ao Núcleo é opcional | Sempre `_G.Combate and _G.Combate.x(...) or <fallback>` |
+
+## Proibições de sintaxe (valem em todo `.lua` do repositório)
+
+| Proibido | Usar |
+|---|---|
+| `wait()` · `spawn()` · `delay()` | `task.wait` · `task.spawn` · `task.delay` |
+| `tick()` | `os.clock()` para recarga; acumulador `dt` a partir de zero para animação |
+| `part:Destroy()` · `:Remove()` | `Parent = nil` ou `Debris:AddItem` |
+| `AncestryChanged` para cleanup | `Tool.Destroying` |
+| `math.random` em gameplay | Ângulo áureo / Vogel, jitter senoidal por contador, índice sequencial |
+| `+=` · `-=` · `continue` | Sintaxe expandida: `x = x + 1`, `if/else` aninhado |
+| `Instance.new("Explosion")` | `_G.Combate.detectarHumanoides` |
+| `Health = Health - dano` | `TakeDamage` (respeita `ForceField`) |
+| `ScreenGui` · `ColorCorrection` · `Sky` dentro da Tool | Efeito só no mundo 3D |
+| `require(<id numérico>)` | Módulo copiado para dentro da Tool |
+| `Animation` / `LoadAnimation` | Tabela de poses CFrame sob `R6CFrameAnimator` |
+
+Números mágicos espalhados pelo corpo do script são violação: bloco `CFG` único no topo,
+junto do `ARQUETIPO`.
+
+## Fluxo obrigatório de toda entrega
+
+1. **Antes de criar efeito:** ler `ACERVO_RETROVERSE/_INDICE.md`. Se existe equivalente, reusar.
+2. **Material de terceiro:** pasta do modelo → depositar **CRU** → passe §12.12.2 → **APROVADO**.
+   Sem os quatro campos da ficha (autor, origem, licença, data) o material fica CRU e não entra em Tool.
+3. **Ao finalizar:** depositar todo VFX/SFX/pose novo ou modificado e atualizar `_INDICE.md`.
+4. **No relatório:** seção **"Delta do Acervo"** — o que entrou, o que foi reusado, o que mudou de status.
+
+Entrega sem Delta do Acervo é entrega incompleta.
+
+## Nomenclatura
+
+```
+NucleoCombate.lua                  Script central — nome SEM versão
+[NomeDaTool]_Server_V[X].lua       script de servidor da Tool
+Poses_[Modelo]_V[X].lua            tabela de poses R6 CFrame
+"[NomeDaTool]_[Habilidade]"        chave de recarga global — ex.: "AstralPulsar_X"
+"[Sistema]_[Efeito]"               modificador — ex.: "Passiva_Frenesi"
+"IMPACTO_NOVA"                     tipo de VFX — MAIUSCULA_COM_UNDERSCORE
+Nome_Do_Modelo_De_Origem/          pasta de modelo no Acervo
+```
+
+Versionamento sequencial V1 → V2 → V3, incrementado a cada modificação. O arquivo antigo é
+**substituído**, e a substituição é declarada no relatório de entrega.
+
+## Git
+
+Branch de desenvolvimento: `claude/roblox-tools-repository-zn3r68`.
+Commits em português, descritivos, no escopo de uma Tool ou do Núcleo por vez.
