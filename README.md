@@ -16,6 +16,7 @@ O trabalho desta pasta é um só: **converter modelos (`.rbxm` / `.rbxmx`) em To
 | [`DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`](DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md) | **Regra nº 1** — tudo dentro da Tool, sem exceção |
 | [`DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md`](DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md) | Base: classe `Tool`, Handle, debounce, proibições |
 | [`DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md`](DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md) | Núcleo de combate, material de terceiros, Acervo |
+| [`DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md`](DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md) | Quantas Tools saem de um modelo — piso 3, teto 7 |
 | [`DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md`](DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md) | Passo a passo da conversão modelo → Tool |
 | [`DIRETRIZES/CHECKLIST_ENTREGA.md`](DIRETRIZES/CHECKLIST_ENTREGA.md) | Checklist final, copiável, de toda entrega |
 
@@ -32,6 +33,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │
 ├── Tools/
 │   ├── _TEMPLATE_Tool/            ← Molde de toda Tool nova
+│   ├── GUARDIAO_DO_TEMPO.md       ← Conjunto de 7 Tools (primeira conversão)
 │   └── [NomeDaTool]/              ← Uma pasta por Tool entregue
 │
 ├── MODELOS_ENTRADA/               ← .rbxm/.rbxmx crus, antes da conversão

@@ -14,6 +14,12 @@ Tools/
     └── VFXModule.lua
 ```
 
+## Conjuntos entregues
+
+| Conjunto | Tools | Modelo de origem | Status |
+|---|---|---|---|
+| [Guardião do Tempo](GUARDIAO_DO_TEMPO.md) | 7 | `Guardiao_Do_Tempo` | LIMPO — falta teste no Studio |
+
 ## Regra de ouro
 
 **Apague o `ACERVO_RETROVERSE` inteiro do place — toda Tool aqui continua funcionando.**

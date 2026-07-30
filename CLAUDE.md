@@ -11,9 +11,16 @@ matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate
 
 1. `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md` — **regra nº 1, vence tudo**
 2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
-3. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
-4. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
-5. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+3. `DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md` — quantas Tools saem de um modelo
+4. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
+5. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
+6. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+
+## Quantas Tools saem de um modelo
+
+**Piso 3, teto 7.** De 3 a 7 habilidades, uma Tool por habilidade. Com 8 ou mais, são 7 Tools
+e o excedente vira habilidade **Extra** na Tool de tema mais próximo. Cada Tool comporta duas:
+primária em `Tool.Activated`, Extra por tecla via `AcaoRemote`.
 
 ## Regra nº 1 — autocontenção absoluta
 
