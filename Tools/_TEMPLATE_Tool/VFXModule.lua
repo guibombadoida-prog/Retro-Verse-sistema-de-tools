@@ -18,6 +18,11 @@
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 
+-- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
+-- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
+local tool = script.Parent
+local pastaEfeitos = tool:FindFirstChild("Efeitos")
+
 local VFX = {}
 
 --==============================================================================
@@ -51,6 +56,21 @@ local function direcaoVogel(indice, total)
 	local angulo = indice * CFG.ANGULO_AUREO
 	local raio = math.sqrt(indice / math.max(total, 1))
 	return Vector3.new(math.cos(angulo) * raio, 0, math.sin(angulo) * raio)
+end
+
+-- Molde de dentro da Tool. Devolve nil se não existir — o efeito cai no procedural,
+-- e a Tool nunca quebra por falta de asset.
+local function molde(nome)
+	if not pastaEfeitos then
+		return nil
+	end
+
+	local original = pastaEfeitos:FindFirstChild(nome)
+	if not original then
+		return nil
+	end
+
+	return original:Clone()
 end
 
 local function novaParte(cor, tamanho, cframe)
@@ -103,11 +123,17 @@ function VFX.IMPACTO(payload)
 	local indice = 1
 	while indice <= CFG.IMPACTO_PECAS do
 		local direcao = direcaoVogel(indice, CFG.IMPACTO_PECAS)
-		local parte = novaParte(
-			cor,
-			Vector3.new(0.2, 0.2, 0.9) * escala,
-			CFrame.new(origem + direcao * CFG.IMPACTO_RAIO * escala)
-		)
+		local posicao = CFrame.new(origem + direcao * CFG.IMPACTO_RAIO * escala)
+
+		-- Molde interno quando existir; senão, parte procedural. Nos dois casos,
+		-- nada vem de fora da Tool.
+		local parte = molde("IMPACTO")
+		if parte then
+			parte.CFrame = posicao
+		else
+			parte = novaParte(cor, Vector3.new(0.2, 0.2, 0.9) * escala, posicao)
+		end
+
 		parte.Parent = pasta
 		table.insert(pecas, { parte = parte, direcao = direcao })
 		indice = indice + 1
@@ -145,13 +171,14 @@ function VFX.IMPACTO_NOVA(payload)
 	local escala = lerEscala(payload)
 	local origem = payload.posicao
 
-	local anel = novaParte(
-		cor,
-		Vector3.new(1, CFG.NOVA_ALTURA, 1),
-		CFrame.new(origem)
-	)
-	anel.Shape = Enum.PartType.Cylinder
-	anel.Orientation = Vector3.new(0, 0, 90)
+	local anel = molde("IMPACTO_NOVA")
+	if anel then
+		anel.CFrame = CFrame.new(origem)
+	else
+		anel = novaParte(cor, Vector3.new(1, CFG.NOVA_ALTURA, 1), CFrame.new(origem))
+		anel.Shape = Enum.PartType.Cylinder
+		anel.Orientation = Vector3.new(0, 0, 90)
+	end
 	anel.Parent = workspace
 
 	local t = 0

@@ -2,7 +2,11 @@
 
 Copiar esta pasta, renomear para o nome real da Tool e trocar `Template` em **todos** os arquivos.
 
-## Hierarquia no Studio (§12.10)
+## Hierarquia no Studio (§12.10 + Regra nº 1)
+
+> **Regra nº 1 — autocontenção absoluta.** Tudo o que a Tool usa é **filho da Tool**:
+> script, animação, VFX, SFX, mesh, MeshPart, textura. Zero referência para fora.
+> Ver `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`.
 
 ```
 Tool                              CanBeDropped = false · RequiresHandle = true · ToolTip preenchido
@@ -17,8 +21,32 @@ Tool                              CanBeDropped = false · RequiresHandle = true 
 ├── AcaoRemote                    RemoteEvent  input da habilidade Extra: cliente → servidor
 ├── R6CFrameAnimator              ModuleScript ← R6CFrameAnimator.lua
 ├── Poses                         ModuleScript ← Poses_Template_V1.lua
-└── VFXModule                     ModuleScript ← VFXModule.lua
+├── VFXModule                     ModuleScript ← VFXModule.lua
+│
+├── SFX                           Folder       ← todo Sound da Tool mora aqui
+│   └── Golpe                     Sound        SoundId/Volume/Pitch/RollOff configurados na instância
+│
+└── Efeitos                       Folder       ← todo molde visual mora aqui
+    ├── IMPACTO                   Part/MeshPart com ParticleEmitter, Beam, Trail
+    └── IMPACTO_NOVA              idem
 ```
+
+### `SFX/` e `Efeitos/` — por que existem
+
+O script **nunca** cria um `Sound` com `SoundId` solto nem busca mesh fora da Tool: ele **clona
+o molde interno**. Isso é o que faz a Tool passar no teste da Regra nº 1 — arraste-a sozinha para
+um place vazio e ela funciona por inteiro.
+
+| Onde | O que guarda | Quem consome |
+|---|---|---|
+| `SFX/` | `Sound` já configurado (volume, pitch, RollOff) | `tocarSom(nome, posicao)` no Server Script |
+| `Efeitos/` | `Part` / `MeshPart` com `ParticleEmitter`, `Beam`, `Trail`, textura | `molde(nome)` no `VFXModule`, no cliente |
+
+Ambas as pastas são **opcionais no código**: faltando o molde, o VFX cai no procedural e o som
+simplesmente não toca. A Tool nunca quebra por asset ausente — ela degrada.
+
+Volume e pitch **não** vão para o `CFG`: são propriedades da instância que mora dentro da Tool.
+O `CFG` guarda número de **balanceamento**, não configuração de asset.
 
 > ⚠️ Os ModuleScripts mantêm os nomes `R6CFrameAnimator`, `Poses` e `VFXModule` **no Studio** —
 > é assim que os scripts os encontram. O nome versionado (`Poses_Template_V1.lua`) é do arquivo

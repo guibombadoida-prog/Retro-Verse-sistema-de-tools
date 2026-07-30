@@ -13,12 +13,13 @@ O trabalho desta pasta é um só: **converter modelos (`.rbxm` / `.rbxmx`) em To
 
 | Documento | O que governa |
 |---|---|
+| [`DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`](DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md) | **Regra nº 1** — tudo dentro da Tool, sem exceção |
 | [`DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md`](DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md) | Base: classe `Tool`, Handle, debounce, proibições |
 | [`DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md`](DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md) | Núcleo de combate, material de terceiros, Acervo |
 | [`DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md`](DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md) | Passo a passo da conversão modelo → Tool |
 | [`DIRETRIZES/CHECKLIST_ENTREGA.md`](DIRETRIZES/CHECKLIST_ENTREGA.md) | Checklist final, copiável, de toda entrega |
 
-Em conflito, **REGRA 12 V3 vence** — ela é extensão e substituição parcial da base.
+Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence a base.
 
 ---
 
@@ -66,13 +67,20 @@ lua5.4 TESTES/harness_NucleoCombate.lua
 
 ## Os três invariantes
 
-1. **A Tool declara intenção; o Núcleo aplica regra.**
+1. **Autocontenção absoluta — nada de referência de script fora da Tool.**
+   Todo script, animação, VFX, SFX, mesh, MeshPart e textura é **filho da Tool**.
+   Arraste a Tool sozinha para um place vazio — sem Acervo, sem Núcleo, sem `ReplicatedStorage`
+   nem `ServerStorage` — e **ela funciona por inteiro**. Se faltar uma partícula, um som ou uma
+   pose, a Tool violou a regra nº 1.
+
+   ```bash
+   bash TESTES/verificar_autocontencao.sh
+   ```
+
+2. **A Tool declara intenção; o Núcleo aplica regra.**
    Zero `require` do Núcleo. Zero `canDamage` / `IsTeamMate` / `TagHumanoid` dentro da Tool.
    A Tool declara o que é com `Value`s (`DamageClass`, `EnergyCost`, `RecargaGlobal`, `ChaveRecarga`).
-
-2. **A Tool é autocontida.**
-   Apague o `ACERVO_RETROVERSE` inteiro do place — **toda Tool continua funcionando**.
-   Se alguma quebra, ela violou §12.16.4.
+   `_G.Combate` é sempre opcional, sempre com guarda.
 
 3. **Nada de terceiro decide dano, alvo ou estado.**
    Entra o que se **vê e se ouve** (VFX, SFX, pose R6 CFrame), após o passe de conformidade §12.12.2.

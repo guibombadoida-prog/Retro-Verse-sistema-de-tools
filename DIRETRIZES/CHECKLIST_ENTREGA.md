@@ -1,7 +1,35 @@
 # CHECKLIST DE ENTREGA
 **Retro-Verse / Studios** · copiar e preencher a cada Tool entregue
 
-Consolida o §14 das DIRETRIZES base e o §12.14 da REGRA 12 V3.
+Consolida a Regra nº 1, o §14 das DIRETRIZES base e o §12.14 da REGRA 12 V3.
+
+---
+
+## REGRA Nº 1 — AUTOCONTENÇÃO ABSOLUTA
+
+Roda primeiro. Falhou aqui, o resto não importa.
+
+```bash
+bash TESTES/verificar_autocontencao.sh
+```
+
+- [ ] Verificador passa sem nenhuma falha
+- [ ] Zero `ReplicatedStorage` / `ServerStorage` / `ServerScriptService` em script de Tool
+- [ ] Zero `InsertService`, zero `require(<id numérico>)`
+- [ ] Zero busca em `workspace` (`FindFirstChild` / `WaitForChild`)
+- [ ] Zero referência ao `ACERVO_RETROVERSE`
+- [ ] Todo `require` aponta para ModuleScript **filho da própria Tool**
+- [ ] Todo `Sound` é filho da Tool (`Tool/SFX/`), clonado — nunca buscado fora
+- [ ] Todo mesh, MeshPart, textura, `ParticleEmitter`, `Beam` e `Trail` é filho da Tool
+- [ ] Toda pose/animação é tabela CFrame no ModuleScript `Poses`, dentro da Tool
+- [ ] Toda chamada a `_G.Combate` está sob guarda
+
+**Teste manual que decide:**
+
+- [ ] **Tool sozinha em place vazio → funciona por inteiro**
+- [ ] `ACERVO_RETROVERSE` deletado → funciona
+- [ ] `NucleoCombate` deletado → funciona, sem os bônus
+- [ ] `ReplicatedStorage` e `ServerStorage` vazios → funciona
 
 ---
 
@@ -82,6 +110,7 @@ grep -rn 'require(' Tools/[NomeDaTool]/       # só Poses / VFXModule / R6CFrame
 
 ## Testes de aceitação
 
+- [ ] **Tool sozinha em place vazio → funciona por inteiro** (Regra nº 1)
 - [ ] **Acervo deletado do place → toda Tool continua funcionando**
 - [ ] **Núcleo removido → a Tool continua funcionando, só sem os bônus**
 - [ ] Duas cópias na mochila → a recarga global trava as duas

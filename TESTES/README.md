@@ -3,8 +3,31 @@
 Bancada de verificação. **Nada aqui vai para o place.**
 
 ```bash
-lua5.4 TESTES/harness_NucleoCombate.lua
+bash TESTES/verificar_autocontencao.sh     # Regra nº 1 — roda primeiro
+lua5.4 TESTES/harness_NucleoCombate.lua    # pipeline de dano do Núcleo
 ```
+
+## `verificar_autocontencao.sh`
+
+Varre `Tools/` e falha se qualquer script referenciar algo **fora da Tool** (Regra nº 1).
+Comentários de linha e de bloco são removidos antes da comparação — documentar a proibição
+é obrigatório, não é violação.
+
+| Verifica | Achado é falha porque |
+|---|---|
+| `ReplicatedStorage` · `ServerStorage` · `ServerScriptService` | Depósito de asset fora da Tool |
+| `StarterGui` · `StarterPack` · `StarterPlayer` · `Lighting` | Idem |
+| `SoundService` como depósito · `InsertService` | Idem |
+| Referência a `ACERVO` | O Acervo é prateleira de edição, não runtime |
+| `workspace:FindFirstChild` / `WaitForChild` | Ler de `workspace` é dependência (escrever nele é permitido) |
+| `require(<id numérico>)` · `require` do Núcleo | Código de fora |
+| `require` que não aponte para módulo da própria Tool | Referência externa |
+| `_G.Combate.` sem guarda | A Tool tem de funcionar com o Núcleo deletado |
+
+**Limite conhecido:** é lint por texto, não análise de fluxo. Ele pega
+`local x = game:GetService("ReplicatedStorage")`, mas não rastreia o uso de `x` depois.
+A guarda de `_G.Combate` é aceita se houver `if _G.Combate` até 15 linhas acima.
+O checklist manual continua valendo — o verificador reduz o esforço, não o substitui.
 
 ## `harness_NucleoCombate.lua`
 

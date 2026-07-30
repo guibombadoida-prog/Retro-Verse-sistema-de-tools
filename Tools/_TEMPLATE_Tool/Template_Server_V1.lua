@@ -42,10 +42,9 @@ local CFG = {
 	COR_VFX         = Color3.fromRGB(140, 90, 255),
 	ESCALA_IMPACTO  = 2.4,
 
-	SFX_GOLPE       = "rbxassetid://0",   -- preencher a partir do Acervo · SFX/ids.md
-	SFX_VOLUME      = 0.6,
-	SFX_PITCH       = 1.0,
-	SFX_ALCANCE     = 60,
+	-- Nome do Sound dentro de Tool/SFX/ — NUNCA um caminho fora da Tool (Regra nº 1).
+	-- Volume, pitch e RollOff ficam na própria instância, que é filha da Tool.
+	SFX_GOLPE       = "Golpe",
 
 	VIDA_SOM        = 3,      -- s até o som sair de cena
 }
@@ -104,9 +103,17 @@ local function donoAtual()
 	return Players:GetPlayerFromCharacter(personagem), personagem, personagem:FindFirstChildOfClass("Humanoid")
 end
 
--- SFX: som posicional, sem :Destroy() — Debris tira de cena (§10)
-local function tocarSom(id, posicao)
-	if id == "rbxassetid://0" or id == "" then
+-- SFX: o Sound é CLONADO de dentro da Tool (Tool/SFX/<nome>). Nenhum caminho externo.
+-- Som posicional, sem :Destroy() — Debris tira de cena (§10).
+local pastaSFX = tool:FindFirstChild("SFX")
+
+local function tocarSom(nome, posicao)
+	if not pastaSFX then
+		return -- Tool sem SFX: silenciosa, nunca quebrada
+	end
+
+	local molde = pastaSFX:FindFirstChild(nome)
+	if not molde or not molde:IsA("Sound") then
 		return
 	end
 
@@ -120,11 +127,8 @@ local function tocarSom(id, posicao)
 	ancora.Size = Vector3.new(1, 1, 1)
 	ancora.CFrame = CFrame.new(posicao)
 
-	local som = Instance.new("Sound")
-	som.SoundId = id
-	som.Volume = CFG.SFX_VOLUME
-	som.PlaybackSpeed = CFG.SFX_PITCH
-	som.RollOffMaxDistance = CFG.SFX_ALCANCE
+	-- Clone do molde interno: volume, pitch e RollOff vêm configurados da instância da Tool
+	local som = molde:Clone()
 	som.Parent = ancora
 
 	ancora.Parent = workspace

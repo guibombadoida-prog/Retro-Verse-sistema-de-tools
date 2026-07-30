@@ -113,8 +113,20 @@ Copiar `_MODELO_DE_PASTA/` como ponto de partida. Atualizar `_INDICE.md`.
 | `RecargaGlobal` | NumberValue | segundos; 0 ou ausente = sem recarga |
 | `ChaveRecarga` | StringValue | só se Tools irmãs dividirem a recarga |
 
-5. **Copiar** o material aprovado do Acervo **para dentro da Tool**. Nunca referenciar o Acervo.
+5. **Copiar** o material aprovado do Acervo **para dentro da Tool** (Regra nº 1):
+
+   | Material | Destino dentro da Tool | Consumido por |
+   |---|---|---|
+   | `Sound` | `Tool/SFX/<Nome>` | `tocarSom(nome, posicao)` — clona o molde |
+   | Mesh, MeshPart, textura, `ParticleEmitter`, `Beam`, `Trail` | `Tool/Efeitos/<NOME>` | `molde(nome)` no `VFXModule` — clona |
+   | Poses R6 CFrame | ModuleScript `Poses` | `Poses.golpe()` / `Poses.extra()` |
+   | Geometria da arma | `Handle` e filhos | a própria Tool |
+
+   **Nunca referenciar o Acervo, `ReplicatedStorage`, `ServerStorage` ou `workspace`.**
+
 6. Preencher `CFG` com os números de balanceamento. Zero número mágico solto.
+   Volume, pitch e RollOff **não** vão para o `CFG` — são propriedades da instância dentro da Tool.
+7. Rodar `bash TESTES/verificar_autocontencao.sh` antes de considerar a montagem pronta.
 
 ---
 
@@ -122,6 +134,7 @@ Copiar `_MODELO_DE_PASTA/` como ponto de partida. Atualizar `_INDICE.md`.
 
 | Teste | Esperado |
 |---|---|
+| **Tool sozinha em place vazio** | **Funciona por inteiro — Regra nº 1** |
 | Equipar / desequipar / ativar | Sem erro no Output; `Equipped`/`Unequipped` disparam (exige Handle) |
 | Duas cópias da Tool na mochila | A recarga global trava **as duas** |
 | Desequipar durante a recarga | A recarga **não** zera |

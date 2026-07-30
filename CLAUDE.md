@@ -9,10 +9,25 @@ matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate
 
 ## Ordem de precedência das regras
 
-1. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence em qualquer conflito
-2. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
-3. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
-4. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+1. `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md` — **regra nº 1, vence tudo**
+2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
+3. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
+4. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
+5. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+
+## Regra nº 1 — autocontenção absoluta
+
+> **Nada de referência de script FORA da Tool.** Todo script, animação, VFX, SFX, mesh,
+> MeshPart, textura, som, pose e módulo é **obrigatoriamente** filho da Tool.
+
+**Teste que decide:** arraste a Tool sozinha para um place vazio — sem Acervo, sem Núcleo,
+sem `ReplicatedStorage`, sem `ServerStorage`. **Ela funciona por inteiro.**
+
+Não são violação: `_G.Combate` com guarda (global opcional, não caminho de instância),
+`parte.Parent = workspace` (escrever no mundo é saída; **ler** dele é dependência), e
+`rbxassetid://` dentro de instância que já é filha da Tool.
+
+Verificar sempre antes de fechar: `bash TESTES/verificar_autocontencao.sh`
 
 Ler as diretrizes **antes** de escrever qualquer Lua. Elas não são sugestão de estilo: várias
 proibições existem porque o oposto já causou bug em produção (ordem de `Name`/`Parent` na tag
@@ -22,8 +37,10 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 
 | Invariante | Verificação prática |
 |---|---|
+| **Tudo dentro da Tool** | `bash TESTES/verificar_autocontencao.sh` passa |
 | Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
-| Tool é autocontida | Apagar o Acervo do place não quebra Tool nenhuma |
+| Tool é autocontida | Tool sozinha em place vazio funciona por inteiro |
+| Asset vem de dentro | `Sound` clonado de `Tool/SFX/`; molde de VFX de `Tool/Efeitos/` |
 | Núcleo é a única porta de regra de combate | Zero `canDamage` / `IsTeamMate` / `TagHumanoid` fora de `NucleoCombate.lua` |
 | Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `_G.Combate.transmitirVFX` + `VFXRemote` |
 | Toda chamada ao Núcleo é opcional | Sempre `_G.Combate and _G.Combate.x(...) or <fallback>` |
