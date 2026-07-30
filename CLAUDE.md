@@ -12,9 +12,22 @@ matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate
 1. `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md` — **regra nº 1, vence tudo**
 2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
 3. `DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md` — quantas Tools saem de um modelo
-4. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
-5. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
-6. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+4. `DIRETRIZES/REGRA_ENTREGA_RBXMX.md` — todo modelo convertido sai como `.rbxmx`
+5. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
+6. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
+7. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+
+## Entrega é `.rbxmx`, não `.lua` solto
+
+Todo modelo convertido sai como **arquivo `.rbxmx` da Tool montada**, um por Tool, pronto para
+arrastar para o Studio. Instrução de montagem não é entrega.
+
+O `.rbxmx` é **derivado** dos `.lua` — nunca escrito à mão:
+
+```bash
+python3 FERRAMENTAS/montar_rbxmx.py     # editou o .lua? monta de novo
+python3 TESTES/verificar_rbxmx.py       # confere fonte byte a byte
+```
 
 ## Quantas Tools saem de um modelo
 
@@ -45,6 +58,7 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | Invariante | Verificação prática |
 |---|---|
 | **Tudo dentro da Tool** | `bash TESTES/verificar_autocontencao.sh` passa |
+| **Entrega é `.rbxmx`** | `python3 TESTES/verificar_rbxmx.py` passa |
 | Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
 | Tool é autocontida | Tool sozinha em place vazio funciona por inteiro |
 | Asset vem de dentro | `Sound` clonado de `Tool/SFX/`; molde de VFX de `Tool/Efeitos/` |
@@ -76,7 +90,8 @@ junto do `ARQUETIPO`.
 1. **Antes de criar efeito:** ler `ACERVO_RETROVERSE/_INDICE.md`. Se existe equivalente, reusar.
 2. **Material de terceiro:** pasta do modelo → depositar **CRU** → passe §12.12.2 → **APROVADO**.
    Sem os quatro campos da ficha (autor, origem, licença, data) o material fica CRU e não entra em Tool.
-3. **Ao finalizar:** depositar todo VFX/SFX/pose novo ou modificado e atualizar `_INDICE.md`.
+3. **Ao finalizar:** montar o `.rbxmx` de cada Tool, verificar, e depositar todo VFX/SFX/pose
+   novo ou modificado, atualizando `_INDICE.md`.
 4. **No relatório:** seção **"Delta do Acervo"** — o que entrou, o que foi reusado, o que mudou de status.
 
 Entrega sem Delta do Acervo é entrega incompleta.

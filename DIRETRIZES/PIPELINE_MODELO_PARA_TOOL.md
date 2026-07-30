@@ -130,11 +130,29 @@ Copiar `_MODELO_DE_PASTA/` como ponto de partida. Atualizar `_INDICE.md`.
 
 ---
 
+## Passo 6b — Montar o `.rbxmx`
+
+A entrega é o arquivo da Tool, não o `.lua` solto (`REGRA_ENTREGA_RBXMX.md`):
+
+```bash
+python3 FERRAMENTAS/montar_rbxmx.py
+python3 TESTES/verificar_rbxmx.py
+```
+
+O `.rbxmx` é **derivado** dos `.lua`. Editou o Lua, monta de novo. Editar o XML à mão é
+proibido — cria divergência silenciosa entre repositório e Studio.
+
+> Se o modelo de origem vier sem as `SharedStrings` de malha, toda `UnionOperation` dele
+> aponta para um blob de 0 byte e vira caixa cinza no Studio. Aí o `Handle` é **construído
+> com primitivas** no montador, e o achado vai para a `AUDITORIA.md`.
+
+---
+
 ## Passo 7 — Testar
 
 | Teste | Esperado |
 |---|---|
-| **Tool sozinha em place vazio** | **Funciona por inteiro — Regra nº 1** |
+| **Importar o `.rbxmx` sozinho num place vazio** | **A Tool funciona por inteiro — Regra nº 1** |
 | Equipar / desequipar / ativar | Sem erro no Output; `Equipped`/`Unequipped` disparam (exige Handle) |
 | Duas cópias da Tool na mochila | A recarga global trava **as duas** |
 | Desequipar durante a recarga | A recarga **não** zera |

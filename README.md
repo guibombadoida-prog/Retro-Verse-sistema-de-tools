@@ -17,6 +17,7 @@ O trabalho desta pasta é um só: **converter modelos (`.rbxm` / `.rbxmx`) em To
 | [`DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md`](DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md) | Base: classe `Tool`, Handle, debounce, proibições |
 | [`DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md`](DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md) | Núcleo de combate, material de terceiros, Acervo |
 | [`DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md`](DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md) | Quantas Tools saem de um modelo — piso 3, teto 7 |
+| [`DIRETRIZES/REGRA_ENTREGA_RBXMX.md`](DIRETRIZES/REGRA_ENTREGA_RBXMX.md) | Todo modelo convertido sai como `.rbxmx` |
 | [`DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md`](DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md) | Passo a passo da conversão modelo → Tool |
 | [`DIRETRIZES/CHECKLIST_ENTREGA.md`](DIRETRIZES/CHECKLIST_ENTREGA.md) | Checklist final, copiável, de toda entrega |
 
@@ -45,16 +46,24 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │       ├── FICHA.md
 │       └── VFX/ SFX/ R6_CFRAME/
 │
+├── FERRAMENTAS/                   ← Monta o .rbxmx a partir dos .lua
+│   └── montar_rbxmx.py
+│
 ├── TESTES/                        ← Bancada. Nada daqui vai para o place
-│   └── harness_NucleoCombate.lua
+│   ├── harness_NucleoCombate.lua
+│   ├── verificar_autocontencao.sh
+│   └── verificar_rbxmx.py
 │
 └── DIRETRIZES/                    ← As regras acima
 ```
 
-Verificação do Núcleo fora do Studio, depois de qualquer edição nele:
+Depois de qualquer edição:
 
 ```bash
-lua5.4 TESTES/harness_NucleoCombate.lua
+python3 FERRAMENTAS/montar_rbxmx.py       # regenera os .rbxmx a partir dos .lua
+python3 TESTES/verificar_rbxmx.py         # confere as Tools entregues
+bash    TESTES/verificar_autocontencao.sh # Regra nº 1
+lua5.4  TESTES/harness_NucleoCombate.lua  # pipeline de dano do Núcleo
 ```
 
 ### Mapeamento para o Studio

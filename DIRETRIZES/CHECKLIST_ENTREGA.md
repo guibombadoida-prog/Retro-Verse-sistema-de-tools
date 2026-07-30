@@ -33,6 +33,22 @@ bash TESTES/verificar_autocontencao.sh
 
 ---
 
+## ENTREGA — o `.rbxmx` da Tool montada
+
+```bash
+python3 FERRAMENTAS/montar_rbxmx.py
+python3 TESTES/verificar_rbxmx.py
+```
+
+- [ ] Existe um `.rbxmx` por Tool, na pasta da Tool
+- [ ] Foi **gerado pelo montador**, não editado à mão
+- [ ] `verificar_rbxmx.py` passa sem nenhuma falha
+- [ ] A fonte embutida bate byte a byte com os `.lua` do repositório
+- [ ] `Handle`, `Value`s, os 5 scripts, `VFXRemote` e `SFX/` estão dentro do arquivo
+- [ ] **Importar o `.rbxmx` sozinho num place vazio → a Tool funciona por inteiro**
+
+---
+
 ## Base da Tool (§14)
 
 - [ ] `CanBeDropped = false`
@@ -123,6 +139,9 @@ grep -rn 'require(' Tools/[NomeDaTool]/       # só Poses / VFXModule / R6CFrame
 ## Relatório (§13)
 
 ```
+## Arquivos .rbxmx entregues
+  [NomeDaTool].rbxmx — [tamanho] — [nº de scripts embutidos]
+
 ## Scripts Entregues — [Nome da Tool]
 Versão Atual: V[X]
 

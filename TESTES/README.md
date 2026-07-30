@@ -3,9 +3,22 @@
 Bancada de verificação. **Nada aqui vai para o place.**
 
 ```bash
-bash TESTES/verificar_autocontencao.sh     # Regra nº 1 — roda primeiro
+bash   TESTES/verificar_autocontencao.sh   # Regra nº 1 — roda primeiro
+python3 TESTES/verificar_rbxmx.py          # as Tools entregues
 lua5.4 TESTES/harness_NucleoCombate.lua    # pipeline de dano do Núcleo
 ```
+
+## `verificar_rbxmx.py`
+
+Confere que cada `.rbxmx` é uma Tool conforme e autocontida: raiz `Tool`, `CanBeDropped=false`,
+`RequiresHandle=true`, `Handle` com o nome exato, `DamageClass` preenchido, os cinco scripts do
+§12.10, `VFXRemote`, os `Sound` citados pelo `CFG`, e nenhuma referência fora da Tool.
+
+A verificação que sustenta a regra é a **6ª**: a fonte embutida no `.rbxmx` tem de ser
+**byte a byte** igual ao `.lua` do repositório. Sem ela, o arquivo entregue vira uma cópia
+velha em que ninguém repara.
+
+Testado contra uma Tool sabotada de propósito: pegou as 5 falhas e saiu com 1.
 
 ## `verificar_autocontencao.sh`
 

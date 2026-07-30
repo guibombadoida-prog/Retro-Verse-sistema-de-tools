@@ -29,6 +29,38 @@ Nenhuma habilidade foi cortada. 9 de 9 entregues.
 
 ---
 
+## Os arquivos entregues
+
+Um `.rbxmx` por Tool, dentro da pasta da Tool. **Arraste para o Studio e use.**
+
+| Arquivo | Tamanho | Scripts embutidos |
+|---|---|---|
+| `TemperoTemporal/TemperoTemporal.rbxmx` | 43,0 KB | 5 |
+| `Cronostase/Cronostase.rbxmx` | 38,8 KB | 5 |
+| `AvancoRapido/AvancoRapido.rbxmx` | 45,5 KB | 5 |
+| `CanhaoCronos/CanhaoCronos.rbxmx` | 39,7 KB | 5 |
+| `Temporalise/Temporalise.rbxmx` | 39,6 KB | 5 |
+| `ArmadilhaTemporal/ArmadilhaTemporal.rbxmx` | 42,7 KB | 5 |
+| `AvoDoTempo/AvoDoTempo.rbxmx` | 46,8 KB | 5 |
+
+Cada arquivo já traz `Handle`, os `Value`s, os cinco scripts, `VFXRemote` (e `AcaoRemote` onde
+há Extra), a pasta `SFX/` com os `Sound` configurados e a pasta `Efeitos/`.
+
+```bash
+python3 FERRAMENTAS/montar_rbxmx.py     # regenera a partir dos .lua
+python3 TESTES/verificar_rbxmx.py       # confere as 7
+```
+
+### Sobre o Handle
+
+O `.rbxmx` de origem foi salvo com as `SharedStrings` de malha **vazias**: toda
+`UnionOperation` dele aponta para um blob de 0 byte e apareceria como caixa cinza no Studio.
+Por isso o `Handle` é um relógio de bolso **montado com primitivas** — corpo, aro, mostrador,
+dois ponteiros e pino, soldados por `WeldConstraint`. Geometria de verdade, sem depender de
+nada de fora (Regra nº 1).
+
+Trocar por um mesh próprio depois é só substituir o `Handle` e remontar.
+
 ## O que cada Tool tem
 
 Todas seguem a mesma árvore (§12.10 + Regra nº 1). Ver o `ESTRUTURA.md` dentro de cada pasta.
@@ -75,9 +107,10 @@ Todos vivem no bloco `CFG` do topo do respectivo Server Script. Zero número má
 
 ## Antes de pôr em jogo
 
+- [ ] `python3 TESTES/verificar_rbxmx.py`
 - [ ] `bash TESTES/verificar_autocontencao.sh`
 - [ ] `DIRETRIZES/CHECKLIST_ENTREGA.md` — inclusive os testes de aceitação no Studio
-- [ ] Cada Tool sozinha em place vazio → funciona por inteiro
+- [ ] Importar cada `.rbxmx` sozinho num place vazio → a Tool funciona por inteiro
 - [ ] Ler o aviso das **duas chaves de recarga** no `ESTRUTURA.md` das Tools 4, 5, 6 e 7
 
 ## Origem e auditoria
