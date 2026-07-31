@@ -6,12 +6,15 @@
 - **Licença / permissão:** **a confirmar** — presumido free model público, uso audiovisual.
   ⚠️ Campo obrigatório de §12.12.3.
 - **Data de entrada:** 2026-07-31
-- **Status: CRU**   (CRU | LIMPO | APROVADO)
-- **Violações corrigidas:** nenhuma ainda. O material foi **inventariado e auditado**,
-  não reescrito — ver `LOGICA/HABILIDADES.md` para a lista de achados
+- **Status: LIMPO**   (CRU | LIMPO | APROVADO)
+  Passe §12.12.2 executado sobre os emissores que entraram no Guardião do Tempo.
+  O resto do modelo segue CRU.
+- **Violações corrigidas:** nos emissores aproveitados — `Enabled` na origem e o cliente
+  liga por `Enabled` + `Rate` (zero `:Emit()`); cor trocada para a paleta do Guardião.
+  O restante do modelo **não** foi reescrito — ver `LOGICA/HABILIDADES.md`
 - **Excluído do acervo:** a definir no passe. Já identificados como insalváveis:
   `Animation` (asset), `ColorCorrectionEffect`, `ScreenGui`, `Sky`
-- **Já usado em:** —
+- **Já usado em:** conjunto Guardião do Tempo (V2) — `RAIO_TEMPORAL` (Plasma + Clarão), `FAISCA` (Anel), `AURA`
 
 > ⚠️ **Sem os quatro campos acima — autor, origem, licença, data — este material
 > fica CRU e NÃO pode entrar em Tool** (§12.12.3).

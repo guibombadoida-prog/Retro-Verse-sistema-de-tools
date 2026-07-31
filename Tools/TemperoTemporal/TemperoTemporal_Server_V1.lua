@@ -48,6 +48,8 @@ local CFG = {
 
 	SFX_GOLPE       = "Golpe",
 	SFX_ONDA        = "Onda",
+	SFX_ESTILHACO   = "Estilhaco",   -- V2
+	SFX_FAISCA      = "Faisca",      -- V2
 	VIDA_SOM        = 3,
 }
 
@@ -206,6 +208,7 @@ tool.Activated:Connect(function()
 
 		tocarSom(CFG.SFX_ONDA, centro)
 		transmitir("ONDA_TEMPORAL", centro, CFG.ESCALA_ONDA + pulso * 0.35)
+		transmitir("FAISCA", centro, CFG.ESCALA_ONDA)
 
 		task.wait(CFG.INTERVALO_PULSO)
 		pulso = pulso + 1
@@ -219,8 +222,12 @@ tool.Activated:Connect(function()
 		empurrar(alvo, centro, CFG.ARREMESSO)
 	end
 
+	tocarSom(CFG.SFX_ESTILHACO, centro)
+	tocarSom(CFG.SFX_FAISCA, centro)
 	transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALA_IMPACTO)
 	transmitir("DETRITOS", centro, CFG.ESCALA_IMPACTO)
+	transmitir("ESTILHACO_ESTELAR", centro, CFG.ESCALA_IMPACTO)
+	transmitir("FAISCA", centro, CFG.ESCALA_IMPACTO)
 	transmitir("TREMOR", centro, 1.0)
 
 	for _, alvo in ipairs(atingidos) do
@@ -242,6 +249,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

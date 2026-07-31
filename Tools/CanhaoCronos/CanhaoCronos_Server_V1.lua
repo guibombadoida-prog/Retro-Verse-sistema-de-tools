@@ -50,6 +50,8 @@ local CFG = {
 
 	SFX_CARGA        = "Carga",
 	SFX_DISPARO      = "Disparo",
+	SFX_RAIO         = "Raio",       -- V2
+	SFX_IMPACTO      = "Impacto",    -- V2
 	VIDA_SOM         = 4,
 }
 
@@ -186,6 +188,8 @@ tool.Activated:Connect(function()
 	tocarSom(CFG.SFX_CARGA, handle.Position)
 	transmitir("ESFERA_TEMPORAL", handle.Position, CFG.ESCALA_CARGA)
 	transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_CARGA)
+	tocarSom(CFG.SFX_RAIO, handle.Position)
+	transmitir("RAIO_TEMPORAL", handle.Position, CFG.ESCALA_CARGA)
 	task.wait(CFG.CARGA)
 
 	-- DISPARO — SFX → física → VFX → dano (§8 V2)
@@ -202,6 +206,7 @@ tool.Activated:Connect(function()
 		local ponto = origem + direcao * (trecho * segmento)
 
 		transmitir("ONDA_TEMPORAL", ponto, CFG.ESCALA_FEIXE)
+		transmitir("RAIO_TEMPORAL", ponto, CFG.ESCALA_FEIXE)
 
 		local alvos = alvosEm(ponto, CFG.RAIO_SEGMENTO, personagem, jogador, humanoide)
 		for _, alvo in ipairs(alvos) do
@@ -209,8 +214,10 @@ tool.Activated:Connect(function()
 			if not jaAtingidos[alvo] then
 				jaAtingidos[alvo] = true
 				aplicarDano(jogador, alvo, CFG.DANO)
+				tocarSom(CFG.SFX_IMPACTO, ponto)
 				transmitir("ESFERA_TEMPORAL", ponto, CFG.ESCALA_ESTOURO)
 				transmitir("DETRITOS", ponto, CFG.ESCALA_FEIXE)
+				transmitir("FAISCA", ponto, CFG.ESCALA_ESTOURO)
 			end
 		end
 
@@ -233,6 +240,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

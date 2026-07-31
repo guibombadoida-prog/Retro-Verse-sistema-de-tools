@@ -48,6 +48,8 @@ local CFG = {
 
 	SFX_PARADA       = "Parada",
 	SFX_RETOMADA     = "Retomada",
+	SFX_ESTELAR      = "Estelar",    -- V2
+	SFX_BRASA        = "Brasa",      -- V2
 	VIDA_SOM         = 4,
 }
 
@@ -237,18 +239,23 @@ tool.Activated:Connect(function()
 		local raizAlvo = corpoAlvo and corpoAlvo:FindFirstChild("HumanoidRootPart")
 		if raizAlvo then
 			transmitir("MOSTRADOR_TEMPORAL", raizAlvo.Position, CFG.ESCALA_MARCA)
+			transmitir("ESTILHACO_ESTELAR", raizAlvo.Position, CFG.ESCALA_MARCA)
 		end
 	end
 
+	tocarSom(CFG.SFX_ESTELAR, centro)
 	transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALA_PARADA)
 	transmitir("MOSTRADOR_TEMPORAL", centro, CFG.ESCALA_PARADA)
+	transmitir("ESTILHACO_ESTELAR", centro, CFG.ESCALA_PARADA)
 	transmitir("TREMOR", centro, 1.0)
 
 	task.wait(CFG.DURACAO_PARADA)
 
 	-- O tempo volta
 	tocarSom(CFG.SFX_RETOMADA, centro)
+	tocarSom(CFG.SFX_BRASA, centro)
 	transmitir("ONDA_TEMPORAL", centro, CFG.ESCALA_RETOMADA)
+	transmitir("BRASA", centro, CFG.ESCALA_RETOMADA)
 	soltarTodos()
 
 	task.wait(CFG.RECARGA)
@@ -266,6 +273,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

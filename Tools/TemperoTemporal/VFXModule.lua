@@ -21,6 +21,19 @@
 
 	Regra nº 1: mesh, MeshPart, textura e emitter vêm de Tool/Efeitos/. Nada de fora.
 
+	V2 — ACRESCENTADOS (os cinco de cima continuam intactos):
+
+		RAIO_TEMPORAL      Plasma + clarão, do gerador de raio do Jupiter Great Sword
+		ESTILHACO_ESTELAR  Estrelas + cintilar, do Sword of Cosmic Entity
+		BRASA              Brasa + fumaça, do Sword of Cosmic Entity
+		FAISCA             Faísca + anel de impacto, dos dois modelos
+		AURA               Aura presa ao Handle, do Jupiter
+
+	Estes cinco usam ParticleEmitter DE VERDADE, que moram em Tool/Efeitos/<TIPO>.
+	O molde é clonado, posicionado e ligado por `Enabled` — nunca por `:Emit()`,
+	que é a correção prescrita no §12.12.2. Sem o molde, o efeito não acontece e
+	a Tool segue funcionando: degrada, não quebra.
+
 	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/VFX/
 --]]
 
@@ -67,6 +80,13 @@ local CFG = {
 	TREMOR_FREQ_A   = 37.0,         -- frequências primas entre si: o jitter não repete padrão
 	TREMOR_FREQ_B   = 43.0,
 	TREMOR_FREQ_C   = 29.0,
+
+	-- Efeitos por emissor (V2)
+	EMISSAO_CURTA   = 0.12,        -- s de Enabled num estouro
+	EMISSAO_MEDIA   = 0.30,
+	EMISSAO_LONGA   = 0.60,
+	VIDA_MOLDE      = 6.0,         -- s até o molde sair de cena, já apagado
+	AURA_DURACAO    = 2.5,
 
 	MARGEM_DEBRIS   = 0.5,
 }
@@ -366,6 +386,95 @@ function VFX.TREMOR(payload)
 			humanoide.CameraOffset = Vector3.new(0, 0, 0)
 		end
 	end)
+end
+
+
+--==============================================================================
+-- V2 — EFEITOS POR EMISSOR
+-- Molde de Tool/Efeitos/, ligado por Enabled. Zero :Emit() (§12.12.2).
+--==============================================================================
+
+-- Liga os emissores de um molde por `duracao`, depois desliga e recolhe.
+-- Desligar antes de recolher deixa as partículas já emitidas viverem até o fim
+-- do Lifetime delas — recolher direto cortaria o efeito no meio.
+local function dispararMolde(nome, posicao, escala, duracao, prender)
+	local peca = molde(nome)
+	if not peca then
+		return nil
+	end
+
+	peca.Name = "VFX_" .. nome
+	peca.CFrame = CFrame.new(posicao)
+	peca.Size = Vector3.new(0.4, 0.4, 0.4) * math.max(escala, 0.1)
+	peca.Parent = workspace
+
+	local emissores = {}
+	for _, filho in ipairs(peca:GetChildren()) do
+		if filho:IsA("ParticleEmitter") then
+			table.insert(emissores, filho)
+			filho.Enabled = true
+		end
+	end
+
+	task.delay(duracao, function()
+		for _, emissor in ipairs(emissores) do
+			emissor.Enabled = false
+		end
+	end)
+
+	if not prender then
+		Debris:AddItem(peca, CFG.VIDA_MOLDE)
+	end
+	return peca
+end
+
+-- "RAIO_TEMPORAL" — plasma + clarão. O raio do Jupiter, na cor do Guardião.
+function VFX.RAIO_TEMPORAL(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	dispararMolde("RAIO_TEMPORAL", payload.posicao, lerEscala(payload),
+		CFG.EMISSAO_CURTA, false)
+end
+
+-- "ESTILHACO_ESTELAR" — estrelas abrindo, do Sword of Cosmic Entity
+function VFX.ESTILHACO_ESTELAR(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	dispararMolde("ESTILHACO_ESTELAR", payload.posicao, lerEscala(payload),
+		CFG.EMISSAO_MEDIA, false)
+end
+
+-- "BRASA" — brasa subindo + fumaça
+function VFX.BRASA(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	dispararMolde("BRASA", payload.posicao, lerEscala(payload),
+		CFG.EMISSAO_LONGA, false)
+end
+
+-- "FAISCA" — faísca rasante + anel de impacto
+function VFX.FAISCA(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	dispararMolde("FAISCA", payload.posicao, lerEscala(payload),
+		CFG.EMISSAO_CURTA, false)
+end
+
+-- "AURA" — fica presa no ponto por alguns segundos, não é estouro
+function VFX.AURA(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+
+	local peca = dispararMolde("AURA", payload.posicao, lerEscala(payload),
+		CFG.AURA_DURACAO, true)
+	if peca then
+		Debris:AddItem(peca, CFG.AURA_DURACAO + CFG.VIDA_MOLDE)
+	end
 end
 
 --==============================================================================

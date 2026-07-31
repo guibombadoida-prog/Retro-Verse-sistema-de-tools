@@ -30,7 +30,7 @@ Nenhuma habilidade foi cortada. 9 de 9 entregues.
 
 ## A entrega — um arquivo só
 
-### `Tools/GuardiaoDoTempo_7_Tools.rbxmx` — 297 KB, as 7 Tools, 35 scripts
+### `Tools/GuardiaoDoTempo_7_Tools.rbxmx` — 392 KB, as 7 Tools, 35 scripts, 37 emissores
 
 **Botão direito na `StarterPack` → Insert from File → escolha o arquivo.** As 7 Tools entram
 de uma vez.
@@ -39,19 +39,54 @@ As Tools ficam na **raiz** do arquivo, não dentro de uma `Folder`: `Folder` na 
 não entrega nada ao jogador. O verificador barra essa armadilha.
 
 Cada Tool já traz `Handle`, os `Value`s, os cinco scripts, `VFXRemote` (e `AcaoRemote` onde há
-Extra), a pasta `SFX/` com os `Sound` configurados e a pasta `Efeitos/`.
+Extra), a pasta `SFX/` com os `Sound` configurados e a pasta `Efeitos/` com os moldes de
+partícula.
+
+## V2 — o que foi ACRESCENTADO
+
+Nada foi trocado. Os cinco efeitos originais (`ONDA_TEMPORAL`, `ESFERA_TEMPORAL`,
+`MOSTRADOR_TEMPORAL`, `DETRITOS`, `TREMOR`) e os sons originais continuam exatamente como
+estavam. Entraram **por cima**:
+
+| Novo efeito | Origem | Emissores | Onde entra |
+|---|---|---|---|
+| `RAIO_TEMPORAL` | Jupiter Great Sword | `Plasma` + `Clarao` | Carga e feixe do CanhaoCronos; abertura e badaladas pares do AvoDoTempo |
+| `ESTILHACO_ESTELAR` | Sword of Cosmic Entity | `Estrelas` + `Cintilar` | Arremesso do TemperoTemporal, marca e retorno da Cronostase, parada da Temporálise, badaladas ímpares |
+| `BRASA` | Sword of Cosmic Entity | `Brasa` + `Fumaca` | Carga do AvancoRapido, retomada da Temporálise, plantio e estouro da Armadilha |
+| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | Pulsos do TemperoTemporal, detonação, impacto do feixe, gatilho da Armadilha |
+| `AURA` | Jupiter Great Sword | `Aura` | `Equipped` das 7 — fica no Handle enquanto a Tool está na mão |
+
+**37 `ParticleEmitter` de verdade**, dentro de `Tool/Efeitos/`. As curvas (Size, Transparency,
+Rate, Speed, Lifetime) são as extraídas dos modelos de origem; a cor foi trocada para a paleta
+do Guardião. Ligados por `Enabled` + `Rate` — **zero `:Emit()`**, que é a correção prescrita
+no §12.12.2.
+
+Sons acrescentados, também por cima dos que já existiam:
+
+| Tool | Antes | Agora |
+|---|---|---|
+| `TemperoTemporal` | Golpe, Onda | + `Estilhaco`, `Faisca` |
+| `Cronostase` | Marca, Retorno | + `Estelar` |
+| `AvancoRapido` | Avanco, Aceleracao | + `Estouro`, `Brasa` |
+| `CanhaoCronos` | Carga, Disparo | + `Raio`, `Impacto` |
+| `Temporalise` | Parada, Retomada | + `Estelar`, `Brasa` |
+| `ArmadilhaTemporal` | Plantar, Disparo | + `Brasa`, `Faisca` |
+| `AvoDoTempo` | Badalada, Voz, Provocacao | + `Supernova`, `Raio`, `Estouro` |
+
+Sem molde em `Efeitos/`, o efeito novo simplesmente não acontece e a Tool segue funcionando —
+degrada, não quebra.
 
 ### Individuais, se você quiser só uma
 
 | Arquivo | Tamanho |
 |---|---|
-| `TemperoTemporal/TemperoTemporal.rbxmx` | 43,0 KB |
-| `Cronostase/Cronostase.rbxmx` | 38,8 KB |
-| `AvancoRapido/AvancoRapido.rbxmx` | 47,9 KB |
-| `CanhaoCronos/CanhaoCronos.rbxmx` | 39,7 KB |
-| `Temporalise/Temporalise.rbxmx` | 39,6 KB |
-| `ArmadilhaTemporal/ArmadilhaTemporal.rbxmx` | 42,7 KB |
-| `AvoDoTempo/AvoDoTempo.rbxmx` | 46,8 KB |
+| `TemperoTemporal/TemperoTemporal.rbxmx` | 56,0 KB |
+| `Cronostase/Cronostase.rbxmx` | 48,2 KB |
+| `AvancoRapido/AvancoRapido.rbxmx` | 60,8 KB |
+| `CanhaoCronos/CanhaoCronos.rbxmx` | 52,8 KB |
+| `Temporalise/Temporalise.rbxmx` | 52,6 KB |
+| `ArmadilhaTemporal/ArmadilhaTemporal.rbxmx` | 55,7 KB |
+| `AvoDoTempo/AvoDoTempo.rbxmx` | 67,1 KB |
 
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py     # regenera a partir dos .lua

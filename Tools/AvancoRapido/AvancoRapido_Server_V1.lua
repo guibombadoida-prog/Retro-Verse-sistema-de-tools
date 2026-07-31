@@ -64,6 +64,8 @@ local CFG = {
 
 	SFX_AVANCO       = "Avanco",
 	SFX_ACELERACAO   = "Aceleracao",
+	SFX_ESTOURO      = "Estouro",    -- V2
+	SFX_BRASA        = "Brasa",      -- V2
 	VIDA_SOM         = 3,
 }
 
@@ -241,6 +243,7 @@ tool.Activated:Connect(function()
 			pulso = CFG.PULSOS_CARGA + 1
 		else
 			transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MOSTRADOR * (0.6 + pulso * 0.25))
+			transmitir("BRASA", raiz.Position, 0.6 + pulso * 0.2)
 			task.wait(intervalo)
 			pulso = pulso + 1
 		end
@@ -258,7 +261,11 @@ tool.Activated:Connect(function()
 	local centro = raiz.Position
 
 	tocarSom(CFG.SFX_ACELERACAO, centro)
+	tocarSom(CFG.SFX_ESTOURO, centro)
+	tocarSom(CFG.SFX_BRASA, centro)
 	transmitir("TREMOR", centro, 2.4)
+	transmitir("FAISCA", centro, 3.0)
+	transmitir("BRASA", centro, 3.0)
 
 	for indice = 1, #CFG.ESCALAS_ESFERA do
 		transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALAS_ESFERA[indice])
@@ -328,6 +335,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 	humanoideEquipado = humanoide
 
 	if humanoide then

@@ -46,39 +46,186 @@ CATALOGO = {
     "TemperoTemporal": {
         "tooltip": "Tempero Temporal - recolhe o tempo em volta e devolve tudo de uma vez",
         "classe": "Melee", "energia": 0, "recarga": 0, "extra": False,
-        "sfx": {"Golpe": (588694531, 5.0, 1.0, 60), "Onda": (588738949, 5.0, 1.0, 60)},
+        "sfx": {"Golpe": (588694531, 5.0, 1.0, 60), "Onda": (588738949, 5.0, 1.0, 60),
+                "Estilhaco": (935843979, 5.0, 1.0, 60), "Faisca": (785201669, 4.0, 1.2, 60)},
     },
     "Cronostase": {
         "tooltip": "Cronostase - marca um ponto no tempo. Ative de novo para voltar a ele",
         "classe": "Magic", "energia": 0, "recarga": 0, "extra": False,
-        "sfx": {"Marca": (588738949, 5.0, 1.0, 60), "Retorno": (782202168, 5.0, 1.0, 60)},
+        "sfx": {"Marca": (588738949, 5.0, 1.0, 60), "Retorno": (782202168, 5.0, 1.0, 60),
+                "Estelar": (1846396833, 5.0, 1.0, 60)},
     },
     "AvancoRapido": {
         "tooltip": "Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera",
         "classe": "Magic", "energia": 0, "recarga": 60, "extra": True,
-        "sfx": {"Avanco": (447682521, 4.0, 0.7, 60), "Aceleracao": (743521450, 4.0, 1.5, 60)},
+        "sfx": {"Avanco": (447682521, 4.0, 0.7, 60), "Aceleracao": (743521450, 4.0, 1.5, 60),
+                "Estouro": (763717897, 6.0, 0.9, 90), "Brasa": (114121130345944, 5.0, 1.0, 80)},
     },
     "CanhaoCronos": {
         "tooltip": "Canhão Cronos - concentra o tempo numa linha e solta",
         "classe": "Ranged", "energia": 0, "recarga": 9, "extra": False,
-        "sfx": {"Carga": (743521450, 4.0, 0.8, 70), "Disparo": (908895929, 5.0, 1.5, 80)},
+        "sfx": {"Carga": (743521450, 4.0, 0.8, 70), "Disparo": (908895929, 5.0, 1.5, 80),
+                "Raio": (96478259, 5.0, 1.1, 80), "Impacto": (9125403260, 5.0, 1.0, 70)},
     },
     "Temporalise": {
         "tooltip": "Temporálise - o tempo para para todo mundo, menos para você",
         "classe": "Debuff", "energia": 0, "recarga": 22, "extra": False,
-        "sfx": {"Parada": (447682521, 5.0, 0.7, 80), "Retomada": (743521450, 4.0, 3.0, 80)},
+        "sfx": {"Parada": (447682521, 5.0, 0.7, 80), "Retomada": (743521450, 4.0, 3.0, 80),
+                "Estelar": (1846396833, 5.0, 0.9, 80), "Brasa": (6271036459, 4.0, 1.0, 70)},
     },
     "ArmadilhaTemporal": {
         "tooltip": "Armadilha Temporal - deixe o tempo esperando por alguém",
         "classe": "Summon", "energia": 0, "recarga": 5, "extra": False,
-        "sfx": {"Plantar": (447682521, 4.0, 0.7, 60), "Disparo": (782199941, 6.0, 1.5, 70)},
+        "sfx": {"Plantar": (447682521, 4.0, 0.7, 60), "Disparo": (782199941, 6.0, 1.5, 70),
+                "Brasa": (114121130345944, 4.0, 1.1, 70), "Faisca": (785201669, 4.0, 1.2, 60)},
     },
     "AvoDoTempo": {
         "tooltip": "Avô do Tempo - a hora chega para todos. T provoca",
         "classe": "Magic", "energia": 0, "recarga": 45, "extra": True,
         "sfx": {"Badalada": (850256806, 7.0, 1.0, 80), "Voz": (819312817, 7.0, 1.0, 80),
-                "Provocacao": (819373088, 7.0, 1.0, 80)},
+                "Provocacao": (819373088, 7.0, 1.0, 80),
+                "Supernova": (95335614812989, 8.0, 1.0, 90), "Raio": (96478346, 6.0, 1.0, 85), "Estouro": (401056199, 7.0, 0.9, 90)},
     },
+}
+
+
+# ---------------------------------------------------------------- efeitos novos
+#
+# ACRESCENTADOS ao conjunto Guardião do Tempo. Os cinco efeitos originais
+# (ONDA_TEMPORAL, ESFERA_TEMPORAL, MOSTRADOR_TEMPORAL, DETRITOS, TREMOR)
+# continuam existindo e não foram tocados — estes entram POR CIMA.
+#
+# Curvas (Size, Transparency, Rate, Speed, Lifetime) são as do modelo de origem,
+# extraídas por FERRAMENTAS/extrair_rbxm.py. A COR foi trocada para a paleta do
+# Guardião, que é o que costura o material de dois modelos diferentes no mesmo
+# conjunto — a leitura visual é do Guardião, o comportamento é do original.
+#
+# Passe §12.12.2 aplicado: Enabled = false na origem, e o cliente liga por
+# Enabled + Rate. Zero :Emit(), no servidor ou fora dele.
+
+VERDE = (0.604, 0.804, 0.196)      # 154,205,50 — BASECOLOR do Guardião
+VERDE_CLARO = (0.78, 0.95, 0.45)
+BRANCO = (1.0, 1.0, 1.0)
+
+EFEITOS = {
+    # Jupiter: PlasmaEmitter + ExplosionBrightspot do gerador de raio
+    "RAIO_TEMPORAL": [
+        ("Plasma", {
+            "textura": "rbxasset://textures/particles/sparkles_main.dds",
+            "rate": 10000.0, "vida": (0.1, 0.2), "velocidade": (100.0, 100.0),
+            "tamanho": [(0.0, 18.0, 0.0), (1.0, 18.0, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 0.3, 0.0)],
+            "cor": [(0.0, VERDE_CLARO), (1.0, VERDE)],
+            "emissao": 1.0, "influencia": 1.0, "brilho": 1.0,
+            "rotacao": (0.0, 360.0), "zoffset": 5.0,
+        }),
+        ("Clarao", {
+            "textura": "rbxassetid://243098098",
+            "rate": 1000.0, "vida": (0.2, 0.2), "velocidade": (0.0, 0.0),
+            "tamanho": [(0.0, 10.0, 0.0), (0.1166, 0.2105, 0.2105),
+                        (0.342, 9.5263, 0.4737), (0.4785, 0.8421, 0.8421),
+                        (0.6733, 9.7895, 0.0), (0.7929, 1.6316, 1.6316),
+                        (1.0, 10.0, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            "cor": [(0.0, VERDE_CLARO), (1.0, VERDE_CLARO)],
+            "emissao": 1.0, "influencia": 0.0, "brilho": 10.0,
+            "rotacao": (0.0, 360.0), "zoffset": 2.0,
+        }),
+    ],
+
+    # Cosmic Entity: StarSplash + Stars
+    "ESTILHACO_ESTELAR": [
+        ("Estrelas", {
+            "textura": "rbxassetid://1141830599",
+            "rate": 600.0, "vida": (1.0, 2.0), "velocidade": (50.0, 100.0),
+            "tamanho": [(0.0, 7.0, 3.0), (0.1, 7.0, 3.0), (0.2, 7.0, 3.0),
+                        (0.35, 0.0, 0.0), (0.5, 7.0, 3.0), (0.7, 7.0, 3.0),
+                        (1.0, 0.0, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, VERDE)],
+            "emissao": 1.0, "influencia": 0.0, "brilho": 1.0,
+            "rotacao": (20.0, 20.0), "arrasto": 2.0,
+        }),
+        ("Cintilar", {
+            "textura": "rbxassetid://5242069486",
+            "rate": 50.0, "vida": (1.0, 1.0), "velocidade": (1.0, 1.0),
+            "tamanho": [(0.0, 0.0, 0.0), (0.1, 1.0, 0.0), (0.3, 1.0, 0.0),
+                        (0.5, 1.0, 0.0), (0.7, 1.0, 0.0), (1.0, 0.0, 0.0)],
+            "transparencia": [(0.0, 0.3, 0.0), (1.0, 0.999, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, VERDE_CLARO)],
+            "emissao": 1.0, "influencia": 0.0, "brilho": 1.0,
+        }),
+    ],
+
+    # Cosmic Entity: Ember + Explosion_Smoke
+    "BRASA": [
+        ("Brasa", {
+            "textura": "rbxasset://textures/particles/sparkles_main.dds",
+            "rate": 1000.0, "vida": (4.0, 5.0), "velocidade": (50.0, 75.0),
+            "tamanho": [(0.0, 2.0, 0.0), (1.0, 2.0, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, VERDE), (1.0, VERDE_CLARO)],
+            "emissao": 1.0, "influencia": 1.0, "brilho": 1.0,
+            "aceleracao": (0.0, 10.0, 0.0),
+        }),
+        ("Fumaca", {
+            "textura": "rbxasset://textures/particles/smoke_main.dds",
+            "rate": 300.0, "vida": (1.0, 1.42), "velocidade": (23.3, 23.3),
+            "tamanho": [(0.0, 0.125, 0.0), (1.0, 8.25, 0.0)],
+            "transparencia": [(0.0, 0.35, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, VERDE_CLARO), (1.0, BRANCO)],
+            "emissao": 0.0, "influencia": 1.0, "brilho": 1.0,
+            "rotacao": (-180.0, 180.0), "giro": (0.0, 180.0),
+            "aceleracao": (0.0, 8.0, 0.0), "direcao": 0,
+        }),
+    ],
+
+    # Cosmic Entity: Sparks  +  Jupiter: Impact
+    "FAISCA": [
+        ("Faisca", {
+            "textura": "rbxassetid://4584076139",
+            "rate": 150.0, "vida": (0.5, 0.5), "velocidade": (150.0, 150.0),
+            "tamanho": [(0.0, 6.0, 0.0), (1.0, 0.0, 0.0)],
+            "transparencia": [(0.0, 1.0, 0.0), (0.52, 0.0, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, VERDE_CLARO)],
+            "emissao": 1.0, "influencia": 0.0, "brilho": 1.0,
+            "zoffset": 4.0, "arrasto": 0.5, "direcao": 5, "orientacao": 2,
+        }),
+        ("Anel", {
+            "textura": "rbxassetid://4566568378",
+            "rate": 8.0, "vida": (0.1, 0.1), "velocidade": (0.0, 0.0),
+            "tamanho": [(0.0, 1.0, 0.0), (1.0, 8.5, 1.5)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            "cor": [(0.0, VERDE_CLARO), (1.0, VERDE)],
+            "emissao": 0.75, "influencia": 0.0, "brilho": 1.0,
+            "rotacao": (-180.0, 180.0), "zoffset": 2.0,
+        }),
+    ],
+
+    # Jupiter: Flash_Particle — aura presa ao Handle, não é disparo
+    "AURA": [
+        ("Aura", {
+            "textura": "rbxassetid://12156297119",
+            "rate": 2.0, "vida": (1.25, 1.25), "velocidade": (0.05, 0.05),
+            "tamanho": [(0.0, 5.0, 0.0), (1.0, 5.0, 0.0)],
+            "transparencia": [(0.0, 0.35, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, VERDE), (1.0, VERDE_CLARO)],
+            "emissao": 1.0, "influencia": 1.0, "brilho": 1.0,
+            "zoffset": 5.0, "preso": True,
+        }),
+    ],
+}
+
+# Que efeitos novos entram em cada Tool. A escolha é por tema, não por sobra.
+EFEITOS_POR_TOOL = {
+    "TemperoTemporal":   ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
+    "Cronostase":        ["ESTILHACO_ESTELAR", "AURA"],
+    "AvancoRapido":      ["BRASA", "FAISCA", "AURA"],
+    "CanhaoCronos":      ["RAIO_TEMPORAL", "FAISCA", "AURA"],
+    "Temporalise":       ["ESTILHACO_ESTELAR", "BRASA", "AURA"],
+    "ArmadilhaTemporal": ["BRASA", "FAISCA", "AURA"],
+    "AvoDoTempo":        ["RAIO_TEMPORAL", "ESTILHACO_ESTELAR", "BRASA",
+                          "FAISCA", "AURA"],
 }
 
 
@@ -158,6 +305,58 @@ class Montador:
     def p_ref(self, item, nome, alvo):
         e = ET.SubElement(self.props(item), "Ref", {"name": nome})
         e.text = alvo
+
+    def p_numseq(self, item, nome, pontos):
+        """NumberSequence: lista plana de (tempo valor envelope)."""
+        e = ET.SubElement(self.props(item), "NumberSequence", {"name": nome})
+        e.text = " ".join("%g %g %g" % (t, v, env) for t, v, env in pontos) + " "
+
+    def p_colorseq(self, item, nome, pontos):
+        """ColorSequence: lista plana de (tempo r g b envelope)."""
+        e = ET.SubElement(self.props(item), "ColorSequence", {"name": nome})
+        e.text = " ".join("%g %g %g %g 0" % (t, r, g, b)
+                          for t, (r, g, b) in pontos) + " "
+
+    def p_numrange(self, item, nome, lo, hi):
+        e = ET.SubElement(self.props(item), "NumberRange", {"name": nome})
+        e.text = "%g %g " % (lo, hi)
+
+    def p_color3(self, item, nome, rgb):
+        e = ET.SubElement(self.props(item), "Color3", {"name": nome})
+        for eixo, v in zip(("R", "G", "B"), rgb):
+            ET.SubElement(e, eixo).text = repr(float(v))
+
+    def emissor(self, pai, nome, cfg):
+        """ParticleEmitter com os parâmetros extraídos do modelo de origem."""
+        it = self.item(pai, "ParticleEmitter")
+        self.p_string(it, "Name", nome)
+        self.p_conteudo(it, "Texture", cfg["textura"])
+        self.p_float(it, "Rate", cfg["rate"])
+        self.p_numrange(it, "Lifetime", *cfg["vida"])
+        self.p_numrange(it, "Speed", *cfg["velocidade"])
+        self.p_numseq(it, "Size", cfg["tamanho"])
+        self.p_numseq(it, "Transparency", cfg["transparencia"])
+        self.p_colorseq(it, "Color", cfg["cor"])
+        self.p_float(it, "LightEmission", cfg.get("emissao", 1.0))
+        self.p_float(it, "LightInfluence", cfg.get("influencia", 0.0))
+        self.p_float(it, "Brightness", cfg.get("brilho", 1.0))
+        self.p_numrange(it, "Rotation", *cfg.get("rotacao", (0.0, 0.0)))
+        self.p_numrange(it, "RotSpeed", *cfg.get("giro", (0.0, 0.0)))
+        self.p_float(it, "ZOffset", cfg.get("zoffset", 0.0))
+        self.p_float(it, "Drag", cfg.get("arrasto", 0.0))
+        self.p_vetor(it, "Acceleration", *cfg.get("aceleracao", (0.0, 0.0, 0.0)))
+        self.p_token(it, "EmissionDirection", cfg.get("direcao", 1))
+        self.p_token(it, "Orientation", cfg.get("orientacao", 0))
+        self.p_bool(it, "LockedToPart", cfg.get("preso", False))
+        self.p_bool(it, "Enabled", False)   # o cliente liga por Enabled, nunca :Emit
+        self.p_float(it, "TimeScale", 1.0)
+        return it
+
+    def ancora(self, pai, nome):
+        """Part invisível que carrega os emissores de um efeito."""
+        it = self.parte(pai, nome, (0.4, 0.4, 0.4), (0, 0, 0), (255, 255, 255),
+                        "SmoothPlastic", "Block", transparencia=1.0)
+        return it
 
     # -------------------------------------------------------- peças
 
@@ -307,9 +506,15 @@ def construir_tool(m, raiz, nome):
     for nome_som, (ident, vol, pitch, roll) in sorted(dados["sfx"].items()):
         m.som(pasta_sfx, nome_som, ident, vol, pitch, roll)
 
-    # Efeitos — vazia de propósito: sem molde, o VFXModule desenha procedural
+    # Efeitos — moldes reais, um por efeito novo. Cada molde é uma Part âncora
+    # invisível com os emissores dentro; o VFXModule clona, posiciona e liga por
+    # Enabled. Os cinco efeitos originais seguem procedurais e não dependem daqui.
     pasta_efeitos = m.item(tool, "Folder")
     m.p_string(pasta_efeitos, "Name", "Efeitos")
+    for tipo in EFEITOS_POR_TOOL.get(nome, []):
+        molde = m.ancora(pasta_efeitos, tipo)
+        for nome_emissor, cfg in EFEITOS[tipo]:
+            m.emissor(molde, nome_emissor, cfg)
 
     return tool
 

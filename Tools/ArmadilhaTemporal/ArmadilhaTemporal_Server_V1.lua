@@ -56,6 +56,8 @@ local CFG = {
 
 	SFX_PLANTAR      = "Plantar",
 	SFX_DISPARO      = "Disparo",
+	SFX_BRASA        = "Brasa",      -- V2
+	SFX_FAISCA       = "Faisca",     -- V2
 	VIDA_SOM         = 3,
 }
 
@@ -229,7 +231,10 @@ local function plantar(jogador, personagem, humanoide, posicao)
 
 		-- SFX → física → VFX → dano (§8 V2)
 		tocarSom(CFG.SFX_DISPARO, posicao)
+		tocarSom(CFG.SFX_FAISCA, posicao)
 		transmitir("ESFERA_TEMPORAL", posicao, CFG.ESCALA_ESTOURO)
+		transmitir("FAISCA", posicao, CFG.ESCALA_ESTOURO)
+		transmitir("BRASA", posicao, CFG.ESCALA_ESTOURO)
 		transmitir("MOSTRADOR_TEMPORAL", posicao, CFG.ESCALA_ESTOURO)
 		transmitir("DETRITOS", posicao, CFG.ESCALA_ESTOURO)
 		transmitir("TREMOR", posicao, 0.9)
@@ -327,7 +332,9 @@ tool.Activated:Connect(function()
 	local posicao = raiz.Position - Vector3.new(0, 2.5, 0)
 
 	tocarSom(CFG.SFX_PLANTAR, posicao)
+	tocarSom(CFG.SFX_BRASA, posicao)
 	transmitir("MOSTRADOR_TEMPORAL", posicao, CFG.ESCALA_PLANTIO)
+	transmitir("BRASA", posicao, CFG.ESCALA_PLANTIO)
 
 	plantar(jogador, personagem, humanoide, posicao)
 
@@ -346,6 +353,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

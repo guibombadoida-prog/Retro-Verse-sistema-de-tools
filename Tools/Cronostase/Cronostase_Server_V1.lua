@@ -43,6 +43,7 @@ local CFG = {
 
 	SFX_MARCA       = "Marca",
 	SFX_RETORNO     = "Retorno",
+	SFX_ESTELAR     = "Estelar",     -- V2
 	VIDA_SOM        = 3,
 }
 
@@ -186,6 +187,7 @@ tool.Activated:Connect(function()
 		raiz.AssemblyLinearVelocity = velocidade
 
 		transmitir("MOSTRADOR_TEMPORAL", destino.Position, CFG.ESCALA_RETORNO)
+		transmitir("ESTILHACO_ESTELAR", destino.Position, CFG.ESCALA_RETORNO)
 		transmitir("TREMOR", destino.Position, 0.7)
 
 		limparMarca()
@@ -200,7 +202,9 @@ tool.Activated:Connect(function()
 		}
 		expiracao = os.clock() + CFG.DURACAO_MARCA
 
+		tocarSom(CFG.SFX_ESTELAR, raiz.Position)
 		transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MARCA)
+		transmitir("ESTILHACO_ESTELAR", raiz.Position, CFG.ESCALA_MARCA)
 
 		task.wait(CFG.RECARGA_MARCA)
 	end
@@ -219,6 +223,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

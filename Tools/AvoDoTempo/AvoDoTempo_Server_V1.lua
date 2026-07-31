@@ -56,6 +56,9 @@ local CFG = {
 	SFX_BADALADA      = "Badalada",
 	SFX_VOZ           = "Voz",
 	SFX_PROVOCACAO    = "Provocacao",
+	SFX_SUPERNOVA     = "Supernova",  -- V2
+	SFX_RAIO          = "Raio",       -- V2
+	SFX_ESTOURO       = "Estouro",    -- V2
 	VIDA_SOM          = 6,
 }
 
@@ -227,8 +230,11 @@ tool.Activated:Connect(function()
 
 	-- ABERTURA — SFX → física → VFX → dano (§8 V2)
 	tocarSom(CFG.SFX_VOZ, centro)
+	tocarSom(CFG.SFX_SUPERNOVA, centro)
 	transmitir("MOSTRADOR_TEMPORAL", centro, CFG.ESCALA_ABERTURA)
 	transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALA_ABERTURA)
+	transmitir("RAIO_TEMPORAL", centro, CFG.ESCALA_ABERTURA)
+	transmitir("ESTILHACO_ESTELAR", centro, CFG.ESCALA_ABERTURA)
 	transmitir("TREMOR", centro, 1.6)
 
 	-- AS DOZE BADALADAS
@@ -241,6 +247,12 @@ tool.Activated:Connect(function()
 
 			tocarSom(CFG.SFX_BADALADA, aqui)
 			transmitir("ONDA_TEMPORAL", aqui, CFG.ESCALA_BADALADA + hora * 0.16)
+			-- as horas alternam entre raio e estrela, para as 12 não ficarem iguais
+			if hora % 2 == 0 then
+				transmitir("RAIO_TEMPORAL", aqui, CFG.ESCALA_BADALADA)
+			else
+				transmitir("ESTILHACO_ESTELAR", aqui, CFG.ESCALA_BADALADA)
+			end
 
 			local atingidos = alvosEm(aqui, CFG.RAIO, personagem, jogador, humanoide)
 			for _, alvo in ipairs(atingidos) do
@@ -256,7 +268,13 @@ tool.Activated:Connect(function()
 	local fim = raiz.Parent and raiz.Position or centro
 
 	tocarSom(CFG.SFX_BADALADA, fim)
+	tocarSom(CFG.SFX_ESTOURO, fim)
+	tocarSom(CFG.SFX_RAIO, fim)
 	transmitir("ESFERA_TEMPORAL", fim, CFG.ESCALA_FINAL)
+	transmitir("RAIO_TEMPORAL", fim, CFG.ESCALA_FINAL)
+	transmitir("ESTILHACO_ESTELAR", fim, CFG.ESCALA_FINAL)
+	transmitir("BRASA", fim, CFG.ESCALA_FINAL)
+	transmitir("FAISCA", fim, CFG.ESCALA_FINAL)
 	transmitir("MOSTRADOR_TEMPORAL", fim, CFG.ESCALA_FINAL)
 	transmitir("DETRITOS", fim, CFG.ESCALA_FINAL)
 	transmitir("TREMOR", fim, 2.0)
@@ -301,6 +319,7 @@ local function provocar()
 
 	tocarSom(CFG.SFX_PROVOCACAO, ponto)
 	transmitir("MOSTRADOR_TEMPORAL", ponto, 1.0)
+	transmitir("ESTILHACO_ESTELAR", ponto, 1.0)
 end
 
 local acaoRemote = tool:FindFirstChild("AcaoRemote")
@@ -324,6 +343,9 @@ tool.Equipped:Connect(function()
 	end
 
 	animador = Animator.novo(personagem)
+
+	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
+	transmitir("AURA", handle.Position, 1.0)
 
 	if humanoide then
 		local conexaoMorte

@@ -19,12 +19,27 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 
 Módulo único que serve os cinco: `Guardiao_Do_Tempo/VFX/VFXModule_GuardiaoDoTempo.lua`.
 
-### Material CRU — inventariado, ainda sem passe de conformidade
+### Acrescentados ao Guardião do Tempo na V2 — emissores de verdade
 
-| Origem | Emissores | Destaque | Status |
+| Efeito | Origem | Emissores | Status | Usado em |
+|---|---|---|---|---|
+| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | CanhaoCronos, AvoDoTempo |
+| `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | TemperoTemporal, Cronostase, Temporalise, AvoDoTempo |
+| `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | AvancoRapido, Temporalise, ArmadilhaTemporal, AvoDoTempo |
+| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | TemperoTemporal, AvancoRapido, CanhaoCronos, ArmadilhaTemporal, AvoDoTempo |
+| `AURA` | Jupiter | `Aura` | LIMPO | as 7 Tools |
+
+Estes usam `ParticleEmitter` **de verdade**, dentro de `Tool/Efeitos/<TIPO>`, ligados por
+`Enabled` — zero `:Emit()`. As curvas (Size, Transparency, Rate, Speed, Lifetime) são as do
+modelo de origem; a **cor** foi trocada para a paleta do Guardião, que é o que costura
+material de dois modelos diferentes no mesmo conjunto.
+
+### O que sobrou CRU nos dois modelos
+
+| Origem | Total | Aproveitado na V2 | Segue CRU |
 |---|---|---|---|
-| `Jupiter_Great_Pressure_Sword` | 19 `ParticleEmitter` · 3 `Highlight` · 1 `Trail` | Gerador de raio procedural (`LightningBolt` + `Sparks` + `Explosion`) | **CRU** |
-| `Sword_of_Cosmic_Entity` | 26 `ParticleEmitter` · 6 `Trail` · 1 `Highlight` | `Nova_Circle`, `MegaWave`, `ShurikenModel` com 4 trilhas casadas | **CRU** |
+| `Jupiter_Great_Pressure_Sword` | 19 `ParticleEmitter` · 3 `Highlight` · 1 `Trail` | 4 emissores | o resto, inclusive o `LightningBolt` completo |
+| `Sword_of_Cosmic_Entity` | 26 `ParticleEmitter` · 6 `Trail` · 1 `Highlight` | 5 emissores | o resto, inclusive `Nova_Circle`, `MegaWave`, `ShurikenModel` |
 
 Os parâmetros de verdade (Rate, Lifetime, Speed, Size, Transparency, Color, Texture)
 estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com a tabela.
@@ -40,8 +55,8 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 | `ENGRENAGEM` | Guardiao_Do_Tempo | 5 IDs — mecanismo, tique | LIMPO | AvancoRapido, CanhaoCronos, Temporalise, ArmadilhaTemporal |
 | `BADALADA` | Guardiao_Do_Tempo | 6 IDs — relógio, ultimate | LIMPO | AvoDoTempo |
 | `VOZ_GUARDIAO` | Guardiao_Do_Tempo | 2 IDs — fala | LIMPO | AvoDoTempo |
-| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | **CRU** | — |
-| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | **CRU** | — |
+| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO (4 em uso) | CanhaoCronos, AvancoRapido, AvoDoTempo |
+| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO (7 em uso) | as 7 Tools |
 
 Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
@@ -79,8 +94,8 @@ terceiro sem reinterpretar a convenção de base de quem a escreveu.
 | Pasta | Status | Ficha |
 |---|---|---|
 | `Guardiao_Do_Tempo/` | **LIMPO** | [FICHA.md](Guardiao_Do_Tempo/FICHA.md) |
-| `Jupiter_Great_Pressure_Sword/` | **CRU** | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
-| `Sword_of_Cosmic_Entity/` | **CRU** | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
+| `Jupiter_Great_Pressure_Sword/` | **LIMPO** (parcial) | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
+| `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 
