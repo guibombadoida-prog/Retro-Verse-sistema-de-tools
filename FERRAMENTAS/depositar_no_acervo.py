@@ -8,6 +8,8 @@ malhas e o inventário de lógica.
 
     python3 FERRAMENTAS/depositar_no_acervo.py <arquivo> <Nome_Do_Modelo>
 
+Aceita `.rbxm` (binário) e `.rbxmx` (XML) — a ferramenta escolhe o leitor.
+
 O que sai:
 
     ACERVO_RETROVERSE/<Nome_Do_Modelo>/
@@ -32,6 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extrair_rbxm import abrir as abrir_binario, caminho_de  # noqa: E402
+from ler_rbxmx import abrir as abrir_xml  # noqa: E402
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ACERVO = os.path.join(RAIZ, "ACERVO_RETROVERSE")
@@ -94,8 +97,9 @@ def formatar(valor):
 
 
 def carregar(caminho):
+    """Aceita os dois formatos: .rbxmx é XML, .rbxm é binário com blocos LZ4."""
     if caminho.lower().endswith(".rbxmx"):
-        raise SystemExit("para .rbxmx use o parser XML — esta ferramenta é do binário")
+        return abrir_xml(caminho)
     return abrir_binario(caminho)
 
 

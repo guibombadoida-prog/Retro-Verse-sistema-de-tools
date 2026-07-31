@@ -34,6 +34,20 @@ Estes usam `ParticleEmitter` **de verdade**, dentro de `Tool/Efeitos/<TIPO>`, li
 modelo de origem; a **cor** foi trocada para a paleta do Guardião, que é o que costura
 material de dois modelos diferentes no mesmo conjunto.
 
+### `VFX_Library_V2` — a maior entrada do Acervo, ainda CRU
+
+| | |
+|---|---|
+| Habilidades | **38**, em 7 pastas de personagem |
+| Emissores | **782** `ParticleEmitter` (416 únicos), 81 `Trail`, 14 `Beam` |
+| Malhas | 87 `MeshPart` · 15 `SpecialMesh` · 32 `UnionOperation` |
+| Catálogo | [`CATALOGO_POR_HABILIDADE.md`](VFX_Library_V2/CATALOGO_POR_HABILIDADE.md) diz qual efeito é de qual habilidade |
+| Status | **CRU** — nada entrou em Tool ainda |
+
+> ⚠️ **Não rode o arquivo cru num place de produção.** Tem 13 `require(<id numérico>)`
+> — execução de código remoto — além de 152 `BreakJoints` e 1113 `math.random`.
+> Ver a `FICHA.md`. O material **visual** é excelente; o código que vem junto, não.
+
 ### O que sobrou CRU nos dois modelos
 
 | Origem | Total | Aproveitado na V2 | Segue CRU |
@@ -95,7 +109,8 @@ terceiro sem reinterpretar a convenção de base de quem a escreveu.
 |---|---|---|
 | `Guardiao_Do_Tempo/` | **LIMPO** | [FICHA.md](Guardiao_Do_Tempo/FICHA.md) |
 | `Jupiter_Great_Pressure_Sword/` | **LIMPO** (parcial) | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
-| `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
+| `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) |
+| `VFX_Library_V2/` | **CRU** | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 
