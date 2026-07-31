@@ -46,8 +46,10 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │       ├── FICHA.md
 │       └── VFX/ SFX/ R6_CFRAME/
 │
-├── FERRAMENTAS/                   ← Monta o .rbxmx a partir dos .lua
-│   └── montar_rbxmx.py
+├── FERRAMENTAS/
+│   ├── montar_rbxmx.py            ← Monta o .rbxmx a partir dos .lua
+│   ├── extrair_rbxm.py            ← Abre .rbxm BINÁRIO (LZ4) e lê tudo
+│   └── depositar_no_acervo.py     ← Modelo → Acervo, com parâmetros de VFX
 │
 ├── TESTES/                        ← Bancada. Nada daqui vai para o place
 │   ├── harness_NucleoCombate.lua

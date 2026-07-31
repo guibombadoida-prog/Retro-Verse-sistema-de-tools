@@ -19,6 +19,19 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 
 Módulo único que serve os cinco: `Guardiao_Do_Tempo/VFX/VFXModule_GuardiaoDoTempo.lua`.
 
+### Material CRU — inventariado, ainda sem passe de conformidade
+
+| Origem | Emissores | Destaque | Status |
+|---|---|---|---|
+| `Jupiter_Great_Pressure_Sword` | 19 `ParticleEmitter` · 3 `Highlight` · 1 `Trail` | Gerador de raio procedural (`LightningBolt` + `Sparks` + `Explosion`) | **CRU** |
+| `Sword_of_Cosmic_Entity` | 26 `ParticleEmitter` · 6 `Trail` · 1 `Highlight` | `Nova_Circle`, `MegaWave`, `ShurikenModel` com 4 trilhas casadas | **CRU** |
+
+Os parâmetros de verdade (Rate, Lifetime, Speed, Size, Transparency, Color, Texture)
+estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com a tabela.
+
+> **CRU não entra em Tool.** Falta o passe §12.12.2 e faltam dois dos quatro campos
+> de origem (autor e licença). Ver a `FICHA.md` de cada um.
+
 ## SFX
 
 | Efeito | Modelo de origem | Tipo | Status | Já usado em |
@@ -27,8 +40,21 @@ Módulo único que serve os cinco: `Guardiao_Do_Tempo/VFX/VFXModule_GuardiaoDoTe
 | `ENGRENAGEM` | Guardiao_Do_Tempo | 5 IDs — mecanismo, tique | LIMPO | AvancoRapido, CanhaoCronos, Temporalise, ArmadilhaTemporal |
 | `BADALADA` | Guardiao_Do_Tempo | 6 IDs — relógio, ultimate | LIMPO | AvoDoTempo |
 | `VOZ_GUARDIAO` | Guardiao_Do_Tempo | 2 IDs — fala | LIMPO | AvoDoTempo |
+| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | **CRU** | — |
+| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | **CRU** | — |
 
-Catálogo com volume, pitch e rolloff: `Guardiao_Do_Tempo/SFX/ids.md`.
+Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
+
+## MALHAS E TEXTURAS
+
+| Origem | Itens | Status |
+|---|---|---|
+| `Jupiter_Great_Pressure_Sword` | 7 `MeshId`/`TextureId` | **CRU** |
+| `Sword_of_Cosmic_Entity` | 16 `MeshId`/`TextureId` | **CRU** |
+
+> **Reuso cruzado já detectado:** `rbxassetid://863344136` é o mesmo mesh no
+> `Shockwave_2` do Jupiter e no `MegaWave` do Sword of Cosmic Entity. Converter uma vez
+> serve as duas — que é exatamente para isso que o Acervo existe (§12.16.5).
 
 ## R6 CFRAME
 
@@ -53,6 +79,8 @@ terceiro sem reinterpretar a convenção de base de quem a escreveu.
 | Pasta | Status | Ficha |
 |---|---|---|
 | `Guardiao_Do_Tempo/` | **LIMPO** | [FICHA.md](Guardiao_Do_Tempo/FICHA.md) |
+| `Jupiter_Great_Pressure_Sword/` | **CRU** | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
+| `Sword_of_Cosmic_Entity/` | **CRU** | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 
@@ -67,6 +95,19 @@ terceiro sem reinterpretar a convenção de base de quem a escreveu.
 | **APROVADO** | Testado. Livre para reuso em qualquer Tool |
 
 ## Como depositar
+
+Modelo binário (`.rbxm`) ou XML — a ferramenta faz o depósito inteiro:
+
+```bash
+python3 FERRAMENTAS/extrair_rbxm.py <arquivo.rbxm>              # inspecionar
+python3 FERRAMENTAS/depositar_no_acervo.py <arquivo> <Nome_Do_Modelo>
+```
+
+Ela gera `FICHA.md`, `VFX/NOTAS.md`, `SFX/ids.md`, `MALHAS/ids.md` e
+`LOGICA/HABILIDADES.md`. O status sai **CRU** — quem preenche origem e roda o passe
+§12.12.2 é gente, não o script.
+
+À mão, se preferir:
 
 1. `ACERVO_RETROVERSE/[Modelo_De_Origem]/` — criar se não existir, com `FICHA.md` preenchida.
 2. `VFX/[NOME_DO_EFEITO]/` ou `SFX/[NOME_DO_EFEITO]/` ou `R6_CFRAME/`.
