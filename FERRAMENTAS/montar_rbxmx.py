@@ -54,8 +54,8 @@ CATALOGO = {
         "sfx": {"Marca": (588738949, 5.0, 1.0, 60), "Retorno": (782202168, 5.0, 1.0, 60)},
     },
     "AvancoRapido": {
-        "tooltip": "Avanço Rápido - atravesse o instante. M alterna a aceleração",
-        "classe": "Melee", "energia": 0, "recarga": 0, "extra": True,
+        "tooltip": "Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera",
+        "classe": "Magic", "energia": 0, "recarga": 60, "extra": True,
         "sfx": {"Avanco": (447682521, 4.0, 0.7, 60), "Aceleracao": (743521450, 4.0, 1.5, 60)},
     },
     "CanhaoCronos": {
@@ -250,7 +250,8 @@ def ler(caminho):
         return f.read()
 
 
-def montar(nome):
+def construir_tool(m, raiz, nome):
+    """Constrói a Tool inteira dentro de `raiz` e devolve o Item."""
     pasta = os.path.join(TOOLS, nome)
     dados = CATALOGO[nome]
 
@@ -259,16 +260,6 @@ def montar(nome):
     fonte_animator = ler(os.path.join(pasta, "R6CFrameAnimator.lua"))
     fonte_vfx = ler(os.path.join(pasta, "VFXModule.lua"))
     fonte_poses = ler(os.path.join(pasta, "Poses_GuardiaoDoTempo_%s_V1.lua" % nome))
-
-    m = Montador()
-    raiz = ET.Element("roblox", {
-        "xmlns:xmime": "http://www.w3.org/2005/05/xmlmime",
-        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
-        "version": "4",
-    })
-    ET.SubElement(raiz, "External").text = "null"
-    ET.SubElement(raiz, "External").text = "nil"
 
     tool = m.item(raiz, "Tool")
     m.p_string(tool, "Name", nome)
@@ -320,19 +311,53 @@ def montar(nome):
     pasta_efeitos = m.item(tool, "Folder")
     m.p_string(pasta_efeitos, "Name", "Efeitos")
 
-    destino = os.path.join(pasta, "%s.rbxmx" % nome)
-    ET.ElementTree(raiz).write(destino, encoding="utf-8", xml_declaration=False)
+    return tool
 
-    # ProtectedString precisa de CDATA, e o ElementTree escapa em vez de embrulhar
+
+def nova_raiz():
+    raiz = ET.Element("roblox", {
+        "xmlns:xmime": "http://www.w3.org/2005/05/xmlmime",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
+        "version": "4",
+    })
+    ET.SubElement(raiz, "External").text = "null"
+    ET.SubElement(raiz, "External").text = "nil"
+    return raiz
+
+
+def escrever(raiz, destino):
+    ET.ElementTree(raiz).write(destino, encoding="utf-8", xml_declaration=False)
     with open(destino, "r", encoding="utf-8") as f:
         texto = f.read()
-    texto = envolver_cdata(texto)
     with open(destino, "w", encoding="utf-8") as f:
-        f.write(texto)
-
+        f.write(envolver_cdata(texto))
     return destino, os.path.getsize(destino)
 
 
+def montar(nome):
+    pasta = os.path.join(TOOLS, nome)
+    m = Montador()
+    raiz = nova_raiz()
+    construir_tool(m, raiz, nome)
+    destino = os.path.join(pasta, "%s.rbxmx" % nome)
+    return escrever(raiz, destino)
+
+
+def montar_conjunto(nomes, arquivo):
+    """
+    Todas as Tools num arquivo só.
+
+    As Tools ficam como itens de RAIZ, não dentro de uma Folder: no Studio,
+    "Insert from File" na StarterPack põe as 7 Tools direto lá. Dentro de uma
+    Folder elas NÃO seriam entregues ao jogador — Folder na StarterPack não
+    distribui o que tem dentro.
+    """
+    m = Montador()
+    raiz = nova_raiz()
+    for nome in nomes:
+        construir_tool(m, raiz, nome)
+    return escrever(raiz, os.path.join(TOOLS, arquivo))
 def envolver_cdata(texto):
     """Troca o escape do ElementTree por CDATA nas fontes de script."""
     import re
@@ -348,6 +373,11 @@ def envolver_cdata(texto):
                   trocar, texto, flags=re.S)
 
 
+ORDEM_CONJUNTO = ["TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
+                  "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]
+ARQUIVO_CONJUNTO = "GuardiaoDoTempo_7_Tools.rbxmx"
+
+
 def main():
     alvos = sys.argv[1:] or sorted(CATALOGO.keys())
     for nome in alvos:
@@ -356,6 +386,13 @@ def main():
             continue
         destino, tamanho = montar(nome)
         print("%-20s %7d bytes  %s" % (nome, tamanho,
+                                       os.path.relpath(destino, RAIZ)))
+
+    if not sys.argv[1:]:
+        destino, tamanho = montar_conjunto(ORDEM_CONJUNTO, ARQUIVO_CONJUNTO)
+        print("")
+        print("CONJUNTO (as 7 num arquivo só)")
+        print("%-20s %7d bytes  %s" % ("7 Tools", tamanho,
                                        os.path.relpath(destino, RAIZ)))
 
 

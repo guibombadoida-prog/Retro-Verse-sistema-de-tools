@@ -5,11 +5,30 @@
 
 ## O enunciado
 
-> **Todo modelo convertido é entregue como arquivo `.rbxmx` da Tool montada.**
-> Um por Tool, pronto para arrastar para o Studio. `.lua` solto **não é entrega**.
+> **Todo modelo convertido é entregue como UM arquivo `.rbxmx` com TODAS as Tools do conjunto.**
+> Um arquivo por modelo, pronto para arrastar para o Studio. `.lua` solto **não é entrega**.
 
 Instrução de montagem não é entrega. Se para usar o resultado alguém precisa criar `Instance`
 na mão, colar script por script e criar `Value` por `Value`, a conversão não terminou.
+
+E não é um arquivo por Tool: **é um arquivo por modelo**. Quem converte um modelo de 7 Tools
+importa **uma** vez, não sete.
+
+### As Tools ficam na RAIZ do arquivo, nunca dentro de uma `Folder`
+
+```
+GuardiaoDoTempo_7_Tools.rbxmx
+├── Tool "TemperoTemporal"
+├── Tool "Cronostase"
+├── ...
+└── Tool "AvoDoTempo"
+```
+
+`Folder` na `StarterPack` **não entrega** o que tem dentro ao jogador. Agrupar as Tools numa
+pasta deixaria o arquivo bonito e o jogo sem ferramenta nenhuma. O verificador barra isso.
+
+Os `.rbxmx` individuais continuam sendo gerados, para quem quiser uma Tool só — mas a
+**entrega** é o arquivo do conjunto.
 
 ---
 
@@ -38,8 +57,8 @@ importe o `.rbxmx` sozinho num place vazio, ponha na `StarterPack`, e **funciona
 O arquivo é gerado a partir dos `.lua` da pasta da Tool:
 
 ```bash
-python3 FERRAMENTAS/montar_rbxmx.py              # monta todas
-python3 FERRAMENTAS/montar_rbxmx.py AvoDoTempo   # monta uma
+python3 FERRAMENTAS/montar_rbxmx.py              # as individuais + o conjunto
+python3 FERRAMENTAS/montar_rbxmx.py AvoDoTempo   # só uma individual
 ```
 
 **Editou o `.lua`, roda o montador de novo.** Editar o XML na mão é proibido: cria divergência
@@ -69,6 +88,15 @@ Confere, em cada `.rbxmx`:
 | 7 | `VFXRemote` presente; `AcaoRemote` só onde há Extra que o use |
 | 8 | Todo `Sound` citado no `CFG` existe dentro de `Tool/SFX` |
 | 9 | Nenhum script referencia depósito fora da Tool (Regra nº 1) |
+
+E no arquivo do conjunto:
+
+| # | Verificação |
+|---|---|
+| 10 | Tem todas as Tools do modelo, e nenhuma a mais |
+| 11 | Toda Tool é item de **raiz** — nada dentro de `Folder` |
+| 12 | Zero `referent` duplicado (duplicado religa propriedade no objeto errado) |
+| 13 | Cada Tool bate com o `.rbxmx` individual dela |
 
 A verificação 6 é a que sustenta a regra: sem ela, o `.rbxmx` vira uma cópia velha em que
 ninguém repara.

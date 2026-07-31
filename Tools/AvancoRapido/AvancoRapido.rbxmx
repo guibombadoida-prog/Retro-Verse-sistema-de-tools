@@ -1,15 +1,22 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Tool" referent="RBX1"><Properties><string name="Name">AvancoRapido</string><string name="ToolTip">Avanço Rápido - atravesse o instante. M alterna a aceleração</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool><bool name="Enabled">true</bool><bool name="ManualActivationOnly">false</bool><CoordinateFrame name="Grip"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame></Properties><Item class="Part" referent="RBX2"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.35</X><Y>1.5</Y><Z>1.5</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4286342202</Color3uint8><token name="Material">1088</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.25</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="Part" referent="RBX3"><Properties><string name="Name">Mostrador</string><Vector3 name="size"><X>0.38</X><Y>1.22</Y><Z>1.22</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4288335154</Color3uint8><token name="Material">288</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX4"><Properties><string name="Name">SoldaMostrador</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX3</Ref></Properties></Item></Item><Item class="Part" referent="RBX5"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>0.3</X><Y>1.62</Y><Z>1.62</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">1088</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX6"><Properties><string name="Name">SoldaAro</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX5</Ref></Properties></Item></Item><Item class="Part" referent="RBX7"><Properties><string name="Name">PonteiroHora</string><Vector3 name="size"><X>0.06</X><Y>0.44</Y><Z>0.06</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.2</Y><Z>0.2</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">272</token><token name="shape">1</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX8"><Properties><string name="Name">SoldaPonteiroHora</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX7</Ref></Properties></Item></Item><Item class="Part" referent="RBX9"><Properties><string name="Name">PonteiroMinuto</string><Vector3 name="size"><X>0.3</X><Y>0.05</Y><Z>0.05</Z></Vector3><CoordinateFrame name="CFrame"><X>0.14</X><Y>0.0</Y><Z>0.2</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">272</token><token name="shape">1</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX10"><Properties><string name="Name">SoldaPonteiroMinuto</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX9</Ref></Properties></Item></Item><Item class="Part" referent="RBX11"><Properties><string name="Name">Pino</string><Vector3 name="size"><X>0.1</X><Y>0.1</Y><Z>0.1</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.21</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4286342202</Color3uint8><token name="Material">1088</token><token name="shape">0</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX12"><Properties><string name="Name">SoldaPino</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX11</Ref></Properties></Item></Item></Item><Item class="StringValue" referent="RBX13"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="NumberValue" referent="RBX14"><Properties><string name="Name">EnergyCost</string><double name="Value">0.0</double></Properties></Item><Item class="NumberValue" referent="RBX15"><Properties><string name="Name">RecargaGlobal</string><double name="Value">0.0</double></Properties></Item><Item class="Script" referent="RBX16"><Properties><string name="Name">AvancoRapido_Server_V1</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Tool" referent="RBX1"><Properties><string name="Name">AvancoRapido</string><string name="ToolTip">Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool><bool name="Enabled">true</bool><bool name="ManualActivationOnly">false</bool><CoordinateFrame name="Grip"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame></Properties><Item class="Part" referent="RBX2"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.35</X><Y>1.5</Y><Z>1.5</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4286342202</Color3uint8><token name="Material">1088</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.25</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="Part" referent="RBX3"><Properties><string name="Name">Mostrador</string><Vector3 name="size"><X>0.38</X><Y>1.22</Y><Z>1.22</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4288335154</Color3uint8><token name="Material">288</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX4"><Properties><string name="Name">SoldaMostrador</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX3</Ref></Properties></Item></Item><Item class="Part" referent="RBX5"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>0.3</X><Y>1.62</Y><Z>1.62</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.0</Z><R00>0.0</R00><R01>0.0</R01><R02>1.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>-1.0</R20><R21>0.0</R21><R22>0.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">1088</token><token name="shape">2</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX6"><Properties><string name="Name">SoldaAro</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX5</Ref></Properties></Item></Item><Item class="Part" referent="RBX7"><Properties><string name="Name">PonteiroHora</string><Vector3 name="size"><X>0.06</X><Y>0.44</Y><Z>0.06</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.2</Y><Z>0.2</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">272</token><token name="shape">1</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX8"><Properties><string name="Name">SoldaPonteiroHora</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX7</Ref></Properties></Item></Item><Item class="Part" referent="RBX9"><Properties><string name="Name">PonteiroMinuto</string><Vector3 name="size"><X>0.3</X><Y>0.05</Y><Z>0.05</Z></Vector3><CoordinateFrame name="CFrame"><X>0.14</X><Y>0.0</Y><Z>0.2</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4281346594</Color3uint8><token name="Material">272</token><token name="shape">1</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX10"><Properties><string name="Name">SoldaPonteiroMinuto</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX9</Ref></Properties></Item></Item><Item class="Part" referent="RBX11"><Properties><string name="Name">Pino</string><Vector3 name="size"><X>0.1</X><Y>0.1</Y><Z>0.1</Z></Vector3><CoordinateFrame name="CFrame"><X>0.0</X><Y>0.0</Y><Z>0.21</Z><R00>1.0</R00><R01>0.0</R01><R02>0.0</R02><R10>0.0</R10><R11>1.0</R11><R12>0.0</R12><R20>0.0</R20><R21>0.0</R21><R22>1.0</R22></CoordinateFrame><Color3uint8 name="Color3uint8">4286342202</Color3uint8><token name="Material">1088</token><token name="shape">0</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanQuery">false</bool><bool name="CanTouch">false</bool><bool name="CastShadow">false</bool><bool name="Massless">true</bool><bool name="Locked">true</bool><float name="Transparency">0.0</float><float name="Reflectance">0.0</float><token name="TopSurface">0</token><token name="BottomSurface">0</token><token name="FrontSurface">0</token><token name="BackSurface">0</token><token name="LeftSurface">0</token><token name="RightSurface">0</token></Properties><Item class="WeldConstraint" referent="RBX12"><Properties><string name="Name">SoldaPino</string><bool name="Enabled">true</bool><Ref name="Part0">RBX2</Ref><Ref name="Part1">RBX11</Ref></Properties></Item></Item></Item><Item class="StringValue" referent="RBX13"><Properties><string name="Name">DamageClass</string><string name="Value">Magic</string></Properties></Item><Item class="NumberValue" referent="RBX14"><Properties><string name="Name">EnergyCost</string><double name="Value">0.0</double></Properties></Item><Item class="NumberValue" referent="RBX15"><Properties><string name="Name">RecargaGlobal</string><double name="Value">60.0</double></Properties></Item><Item class="Script" referent="RBX16"><Properties><string name="Name">AvancoRapido_Server_V1</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	AvancoRapido_Server_V1  —  Server Script, filho direto da Tool
 	Retro-Verse / Studios  ·  Regra nº 1 · REGRA 12 V3 · DIRETRIZES v2.1
 
-	Primária: `FastForward` (tecla C) — avanço rápido para a frente, atropelando quem estiver
-	          no caminho.
+	Primária: `FastForward` (tecla C) — adianta o tempo. Carga longa, com o relógio surgindo
+	          na mão e o tique-taque acelerando, e no fim tudo em volta envelhece de uma vez.
 	Extra:    Aceleração (tecla M) — alternância de velocidade 16 ↔ 48 do modelo.
 
-	Agrupamento (REGRA DE DISTRIBUIÇÃO): as duas são deslocamento — moram na mesma Tool.
+	FIDELIDADE (ver DIRETRIZES/MAPA_DE_FIDELIDADE_Guardiao_Do_Tempo.md):
+	o ritmo do original é reproduzido inteiro — surgimento (25 quadros), pausa de 0,5 s,
+	aceleração do tique (120 quadros), tremor de alcance 125, três esferas de escala 50/100/150.
+	O que NÃO foi reproduzido é o desfecho: o modelo varria `workspace:GetDescendants()` e
+	chamava `CHILD:BreakJoints()` em todo Humanoid do mapa — morte instantânea de todos, sem
+	filtro de time e furando `ForceField`. Aqui o desfecho é dano alto num raio grande, pelo
+	Núcleo. Reproduzir o original seria entregar uma Tool que limpa o servidor inteiro.
 
-	A Aceleração altera WalkSpeed, e por isso EXIGE restauração em todo caminho de saída:
-	Unequipped, Died e Destroying. Buff que sobrevive à Tool é falha grave (§12.6).
+	A Aceleração altera WalkSpeed, e a carga imobiliza o dono (`Rooted` no modelo). As duas
+	coisas EXIGEM restauração em todo caminho de saída: Unequipped, Died e Destroying.
+	Buff ou trava que sobrevive à Tool é falha grave (§12.6).
 --]]
 
 local Players = game:GetService("Players")
@@ -27,28 +34,32 @@ local pastaSFX = tool:FindFirstChild("SFX")
 -- ARQUETIPO + CFG
 --==============================================================================
 
-local ARQUETIPO = "LUTADOR"
+local ARQUETIPO = "HIBRIDO"
 
 local CFG = {
 	NOME             = "AvancoRapido",
-	TOOLTIP          = "Avanço Rápido - atravesse o instante. M alterna a aceleração",
+	TOOLTIP          = "Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera",
 
-	DANO_AVANCO      = 22,
-	DISTANCIA        = 42,
-	PASSOS           = 14,       -- o avanço é dividido em passos, para atingir no caminho
-	RAIO_PASSO       = 7,
-	INTERVALO_PASSO  = 0.02,
+	-- Carga: os três tempos do original, convertidos de quadros a 60 fps
+	CARGA_SURGIMENTO = 0.42,     -- 25 quadros: o relógio aparece e o tique sobe
+	CARGA_PAUSA      = 0.50,     -- wait(0.5) do modelo
+	CARGA_ACELERACAO = 2.00,     -- 120 quadros: o tique acelera até o estouro
+	PULSOS_CARGA     = 6,        -- mostradores durante a aceleração
 
-	RECARGA_AVANCO   = 2.20,
+	DANO_DETONACAO   = 180,      -- era BreakJoints em todos: virou dano alto, pelo Núcleo
+	RAIO_DETONACAO   = 120,      -- o alcance do CamShake do original
+	ESCALAS_ESFERA   = {2.0, 3.5, 5.0},   -- as três esferas 50/100/150 do modelo
+
+	RECARGA_AVANCO   = 12.0,
+	RECARGA_GLOBAL   = 60.0,
 
 	VELOCIDADE_BASE  = 16,       -- Speed do modelo
 	VELOCIDADE_ALTA  = 48,       -- SPEDUP do modelo
 	RECARGA_M        = 0.60,
 
-	LIMITE_ALVOS     = 8,
+	LIMITE_ALVOS     = 24,
 
 	COR              = Color3.fromRGB(154, 205, 50),
-	ESCALA_RASTRO    = 0.9,
 	ESCALA_MOSTRADOR = 1.6,
 
 	SFX_AVANCO       = "Avanco",
@@ -64,6 +75,8 @@ local animador = nil
 local cancelamentos = {}
 local acelerado = false
 local proximoM = 0
+local carregando = false
+local puloAntes = 50
 
 -- Guardado no Equipped: em Unequipped e Destroying o tool.Parent já NÃO é mais o personagem,
 -- e donoAtual() devolveria nil — a aceleração ficaria pendurada no jogador para sempre.
@@ -165,20 +178,36 @@ local function desacelerar(humanoide)
 end
 
 --==============================================================================
--- PRIMÁRIA — avanço
+-- PRIMÁRIA — adiantar o tempo: carrega, e no fim tudo em volta envelhece
 --==============================================================================
+
+-- Solta a imobilização da carga. Guardada, e chamada em todo caminho de saída.
+local function soltarCarga(humanoide)
+	if carregando and humanoide and humanoide.Parent then
+		humanoide.WalkSpeed = acelerado and CFG.VELOCIDADE_ALTA or CFG.VELOCIDADE_BASE
+		humanoide.JumpPower = puloAntes
+	end
+	carregando = false
+end
 
 tool.Activated:Connect(function()
 	if not tool.Enabled then
 		return
 	end
-	tool.Enabled = false
 
 	local jogador, personagem, humanoide = donoAtual()
-	if not personagem then
-		tool.Enabled = true
+	if not personagem or not jogador or not humanoide then
 		return
 	end
+
+	if _G.Combate then
+		local liberado = _G.Combate.recargaGlobal(jogador, CFG.NOME .. "_C", CFG.RECARGA_GLOBAL)
+		if not liberado then
+			return
+		end
+	end
+
+	tool.Enabled = false
 
 	local raiz = personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then
@@ -190,35 +219,56 @@ tool.Activated:Connect(function()
 		animador:tocar(Poses.primaria())
 	end
 
+	-- O modelo trava o dono durante a carga inteira (`Rooted = true`)
+	puloAntes = humanoide.JumpPower
+	carregando = true
+	humanoide.WalkSpeed = 0
+	humanoide.JumpPower = 0
+
+	-- FASE 1 — o relógio surge, o tique sobe
 	tocarSom(CFG.SFX_AVANCO, handle.Position)
-	transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MOSTRADOR)
+	transmitir("MOSTRADOR_TEMPORAL", handle.Position, CFG.ESCALA_MOSTRADOR)
+	task.wait(CFG.CARGA_SURGIMENTO)
 
-	local direcao = raiz.CFrame.LookVector
-	local trecho = CFG.DISTANCIA / CFG.PASSOS
-	local jaAtingidos = {}
+	-- FASE 2 — a pausa antes da aceleração
+	task.wait(CFG.CARGA_PAUSA)
 
-	local passo = 1
-	while passo <= CFG.PASSOS do
+	-- FASE 3 — o tique acelera. Um mostrador por pulso, cada vez maior.
+	local intervalo = CFG.CARGA_ACELERACAO / CFG.PULSOS_CARGA
+	local pulso = 1
+	while pulso <= CFG.PULSOS_CARGA do
 		if not raiz.Parent then
-			passo = CFG.PASSOS + 1
+			pulso = CFG.PULSOS_CARGA + 1
 		else
-			raiz.CFrame = raiz.CFrame + direcao * trecho
-			local aqui = raiz.Position
-
-			transmitir("ONDA_TEMPORAL", aqui, CFG.ESCALA_RASTRO)
-
-			local alvos = alvosEm(aqui, CFG.RAIO_PASSO, personagem, jogador, humanoide)
-			for _, alvo in ipairs(alvos) do
-				-- cada alvo leva o avanço uma vez só, mesmo passando por vários passos
-				if not jaAtingidos[alvo] then
-					jaAtingidos[alvo] = true
-					aplicarDano(jogador, alvo, CFG.DANO_AVANCO)
-				end
-			end
-
-			task.wait(CFG.INTERVALO_PASSO)
-			passo = passo + 1
+			transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MOSTRADOR * (0.6 + pulso * 0.25))
+			task.wait(intervalo)
+			pulso = pulso + 1
 		end
+	end
+
+	soltarCarga(humanoide)
+
+	if not raiz.Parent then
+		task.wait(CFG.RECARGA_AVANCO)
+		tool.Enabled = true
+		return
+	end
+
+	-- DETONAÇÃO — SFX → física → VFX → dano (§8 V2)
+	local centro = raiz.Position
+
+	tocarSom(CFG.SFX_ACELERACAO, centro)
+	transmitir("TREMOR", centro, 2.4)
+
+	for indice = 1, #CFG.ESCALAS_ESFERA do
+		transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALAS_ESFERA[indice])
+	end
+	transmitir("ONDA_TEMPORAL", centro, CFG.ESCALAS_ESFERA[#CFG.ESCALAS_ESFERA])
+	transmitir("DETRITOS", centro, 3.0)
+
+	local atingidos = alvosEm(centro, CFG.RAIO_DETONACAO, personagem, jogador, humanoide)
+	for _, alvo in ipairs(atingidos) do
+		aplicarDano(jogador, alvo, CFG.DANO_DETONACAO)
 	end
 
 	task.wait(CFG.RECARGA_AVANCO)
@@ -283,6 +333,7 @@ tool.Equipped:Connect(function()
 	if humanoide then
 		local conexaoMorte
 		conexaoMorte = humanoide.Died:Connect(function()
+			soltarCarga(humanoide)
 			desacelerar(humanoide)
 			cancelarTudo()
 			if animador then
@@ -293,6 +344,7 @@ tool.Equipped:Connect(function()
 			conexaoMorte:Disconnect()
 		end)
 		guardarCancelamento(function()
+			soltarCarga(humanoide)
 			desacelerar(humanoide)
 		end)
 	end
@@ -310,6 +362,7 @@ tool.Unequipped:Connect(function()
 end)
 
 tool.Destroying:Connect(function()
+	soltarCarga(humanoideEquipado)
 	desacelerar(humanoideEquipado)
 	cancelarTudo()
 	if animador then

@@ -192,6 +192,67 @@ def verificar(nome):
     return erros
 
 
+def verificar_conjunto(nomes):
+    """O arquivo único com todas as Tools do modelo."""
+    caminho = os.path.join(TOOLS, "GuardiaoDoTempo_7_Tools.rbxmx")
+    erros = []
+
+    if not os.path.exists(caminho):
+        return ["arquivo do conjunto não existe — rode FERRAMENTAS/montar_rbxmx.py"]
+
+    try:
+        raiz = ET.parse(caminho).getroot()
+    except ET.ParseError as e:
+        return ["XML inválido: %s" % e]
+
+    tools = [i for i in raiz.findall("Item") if i.get("class") == "Tool"]
+    achados = [texto(t, "Name") for t in tools]
+
+    if len(tools) != len(nomes):
+        erros.append("tem %d Tools, esperava %d" % (len(tools), len(nomes)))
+    for nome in nomes:
+        if nome not in achados:
+            erros.append("falta a Tool %r" % nome)
+
+    # As Tools têm de ser itens de RAIZ. Dentro de uma Folder, a StarterPack
+    # não entrega nada ao jogador.
+    for item in raiz.findall("Item"):
+        if item.get("class") != "Tool":
+            erros.append("item de raiz %r não é Tool — na StarterPack não seria entregue"
+                         % item.get("class"))
+
+    # referent duplicado faz o Studio religar propriedades no objeto errado
+    vistos = set()
+    for item in raiz.iter("Item"):
+        ref = item.get("referent")
+        if ref in vistos:
+            erros.append("referent duplicado: %s" % ref)
+        vistos.add(ref)
+
+    # cada Tool do conjunto tem de bater com o .rbxmx individual dela
+    for tool in tools:
+        nome = texto(tool, "Name")
+        if nome not in nomes:
+            continue
+        individual = os.path.join(TOOLS, nome, "%s.rbxmx" % nome)
+        if not os.path.exists(individual):
+            continue
+        r2 = ET.parse(individual).getroot()
+        t2 = [i for i in r2.findall("Item") if i.get("class") == "Tool"][0]
+        for classe, nome_obj in (("Script", "%s_Server_V1" % nome),
+                                 ("LocalScript", "Client"),
+                                 ("ModuleScript", "Poses")):
+            a = achar(tool, classe, nome_obj)
+            b = achar(t2, classe, nome_obj)
+            if a is None or b is None:
+                erros.append("%s/%s ausente na comparação com o arquivo individual"
+                             % (nome, nome_obj))
+            elif texto(a, "Source") != texto(b, "Source"):
+                erros.append("%s/%s diverge do .rbxmx individual" % (nome, nome_obj))
+
+    return erros
+
+
 def main():
     nomes = sorted(d for d in os.listdir(TOOLS)
                    if os.path.isdir(os.path.join(TOOLS, d))
@@ -213,6 +274,18 @@ def main():
         else:
             caminho = os.path.join(TOOLS, nome, "%s.rbxmx" % nome)
             print(VERDE % ("✓ %-20s %7d bytes" % (nome, os.path.getsize(caminho))))
+
+    erros = verificar_conjunto(nomes)
+    print("")
+    if erros:
+        total += len(erros)
+        print(VERMELHO % "✗ GuardiaoDoTempo_7_Tools.rbxmx  (conjunto)")
+        for e in erros:
+            print("    %s" % e)
+    else:
+        caminho = os.path.join(TOOLS, "GuardiaoDoTempo_7_Tools.rbxmx")
+        print(VERDE % ("✓ %-20s %7d bytes  (as %d Tools num arquivo só)"
+                       % ("CONJUNTO", os.path.getsize(caminho), len(nomes))))
 
     print("")
     if total == 0:

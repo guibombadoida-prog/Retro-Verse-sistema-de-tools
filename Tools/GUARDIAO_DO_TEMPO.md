@@ -13,7 +13,7 @@ alocadas como habilidade **Extra**.
 |---|---|---|---|---|---|
 | 1 | `TemperoTemporal` | `TemporalTemper` (Z) — recolhe e arremessa | — | Melee | LUTADOR |
 | 2 | `Cronostase` | `Chronostasis` (X) — marca e retorna | — | Magic | MAGO |
-| 3 | `AvancoRapido` | `FastForward` (C) — avanço que atropela | **Aceleração** (M) | Melee | LUTADOR |
+| 3 | `AvancoRapido` | `FastForward` (C) — carga longa, detonação no fim | **Aceleração** (M) | Magic | HIBRIDO |
 | 4 | `CanhaoCronos` | `ChronosCannon` (V) — feixe reto | — | Ranged | ATIRADOR |
 | 5 | `Temporalise` | `Temporalysis` (B) — parada do tempo | — | Debuff | MAGO |
 | 6 | `ArmadilhaTemporal` | `TemporalTrap` (G) — armadilha no chão | — | Summon | INVOCADOR |
@@ -21,30 +21,37 @@ alocadas como habilidade **Extra**.
 
 ### Por que esses dois agrupamentos
 
-- **Aceleração → `AvancoRapido`**: as duas são deslocamento. Quem quer velocidade equipa uma
-  Tool só.
+- **Aceleração → `AvancoRapido`**: as duas mexem no andamento do tempo do dono.
 - **Provocação → `AvoDoTempo`**: a provocação é a fala do Guardião, e a ultimate é onde ele fala.
 
 Nenhuma habilidade foi cortada. 9 de 9 entregues.
 
 ---
 
-## Os arquivos entregues
+## A entrega — um arquivo só
 
-Um `.rbxmx` por Tool, dentro da pasta da Tool. **Arraste para o Studio e use.**
+### `Tools/GuardiaoDoTempo_7_Tools.rbxmx` — 297 KB, as 7 Tools, 35 scripts
 
-| Arquivo | Tamanho | Scripts embutidos |
-|---|---|---|
-| `TemperoTemporal/TemperoTemporal.rbxmx` | 43,0 KB | 5 |
-| `Cronostase/Cronostase.rbxmx` | 38,8 KB | 5 |
-| `AvancoRapido/AvancoRapido.rbxmx` | 45,5 KB | 5 |
-| `CanhaoCronos/CanhaoCronos.rbxmx` | 39,7 KB | 5 |
-| `Temporalise/Temporalise.rbxmx` | 39,6 KB | 5 |
-| `ArmadilhaTemporal/ArmadilhaTemporal.rbxmx` | 42,7 KB | 5 |
-| `AvoDoTempo/AvoDoTempo.rbxmx` | 46,8 KB | 5 |
+**Botão direito na `StarterPack` → Insert from File → escolha o arquivo.** As 7 Tools entram
+de uma vez.
 
-Cada arquivo já traz `Handle`, os `Value`s, os cinco scripts, `VFXRemote` (e `AcaoRemote` onde
-há Extra), a pasta `SFX/` com os `Sound` configurados e a pasta `Efeitos/`.
+As Tools ficam na **raiz** do arquivo, não dentro de uma `Folder`: `Folder` na `StarterPack`
+não entrega nada ao jogador. O verificador barra essa armadilha.
+
+Cada Tool já traz `Handle`, os `Value`s, os cinco scripts, `VFXRemote` (e `AcaoRemote` onde há
+Extra), a pasta `SFX/` com os `Sound` configurados e a pasta `Efeitos/`.
+
+### Individuais, se você quiser só uma
+
+| Arquivo | Tamanho |
+|---|---|
+| `TemperoTemporal/TemperoTemporal.rbxmx` | 43,0 KB |
+| `Cronostase/Cronostase.rbxmx` | 38,8 KB |
+| `AvancoRapido/AvancoRapido.rbxmx` | 47,9 KB |
+| `CanhaoCronos/CanhaoCronos.rbxmx` | 39,7 KB |
+| `Temporalise/Temporalise.rbxmx` | 39,6 KB |
+| `ArmadilhaTemporal/ArmadilhaTemporal.rbxmx` | 42,7 KB |
+| `AvoDoTempo/AvoDoTempo.rbxmx` | 46,8 KB |
 
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py     # regenera a partir dos .lua
@@ -91,7 +98,7 @@ manutenção fica no Acervo, e a atualização é recopiar para as 7.
 |---|---|---|---|---|
 | `TemperoTemporal` | 30 | 35 recolhe · 15 arremesso | 1,10 s | — |
 | `Cronostase` | — | — | 0,45 / 1,20 s | — |
-| `AvancoRapido` | 22 | 42 de avanço · 7 por passo | 2,20 s | — |
+| `AvancoRapido` | 180 | 120 de raio · carga de 2,9 s | 12,0 s | 60 s |
 | `CanhaoCronos` | 120 | 220 · raio 9 | 6,0 s | 9 s |
 | `Temporalise` | — | 34 · parada de 7 s | 8,0 s | 22 s |
 | `ArmadilhaTemporal` | 65 gatilho · 15 respingo | 12 · estouro 20 | 3,0 s | 5 s |
@@ -102,6 +109,22 @@ Todos vivem no bloco `CFG` do topo do respectivo Server Script. Zero número má
 > O modelo original chamava `ApplyDamage(HUM, 600000)` no `ChronosCannon` — morte garantida,
 > furando `ForceField`. Aqui são 120, aplicados por `TakeDamage` com o dano calculado pelo
 > Núcleo. **Este é o número que você vai querer revisar primeiro.**
+
+---
+
+## Fidelidade — leia antes de julgar o resultado
+
+**Não é 100% fiel, e não pode ser.** Três das nove habilidades terminam em morte instantânea de
+todo mundo do mapa (`workspace:GetDescendants()` + `BreakJoints`, e `Health = 0`).
+
+| | Habilidades |
+|---|---|
+| ✅ Fiel | Chronostasis, TemporalTrap, SPEDUP, Taunt |
+| 🔧 Adaptado | TemporalTemper, Temporalysis |
+| ⛔ Desfecho não reproduzido | FastForward, ChronosCannon, GrandfatherTime |
+
+O detalhamento, habilidade por habilidade — com o que mudou, o número exato e o porquê — está em
+[`DIRETRIZES/MAPA_DE_FIDELIDADE_Guardiao_Do_Tempo.md`](../DIRETRIZES/MAPA_DE_FIDELIDADE_Guardiao_Do_Tempo.md).
 
 ---
 

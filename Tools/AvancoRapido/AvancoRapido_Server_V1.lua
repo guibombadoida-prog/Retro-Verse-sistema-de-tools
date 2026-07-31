@@ -2,14 +2,21 @@
 	AvancoRapido_Server_V1  —  Server Script, filho direto da Tool
 	Retro-Verse / Studios  ·  Regra nº 1 · REGRA 12 V3 · DIRETRIZES v2.1
 
-	Primária: `FastForward` (tecla C) — avanço rápido para a frente, atropelando quem estiver
-	          no caminho.
+	Primária: `FastForward` (tecla C) — adianta o tempo. Carga longa, com o relógio surgindo
+	          na mão e o tique-taque acelerando, e no fim tudo em volta envelhece de uma vez.
 	Extra:    Aceleração (tecla M) — alternância de velocidade 16 ↔ 48 do modelo.
 
-	Agrupamento (REGRA DE DISTRIBUIÇÃO): as duas são deslocamento — moram na mesma Tool.
+	FIDELIDADE (ver DIRETRIZES/MAPA_DE_FIDELIDADE_Guardiao_Do_Tempo.md):
+	o ritmo do original é reproduzido inteiro — surgimento (25 quadros), pausa de 0,5 s,
+	aceleração do tique (120 quadros), tremor de alcance 125, três esferas de escala 50/100/150.
+	O que NÃO foi reproduzido é o desfecho: o modelo varria `workspace:GetDescendants()` e
+	chamava `CHILD:BreakJoints()` em todo Humanoid do mapa — morte instantânea de todos, sem
+	filtro de time e furando `ForceField`. Aqui o desfecho é dano alto num raio grande, pelo
+	Núcleo. Reproduzir o original seria entregar uma Tool que limpa o servidor inteiro.
 
-	A Aceleração altera WalkSpeed, e por isso EXIGE restauração em todo caminho de saída:
-	Unequipped, Died e Destroying. Buff que sobrevive à Tool é falha grave (§12.6).
+	A Aceleração altera WalkSpeed, e a carga imobiliza o dono (`Rooted` no modelo). As duas
+	coisas EXIGEM restauração em todo caminho de saída: Unequipped, Died e Destroying.
+	Buff ou trava que sobrevive à Tool é falha grave (§12.6).
 --]]
 
 local Players = game:GetService("Players")
@@ -27,28 +34,32 @@ local pastaSFX = tool:FindFirstChild("SFX")
 -- ARQUETIPO + CFG
 --==============================================================================
 
-local ARQUETIPO = "LUTADOR"
+local ARQUETIPO = "HIBRIDO"
 
 local CFG = {
 	NOME             = "AvancoRapido",
-	TOOLTIP          = "Avanço Rápido - atravesse o instante. M alterna a aceleração",
+	TOOLTIP          = "Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera",
 
-	DANO_AVANCO      = 22,
-	DISTANCIA        = 42,
-	PASSOS           = 14,       -- o avanço é dividido em passos, para atingir no caminho
-	RAIO_PASSO       = 7,
-	INTERVALO_PASSO  = 0.02,
+	-- Carga: os três tempos do original, convertidos de quadros a 60 fps
+	CARGA_SURGIMENTO = 0.42,     -- 25 quadros: o relógio aparece e o tique sobe
+	CARGA_PAUSA      = 0.50,     -- wait(0.5) do modelo
+	CARGA_ACELERACAO = 2.00,     -- 120 quadros: o tique acelera até o estouro
+	PULSOS_CARGA     = 6,        -- mostradores durante a aceleração
 
-	RECARGA_AVANCO   = 2.20,
+	DANO_DETONACAO   = 180,      -- era BreakJoints em todos: virou dano alto, pelo Núcleo
+	RAIO_DETONACAO   = 120,      -- o alcance do CamShake do original
+	ESCALAS_ESFERA   = {2.0, 3.5, 5.0},   -- as três esferas 50/100/150 do modelo
+
+	RECARGA_AVANCO   = 12.0,
+	RECARGA_GLOBAL   = 60.0,
 
 	VELOCIDADE_BASE  = 16,       -- Speed do modelo
 	VELOCIDADE_ALTA  = 48,       -- SPEDUP do modelo
 	RECARGA_M        = 0.60,
 
-	LIMITE_ALVOS     = 8,
+	LIMITE_ALVOS     = 24,
 
 	COR              = Color3.fromRGB(154, 205, 50),
-	ESCALA_RASTRO    = 0.9,
 	ESCALA_MOSTRADOR = 1.6,
 
 	SFX_AVANCO       = "Avanco",
@@ -64,6 +75,8 @@ local animador = nil
 local cancelamentos = {}
 local acelerado = false
 local proximoM = 0
+local carregando = false
+local puloAntes = 50
 
 -- Guardado no Equipped: em Unequipped e Destroying o tool.Parent já NÃO é mais o personagem,
 -- e donoAtual() devolveria nil — a aceleração ficaria pendurada no jogador para sempre.
@@ -165,20 +178,36 @@ local function desacelerar(humanoide)
 end
 
 --==============================================================================
--- PRIMÁRIA — avanço
+-- PRIMÁRIA — adiantar o tempo: carrega, e no fim tudo em volta envelhece
 --==============================================================================
+
+-- Solta a imobilização da carga. Guardada, e chamada em todo caminho de saída.
+local function soltarCarga(humanoide)
+	if carregando and humanoide and humanoide.Parent then
+		humanoide.WalkSpeed = acelerado and CFG.VELOCIDADE_ALTA or CFG.VELOCIDADE_BASE
+		humanoide.JumpPower = puloAntes
+	end
+	carregando = false
+end
 
 tool.Activated:Connect(function()
 	if not tool.Enabled then
 		return
 	end
-	tool.Enabled = false
 
 	local jogador, personagem, humanoide = donoAtual()
-	if not personagem then
-		tool.Enabled = true
+	if not personagem or not jogador or not humanoide then
 		return
 	end
+
+	if _G.Combate then
+		local liberado = _G.Combate.recargaGlobal(jogador, CFG.NOME .. "_C", CFG.RECARGA_GLOBAL)
+		if not liberado then
+			return
+		end
+	end
+
+	tool.Enabled = false
 
 	local raiz = personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then
@@ -190,35 +219,56 @@ tool.Activated:Connect(function()
 		animador:tocar(Poses.primaria())
 	end
 
+	-- O modelo trava o dono durante a carga inteira (`Rooted = true`)
+	puloAntes = humanoide.JumpPower
+	carregando = true
+	humanoide.WalkSpeed = 0
+	humanoide.JumpPower = 0
+
+	-- FASE 1 — o relógio surge, o tique sobe
 	tocarSom(CFG.SFX_AVANCO, handle.Position)
-	transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MOSTRADOR)
+	transmitir("MOSTRADOR_TEMPORAL", handle.Position, CFG.ESCALA_MOSTRADOR)
+	task.wait(CFG.CARGA_SURGIMENTO)
 
-	local direcao = raiz.CFrame.LookVector
-	local trecho = CFG.DISTANCIA / CFG.PASSOS
-	local jaAtingidos = {}
+	-- FASE 2 — a pausa antes da aceleração
+	task.wait(CFG.CARGA_PAUSA)
 
-	local passo = 1
-	while passo <= CFG.PASSOS do
+	-- FASE 3 — o tique acelera. Um mostrador por pulso, cada vez maior.
+	local intervalo = CFG.CARGA_ACELERACAO / CFG.PULSOS_CARGA
+	local pulso = 1
+	while pulso <= CFG.PULSOS_CARGA do
 		if not raiz.Parent then
-			passo = CFG.PASSOS + 1
+			pulso = CFG.PULSOS_CARGA + 1
 		else
-			raiz.CFrame = raiz.CFrame + direcao * trecho
-			local aqui = raiz.Position
-
-			transmitir("ONDA_TEMPORAL", aqui, CFG.ESCALA_RASTRO)
-
-			local alvos = alvosEm(aqui, CFG.RAIO_PASSO, personagem, jogador, humanoide)
-			for _, alvo in ipairs(alvos) do
-				-- cada alvo leva o avanço uma vez só, mesmo passando por vários passos
-				if not jaAtingidos[alvo] then
-					jaAtingidos[alvo] = true
-					aplicarDano(jogador, alvo, CFG.DANO_AVANCO)
-				end
-			end
-
-			task.wait(CFG.INTERVALO_PASSO)
-			passo = passo + 1
+			transmitir("MOSTRADOR_TEMPORAL", raiz.Position, CFG.ESCALA_MOSTRADOR * (0.6 + pulso * 0.25))
+			task.wait(intervalo)
+			pulso = pulso + 1
 		end
+	end
+
+	soltarCarga(humanoide)
+
+	if not raiz.Parent then
+		task.wait(CFG.RECARGA_AVANCO)
+		tool.Enabled = true
+		return
+	end
+
+	-- DETONAÇÃO — SFX → física → VFX → dano (§8 V2)
+	local centro = raiz.Position
+
+	tocarSom(CFG.SFX_ACELERACAO, centro)
+	transmitir("TREMOR", centro, 2.4)
+
+	for indice = 1, #CFG.ESCALAS_ESFERA do
+		transmitir("ESFERA_TEMPORAL", centro, CFG.ESCALAS_ESFERA[indice])
+	end
+	transmitir("ONDA_TEMPORAL", centro, CFG.ESCALAS_ESFERA[#CFG.ESCALAS_ESFERA])
+	transmitir("DETRITOS", centro, 3.0)
+
+	local atingidos = alvosEm(centro, CFG.RAIO_DETONACAO, personagem, jogador, humanoide)
+	for _, alvo in ipairs(atingidos) do
+		aplicarDano(jogador, alvo, CFG.DANO_DETONACAO)
 	end
 
 	task.wait(CFG.RECARGA_AVANCO)
@@ -283,6 +333,7 @@ tool.Equipped:Connect(function()
 	if humanoide then
 		local conexaoMorte
 		conexaoMorte = humanoide.Died:Connect(function()
+			soltarCarga(humanoide)
 			desacelerar(humanoide)
 			cancelarTudo()
 			if animador then
@@ -293,6 +344,7 @@ tool.Equipped:Connect(function()
 			conexaoMorte:Disconnect()
 		end)
 		guardarCancelamento(function()
+			soltarCarga(humanoide)
 			desacelerar(humanoide)
 		end)
 	end
@@ -310,6 +362,7 @@ tool.Unequipped:Connect(function()
 end)
 
 tool.Destroying:Connect(function()
+	soltarCarga(humanoideEquipado)
 	desacelerar(humanoideEquipado)
 	cancelarTudo()
 	if animador then
