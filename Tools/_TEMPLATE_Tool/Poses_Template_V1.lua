@@ -2,13 +2,24 @@
 	Poses_Template_V1  —  ModuleScript "Poses", filho direto da Tool
 	Retro-Verse / Studios  ·  §10.11 — pose, ritmo e dramaturgia são AUTORAIS
 
-	Tabela de poses R6 em CFrame, consumida pelo R6CFrameAnimator.
-	Cada `juntas` é um OFFSET aplicado sobre a base da junta — não a C0 absoluta.
+	Formato do R6CFrameAnimator V1 canônico do projeto.
+
+	Cada pose é o C0 de um Weld que o animator cria:
+
+		RightArm   Torso → Right Arm          base CFrame.new( 1.5, 0,   0)
+		LeftArm    Torso → Left Arm           base CFrame.new(-1.5, 0,   0)
+		Head       Torso → Head               base CFrame.new( 0,   1.5, 0)
+		HRP        HumanoidRootPart → Torso   base CFrame.new()
+
+	⚠️ NÃO escreva em Motor6D ("Right Shoulder", "Neck"…). O script `Animate`
+	padrão do Roblox escreve nesses mesmos Motor6D todo frame — os dois brigam
+	pela mesma junta, e a animação treme e volta sozinha. O animator canônico
+	existe justamente para não cair nisso: ele solda juntas próprias.
+
+	O animator não solda pernas. Se a pose precisar de perna, é decisão de
+	estender o animator — e aí é V2 declarada, não improviso local.
 
 	Variação entre golpes vem de ÍNDICE SEQUENCIAL, nunca de math.random (§10).
-
-	Ao finalizar a Tool, este arquivo é depositado no Acervo:
-		ACERVO_RETROVERSE/[Modelo_De_Origem]/R6_CFRAME/Poses_[Modelo]_V1.lua
 --]]
 
 local Poses = {}
@@ -17,68 +28,76 @@ local function graus(x, y, z)
 	return CFrame.Angles(math.rad(x), math.rad(y), math.rad(z))
 end
 
+local BASE_BRACO_D = CFrame.new(1.5, 0, 0)
+local BASE_BRACO_E = CFrame.new(-1.5, 0, 0)
+local BASE_CABECA  = CFrame.new(0, 1.5, 0)
+local BASE_TRONCO  = CFrame.new()
+
 --==============================================================================
--- GOLPES — alternados por contador sequencial
+-- POSES
 --==============================================================================
 
-local GOLPE_A = {
-	{
-		duracao = 0.10,
-		easing = "quadOut",
-		juntas = {
-			["Right Shoulder"] = graus(-150, 0, 25),
-			["Left Shoulder"] = graus(-25, 0, -20),
-			["RootJoint"] = graus(0, -12, 0),
-		},
+Poses.POSES = {
+	NEUTRO = {
+		RightArm = BASE_BRACO_D,
+		LeftArm  = BASE_BRACO_E,
+		Head     = BASE_CABECA,
+		HRP      = BASE_TRONCO,
 	},
-	{
-		duracao = 0.16,
-		easing = "backOut",
-		juntas = {
-			["Right Shoulder"] = graus(-35, 0, -10),
-			["Left Shoulder"] = graus(-10, 0, -15),
-			["RootJoint"] = graus(0, 18, 0),
-		},
+
+	-- Golpe A: braço direito sobe e desce
+	GOLPE_A_1 = {
+		RightArm = BASE_BRACO_D * graus(-150, 0, 25),
+		LeftArm  = BASE_BRACO_E * graus(-25, 0, -20),
+		HRP      = BASE_TRONCO * graus(0, -12, 0),
 	},
-	{
-		duracao = 0.18,
-		easing = "quadInOut",
-		juntas = {
-			["Right Shoulder"] = graus(0, 0, 0),
-			["Left Shoulder"] = graus(0, 0, 0),
-			["RootJoint"] = graus(0, 0, 0),
-		},
+	GOLPE_A_2 = {
+		RightArm = BASE_BRACO_D * graus(-35, 0, -10),
+		LeftArm  = BASE_BRACO_E * graus(-10, 0, -15),
+		HRP      = BASE_TRONCO * graus(0, 18, 0),
+	},
+
+	-- Golpe B: corte lateral
+	GOLPE_B_1 = {
+		RightArm = BASE_BRACO_D * graus(-40, 0, 80),
+		LeftArm  = BASE_BRACO_E * graus(-20, 0, -30),
+		HRP      = BASE_TRONCO * graus(0, 15, 0),
+	},
+	GOLPE_B_2 = {
+		RightArm = BASE_BRACO_D * graus(-60, 0, -55),
+		LeftArm  = BASE_BRACO_E * graus(-15, 0, -10),
+		HRP      = BASE_TRONCO * graus(0, -20, 0),
+	},
+
+	-- Habilidade Extra: os dois braços ao alto, depois abrindo
+	EXTRA_1 = {
+		RightArm = BASE_BRACO_D * graus(-175, 0, 15),
+		LeftArm  = BASE_BRACO_E * graus(-175, 0, -15),
+		Head     = BASE_CABECA * graus(-15, 0, 0),
+		HRP      = BASE_TRONCO * graus(-12, 0, 0),
+	},
+	EXTRA_2 = {
+		RightArm = BASE_BRACO_D * graus(-20, 0, 45),
+		LeftArm  = BASE_BRACO_E * graus(-20, 0, -45),
+		Head     = BASE_CABECA * graus(10, 0, 0),
+		HRP      = BASE_TRONCO * graus(20, 0, 0),
 	},
 }
 
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
+--==============================================================================
+
+local GOLPE_A = {
+	{ pose = "GOLPE_A_1", duracao = 0.10 },
+	{ pose = "GOLPE_A_2", duracao = 0.16 },
+	{ pose = "NEUTRO",    duracao = 0.18 },
+}
+
 local GOLPE_B = {
-	{
-		duracao = 0.10,
-		easing = "quadOut",
-		juntas = {
-			["Right Shoulder"] = graus(-40, 0, 80),
-			["Left Shoulder"] = graus(-20, 0, -30),
-			["RootJoint"] = graus(0, 15, 0),
-		},
-	},
-	{
-		duracao = 0.16,
-		easing = "backOut",
-		juntas = {
-			["Right Shoulder"] = graus(-60, 0, -55),
-			["Left Shoulder"] = graus(-15, 0, -10),
-			["RootJoint"] = graus(0, -20, 0),
-		},
-	},
-	{
-		duracao = 0.18,
-		easing = "quadInOut",
-		juntas = {
-			["Right Shoulder"] = graus(0, 0, 0),
-			["Left Shoulder"] = graus(0, 0, 0),
-			["RootJoint"] = graus(0, 0, 0),
-		},
-	},
+	{ pose = "GOLPE_B_1", duracao = 0.10 },
+	{ pose = "GOLPE_B_2", duracao = 0.16 },
+	{ pose = "NEUTRO",    duracao = 0.18 },
 }
 
 local CICLO = { GOLPE_A, GOLPE_B }
@@ -89,41 +108,10 @@ function Poses.golpe(contador)
 	return CICLO[indice]
 end
 
---==============================================================================
--- HABILIDADE EXTRA
---==============================================================================
-
 local EXTRA = {
-	{
-		duracao = 0.22,
-		easing = "quadOut",
-		juntas = {
-			["Right Shoulder"] = graus(-175, 0, 15),
-			["Left Shoulder"] = graus(-175, 0, -15),
-			["RootJoint"] = graus(-12, 0, 0),
-			["Neck"] = graus(-15, 0, 0),
-		},
-	},
-	{
-		duracao = 0.14,
-		easing = "backOut",
-		juntas = {
-			["Right Shoulder"] = graus(-20, 0, 45),
-			["Left Shoulder"] = graus(-20, 0, -45),
-			["RootJoint"] = graus(20, 0, 0),
-			["Neck"] = graus(10, 0, 0),
-		},
-	},
-	{
-		duracao = 0.26,
-		easing = "quadInOut",
-		juntas = {
-			["Right Shoulder"] = graus(0, 0, 0),
-			["Left Shoulder"] = graus(0, 0, 0),
-			["RootJoint"] = graus(0, 0, 0),
-			["Neck"] = graus(0, 0, 0),
-		},
-	},
+	{ pose = "EXTRA_1", duracao = 0.22 },
+	{ pose = "EXTRA_2", duracao = 0.14 },
+	{ pose = "NEUTRO",  duracao = 0.26 },
 }
 
 function Poses.extra()

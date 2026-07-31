@@ -25,15 +25,35 @@ cinza()    { printf '\033[90m%s\033[0m\n' "$1"; }
 codigo_puro() {
 	find "$ALVO" -name '*.lua' -print0 2>/dev/null | while IFS= read -r -d '' arquivo; do
 		awk -v nome="${arquivo#"$RAIZ"/}" '
+			# Comentário longo do Lua tem NÍVEL: --[[ ]], --[=[ ]=], --[==[ ]==].
+			# Ignorar o nível fazia o verificador ler documentação como se fosse código.
 			{
 				linha = $0
 				if (bloco) {
-					pos = index(linha, "]]")
-					if (pos > 0) { bloco = 0; linha = substr(linha, pos + 2) } else { linha = "" }
+					fecha = "]" nivel "]"
+					pos = index(linha, fecha)
+					if (pos > 0) {
+						bloco = 0
+						linha = substr(linha, pos + length(fecha))
+					} else {
+						linha = ""
+					}
 				}
 				if (!bloco) {
-					pos = index(linha, "--[[")
-					if (pos > 0) { bloco = 1; linha = substr(linha, 1, pos - 1) }
+					if (match(linha, /--\[=*\[/)) {
+						abertura = substr(linha, RSTART, RLENGTH)
+						nivel = substr(abertura, 4, RLENGTH - 4)
+						prefixo = substr(linha, 1, RSTART - 1)
+						resto = substr(linha, RSTART + RLENGTH)
+						fecha = "]" nivel "]"
+						pos = index(resto, fecha)
+						if (pos > 0) {
+							linha = prefixo substr(resto, pos + length(fecha))
+						} else {
+							bloco = 1
+							linha = prefixo
+						}
+					}
 					sub(/--.*$/, "", linha)
 				}
 				print nome ":" FNR ":" linha
@@ -77,6 +97,11 @@ checar "sem referência ao Acervo"       'ACERVO'
 
 # --- Ler de workspace é dependência; escrever nele é saída, e é permitido ----
 checar "sem busca em workspace"         'workspace[:.](FindFirstChild|WaitForChild|FindFirstDescendant)|game\.Workspace[:.](FindFirstChild|WaitForChild)'
+
+# --- Animação R6: o animator canônico solda Welds próprios -------------------
+# Escrever em Motor6D.C0 briga com o script Animate padrão do Roblox, que escreve
+# nas mesmas juntas todo frame. Foi o que bugou a primeira versão do Guardião.
+checar "sem escrita em Motor6D.C0"      'Motor6D|\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]'
 
 # --- Código de fora ----------------------------------------------------------
 checar "sem require de id numérico"     'require\(\s*[0-9]'

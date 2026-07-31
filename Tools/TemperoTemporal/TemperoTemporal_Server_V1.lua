@@ -58,6 +58,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 
 local function guardarCancelamento(cancelar)
@@ -190,7 +207,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	-- Ordem de impacto §8 V2: SFX → física → VFX → dano
@@ -248,7 +265,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -258,7 +275,7 @@ tool.Equipped:Connect(function()
 		conexaoMorte = humanoide.Died:Connect(function()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -269,7 +286,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- Tool.Enabled NÃO é resetado aqui: resetar vira cancelamento de recarga (§8 / §12.9)
@@ -278,7 +295,7 @@ end)
 tool.Destroying:Connect(function()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)

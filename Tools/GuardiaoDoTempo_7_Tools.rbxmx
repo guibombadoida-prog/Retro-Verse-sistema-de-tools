@@ -58,6 +58,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 
 local function guardarCancelamento(cancelar)
@@ -190,7 +207,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	-- Ordem de impacto §8 V2: SFX → física → VFX → dano
@@ -248,7 +265,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -258,7 +275,7 @@ tool.Equipped:Connect(function()
 		conexaoMorte = humanoide.Died:Connect(function()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -269,7 +286,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- Tool.Enabled NÃO é resetado aqui: resetar vira cancelamento de recarga (§8 / §12.9)
@@ -278,7 +295,7 @@ end)
 tool.Destroying:Connect(function()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -308,261 +325,189 @@ VFXRemote.OnClientEvent:Connect(function(tipo, payload)
 end)
 
 -- Esta Tool não tem habilidade Extra: o Client só recebe VFX.
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -1069,91 +1014,78 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_TemperoTemporal_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Golpe de área: recolhe e arremessa
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `TemporalTemper` do Convert — 5 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 5 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(-2.44929e-17, -0.05, 0.2, 0.819152, 3.4252e-18, -0.573576, -0.148453, 0.965926, -0.212012, 0.554032, 0.258819, 0.79124),
+		Head     = CFrame.new(-1.7126e-18, 1.48296, -0.12941, 0.819152, -3.4252e-18, 0.573576, -0.148453, 0.965926, 0.212012, -0.554032, -0.258819, 0.79124),
+		RightArm = CFrame.new(1.2887, 0.5, -0.453154, 0.906308, 0.422618, 5.95621e-23, -2.58779e-17, 5.54953e-17, -1, -0.422618, 0.906308, 6.12323e-17),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(-2.44929e-17, -0.05, 0.2, 0.819152, 3.4252e-18, -0.573576, -0.148453, 0.965926, -0.212012, 0.554032, 0.258819, 0.79124),
+		Head     = CFrame.new(-1.7126e-18, 1.48296, -0.12941, 0.819152, -3.4252e-18, 0.573576, -0.148453, 0.965926, 0.212012, -0.554032, -0.258819, 0.79124),
+		RightArm = CFrame.new(1.2887, 0.5, -0.053154, 0.906308, 0.422618, 5.95621e-23, -2.58779e-17, 5.54953e-17, -1, -0.422618, 0.906308, 6.12323e-17),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_3 = {
+		HRP      = CFrame.new(7.9602e-17, -0.3, -0.65, 1, 1.06058e-16, 6.12324e-17, -1.06057e-16, 0.5, 0.866025, 6.12327e-17, -0.866025, 0.5),
+		Head     = CFrame.new(9.79978e-39, 1.5, -1.99787e-23, 1, 1.95996e-38, -3.20085e-22, -5.98006e-39, 1, 3.99574e-23, 3.20085e-22, -3.99574e-23, 1),
+		RightArm = CFrame.new(1.5, 0.288691, -0.053154, 1, 0, 3.99574e-23, 5.95621e-23, 0.422618, -0.906308, 1.09519e-23, 0.906308, 0.422618),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_4 = {
+		HRP      = CFrame.new(3.79641e-17, -0.45, -0.31, 1, 1.06058e-16, 6.12324e-17, -1.06057e-16, 0.5, 0.866025, 6.12327e-17, -0.866025, 0.5),
+		Head     = CFrame.new(9.79978e-39, 1.5, -1.99787e-23, 1, 1.95996e-38, -3.20085e-22, -5.98006e-39, 1, 3.99574e-23, 3.20085e-22, -3.99574e-23, 1),
+		RightArm = CFrame.new(1.22059, 0.295891, -1.43771, 0.965926, 0.258819, 9.20566e-24, -0.109382, 0.408218, -0.906308, -0.23457, 0.875426, 0.422618),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_5 = {
+		HRP      = CFrame.new(3.79641e-17, -0.45, -0.31, 1, 1.06058e-16, 6.12324e-17, -1.06057e-16, 0.5, 0.866025, 6.12327e-17, -0.866025, 0.5),
+		Head     = CFrame.new(9.79978e-39, 1.5, -1.99787e-23, 1, 1.95996e-38, -3.20085e-22, -5.98006e-39, 1, 3.99574e-23, 3.20085e-22, -3.99574e-23, 1),
+		RightArm = CFrame.new(1.06321, 0.326906, -1.3712, 0.819152, 0.573576, -6.25924e-24, -0.242404, 0.346189, -0.906308, -0.519837, 0.742404, 0.422618),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.08,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(-2.44929e-17, -0.05, 0.2, -0.819152, -0.573576, -3.16962e-17, 0.148453, -0.212012, 0.965926, -0.554032, 0.79124, 0.258819),
-			["Neck"] = CFrame.new(0, 1, 0, -0.819152, 0.573576, 3.16962e-17, 0.148453, 0.212012, 0.965926, 0.554032, 0.79124, -0.258819),
-			["Right Shoulder"] = CFrame.new(1.04685, 0.5, 0.211309, 5.54953e-17, 0.422618, 0.906308, 1, 5.54953e-17, -8.71102e-17, -8.71102e-17, 0.906308, -0.422618),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, -0.01, -0.173648, -0.0343693, 0.984208, -0.254887, 0.966906, -0.0112058, -0.951251, -0.252808, -0.176662),
-			["Left Hip"] = CFrame.new(-1, -0.85, -0.01, 0.642788, 0.0133693, -0.765928, 0.198267, 0.962875, 0.183198, 0.739942, -0.269616, 0.616274),
-		},
-	},
-	{
-		duracao = 0.15,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(-2.44929e-17, -0.05, 0.2, -0.819152, -0.573576, -3.16962e-17, 0.148453, -0.212012, 0.965926, -0.554032, 0.79124, 0.258819),
-			["Neck"] = CFrame.new(0, 1, 0, -0.819152, 0.573576, 3.16962e-17, 0.148453, 0.212012, 0.965926, 0.554032, 0.79124, -0.258819),
-			["Right Shoulder"] = CFrame.new(1.04685, 0.5, 0.611309, 5.54953e-17, 0.422618, 0.906308, 1, 5.54953e-17, -8.71102e-17, -8.71102e-17, 0.906308, -0.422618),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, -0.01, -0.173648, -0.0343693, 0.984208, -0.254887, 0.966906, -0.0112058, -0.951251, -0.252808, -0.176662),
-			["Left Hip"] = CFrame.new(-1, -0.85, -0.01, 0.642788, 0.0133693, -0.765928, 0.198267, 0.962875, 0.183198, 0.739942, -0.269616, 0.616274),
-		},
-	},
-	{
-		duracao = 0.08,
-		easing = "backOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(7.9602e-17, -0.3, -0.65, -1, -6.12323e-17, 1.06058e-16, 7.4988e-33, 0.866025, 0.5, -1.22465e-16, 0.5, -0.866025),
-			["Neck"] = CFrame.new(0, 1, 0, -1, -1.22465e-16, 0, 7.4988e-33, -6.12323e-17, 1, -1.22465e-16, 1, 6.12323e-17),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0.4, 6.12323e-17, 0, 1, 0.906308, 0.422618, -5.54953e-17, -0.422618, 0.906308, 2.58779e-17),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, -0.01, 6.12323e-17, 0, 1, 0.766044, 0.642788, -4.69067e-17, -0.642788, 0.766044, 3.93594e-17),
-			["Left Hip"] = CFrame.new(-1, -1.05, -0.01, 6.12323e-17, 0, -1, -0.866025, 0.5, -5.30288e-17, 0.5, 0.866025, 3.06162e-17),
-		},
-	},
-	{
-		duracao = 0.08,
-		easing = "cubicOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(3.79641e-17, -0.45, -0.31, -1, -6.12323e-17, 1.06058e-16, 7.4988e-33, 0.866025, 0.5, -1.22465e-16, 0.5, -0.866025),
-			["Neck"] = CFrame.new(0, 1, 0, -1, -1.22465e-16, 0, 7.4988e-33, -6.12323e-17, 1, -1.22465e-16, 1, 6.12323e-17),
-			["Right Shoulder"] = CFrame.new(0.867037, 0.554691, -0.882715, 5.91459e-17, 0.258819, 0.965926, 0.906308, 0.408218, -0.109382, -0.422618, 0.875426, -0.23457),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -0.25, -0.4, 6.12323e-17, 0, 1, 0.766044, 0.642788, -4.69067e-17, -0.642788, 0.766044, 3.93594e-17),
-			["Left Hip"] = CFrame.new(-1, -0.25, -0.4, 6.12323e-17, 0, -1, -0.866025, 0.5, -5.30288e-17, 0.5, 0.866025, 3.06162e-17),
-		},
-	},
-	{
-		duracao = 0.25,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(3.79641e-17, -0.45, -0.31, -1, -6.12323e-17, 1.06058e-16, 7.4988e-33, 0.866025, 0.5, -1.22465e-16, 0.5, -0.866025),
-			["Neck"] = CFrame.new(0, 1, 0, -1, -1.22465e-16, 0, 7.4988e-33, -6.12323e-17, 1, -1.22465e-16, 1, 6.12323e-17),
-			["Right Shoulder"] = CFrame.new(0.940424, 0.621202, -0.740082, 5.01586e-17, 0.573576, 0.819152, 0.906308, 0.346189, -0.242404, -0.422618, 0.742404, -0.519837),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -0.25, -0.4, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-			["Left Hip"] = CFrame.new(-1, -0.25, -0.4, 6.12323e-17, 0, -1, -0.866025, 0.5, -5.30288e-17, 0.5, 0.866025, 3.06162e-17),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.08, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.15, easing = "quadInOut" },
+	{ pose = "PRIMARIA_3", duracao = 0.08, easing = "backOut" },
+	{ pose = "PRIMARIA_4", duracao = 0.08, easing = "cubicOut" },
+	{ pose = "PRIMARIA_5", duracao = 0.25, easing = "quadOut" },
 }
 
 function Poses.primaria()
@@ -1215,6 +1147,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 
 -- A marca temporal: posição, velocidade e o momento em que foi feita
@@ -1335,7 +1284,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	if marcaValida() then
@@ -1385,7 +1334,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -1397,7 +1346,7 @@ tool.Equipped:Connect(function()
 			limparMarca()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -1408,7 +1357,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- A marca SOBREVIVE ao desequipar, e a recarga também (§8 / §12.9)
@@ -1418,7 +1367,7 @@ tool.Destroying:Connect(function()
 	limparMarca()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -1448,261 +1397,189 @@ VFXRemote.OnClientEvent:Connect(function(tipo, payload)
 end)
 
 -- Esta Tool não tem habilidade Extra: o Client só recebe VFX.
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX53"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX53"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -2209,53 +2086,58 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_Cronostase_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Marca um ponto no tempo e retorna a ele
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: autoral: o modelo não anima `Chronostasis`
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 0 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+	},
+	PRIMARIA_3 = {
+		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.16,
-		easing = "quadOut",
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180)) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-12)),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)) * CFrame.Angles(math.rad(-115), math.rad(0), math.rad(0)),
-			["Left Shoulder"] = CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)) * CFrame.Angles(math.rad(-25), math.rad(0), math.rad(0)),
-		},
-	},
-	{
-		duracao = 0.22,
-		easing = "backOut",
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180)) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(18)),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)) * CFrame.Angles(math.rad(-25), math.rad(0), math.rad(0)),
-			["Left Shoulder"] = CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)) * CFrame.Angles(math.rad(-10), math.rad(0), math.rad(0)),
-		},
-	},
-	{
-		duracao = 0.2,
-		easing = "quadInOut",
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180)),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
-			["Left Shoulder"] = CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.16, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.22, easing = "backOut" },
+	{ pose = "PRIMARIA_3", duracao = 0.2, easing = "quadInOut" },
 }
 
 function Poses.primaria()
@@ -2339,6 +2221,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 local acelerado = false
 local proximoM = 0
@@ -2483,7 +2382,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	-- O modelo trava o dono durante a carga inteira (`Rooted = true`)
@@ -2599,7 +2498,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -2612,7 +2511,7 @@ tool.Equipped:Connect(function()
 			desacelerar(humanoide)
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -2631,7 +2530,7 @@ tool.Unequipped:Connect(function()
 	desacelerar(humanoideEquipado)
 
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -2641,7 +2540,7 @@ tool.Destroying:Connect(function()
 	desacelerar(humanoideEquipado)
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -2704,261 +2603,189 @@ end)
 tool.Destroying:Connect(function()
 	ContextActionService:UnbindAction(CFG.ACAO_EXTRA)
 end)
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -3465,107 +3292,88 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX86"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_AvancoRapido_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Avanço rápido, com aceleração sustentada
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `FastForward` do Convert — 4 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 4 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.4825, -0.129287, 0.905445, 0.0436194, -0.422216, 0.0711961, 0.965006, 0.252376, 0.41845, -0.258573, 0.870655),
+		RightArm = CFrame.new(1.5, 0.178606, -0.383022, 1, 0, 3.99574e-23, -3.33697e-23, 0.642788, -0.766044, -1.33365e-23, 0.766044, 0.642788),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49762, 0.0435364, 0.905445, 0.0436194, -0.422216, -0.0762158, 0.995247, -0.0606257, 0.417565, 0.0870728, 0.904466),
+		RightArm = CFrame.new(1.42351, 1.18444, -0.236348, 0.691655, -0.147016, -0.707107, -0.431933, -0.868876, -0.241845, -0.578833, 0.472696, -0.664463),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_3 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.902859, -0.0871557, 0.42101, 0.0789899, 0.996195, 0.0368336, -0.422618, -5.16956e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49194, 0.0867415, 0.905445, 0.0436194, -0.422216, -0.112319, 0.98387, -0.139224, 0.409333, 0.173483, 0.89574),
+		RightArm = CFrame.new(1.29281, 1.4845, -0.115871, 0.814665, -0.0856247, -0.573576, -0.201995, -0.969002, -0.142244, -0.543617, 0.231741, -0.806707),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_4 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.4825, -0.129287, 0.905445, 0.0436194, -0.422216, 0.0711961, 0.965006, 0.252376, 0.41845, -0.258573, 0.870655),
+		RightArm = CFrame.new(1.5, 0.178606, -0.383022, 1, 0, 3.99574e-23, -3.33697e-23, 0.642788, -0.766044, -1.33365e-23, 0.766044, 0.642788),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	EXTRA_1 = {
+		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+	},
+	EXTRA_2 = {
+		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.08,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, -0.0711961, 0.252376, 0.965006, -0.41845, 0.870655, -0.258573),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0, 6.12323e-17, 0, 1, 0.766044, 0.642788, -4.69067e-17, -0.642788, 0.766044, 3.93594e-17),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
-	{
-		duracao = 0.08,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.0762158, -0.0606257, 0.995247, -0.417565, 0.904466, 0.0870728),
-			["Right Shoulder"] = CFrame.new(1.00417, 0.965966, 0.289416, 0.707107, -0.147016, 0.691655, 0.241845, -0.868876, -0.431933, 0.664463, 0.472696, -0.578833),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
-	{
-		duracao = 0.25,
-		easing = "backOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.902859, 0.42101, -0.0871557, -0.0789899, 0.0368336, 0.996195, 0.422618, 0.906308, 5.03258e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.112319, -0.139224, 0.98387, -0.409333, 0.89574, 0.173483),
-			["Right Shoulder"] = CFrame.new(0.842668, 1.101, 0.271808, 0.573576, -0.0856247, 0.814665, 0.142244, -0.969002, -0.201995, 0.806707, 0.231741, -0.543617),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -0.85, -0.4, 0.400032, 0.139934, 0.905756, -0.258661, 0.965337, -0.0348995, -0.879243, -0.220323, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.137059, -0.975224, 0, 0.990268, 0.139173, 0.984808, 0.0241672, -0.171958),
-		},
-	},
-	{
-		duracao = 0.08,
-		easing = "cubicOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, -0.0711961, 0.252376, 0.965006, -0.41845, 0.870655, -0.258573),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0, 6.12323e-17, 0, 1, 0.766044, 0.642788, -4.69067e-17, -0.642788, 0.766044, 3.93594e-17),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.08, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.08, easing = "quadInOut" },
+	{ pose = "PRIMARIA_3", duracao = 0.25, easing = "backOut" },
+	{ pose = "PRIMARIA_4", duracao = 0.08, easing = "cubicOut" },
 }
 
 function Poses.primaria()
 	return PRIMARIA
 end
 
---==============================================================================
--- EXTRA — Aceleração (autoral)
---==============================================================================
-
 local EXTRA = {
-	{
-		duracao = 0.14,
-		easing = "quadOut",
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180)) * CFrame.Angles(math.rad(-8), math.rad(0), math.rad(0)),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)) * CFrame.Angles(math.rad(-60), math.rad(0), math.rad(0)),
-			["Left Shoulder"] = CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)) * CFrame.Angles(math.rad(-60), math.rad(0), math.rad(0)),
-		},
-	},
-	{
-		duracao = 0.18,
-		easing = "quadInOut",
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-90), math.rad(0), math.rad(180)),
-			["Right Shoulder"] = CFrame.new(1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(90), math.rad(0)),
-			["Left Shoulder"] = CFrame.new(-1, 0.5, 0) * CFrame.Angles(math.rad(0), math.rad(-90), math.rad(0)),
-		},
-	},
+	{ pose = "EXTRA_1", duracao = 0.14, easing = "quadOut" },
+	{ pose = "EXTRA_2", duracao = 0.18, easing = "quadInOut" },
 }
 
 function Poses.extra()
@@ -3635,6 +3443,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 
 local function guardarCancelamento(cancelar)
@@ -3756,7 +3581,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	-- CARGA
@@ -3814,7 +3639,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -3824,7 +3649,7 @@ tool.Equipped:Connect(function()
 		conexaoMorte = humanoide.Died:Connect(function()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -3835,7 +3660,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- Tool.Enabled NÃO é resetado aqui (§8 / §12.9)
@@ -3844,7 +3669,7 @@ end)
 tool.Destroying:Connect(function()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -3874,261 +3699,189 @@ VFXRemote.OnClientEvent:Connect(function(tipo, payload)
 end)
 
 -- Esta Tool não tem habilidade Extra: o Client só recebe VFX.
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX120"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX120"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -4635,52 +4388,57 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX122"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_CanhaoCronos_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Carga e disparo concentrado
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `ChronosCannon` do Convert — 2 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 2 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.707107, -2.2032e-17, 0.707107, -0.122788, 0.984808, 0.122788, -0.696364, -0.173648, 0.696364),
+		Head     = CFrame.new(1.63122e-17, 1.4981, 0.0435778, 0.707107, 3.26243e-17, -0.707107, -0.0616284, 0.996195, -0.0616284, 0.704416, 0.0871557, 0.704416),
+		RightArm = CFrame.new(1.70355, 0.561394, -0.848182, 0.707107, -0.707107, 1.62102e-23, -0.122788, -0.122788, -0.984808, 0.696364, 0.696364, -0.173648),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.707107, 6.45636e-17, -0.707107, 0.122788, 0.984808, 0.122788, 0.696364, -0.173648, 0.696364),
+		Head     = CFrame.new(-2.69857e-17, 1.4981, 0.0435778, 0.707107, -5.39713e-17, 0.707107, 0.0616284, 0.996195, -0.0616284, -0.704416, 0.0871557, 0.704416),
+		RightArm = CFrame.new(0.996447, 0.561394, -0.848182, 0.707107, 0.707107, 1.62102e-23, 0.122788, -0.122788, -0.984808, -0.696364, 0.696364, -0.173648),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.5,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.707107, 0.707107, 2.12658e-17, 0.122788, 0.122788, 0.984808, 0.696364, 0.696364, -0.173648),
-			["Neck"] = CFrame.new(0, 1, 0, -0.707107, -0.707107, -1.06735e-17, 0.0616284, -0.0616284, 0.996195, -0.704416, 0.704416, 0.0871557),
-			["Right Shoulder"] = CFrame.new(0.996447, 0.561394, -0.848182, 4.32978e-17, -0.707107, 0.707107, 0.984808, -0.122788, -0.122788, 0.173648, 0.696364, 0.696364),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, -0.01, 6.12323e-17, 0, 1, 0, 1, 0, -1, 0, 6.12323e-17),
-			["Left Hip"] = CFrame.new(-1, -1.05, -0.01, 6.12323e-17, 0, -1, 0, 1, 0, 1, 0, 6.12323e-17),
-		},
-	},
-	{
-		duracao = 0.5,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.707107, -0.707107, 2.12658e-17, -0.122788, 0.122788, 0.984808, -0.696364, 0.696364, -0.173648),
-			["Neck"] = CFrame.new(0, 1, 0, -0.707107, 0.707107, -1.06735e-17, -0.0616284, -0.0616284, 0.996195, 0.704416, 0.704416, 0.0871557),
-			["Right Shoulder"] = CFrame.new(0.996447, 0.438606, -0.151818, 4.32978e-17, 0.707107, 0.707107, 0.984808, -0.122788, 0.122788, 0.173648, 0.696364, -0.696364),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, -0.01, 6.12323e-17, 0, 1, 0, 1, 0, -1, 0, 6.12323e-17),
-			["Left Hip"] = CFrame.new(-1, -1.05, -0.01, 6.12323e-17, 0, -1, 0, 1, 0, 1, 0, 6.12323e-17),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.5, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.5, easing = "quadInOut" },
 }
 
 function Poses.primaria()
@@ -4748,6 +4506,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 
 -- Toda parada em curso. Registro órfão aqui é jogador congelado para sempre.
@@ -4912,7 +4687,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	local centro = raiz.Position
@@ -4962,7 +4737,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -4974,7 +4749,7 @@ tool.Equipped:Connect(function()
 			soltarTodos()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -4986,7 +4761,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- A parada em curso NÃO é interrompida por desequipar, e a recarga também não (§8 / §12.9)
@@ -4996,7 +4771,7 @@ tool.Destroying:Connect(function()
 	soltarTodos()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -5026,261 +4801,189 @@ VFXRemote.OnClientEvent:Connect(function(tipo, payload)
 end)
 
 -- Esta Tool não tem habilidade Extra: o Client só recebe VFX.
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX155"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX155"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -5787,39 +5490,50 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX157"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_Temporalise_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Parada do tempo em área
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `Temporalysis` do Convert — 1 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 1 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0.1, 6.12323e-18, 1, 1.06735e-17, 4.6568e-19, -1.06735e-17, 0.996195, 0.0871557, 4.66298e-19, -0.0871557, 0.996195),
+		Head     = CFrame.new(-2.58779e-17, 1.45315, 0.211309, 1, -5.17558e-17, 1.14737e-17, 5.17558e-17, 0.906308, -0.422618, 1.14743e-17, 0.422618, 0.906308),
+		RightArm = CFrame.new(1.78678, 0.884875, -0.140083, 0.819152, -0.573576, -6.25924e-24, -0.538986, -0.769751, -0.34202, 0.196175, 0.280166, -0.939693),
+		LeftArm  = CFrame.new(-1.78678, 0.884875, -0.140083, 0.819152, 0.573576, 6.25924e-24, 0.538986, -0.769751, -0.34202, -0.196175, 0.280166, -0.939693),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.35,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.1, 6.12323e-18, -1, -1.21999e-16, 1.06735e-17, 7.4988e-33, 0.0871557, 0.996195, -1.22465e-16, 0.996195, -0.0871557),
-			["Neck"] = CFrame.new(0, 1, 0, -1, -1.10991e-16, -5.17558e-17, 7.4988e-33, -0.422618, 0.906308, -1.22465e-16, 0.906308, 0.422618),
-			["Right Shoulder"] = CFrame.new(1.09042, 0.769493, -0.0980873, 5.01586e-17, -0.573576, 0.819152, 0.34202, -0.769751, -0.538986, 0.939693, 0.280166, 0.196175),
-			["Left Shoulder"] = CFrame.new(-1.09042, 0.769493, -0.0980873, 5.01586e-17, 0.573576, -0.819152, -0.34202, -0.769751, -0.538986, -0.939693, 0.280166, 0.196175),
-			["Right Hip"] = CFrame.new(1, -1, 0, 0.364214, -0.0378024, 0.930548, -0.2563, 0.956526, 0.139173, -0.895354, -0.289188, 0.338692),
-			["Left Hip"] = CFrame.new(-1, -1, 0, 0.364214, 0.0378024, -0.930548, 0.2563, 0.956526, 0.139173, 0.895354, -0.289188, 0.338692),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.35, easing = "quadOut" },
 }
 
 function Poses.primaria()
@@ -5895,6 +5609,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 local armadilhas = {}   -- lista de { parte, cancelar }
 
@@ -6155,7 +5886,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	local posicao = raiz.Position - Vector3.new(0, 2.5, 0)
@@ -6181,7 +5912,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -6193,7 +5924,7 @@ tool.Equipped:Connect(function()
 			recolherArmadilhas()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -6205,7 +5936,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- As armadilhas plantadas CONTINUAM armadas, e a recarga também corre (§8 / §12.9)
@@ -6215,7 +5946,7 @@ tool.Destroying:Connect(function()
 	recolherArmadilhas()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -6245,261 +5976,189 @@ VFXRemote.OnClientEvent:Connect(function(tipo, payload)
 end)
 
 -- Esta Tool não tem habilidade Extra: o Client só recebe VFX.
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX190"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX190"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -7006,52 +6665,57 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX192"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_ArmadilhaTemporal_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Armadilha temporal plantada no chão
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `TemporalTrap` do Convert — 2 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 2 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49762, 0.0435364, 0.905445, 0.0436194, -0.422216, -0.0762158, 0.995247, -0.0606257, 0.417565, 0.0870728, 0.904466),
+		RightArm = CFrame.new(1.42351, 1.18444, -0.236348, 0.691655, -0.147016, -0.707107, -0.431933, -0.868876, -0.241845, -0.578833, 0.472696, -0.664463),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.902859, -0.0871557, 0.42101, 0.0789899, 0.996195, 0.0368336, -0.422618, -5.16956e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49194, 0.0867415, 0.905445, 0.0436194, -0.422216, -0.112319, 0.98387, -0.139224, 0.409333, 0.173483, 0.89574),
+		RightArm = CFrame.new(1.29281, 1.4845, -0.115871, 0.814665, -0.0856247, -0.573576, -0.201995, -0.969002, -0.142244, -0.543617, 0.231741, -0.806707),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.5,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.0762158, -0.0606257, 0.995247, -0.417565, 0.904466, 0.0870728),
-			["Right Shoulder"] = CFrame.new(1.00417, 0.965966, 0.289416, 0.707107, -0.147016, 0.691655, 0.241845, -0.868876, -0.431933, 0.664463, 0.472696, -0.578833),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
-	{
-		duracao = 0.5,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.902859, 0.42101, -0.0871557, -0.0789899, 0.0368336, 0.996195, 0.422618, 0.906308, 5.03258e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.112319, -0.139224, 0.98387, -0.409333, 0.89574, 0.173483),
-			["Right Shoulder"] = CFrame.new(0.842668, 1.101, 0.271808, 0.573576, -0.0856247, 0.814665, 0.142244, -0.969002, -0.201995, 0.806707, 0.231741, -0.543617),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -0.85, -0.4, 0.400032, 0.139934, 0.905756, -0.258661, 0.965337, -0.0348995, -0.879243, -0.220323, 0.422361),
-			["Left Hip"] = CFrame.new(-1.03, -1.02, 0, -0.173648, 0.137059, -0.975224, 0, 0.990268, 0.139173, 0.984808, 0.0241672, -0.171958),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.5, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.5, easing = "quadInOut" },
 }
 
 function Poses.primaria()
@@ -7128,6 +6792,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}
 local cancelarReducao = nil
 local proximaProvocacao = 0
@@ -7278,7 +6959,7 @@ tool.Activated:Connect(function()
 	end
 
 	if animador then
-		animador:tocar(Poses.primaria())
+		tocarSequencia(Poses.primaria())
 	end
 
 	-- Redução enquanto a ultimate corre. Guardar o cancelamento é obrigatório.
@@ -7375,7 +7056,7 @@ local function provocar()
 	local ponto = raiz and raiz.Position or handle.Position
 
 	if animador then
-		animador:tocar(Poses.extra())
+		tocarSequencia(Poses.extra())
 	end
 
 	tocarSom(CFG.SFX_PROVOCACAO, ponto)
@@ -7403,7 +7084,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	-- AURA no Handle enquanto a Tool está na mão (efeito acrescentado na V2)
 	transmitir("AURA", handle.Position, 1.0)
@@ -7414,7 +7095,7 @@ tool.Equipped:Connect(function()
 			tirarReducao()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -7426,7 +7107,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- Tool.Enabled NÃO é resetado aqui (§8 / §12.9).
@@ -7437,7 +7118,7 @@ tool.Destroying:Connect(function()
 	tirarReducao()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)
@@ -7500,261 +7181,189 @@ end)
 tool.Destroying:Connect(function()
 	ContextActionService:UnbindAction(CFG.ACAO_EXTRA)
 end)
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX225"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
-	R6CFrameAnimator  V2  —  ModuleScript, filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 (animação autoral) + §10.11.7 (acumulador dt)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX225"><Properties><string name="Name">R6CFrameAnimator</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V1.lua
+-- ModuleScript reutilizável — sistema de animação R6 procedural em CFrame
+-- Colocar como ModuleScript dentro da Tool (ou em ReplicatedStorage/módulo compartilhado)
+-- e requerer no Server Script: local Animator = require(script.R6CFrameAnimator)
 
-	V1 → V2: quadro pode declarar `absoluto = true`, e então as CFrames da tabela são
-	a C0 FINAL da junta, não um offset sobre a base. É o que permite importar pose de
-	terceiro sem reinterpretar a convenção de base de quem a escreveu (§12.12.1).
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V1
+═══════════════════════════════════════════════════════════════
+Extraído das Tools da família His Cube (Server V5 / variantes V1).
+Anima o R6 SEM Animation assets: cria Welds manuais e faz lerp/tween
+do C0 a cada frame. Compatível com todas as regras do projeto:
 
-	Modo padrão continua sendo OFFSET — V1 e V2 convivem sem quebrar Tool existente.
+- CFrame procedural (Weld.C0), nunca Animation/AnimationTrack
+- Idle bob via acumulador dt a partir de zero (nunca tick()*speed)
+- Sem wait()/spawn() — exclusivamente task.* / RunService
+- Sem +=, sem continue
+- Welds removidos por reparent (Parent=nil), nunca :Destroy() manual
+- Não reseta estado no Unequipped além do necessário
 
-	Animação R6 é CFrame PROCEDURAL sobre as juntas Motor6D. Proibido Animation/LoadAnimation.
-	O tempo acumula a partir de ZERO, localmente: tick() e os.time() nunca alimentam CFrame.
+USO BÁSICO:
+  local Animator = require(script.R6CFrameAnimator)
+  local rig = Animator.new(character, "HisCube", POSES) -- POSES opcional
+  rig:PlayPose("IDLE", 0.3)
+  rig:StartIdleBob("IDLE", "RightArm")   -- opcional
+  ...
+  rig:Destroy()  -- no Unequipped / morte
 
-	USO
-		local animador = Animator.novo(personagem)
-		animador:tocar(sequencia)
-		animador:parar()
-		animador:restaurar()
+Cada "pose" é uma tabela de C0 alvo por junta:
+  POSES.SHOOT = {
+      RightArm = CFrame.new(...) * CFrame.Angles(...),
+      Head     = CFrame.new(0,1.5,0),
+      HRP      = CFrame.new(),
+  }
+Juntas suportadas: RightArm, LeftArm, Head, HRP (HumanoidRootPart→Torso).
+═══════════════════════════════════════════════════════════════
+--]==]
 
-	QUADRO
-		{
-			duracao = 0.18,
-			easing  = "quadOut",
-			absoluto = true,                          -- opcional
-			juntas  = { ["Right Shoulder"] = CFrame.new(...) },
-		}
---]]
-
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
 
 local Animator = {}
 Animator.__index = Animator
 
---==============================================================================
--- CFG
---==============================================================================
-
-local CFG = {
-	DURACAO_PADRAO   = 0.30,
-	EASING_PADRAO    = "quadOut",
-	RETORNO_PADRAO   = 0.20,
-	TOLERANCIA_FIM   = 0.0001,
-
-	-- Respiração do Idle: jitter senoidal por contador, no lugar de math.random
-	RESPIRO_AMPLITUDE = 0.03,
-	RESPIRO_PERIODO   = 1.9,
+-- Poses padrão (mesmas do His Cube V5) — usadas se nenhuma for passada
+local DEFAULT_POSES = {
+	IDLE = {
+		RightArm = CFrame.new(1.5, 0.2, -0.2) * CFrame.Angles(math.rad(50), 0, math.rad(8)),
+		Head     = CFrame.new(0, 1.5, 0),
+		HRP      = CFrame.new(),
+	},
+	SHOOT = {
+		RightArm = CFrame.new(1.2, 0.5, -1.0) * CFrame.Angles(math.rad(90), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-10), 0),
+		HRP      = CFrame.new(0, 0, -0.2) * CFrame.Angles(0, math.rad(-15), 0),
+	},
+	CAST_Q = {
+		RightArm = CFrame.new(1.3, 0.8, 0) * CFrame.Angles(math.rad(150), 0, math.rad(15)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(15), 0, 0),
+		HRP      = CFrame.new(),
+	},
+	CAST_E = {
+		RightArm = CFrame.new(1.5, 0.8, 0) * CFrame.Angles(math.rad(160), 0, math.rad(20)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(10), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-5), 0, 0),
+	},
 }
+Animator.DefaultPoses = DEFAULT_POSES
 
-local JUNTAS = {
-	["Neck"]           = { pai = "Torso",            base = CFrame.new(0, 1, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-	["Right Shoulder"] = { pai = "Torso",            base = CFrame.new(1, 0.5, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Shoulder"]  = { pai = "Torso",            base = CFrame.new(-1, 0.5, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["Right Hip"]      = { pai = "Torso",            base = CFrame.new(1, -1, 0) * CFrame.Angles(0, math.pi / 2, 0) },
-	["Left Hip"]       = { pai = "Torso",            base = CFrame.new(-1, -1, 0) * CFrame.Angles(0, -math.pi / 2, 0) },
-	["RootJoint"]      = { pai = "HumanoidRootPart", base = CFrame.new(0, 0, 0) * CFrame.Angles(-math.pi / 2, 0, math.pi) },
-}
-
---==============================================================================
--- EASING — funções puras de alpha (0..1)
---==============================================================================
-
-local EASING = {}
-
-function EASING.linear(a)
-	return a
-end
-
-function EASING.quadIn(a)
-	return a * a
-end
-
-function EASING.quadOut(a)
-	return 1 - (1 - a) * (1 - a)
-end
-
-function EASING.quadInOut(a)
-	if a < 0.5 then
-		return 2 * a * a
-	end
-	return 1 - ((-2 * a + 2) ^ 2) / 2
-end
-
-function EASING.cubicOut(a)
-	return 1 - (1 - a) ^ 3
-end
-
-function EASING.backOut(a)
-	local c1 = 1.70158
-	local c3 = c1 + 1
-	return 1 + c3 * ((a - 1) ^ 3) + c1 * ((a - 1) ^ 2)
-end
-
-local function resolverEasing(nome)
-	local funcao = EASING[nome or CFG.EASING_PADRAO]
-	if funcao then
-		return funcao
-	end
-	return EASING.linear
-end
-
---==============================================================================
--- CONSTRUÇÃO
---==============================================================================
-
-function Animator.novo(personagem)
-	if not personagem then
-		return nil
-	end
+--[[
+	Animator.new(character, weldSuffix, poses)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses (opcional; usa DEFAULT_POSES se nil)
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
 
 	local self = setmetatable({}, Animator)
-	self.personagem = personagem
-	self.motores = {}
-	self.conexao = nil
-	self.tocando = false
-	self.respirando = false
+	self.Character  = character
+	self.Suffix     = weldSuffix or "Rig"
+	self.Poses      = poses or DEFAULT_POSES
+	self.Welds      = {}
+	self.IdleConn   = nil
+	self.Destroyed  = false
 
-	for nome, info in pairs(JUNTAS) do
-		local pai = personagem:FindFirstChild(info.pai)
-		if pai then
-			local motor = pai:FindFirstChild(nome)
-			if motor and motor:IsA("Motor6D") then
-				self.motores[nome] = {
-					motor = motor,
-					base = info.base,
-					repouso = motor.C0,
-				}
-			end
-		end
+	-- Fixar o RightGrip para a Tool ficar na mão em pose neutra
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
 	end
 
 	return self
 end
 
---==============================================================================
--- REPRODUÇÃO
---==============================================================================
-
-function Animator:_desconectar()
-	if self.conexao then
-		self.conexao:Disconnect()
-		self.conexao = nil
-	end
-	self.tocando = false
-end
-
-function Animator:_alvo(registro, destino, absoluto)
-	if absoluto then
-		return destino
-	end
-	return registro.base * destino
-end
-
-function Animator:_aplicar(quadro, de, alpha)
-	local absoluto = quadro.absoluto == true
-	for nome, destino in pairs(quadro.juntas or {}) do
-		local registro = self.motores[nome]
-		if registro then
-			local origem = de[nome] or registro.base
-			registro.motor.C0 = origem:Lerp(self:_alvo(registro, destino, absoluto), alpha)
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
 		end
 	end
 end
 
-function Animator:tocar(sequencia, aoTerminar)
-	if not sequencia or #sequencia == 0 then
-		return
-	end
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if w and w.Parent then w.C0 = c0 end
+end
 
-	self:_desconectar()
-	self.tocando = true
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+-- shouldRun() (opcional) permite pausar durante outras animações.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
 
-	local indice = 1
-	local t = 0                    -- acumulador dt, a partir de ZERO (§10.11.7)
-	local origem = {}
-
-	local function prepararQuadro()
-		origem = {}
-		for nome, registro in pairs(self.motores) do
-			origem[nome] = registro.motor.C0
-		end
-	end
-
-	prepararQuadro()
-
-	self.conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.tocando then
-			return
-		end
-		if not self.personagem.Parent then
-			self:_desconectar()
-			return
-		end
-
-		local quadro = sequencia[indice]
-		if not quadro then
-			self:_desconectar()
-			return
-		end
-
-		local duracao = quadro.duracao or CFG.DURACAO_PADRAO
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
 		t = t + dt
-
-		local alpha = duracao > 0 and math.clamp(t / duracao, 0, 1) or 1
-		local suave = resolverEasing(quadro.easing)(alpha)
-
-		self:_aplicar(quadro, origem, suave)
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			indice = indice + 1
-			t = 0
-			if sequencia[indice] then
-				prepararQuadro()
-			else
-				self:_desconectar()
-				if type(aoTerminar) == "function" then
-					aoTerminar()
-				end
+		local run = (shouldRun == nil) or shouldRun()
+		if run then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
 			end
 		end
 	end)
 end
 
-function Animator:parar()
-	self:_desconectar()
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
 end
 
-function Animator:restaurar()
-	self:_desconectar()
-
-	local t = 0
-	local origem = {}
-	for nome, registro in pairs(self.motores) do
-		origem[nome] = registro.motor.C0
+-- Remove todos os Welds (reparent, nunca :Destroy() manual) e para o idle.
+function Animator:Destroy()
+	self.Destroyed = true
+	self:StopIdleBob()
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
 	end
-
-	local conexao
-	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not self.personagem.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		t = t + dt
-		local alpha = math.clamp(t / CFG.RETORNO_PADRAO, 0, 1)
-		local suave = EASING.quadOut(alpha)
-
-		for nome, registro in pairs(self.motores) do
-			local de = origem[nome] or registro.repouso
-			registro.motor.C0 = de:Lerp(registro.repouso, suave)
-		end
-
-		if alpha >= 1 - CFG.TOLERANCIA_FIM then
-			conexao:Disconnect()
-		end
-	end)
+	self.Welds = {}
 end
 
 return Animator
@@ -8261,102 +7870,85 @@ end
 return VFX
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX227"><Properties><string name="Name">Poses</string><bool name="Disabled">false</bool><ProtectedString name="Source"><![CDATA[--[[
 	Poses_GuardiaoDoTempo_AvoDoTempo_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Ultimate do conjunto
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `GrandfatherTime` do Convert — 3 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 5 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0, 0, 0.819152, 1.35438e-16, -0.573576, 0.469846, 0.573576, 0.67101, 0.32899, -0.819152, 0.469846),
+		Head     = CFrame.new(-1.7126e-18, 1.48296, -0.12941, 0.819152, -3.4252e-18, 0.573576, -0.148453, 0.965926, 0.212012, -0.554032, -0.258819, 0.79124),
+		RightArm = CFrame.new(1.40642, 0.51, 0.101903, 0.996195, 0.0871557, 5.09038e-23, -5.33676e-18, 6.09993e-17, -1, -0.0871557, 0.996195, 6.12324e-17),
+		LeftArm  = CFrame.new(-1.90957, 0.254175, -0.147707, 0.573576, 0.819152, -6.23387e-25, -0.70215, 0.491651, -0.515038, -0.421894, 0.295414, 0.857167),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0, 0, 0.422618, 5.54956e-17, 0.906308, -0.821394, 0.422618, 0.383022, -0.383022, -0.906308, 0.178606),
+		Head     = CFrame.new(4.35958e-17, 1.48296, -0.12941, 0.422618, 8.71916e-17, -0.906308, 0.23457, 0.965926, 0.109382, 0.875426, -0.258819, 0.408218),
+		RightArm = CFrame.new(1.90315, 0.51, -0.711309, 0.422618, -0.906308, -1.09519e-23, 5.54953e-17, 2.58779e-17, -1, 0.906308, 0.422618, 6.12323e-17),
+		LeftArm  = CFrame.new(-1.90957, 0.254175, -0.147707, 0.573576, 0.819152, -6.23387e-25, -0.70215, 0.491651, -0.515038, -0.421894, 0.295414, 0.857167),
+	},
+	PRIMARIA_3 = {
+		HRP      = CFrame.new(0, 0, 0, 0.422618, 5.54956e-17, 0.906308, -0.821394, 0.422618, 0.383022, -0.383022, -0.906308, 0.178606),
+		Head     = CFrame.new(4.35958e-17, 1.48296, -0.12941, 0.422618, 8.71916e-17, -0.906308, 0.23457, 0.965926, 0.109382, 0.875426, -0.258819, 0.408218),
+		RightArm = CFrame.new(1.90315, 0.51, -0.711309, 0.422618, -0.906308, -1.09519e-23, 5.54953e-17, 2.58779e-17, -1, 0.906308, 0.422618, 6.12323e-17),
+		LeftArm  = CFrame.new(-1.90957, 0.254175, -0.147707, 0.573576, 0.819152, -6.23387e-25, -0.70215, 0.491651, -0.515038, -0.421894, 0.295414, 0.857167),
+	},
+	EXTRA_1 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.4825, -0.129287, 0.905445, 0.0436194, -0.422216, 0.0711961, 0.965006, 0.252376, 0.41845, -0.258573, 0.870655),
+		RightArm = CFrame.new(1.77139, 0.730924, 0.0900367, -0.766044, -0.642788, 3.33697e-23, 0.639266, -0.761848, -0.104528, 0.0671896, -0.0800734, 0.994522),
+		LeftArm  = CFrame.new(-1.77139, 0.730924, 0.0900367, -0.766044, 0.642788, -3.33697e-23, -0.639266, -0.761848, -0.104528, -0.0671896, -0.0800734, 0.994522),
+	},
+	EXTRA_2 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(-0.0435778, 1.38112, -0.128917, 0.936117, -0.0871557, -0.340719, 0.16763, 0.96225, 0.214417, 0.309169, -0.257834, 0.915389),
+		RightArm = CFrame.new(1.77139, 0.830924, 0.0900367, -0.766044, -0.642788, 3.33697e-23, 0.639266, -0.761848, -0.104528, 0.0671896, -0.0800734, 0.994522),
+		LeftArm  = CFrame.new(-1.77139, 0.830924, 0.0900367, -0.766044, 0.642788, -3.33697e-23, -0.639266, -0.761848, -0.104528, -0.0671896, -0.0800734, 0.994522),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.5,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0, -0.819152, -0.573576, 1.00317e-16, -0.469846, 0.67101, 0.573576, -0.32899, 0.469846, -0.819152),
-			["Neck"] = CFrame.new(0, 1, 0, -0.819152, 0.573576, 3.16962e-17, 0.148453, 0.212012, 0.965926, 0.554032, 0.79124, -0.258819),
-			["Right Shoulder"] = CFrame.new(0.951903, 0.51, 0.643578, 6.09993e-17, 0.0871557, 0.996195, 1, 6.09993e-17, -6.65691e-17, -6.65691e-17, 0.996195, -0.0871557),
-			["Left Shoulder"] = CFrame.new(-1.21321, 0.148925, -0.210947, 3.51214e-17, 0.819152, -0.573576, -0.515038, 0.491651, 0.70215, 0.857167, 0.295414, 0.421894),
-			["Right Hip"] = CFrame.new(1, -0.3, -0.7, 6.12323e-17, 0, 1, -0.422618, 0.906308, 2.58779e-17, -0.906308, -0.422618, 5.54953e-17),
-			["Left Hip"] = CFrame.new(-1, -0.8, -0.3, 0.173648, 0, -0.984808, 0.17101, 0.984808, 0.0301537, 0.969846, -0.173648, 0.17101),
-		},
-	},
-	{
-		duracao = 0.1,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0, -0.422618, 0.906308, 1.10991e-16, 0.821394, 0.383022, 0.422618, 0.383022, 0.178606, -0.906308),
-			["Neck"] = CFrame.new(0, 1, 0, -0.422618, -0.906308, 3.16962e-17, -0.23457, 0.109382, 0.965926, -0.875426, 0.408218, -0.258819),
-			["Right Shoulder"] = CFrame.new(1.23869, 0.51, -0.953154, 2.58779e-17, -0.906308, 0.422618, 1, 2.58779e-17, -5.73699e-18, -5.73699e-18, 0.422618, 0.906308),
-			["Left Shoulder"] = CFrame.new(-1.21321, 0.148925, -0.210947, 3.51214e-17, 0.819152, -0.573576, -0.515038, 0.491651, 0.70215, 0.857167, 0.295414, 0.421894),
-			["Right Hip"] = CFrame.new(1, -0.3, -0.7, 6.12323e-17, 0, 1, -0.422618, 0.906308, 2.58779e-17, -0.906308, -0.422618, 5.54953e-17),
-			["Left Hip"] = CFrame.new(-1, -0.8, -0.3, 0.173648, 0, -0.984808, 0.17101, 0.984808, 0.0301537, 0.969846, -0.173648, 0.17101),
-		},
-	},
-	{
-		duracao = 0.15,
-		easing = "backOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0, 0, -0.422618, 0.906308, 1.10991e-16, 0.821394, 0.383022, 0.422618, 0.383022, 0.178606, -0.906308),
-			["Neck"] = CFrame.new(0, 1, 0, -0.422618, -0.906308, 3.16962e-17, -0.23457, 0.109382, 0.965926, -0.875426, 0.408218, -0.258819),
-			["Right Shoulder"] = CFrame.new(1.23869, 0.51, -0.953154, 2.58779e-17, -0.906308, 0.422618, 1, 2.58779e-17, -5.73699e-18, -5.73699e-18, 0.422618, 0.906308),
-			["Left Shoulder"] = CFrame.new(-1.21321, 0.148925, -0.210947, 3.51214e-17, 0.819152, -0.573576, -0.515038, 0.491651, 0.70215, 0.857167, 0.295414, 0.421894),
-			["Right Hip"] = CFrame.new(1, -0.3, -0.7, 6.12323e-17, 0, 1, -0.422618, 0.906308, 2.58779e-17, -0.906308, -0.422618, 5.54953e-17),
-			["Left Hip"] = CFrame.new(-1, -0.8, -0.3, 0.173648, 0, -0.984808, 0.17101, 0.984808, 0.0301537, 0.969846, -0.173648, 0.17101),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.5, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.1, easing = "quadInOut" },
+	{ pose = "PRIMARIA_3", duracao = 0.15, easing = "backOut" },
 }
 
 function Poses.primaria()
 	return PRIMARIA
 end
 
---==============================================================================
--- EXTRA — Taunt
---==============================================================================
-
 local EXTRA = {
-	{
-		duracao = 0.08,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, -0.0711961, 0.252376, 0.965006, -0.41845, 0.870655, -0.258573),
-			["Right Shoulder"] = CFrame.new(1.83302, 0.0303668, 0.0164052, -4.69067e-17, -0.642788, -0.766044, 0.104528, -0.761848, 0.639266, -0.994522, -0.0800734, 0.0671896),
-			["Left Shoulder"] = CFrame.new(-1.83302, 0.0303668, 0.0164052, -4.69067e-17, 0.642788, 0.766044, -0.104528, -0.761848, 0.639266, 0.994522, -0.0800734, 0.0671896),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
-	{
-		duracao = 0.5,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 0.9, -6.12323e-18, -0.936117, -0.340719, -0.0871557, -0.16763, 0.214417, 0.96225, -0.309169, 0.915389, -0.257834),
-			["Right Shoulder"] = CFrame.new(1.83302, 0.130367, 0.0164052, -4.69067e-17, -0.642788, -0.766044, 0.104528, -0.761848, 0.639266, -0.994522, -0.0800734, 0.0671896),
-			["Left Shoulder"] = CFrame.new(-1.83302, 0.130367, 0.0164052, -4.69067e-17, 0.642788, 0.766044, -0.104528, -0.761848, 0.639266, 0.994522, -0.0800734, 0.0671896),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
+	{ pose = "EXTRA_1", duracao = 0.08, easing = "quadOut" },
+	{ pose = "EXTRA_2", duracao = 0.5, easing = "quadInOut" },
 }
 
 function Poses.extra()

@@ -1,51 +1,56 @@
 --[[
 	Poses_GuardiaoDoTempo_ArmadilhaTemporal_V1  —  ModuleScript "Poses", filho direto da Tool
-	Retro-Verse / Studios  ·  §10.11 · §12.12.1 (pose R6 CFrame de terceiro, permitida)
+	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	Armadilha temporal plantada no chão
+	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
 
-	Origem da primária: `TemporalTrap` do Convert — 2 quadro(s) extraído(s)
-	Extração: as chamadas `Clerp(<junta>.C0, <alvo>, ...)` foram avaliadas numericamente com
-	SINE = 0, o que CONGELA a oscilação do Idle numa fase fixa (COS(0) = 1, SIN(0) = 0) e
-	transforma cada laço de animação num quadro estático. O resultado é a C0 ABSOLUTA, emitida
-	como matriz completa — por isso todo quadro extraído traz `absoluto = true` (Animator V2).
+	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
+	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
+	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
+	e os dois brigavam pela mesma junta.
 
-	Depositado em ACERVO_RETROVERSE/Guardiao_Do_Tempo/R6_CFRAME/
+	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
+	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
+	desses Welds, convertidas por:
+
+		WeldC0 = MotorC0 * MotorC1⁻¹
+
+	Conferido contra as bases do animator: a pose neutra devolve exatamente
+	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+
+	Juntas: RightArm · LeftArm · Head · HRP.
+	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
+	não solda pernas. 2 canal(is) de perna descartado(s) nesta Tool.
 --]]
 
 local Poses = {}
 
 --==============================================================================
--- PRIMÁRIA
+-- POSES — C0 de Weld, no formato que o Animator canônico consome
+--==============================================================================
+
+Poses.POSES = {
+	PRIMARIA_1 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.906308, -2.58779e-17, 0.422618, 2.58779e-17, 1, 5.73704e-18, -0.422618, 5.73694e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49762, 0.0435364, 0.905445, 0.0436194, -0.422216, -0.0762158, 0.995247, -0.0606257, 0.417565, 0.0870728, 0.904466),
+		RightArm = CFrame.new(1.42351, 1.18444, -0.236348, 0.691655, -0.147016, -0.707107, -0.431933, -0.868876, -0.241845, -0.578833, 0.472696, -0.664463),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+	PRIMARIA_2 = {
+		HRP      = CFrame.new(0, 0.05, 3.06162e-18, 0.902859, -0.0871557, 0.42101, 0.0789899, 0.996195, 0.0368336, -0.422618, -5.16956e-18, 0.906308),
+		Head     = CFrame.new(0.0218097, 1.49194, 0.0867415, 0.905445, 0.0436194, -0.422216, -0.112319, 0.98387, -0.139224, 0.409333, 0.173483, 0.89574),
+		RightArm = CFrame.new(1.29281, 1.4845, -0.115871, 0.814665, -0.0856247, -0.573576, -0.201995, -0.969002, -0.142244, -0.543617, 0.231741, -0.806707),
+		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
+	},
+}
+
+--==============================================================================
+-- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
 --==============================================================================
 
 local PRIMARIA = {
-	{
-		duracao = 0.5,
-		easing = "quadOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.906308, 0.422618, 0, -2.58779e-17, -5.54953e-17, 1, 0.422618, 0.906308, 6.12323e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.0762158, -0.0606257, 0.995247, -0.417565, 0.904466, 0.0870728),
-			["Right Shoulder"] = CFrame.new(1.00417, 0.965966, 0.289416, 0.707107, -0.147016, 0.691655, 0.241845, -0.868876, -0.431933, 0.664463, 0.472696, -0.578833),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -1.05, 0, 0.422618, -0.0316297, 0.905756, 0, 0.999391, 0.0348995, -0.906308, -0.0147492, 0.422361),
-			["Left Hip"] = CFrame.new(-1, -1.05, 0, -0.173648, 0.0858317, -0.98106, 0, 0.996195, 0.0871557, 0.984808, 0.0151344, -0.172987),
-		},
-	},
-	{
-		duracao = 0.5,
-		easing = "quadInOut",
-		absoluto = true,
-		juntas = {
-			["RootJoint"] = CFrame.new(0, 0.05, 3.06162e-18, -0.902859, 0.42101, -0.0871557, -0.0789899, 0.0368336, 0.996195, 0.422618, 0.906308, 5.03258e-17),
-			["Neck"] = CFrame.new(0, 1, 0, -0.905445, -0.422216, 0.0436194, 0.112319, -0.139224, 0.98387, -0.409333, 0.89574, 0.173483),
-			["Right Shoulder"] = CFrame.new(0.842668, 1.101, 0.271808, 0.573576, -0.0856247, 0.814665, 0.142244, -0.969002, -0.201995, 0.806707, 0.231741, -0.543617),
-			["Left Shoulder"] = CFrame.new(-0.750761, 0.384865, 0.101218, -0.0348663, -0.999391, 0.00152229, 0.996956, -0.0348875, -0.0697299, 0.0697405, -0.000913562, 0.997565),
-			["Right Hip"] = CFrame.new(1, -0.85, -0.4, 0.400032, 0.139934, 0.905756, -0.258661, 0.965337, -0.0348995, -0.879243, -0.220323, 0.422361),
-			["Left Hip"] = CFrame.new(-1.03, -1.02, 0, -0.173648, 0.137059, -0.975224, 0, 0.990268, 0.139173, 0.984808, 0.0241672, -0.171958),
-		},
-	},
+	{ pose = "PRIMARIA_1", duracao = 0.5, easing = "quadOut" },
+	{ pose = "PRIMARIA_2", duracao = 0.5, easing = "quadInOut" },
 }
 
 function Poses.primaria()

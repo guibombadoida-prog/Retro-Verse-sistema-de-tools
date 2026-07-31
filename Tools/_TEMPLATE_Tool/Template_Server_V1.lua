@@ -54,6 +54,23 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
+
+-- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
+-- encadeada aqui, não dentro dele.
+local function tocarSequencia(sequencia)
+	if not animador or not sequencia then
+		return
+	end
+	task.spawn(function()
+		for _, passo in ipairs(sequencia) do
+			if not animador then
+				return
+			end
+			animador:PlayPose(passo.pose, passo.duracao)
+			task.wait(passo.duracao)
+		end
+	end)
+end
 local cancelamentos = {}   -- toda função de cancelamento devolvida pelo Núcleo (§12.6)
 local contadorGolpe = 0    -- substitui math.random: variação por índice sequencial
 
@@ -173,7 +190,7 @@ tool.Activated:Connect(function()
 	tocarSom(CFG.SFX_GOLPE, handle.Position)
 
 	if animador then
-		animador:tocar(sequencia)
+		tocarSequencia(sequencia)
 	end
 
 	if _G.Combate then
@@ -219,7 +236,7 @@ local function habilidadeExtra()
 	tocarSom(CFG.SFX_GOLPE, raiz.Position)
 
 	if animador then
-		animador:tocar(Poses.extra())
+		tocarSequencia(Poses.extra())
 	end
 
 	if _G.Combate then
@@ -257,7 +274,7 @@ tool.Equipped:Connect(function()
 		return
 	end
 
-	animador = Animator.novo(personagem)
+	animador = Animator.new(personagem, CFG.NOME, Poses.POSES)
 
 	if humanoide then
 		-- Registro sem duração OBRIGA cancelamento em Humanoid.Died e em Tool.Destroying (§12.6)
@@ -265,7 +282,7 @@ tool.Equipped:Connect(function()
 		conexaoMorte = humanoide.Died:Connect(function()
 			cancelarTudo()
 			if animador then
-				animador:parar()
+				animador:Destroy()
 			end
 		end)
 		guardarCancelamento(function()
@@ -276,7 +293,7 @@ end)
 
 tool.Unequipped:Connect(function()
 	if animador then
-		animador:restaurar()
+		animador:Destroy()
 		animador = nil
 	end
 	-- Tool.Enabled NÃO é resetado aqui: resetar transforma desequipar em cancelar recarga (§8 / §12.9)
@@ -285,7 +302,7 @@ end)
 tool.Destroying:Connect(function()
 	cancelarTudo()
 	if animador then
-		animador:parar()
+		animador:Destroy()
 		animador = nil
 	end
 end)

@@ -66,21 +66,36 @@ def achar(item, classe=None, nome=None):
     return None
 
 
+ABERTURA_LONGA = re.compile(r"--\[(=*)\[")
+
+
 def sem_comentario(codigo):
-    saida, bloco = [], False
+    """
+    Remove comentário de linha e de bloco, respeitando o NÍVEL do bloco longo:
+    --[[ ]], --[=[ ]=], --[==[ ]==]. Ignorar o nível fazia documentação ser
+    lida como código.
+    """
+    saida, nivel = [], None
     for linha in codigo.splitlines():
-        if bloco:
-            i = linha.find("]]")
+        if nivel is not None:
+            fecha = "]" + nivel + "]"
+            i = linha.find(fecha)
             if i >= 0:
-                bloco = False
-                linha = linha[i + 2:]
+                linha = linha[i + len(fecha):]
+                nivel = None
             else:
                 linha = ""
-        if not bloco:
-            i = linha.find("--[[")
-            if i >= 0:
-                bloco = True
-                linha = linha[:i]
+        if nivel is None:
+            m = ABERTURA_LONGA.search(linha)
+            if m:
+                fecha = "]" + m.group(1) + "]"
+                resto = linha[m.end():]
+                i = resto.find(fecha)
+                if i >= 0:
+                    linha = linha[:m.start()] + resto[i + len(fecha):]
+                else:
+                    nivel = m.group(1)
+                    linha = linha[:m.start()]
             linha = re.sub(r"--.*$", "", linha)
         saida.append(linha)
     return "\n".join(saida)

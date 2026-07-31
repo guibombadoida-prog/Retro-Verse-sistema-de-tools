@@ -96,10 +96,13 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses_GuardiaoDoTempo_Temporalise_V1` | Guardiao_Do_Tempo | 6 · 1 quadro | LIMPO | Temporalise |
 | `Poses_GuardiaoDoTempo_ArmadilhaTemporal_V1` | Guardiao_Do_Tempo | 6 · 2 quadros | LIMPO | ArmadilhaTemporal |
 | `Poses_GuardiaoDoTempo_AvoDoTempo_V1` | Guardiao_Do_Tempo | 6 · 3+2 quadros | LIMPO | AvoDoTempo |
-| `R6CFrameAnimator_V2` | **autoral** | infra | APROVADO | as 7 Tools do conjunto |
+| `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | **APROVADO** | as 7 Tools + o molde |
 
-`R6CFrameAnimator` V2 acrescenta o modo `absoluto = true`, que é o que permite rodar pose de
-terceiro sem reinterpretar a convenção de base de quem a escreveu.
+> ⚠️ **`R6CFrameAnimator_V1` é O animator do projeto. Não escreva outro.**
+> Ele cria `Weld`s próprios; escrever em `Motor6D.C0` briga com o script `Animate`
+> padrão do Roblox e **buga a animação** — foi o que aconteceu na primeira versão do
+> Guardião do Tempo. O `V2` que eu havia escrito foi **removido do Acervo**.
+> Ver [`_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md`](_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md).
 
 ---
 

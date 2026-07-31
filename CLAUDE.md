@@ -62,6 +62,7 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
 | Tool é autocontida | Tool sozinha em place vazio funciona por inteiro |
 | Asset vem de dentro | `Sound` clonado de `Tool/SFX/`; molde de VFX de `Tool/Efeitos/` |
+| Animação R6 usa o animator canônico | Zero escrita em `Motor6D.C0`; poses no formato `Weld` (RightArm/LeftArm/Head/HRP) |
 | Núcleo é a única porta de regra de combate | Zero `canDamage` / `IsTeamMate` / `TagHumanoid` fora de `NucleoCombate.lua` |
 | Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `_G.Combate.transmitirVFX` + `VFXRemote` |
 | Toda chamada ao Núcleo é opcional | Sempre `_G.Combate and _G.Combate.x(...) or <fallback>` |
@@ -81,6 +82,7 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | `ScreenGui` · `ColorCorrection` · `Sky` dentro da Tool | Efeito só no mundo 3D |
 | `require(<id numérico>)` | Módulo copiado para dentro da Tool |
 | `Animation` / `LoadAnimation` | Tabela de poses CFrame sob `R6CFrameAnimator` |
+| **Escrever em `Motor6D.C0`** | **`R6CFrameAnimator` V1 canônico — ele solda `Weld`s próprios** |
 
 Números mágicos espalhados pelo corpo do script são violação: bloco `CFG` único no topo,
 junto do `ARQUETIPO`.
