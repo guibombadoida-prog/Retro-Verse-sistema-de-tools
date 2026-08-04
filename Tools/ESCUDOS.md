@@ -158,6 +158,26 @@ pulava perto.
 
 ---
 
+## 🐛 Corrigido depois do primeiro teste em jogo
+
+O relato foi "não funciona o dano contra NPC inimigo e nem a cutscene". Eram
+**quatro** erros meus de assinatura da API do Núcleo — nenhum deles dá erro no
+Output, porque Lua aceita aridade errada calada.
+
+| Defeito | Efeito |
+|---|---|
+| `aplicarDano` chamava `registrarAtaque` | **dano zero** nas 7 Tools com o Núcleo instalado — `registrarAtaque(jogador, tool, classe)` só grava atribuição de abate (§12.8), não causa dano. O certo é `calcular()` + `TakeDamage(final)` |
+| Fallback varria `Players:GetPlayers()` | **NPC nunca era encontrado** — NPC é `Model` com `Humanoid` no workspace, não é `Player`. Sem o Núcleo, nem dano nem cutscene contra NPC |
+| `detectarHumanoides` com 3 argumentos | a função quer 6; `jogador` nil **desliga o filtro de time** do `podeCausarDano` — aliado virava alvo válido |
+| `aoAplicarDano(humanoide, fn)` | é ouvinte **global** e recebe só a função; o callback é `(contexto, danoFinal)`. Passar o `Humanoid` fazia o Núcleo ver `type(funcao) ~= "function"` e devolver um no-op — a reflexão do Bloqueador e a transferência do Salvador **nunca dispararam** |
+
+Os dois primeiros explicam os dois sintomas relatados, e juntos explicam por que
+a cutscene não abria: `escolherAlvo` não achava o NPC, e a própria guarda
+"sem alvo, a Extra não acontece" devolvia calada.
+
+`verificar_autocontencao.sh` ganhou as quatro checagens correspondentes,
+testadas contra um violador com os defeitos originais.
+
 ## Verificação
 
 ```bash

@@ -134,18 +134,42 @@ local function transmitir(tipo, posicao, escala, cor, frente)
 	VFXRemote:FireAllClients(tipo, payload)
 end
 
-local function humanoidesEmArea(posicao, raio, meuPersonagem)
+local function humanoidesEmArea(posicao, raio, meuPersonagem, jogador, humanoideDono)
+	-- Assinatura do Núcleo: (posicao, raio, ignorar, jogador, humanoideDono, limite).
+	-- Passar só os três primeiros deixa `jogador` nil, e aí o filtro de time do
+	-- podeCausarDano é PULADO — aliado vira alvo válido.
 	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(posicao, raio, meuPersonagem) or {}
+		return _G.Combate.detectarHumanoides(posicao, raio, meuPersonagem, jogador, humanoideDono, CFG.LIMITE_ALVOS) or {}
 	end
 
+	-- Fallback sem Núcleo. Varre MODELOS com Humanoid no raio, não Players:
+	-- NPC não é Player, e varrer Players:GetPlayers() simplesmente não enxerga
+	-- NPC nenhum. Era por isso que o dano e a cutscene não pegavam em NPC.
 	local achados = {}
-	for _, outro in ipairs(Players:GetPlayers()) do
-		local personagem = outro.Character
-		local humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
-		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
-		if humanoide and raiz and humanoide.Health > 0 and personagem ~= meuPersonagem then
-			if (raiz.Position - posicao).Magnitude <= raio then
+	local parametros = OverlapParams.new()
+	parametros.FilterType = Enum.RaycastFilterType.Exclude
+	if meuPersonagem then
+		parametros.FilterDescendantsInstances = { meuPersonagem }
+	end
+	parametros.MaxParts = CFG.LIMITE_PARTES
+
+	local ok, partes = pcall(function()
+		return workspace:GetPartBoundsInRadius(posicao, raio, parametros)
+	end)
+	if not ok or not partes then
+		return achados
+	end
+
+	local vistos = {}
+	for _, parte in ipairs(partes) do
+		if #achados >= CFG.LIMITE_ALVOS then
+			break
+		end
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local humanoide = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if humanoide and not vistos[humanoide] and humanoide.Health > 0 then
+			vistos[humanoide] = true
+			if humanoide ~= humanoideDono then
 				table.insert(achados, humanoide)
 			end
 		end
@@ -183,14 +207,22 @@ local function contarAcerto()
 	comboAte = os.clock() + CFG.COMBO_JANELA
 end
 
+-- `calcular` roda o pipeline do §12.5 (aumento, redução, escudo) e REGISTRA a
+-- queda como prevista, para o observador não recalcular. Quem tira a vida é a
+-- Tool, com TakeDamage — que respeita ForceField.
+--
+-- `registrarAtaque` NÃO serve para isto: ela só grava a atribuição de abate
+-- (§12.8), e chamá-la no lugar de calcular resultava em dano ZERO.
 local function aplicarDano(jogador, alvo, valor)
 	if not podeAtingir(jogador, alvo) then
 		return false
 	end
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, alvo, valor, ARQUETIPO)
-	else
-		alvo:TakeDamage(valor)
+	local final = valor
+	if _G.Combate and _G.Combate.calcular then
+		final = _G.Combate.calcular(jogador, alvo, valor) or valor
+	end
+	if final > 0 then
+		alvo:TakeDamage(final)
 	end
 	return true
 end
@@ -278,7 +310,7 @@ local function lancar(jogador, personagem, raiz, direcao, dano, velocidade, alca
 
 		disco.CFrame = CFrame.lookAt(alvoPos, alvoPos + direcao) * CFrame.Angles(0, 0, giro)
 
-		for _, alvo in ipairs(humanoidesEmArea(alvoPos, CFG.RAIO_ACERTO, personagem)) do
+		for _, alvo in ipairs(humanoidesEmArea(alvoPos, CFG.RAIO_ACERTO, personagem, jogador, humanoide)) do
 			if not jaAtingidos[alvo] then
 				jaAtingidos[alvo] = true
 				local cancelar = bonusDeCombo(jogador, alvo)

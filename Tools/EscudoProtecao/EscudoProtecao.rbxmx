@@ -65,6 +65,9 @@ local CFG = {
 	SFX_ORBITA = "Orbita",
 	SFX_REBATE = "Rebate",
 
+	LIMITE_ALVOS = 24,
+	LIMITE_PARTES = 80,
+
 	CHAVE_PRIMARIA = "EscudoProtecao_Primaria",
 }
 
@@ -159,6 +162,30 @@ local function projeteisPerto(posicao, personagem)
 		end
 	end
 	return achados
+end
+
+local function podeAtingir(jogador, alvo)
+	if _G.Combate and _G.Combate.podeCausarDano then
+		return _G.Combate.podeCausarDano(jogador, alvo)
+	end
+	return true
+end
+
+-- `calcular` roda o pipeline do §12.5 e REGISTRA a queda como prevista. Quem
+-- tira a vida é a Tool, com TakeDamage. `registrarAtaque` só grava atribuição
+-- de abate (§12.8) — chamá-la no lugar de calcular resultava em dano ZERO.
+local function aplicarDano(jogador, alvo, valor)
+	if not podeAtingir(jogador, alvo) then
+		return false
+	end
+	local final = valor
+	if _G.Combate and _G.Combate.calcular then
+		final = _G.Combate.calcular(jogador, alvo, valor) or valor
+	end
+	if final > 0 then
+		alvo:TakeDamage(final)
+	end
+	return true
 end
 
 --==============================================================================
@@ -258,11 +285,7 @@ local function soltar(jogador, personagem, humanoide, raiz)
 				local alvoHum = dono and dono.Character
 					and dono.Character:FindFirstChildOfClass("Humanoid")
 				if alvoHum then
-					if _G.Combate and _G.Combate.registrarAtaque then
-						_G.Combate.registrarAtaque(jogador, alvoHum, CFG.REFLEXO_DANO, ARQUETIPO)
-					else
-						alvoHum:TakeDamage(CFG.REFLEXO_DANO)
-					end
+					aplicarDano(jogador, alvoHum, CFG.REFLEXO_DANO)
 				end
 			end
 		end

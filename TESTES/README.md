@@ -50,6 +50,14 @@ Comentários de linha e de bloco são removidos antes da comparação — docume
 | `task.wait(passo.…)` encadeando beat | Some ~1 frame por beat; quem encadeia é o animator |
 | `Camera` em Server Script | Câmera é 100% cliente; o servidor manda beat |
 | `CameraType` sem `Unequipped` **e** `Destroying` | Câmera presa é bug sem saída para o jogador |
+| `registrarAtaque` com 4 argumentos | Ela só grava atribuição de abate — **não causa dano** |
+| `aoAplicarDano` com algo antes da função | É ouvinte global; passar outra coisa devolve um no-op |
+| `detectarHumanoides` com menos de 6 argumentos | `jogador` nil desliga o filtro de time |
+| `Players:GetPlayers()` para achar alvo | Não enxerga NPC — NPC é `Model` com `Humanoid`, não `Player` |
+
+As quatro últimas nasceram de defeito real: as 7 Tools de escudo saíram com
+**dano zero** e sem cutscene contra NPC. Errar aridade em Lua não gera erro —
+a função aceita, e devolve lixo ou um no-op. Sem lint, isso só aparece jogando.
 
 `workspace.CurrentCamera` em `LocalScript` **não** é falha: é singleton por cliente, como
 `Players.LocalPlayer`. Em Server Script é.

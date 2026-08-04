@@ -17,7 +17,7 @@
 
 		Aqui o mesmo efeito sai pelo Núcleo: `registrarReducao` no aliado leva
 		a redução a 100% (ele não toma nada), e `aoAplicarDano` avisa quanto
-		seria — esse valor é aplicado no portador por `registrarAtaque`. O dano
+		seria — esse valor é aplicado no portador por TakeDamage. O dano
 		nunca chega a assentar no aliado, então não há o que desfazer.
 
 		Números da origem preservados: 7 s de duração, 50 de distância máxima,
@@ -66,6 +66,9 @@ local CFG = {
 
 	SFX_VINCULO       = "Vinculo",
 	SFX_TRANSFERENCIA = "Transferencia",
+
+	LIMITE_ALVOS = 24,
+	LIMITE_PARTES = 80,
 
 	CHAVE_PRIMARIA = "EscudoSalvador_Primaria",
 }
@@ -210,23 +213,30 @@ local function vincular(jogador, personagem, humanoide, raiz)
 			aliado, 1.0, CFG.DURACAO, "Escudo_Salvador"))
 	end
 
-	-- 2. O que ele TERIA tomado vem para o portador. O Núcleo avisa o valor
-	--    antes de a vida assentar — não há dano para desfazer depois.
+	-- 2. O que ele TERIA tomado vem para o portador.
+	--
+	-- `aoAplicarDano` é ouvinte GLOBAL do Núcleo e recebe SÓ a função; o callback
+	-- é (contexto, danoFinal). Eu vinha chamando aoAplicarDano(aliado, fn) — o
+	-- Humanoid caía no lugar da função, o Núcleo via type(funcao) ~= "function" e
+	-- devolvia um no-op. A transferência nunca disparou.
+	--
+	-- Como o ouvinte é global, filtrar pelo aliado é responsabilidade nossa.
 	if _G.Combate and _G.Combate.aoAplicarDano then
-		table.insert(vinculo.cancelamentos, _G.Combate.aoAplicarDano(aliado, function(entrada)
-			if not vinculo then
+		table.insert(vinculo.cancelamentos, _G.Combate.aoAplicarDano(function(contexto, danoFinal)
+			if not vinculo or not contexto then
 				return
 			end
-			local valor = entrada and entrada.valor or 0
+			if contexto.humanoideAlvo ~= vinculo.alvo then
+				return
+			end
+			local valor = danoFinal or 0
 			if valor <= 0 then
 				return
 			end
-			if _G.Combate and _G.Combate.registrarAtaque then
-				_G.Combate.registrarAtaque(entrada.atacanteJogador or jogador,
-					humanoide, valor, ARQUETIPO)
-			else
-				humanoide:TakeDamage(valor)
-			end
+			-- TakeDamage direto: este dano já passou pelo pipeline uma vez, no
+			-- aliado. Passar de novo por `calcular` aplicaria a redução do
+			-- portador em cima, e o Salvador tomaria menos do que prometeu.
+			humanoide:TakeDamage(valor)
 			tocarSom(CFG.SFX_TRANSFERENCIA, raiz.Position)
 			transmitir("IMPACTO_ESCUDO", raiz.Position + Vector3.new(0, 1.5, 0), 0.7)
 		end))

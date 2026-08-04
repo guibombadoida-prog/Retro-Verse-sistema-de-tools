@@ -143,19 +143,42 @@ local function transmitir(tipo, posicao, escala, cor)
 	})
 end
 
-local function humanoidesEmArea(posicao, raio, meuPersonagem)
+local function humanoidesEmArea(posicao, raio, meuPersonagem, jogador, humanoideDono)
+	-- Assinatura do Núcleo: (posicao, raio, ignorar, jogador, humanoideDono, limite).
+	-- Passar só os três primeiros deixa `jogador` nil, e aí o filtro de time do
+	-- podeCausarDano é PULADO — aliado vira alvo válido.
 	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(posicao, raio, meuPersonagem) or {}
+		return _G.Combate.detectarHumanoides(posicao, raio, meuPersonagem, jogador, humanoideDono, CFG.LIMITE_ALVOS) or {}
 	end
 
-	-- Fallback sem Núcleo: varredura por Players, sem ler o workspace.
+	-- Fallback sem Núcleo. Varre MODELOS com Humanoid no raio, não Players:
+	-- NPC não é Player, e varrer Players:GetPlayers() simplesmente não enxerga
+	-- NPC nenhum. Era por isso que o dano e a cutscene não pegavam em NPC.
 	local achados = {}
-	for _, outro in ipairs(Players:GetPlayers()) do
-		local personagem = outro.Character
-		local humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
-		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
-		if humanoide and raiz and humanoide.Health > 0 and personagem ~= meuPersonagem then
-			if (raiz.Position - posicao).Magnitude <= raio then
+	local parametros = OverlapParams.new()
+	parametros.FilterType = Enum.RaycastFilterType.Exclude
+	if meuPersonagem then
+		parametros.FilterDescendantsInstances = { meuPersonagem }
+	end
+	parametros.MaxParts = CFG.LIMITE_PARTES
+
+	local ok, partes = pcall(function()
+		return workspace:GetPartBoundsInRadius(posicao, raio, parametros)
+	end)
+	if not ok or not partes then
+		return achados
+	end
+
+	local vistos = {}
+	for _, parte in ipairs(partes) do
+		if #achados >= CFG.LIMITE_ALVOS then
+			break
+		end
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local humanoide = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if humanoide and not vistos[humanoide] and humanoide.Health > 0 then
+			vistos[humanoide] = true
+			if humanoide ~= humanoideDono then
 				table.insert(achados, humanoide)
 			end
 		end
@@ -176,6 +199,30 @@ local function ehAliado(jogador, humanoide)
 		return jogador.Team == outro.Team
 	end
 	return false
+end
+
+local function podeAtingir(jogador, alvo)
+	if _G.Combate and _G.Combate.podeCausarDano then
+		return _G.Combate.podeCausarDano(jogador, alvo)
+	end
+	return true
+end
+
+-- `calcular` roda o pipeline do §12.5 e REGISTRA a queda como prevista, para o
+-- observador não recalcular. Quem tira a vida é a Tool, com TakeDamage.
+-- `registrarAtaque` só grava atribuição de abate (§12.8) — não causa dano.
+local function aplicarDano(jogador, alvo, valor)
+	if not podeAtingir(jogador, alvo) then
+		return false
+	end
+	local final = valor
+	if _G.Combate and _G.Combate.calcular then
+		final = _G.Combate.calcular(jogador, alvo, valor) or valor
+	end
+	if final > 0 then
+		alvo:TakeDamage(final)
+	end
+	return true
 end
 
 --==============================================================================
@@ -200,25 +247,30 @@ local function bloquear(jogador, personagem, humanoide, raiz)
 			humanoide, CFG.BLOQUEIO_REDUCAO, CFG.BLOQUEIO_DURACAO, "Escudo_Bloqueio"))
 	end
 
-	-- Reflexão: o Núcleo avisa quando o portador toma dano, e devolvemos parte.
+	-- Reflexão: `aoAplicarDano` é ouvinte GLOBAL do Núcleo e recebe SÓ a função.
+	-- O callback é (contexto, danoFinal). Eu vinha chamando
+	-- aoAplicarDano(humanoide, fn) — o Humanoid caía no lugar da função, o
+	-- Núcleo via type(funcao) ~= "function" e devolvia um no-op. A reflexão
+	-- nunca disparou uma vez sequer.
 	if _G.Combate and _G.Combate.aoAplicarDano then
-		guardarCancelamento(_G.Combate.aoAplicarDano(humanoide, function(entrada)
+		guardarCancelamento(_G.Combate.aoAplicarDano(function(contexto, danoFinal)
 			if not bloqueando then
 				return
 			end
-			local atacante = entrada and entrada.atacante
+			-- O ouvinte é global: filtrar pelo portador é responsabilidade nossa.
+			if not contexto or contexto.humanoideAlvo ~= humanoide then
+				return
+			end
+			local atacante = contexto.humanoideAtacante
 			if not atacante or atacante == humanoide then
 				return
 			end
-			local devolvido = (entrada.valor or 0) * CFG.BLOQUEIO_REFLEXO
+			local devolvido = (danoFinal or 0) * CFG.BLOQUEIO_REFLEXO
 			if devolvido <= 0 then
 				return
 			end
-			if _G.Combate and _G.Combate.registrarAtaque then
-				_G.Combate.registrarAtaque(jogador, atacante, devolvido, ARQUETIPO)
-			else
-				atacante:TakeDamage(devolvido)
-			end
+			aplicarDano(jogador, atacante, devolvido)
+
 			local alvoRaiz = atacante.Parent
 				and atacante.Parent:FindFirstChild("HumanoidRootPart")
 			if alvoRaiz then
@@ -230,7 +282,7 @@ local function bloquear(jogador, personagem, humanoide, raiz)
 
 	-- Aliados no raio ganham uma fração da mesma redução.
 	if _G.Combate and _G.Combate.registrarReducao then
-		for _, alvo in ipairs(humanoidesEmArea(raiz.Position, CFG.ALIADO_ALCANCE, personagem)) do
+		for _, alvo in ipairs(humanoidesEmArea(raiz.Position, CFG.ALIADO_ALCANCE, personagem, jogador, humanoide)) do
 			if ehAliado(jogador, alvo) then
 				guardarCancelamento(_G.Combate.registrarReducao(
 					alvo, CFG.ALIADO_REDUCAO, CFG.BLOQUEIO_DURACAO, "Escudo_Aliado"))
@@ -270,7 +322,7 @@ local function barreira(jogador, personagem, humanoide, raiz)
 	transmitir("AURA", raiz.Position + Vector3.new(0, 2, 0), 1.6)
 	transmitir("ESCUDO", raiz.Position + Vector3.new(0, 3, 0), 2.2)
 
-	for _, alvo in ipairs(humanoidesEmArea(raiz.Position, CFG.BARREIRA_ALCANCE, personagem)) do
+	for _, alvo in ipairs(humanoidesEmArea(raiz.Position, CFG.BARREIRA_ALCANCE, personagem, jogador, humanoide)) do
 		if ehAliado(jogador, alvo) then
 			if _G.Combate and _G.Combate.registrarReducao then
 				guardarCancelamento(_G.Combate.registrarReducao(
