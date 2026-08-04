@@ -57,9 +57,9 @@ golpe tira **299**. Roda numa cutscene.
 > no vazio é o pior caso possível — prende a câmera do jogador por três segundos para não
 > mostrar nada. O alvo é escolhido **antes** de qualquer beat.
 
-Os 299 saem por `registrarAtaque`, pelo Núcleo — nunca `Health = 0`. Assim `ForceField`,
-escudo e redução registrada continuam valendo. Um golpe mortal que ignora `ForceField` é um
-golpe que mata quem acabou de nascer.
+Os 299 passam pelo `calcular` do Núcleo e saem por `TakeDamage` — nunca `Health = 0`. Assim
+`ForceField`, escudo e redução registrada continuam valendo. Um golpe mortal que ignora
+`ForceField` é um golpe que mata quem acabou de nascer.
 
 #### A cutscene segue a regra de câmera
 
