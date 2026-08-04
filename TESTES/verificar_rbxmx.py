@@ -20,6 +20,7 @@ O que confere:
   8. Todo Sound citado pelo Server Script existe dentro de Tool/SFX
   9. Todo VFX transmitido existe no VFXModule da própria Tool
  10. Nenhum script referencia depósito fora da Tool (Regra nº 1)
+ 11. Cutscene: CutsceneCam e CutsceneRemote andam juntos, ou nenhum dos dois
 """
 
 import os
@@ -150,8 +151,10 @@ def verificar(nome):
         ("LocalScript", "Client", "Client.lua"),
         ("ModuleScript", "R6CFrameAnimator", "R6CFrameAnimator.lua"),
         ("ModuleScript", "VFXModule", "VFXModule.lua"),
-        ("ModuleScript", "Poses", "Poses_GravidadeTelecinese_%s_V1.lua" % nome),
+        ("ModuleScript", "Poses", "Poses_%s_%s_V1.lua" % (CONJUNTO_DE[nome], nome)),
     ]
+    if os.path.exists(os.path.join(pasta, "CutsceneCam.lua")):
+        esperados.append(("LocalScript", "CutsceneCam", "CutsceneCam.lua"))
     fontes = {}
     for classe, nome_obj, arquivo in esperados:
         item = achar(tool, classe, nome_obj)
@@ -171,6 +174,13 @@ def verificar(nome):
     # 7. remotes
     if achar(tool, "RemoteEvent", "VFXRemote") is None:
         erros.append("sem VFXRemote")
+
+    tem_cam = os.path.exists(os.path.join(pasta, "CutsceneCam.lua"))
+    tem_cut = achar(tool, "RemoteEvent", "CutsceneRemote") is not None
+    if tem_cam and not tem_cut:
+        erros.append("tem CutsceneCam, mas o CutsceneRemote não está na Tool")
+    if tem_cut and not tem_cam:
+        erros.append("CutsceneRemote presente sem CutsceneCam que o escute")
 
     servidor = fontes.get("%s_Server_V1" % nome, "")
     usa_acao = "AcaoRemote" in sem_comentario(servidor)
@@ -228,7 +238,17 @@ CONJUNTOS = [
     ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
         "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
         "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
+    ("Escudos_7_Tools.rbxmx", "Escudos", [
+        "EscudoBloqueador", "EscudoBumerangue", "EscudoSkate", "EscudoProtecao",
+        "EscudoSalvador", "EscudoCiclone", "EscudoPartido"]),
 ]
+
+# Prefixo do arquivo de poses, por Tool. Espelha CATALOGO["poses"] do montador:
+# o nome do conjunto é o pedaço antes do primeiro "_" no arquivo de entrega.
+CONJUNTO_DE = {}
+for _arq, _modelo, _ordem in CONJUNTOS:
+    for _t in _ordem:
+        CONJUNTO_DE[_t] = _arq.split("_")[0]
 
 
 def verificar_conjunto(arquivo, nomes):

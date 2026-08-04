@@ -38,6 +38,10 @@ def cor(r, g, b):
 # ---------------------------------------------------------------- catálogo
 
 BASE = (154, 205, 50)      # paleta do repositório — verde-limão
+ACO = (150, 160, 172)      # escudo — corpo
+ACO_ESCURO = (74, 82, 92)  # escudo — aro e nervuras
+AZUL = (0, 122, 190)       # escudo — face
+AZUL_CLARO = (96, 205, 255)
 BRONZE = (124, 100, 58)
 ESCURO = (48, 42, 34)
 
@@ -47,37 +51,103 @@ CATALOGO = {
     "PulsoGravitacional": {
         "tooltip": "Pulso Gravitacional - comprime a gravidade ao redor. X lança singularidade",
         "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (9125403260, 5.0, 0.8, 80)},
     },
     "CampoZeroG": {
         "tooltip": "Campo Zero G - levita inimigos em órbita curta. X detona o campo",
         "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (447682521, 4.0, 0.7, 80)},
     },
     "MaoTelecinetica": {
         "tooltip": "Mão Telecinética - empurra alvos com força mental. X puxa todos para você",
         "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (743521450, 4.0, 1.4, 80)},
     },
     "OrbitaPsi": {
         "tooltip": "Órbita Psi - anéis telecinéticos protegem e cortam. X expande a órbita",
         "classe": "Hybrid", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (588738949, 4.0, 1.1, 80)},
     },
     "LancaVetorial": {
         "tooltip": "Lança Vetorial - arremessa uma linha de força gravitacional. X perfura em área",
         "classe": "Ranged", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (908895929, 5.0, 1.5, 90)},
     },
     "PocoDeMassa": {
         "tooltip": "Poço de Massa - cria um peso absurdo no chão. X colapsa o poço",
         "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (763717897, 5.0, 0.8, 90)},
     },
     "MarionetePsi": {
         "tooltip": "Marionete Psi - dobra a postura dos alvos com telecinese. X explode o vínculo",
         "classe": "Summon", "energia": 0, "recarga": 16, "extra": True,
+        "poses": "GravidadeTelecinese", "handle": "relogio",
         "sfx": {"Golpe": (782199941, 5.0, 1.2, 80)},
+    },
+
+    # ------------------------------------------------------------------
+    # Conjunto Escudos — 5 convertidas do modelo Danilo + 2 autorais.
+    # Sons: block/block2/block3/block4/equip são os do modelo de origem;
+    # Corte/Sentenca vêm do Judgement Cut End.
+    # ------------------------------------------------------------------
+    "EscudoBloqueador": {
+        "tooltip": "Escudo Bloqueador - reduz o dano que voce toma e devolve parte ao atacante. X ergue a barreira",
+        "classe": "Defense", "energia": 0, "recarga": 8, "extra": True,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Bloqueio": (608595419, 3.0, 1.0, 90),
+                "Reflexo": (608568188, 3.0, 1.3, 90),
+                "Barreira": (100810444748596, 4.0, 0.8, 110)},
+    },
+    "EscudoBumerangue": {
+        "tooltip": "Escudo Bumerangue - arremessa o escudo, que volta a sua mao. X lanca tres de uma vez",
+        "classe": "Ranged", "energia": 0, "recarga": 3, "extra": True,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Arremesso": (608541070, 3.0, 1.5, 100),
+                "Impacto": (608539282, 3.0, 2.0, 90),
+                "Retorno": (2706199011, 2.5, 1.0, 90)},
+    },
+    "EscudoSkate": {
+        "tooltip": "Escudo Skate - monta no escudo e corre atropelando quem estiver na frente",
+        "classe": "Mobility", "energia": 0, "recarga": 8, "extra": False,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Partida": (2706199011, 3.0, 0.9, 90),
+                "Atropelo": (608539282, 3.0, 1.4, 80)},
+    },
+    "EscudoProtecao": {
+        "tooltip": "Escudo Protecao - um escudo orbita voce e rebate projetil de volta em quem atirou",
+        "classe": "Defense", "energia": 0, "recarga": 7, "extra": False,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Orbita": (100810444748596, 3.0, 1.1, 90),
+                "Rebate": (608568188, 3.0, 1.6, 90)},
+    },
+    "EscudoSalvador": {
+        "tooltip": "Escudo Salvador - assume o dano de um aliado por sete segundos. Voce sangra no lugar dele",
+        "classe": "Support", "energia": 0, "recarga": 10, "extra": False,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Vinculo": (138415108920761, 4.0, 1.0, 120),
+                "Transferencia": (608595419, 3.0, 0.8, 90)},
+    },
+    "EscudoCiclone": {
+        "tooltip": "Escudo Ciclone - cinco escudos giram em volta e puxam quem chega perto. X colapsa o ciclone",
+        "classe": "Debuff", "energia": 0, "recarga": 14, "extra": True,
+        "poses": "Escudos", "handle": "escudo",
+        "sfx": {"Ciclone": (608541070, 3.5, 0.7, 120),
+                "Puxao": (608568188, 3.0, 0.9, 100),
+                "Colapso": (608539282, 4.0, 0.6, 120)},
+    },
+    "EscudoPartido": {
+        "tooltip": "Escudo Partido - o escudo vira lamina e corta sem voltar. X executa a sentenca",
+        "classe": "Melee", "energia": 0, "recarga": 22, "extra": True,
+        "poses": "Escudos", "handle": "escudo", "cutscene": True,
+        "sfx": {"Corte": (220834019, 3.0, 1.2, 90),
+                "Sentenca": (5989940114, 5.0, 1.0, 150),
+                "Estilhaco": (10555593530, 4.0, 1.0, 120)},
     },
 }
 
@@ -98,6 +168,11 @@ CATALOGO = {
 VERDE = (0.604, 0.804, 0.196)      # 154,205,50 — paleta do repositório
 VERDE_CLARO = (0.78, 0.95, 0.45)
 BRANCO = (1.0, 1.0, 1.0)
+ACO_F = (0.588, 0.627, 0.674)          # 150,160,172
+ACO_ESCURO_F = (0.290, 0.322, 0.361)   # 74,82,92
+AZUL_F = (0.0, 0.478, 0.745)           # 0,122,190
+AZUL_CLARO_F = (0.376, 0.804, 1.0)     # 96,205,255
+CINZA_F = (0.392, 0.400, 0.451)        # 100,102,115 — o cinza do Saitama
 
 EFEITOS = {
     # Jupiter: PlasmaEmitter + ExplosionBrightspot do gerador de raio
@@ -206,6 +281,89 @@ EFEITOS = {
             "zoffset": 5.0, "preso": True,
         }),
     ],
+    # ------------------------------------------------------------------
+    # 01_Saitama, da VFX_Library_V2. Parâmetros extraídos do arquivo cru;
+    # o passe §12.12.2 trocou a cor para a paleta do escudo e deixou
+    # Enabled = false na origem — quem liga é o cliente, por Enabled + Rate.
+    # ------------------------------------------------------------------
+
+    # Death Counter: estilhaços pretos e rápidos. É o efeito de coisa QUEBRANDO.
+    "ESTILHACO_ESCUDO": [
+        ("Estilhaco", {
+            "textura": "rbxassetid://8030734851",
+            "rate": 200.0, "vida": (0.45, 0.75), "velocidade": (6.0, 50.0),
+            "tamanho": [(0.0, 0.0, 0.0), (0.3, 0.8, 0.0), (1.0, 0.0, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            "cor": [(0.0, ACO_F), (1.0, ACO_ESCURO_F)],
+            "emissao": 0.0, "influencia": 0.0, "brilho": 0.0,
+            "rotacao": (90.0, 90.0), "zoffset": 1.0, "direcao": 5,
+            "orientacao": 2,
+        }),
+    ],
+
+    # Normal Uppercut: clarão que abre e fecha, girando a 250 graus/s.
+    # A curva de Size tem 13 pontos e é o que dá o flash — não simplificar.
+    "CLARAO_ESCUDO": [
+        ("Clarao", {
+            "textura": "rbxassetid://9791756255",
+            "rate": 20.0, "vida": (0.5, 0.5), "velocidade": (0.0, 0.0),
+            "tamanho": [(0.0, 0.0, 0.0), (0.0273, 13.6337, 0.0),
+                        (0.1213, 24.9397, 0.0), (0.1973, 33.2529, 0.0),
+                        (0.2893, 39.0722, 0.0), (0.4093, 45.7228, 0.0),
+                        (0.5333, 49.8794, 0.0), (0.6273, 47.0529, 0.0),
+                        (0.7073, 40.236, 0.0), (0.8293, 30.4264, 0.0),
+                        (0.9293, 19.9517, 0.0), (0.9773, 9.6433, 0.0),
+                        (1.0, 0.0919, 0.0)],
+            "transparencia": [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, AZUL_CLARO_F)],
+            "emissao": 1.0, "influencia": 1.0, "brilho": 1.0,
+            "giro": (250.0, 250.0), "zoffset": 5.0,
+        }),
+    ],
+
+    # Serious Punch: anel de choque que abre até 120 studs.
+    "ONDA_ESCUDO": [
+        ("Onda", {
+            "textura": "rbxassetid://9160490836",
+            "rate": 15.0, "vida": (0.1, 0.6), "velocidade": (0.01, 0.01),
+            "tamanho": [(0.0, 0.0, 0.0), (0.5436, 108.75, 0.0), (1.0, 120.0, 0.0)],
+            "transparencia": [(0.0, 1.0, 0.0), (1.0, 0.9375, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, AZUL_F)],
+            "emissao": 0.0, "influencia": 0.0, "brilho": 2.0,
+            "rotacao": (-25.0, 25.0), "giro": (-35.0, 35.0),
+            "orientacao": 3,
+        }),
+    ],
+
+    # Death Counter: rajada curta em volta do punho. Drag 10 segura a partícula
+    # perto do ponto — é o que faz ler como impacto, e não como jato.
+    "IMPACTO_ESCUDO": [
+        ("Impacto", {
+            "textura": "rbxassetid://9160490836",
+            "rate": 75.0, "vida": (0.1, 0.5), "velocidade": (-25.0, 25.0),
+            "tamanho": [(0.0, 2.7385, 0.0), (0.2991, 9.2424, 0.0), (1.0, 13.3501, 0.0)],
+            "transparencia": [(0.0, 1.0, 0.0), (1.0, 0.8438, 0.0)],
+            "cor": [(0.0, BRANCO), (1.0, AZUL_CLARO_F)],
+            "emissao": 0.0, "influencia": 0.0, "brilho": 2.0,
+            "rotacao": (0.0, 360.0), "giro": (-35.0, 35.0),
+            "arrasto": 10.0, "zoffset": 1.0, "direcao": 0,
+        }),
+    ],
+
+    # Serious Mode: poeira pesada que cai (aceleração -15 em Y).
+    "POEIRA_ESCUDO": [
+        ("Poeira", {
+            "textura": "rbxassetid://7216851605",
+            "rate": 20.0, "vida": (2.0, 2.25), "velocidade": (75.0, 100.0),
+            "tamanho": [(0.0, 5.0, 0.0), (1.0, 5.0, 0.0)],
+            "transparencia": [(0.0, 0.9, 0.0), (0.1837, 0.9375, 0.0), (1.0, 1.0, 0.0)],
+            "cor": [(0.0, CINZA_F), (1.0, CINZA_F)],
+            "emissao": 1.0, "influencia": 1.0, "brilho": 1.0,
+            "rotacao": (0.0, 360.0), "giro": (-32.0, 32.0),
+            "aceleracao": (0.0, -15.0, 0.0), "arrasto": 8.0,
+            "zoffset": 1.0, "direcao": 5,
+        }),
+    ],
 }
 
 # Que efeitos novos entram em cada Tool. A escolha é por tema, não por sobra.
@@ -217,6 +375,14 @@ EFEITOS_POR_TOOL = {
     "LancaVetorial": ["RAIO_TEMPORAL", "FAISCA", "AURA"],
     "PocoDeMassa": ["BRASA", "AURA"],
     "MarionetePsi": ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
+
+    "EscudoBloqueador": ["CLARAO_ESCUDO", "IMPACTO_ESCUDO", "AURA"],
+    "EscudoBumerangue": ["IMPACTO_ESCUDO", "ESTILHACO_ESCUDO", "FAISCA"],
+    "EscudoSkate": ["POEIRA_ESCUDO", "IMPACTO_ESCUDO", "FAISCA"],
+    "EscudoProtecao": ["CLARAO_ESCUDO", "AURA", "FAISCA"],
+    "EscudoSalvador": ["CLARAO_ESCUDO", "AURA", "ESTILHACO_ESTELAR"],
+    "EscudoCiclone": ["ONDA_ESCUDO", "POEIRA_ESCUDO", "AURA", "IMPACTO_ESCUDO"],
+    "EscudoPartido": ["ESTILHACO_ESCUDO", "CLARAO_ESCUDO", "ONDA_ESCUDO", "IMPACTO_ESCUDO"],
 }
 
 
@@ -433,6 +599,46 @@ def montar_handle(m, tool):
     return handle
 
 
+def montar_handle_escudo(m, tool):
+    """
+    Escudo redondo, montado com primitivas.
+
+    O modelo de origem usa SpecialMesh apontando para um MeshId de terceiro. Aqui
+    o Handle é geometria de verdade, construída no lugar: não depende de asset
+    externo, e o teste do place vazio continua passando (Regra nº 1).
+    """
+    # cilindro tem o eixo circular em X local; Ry(90) põe a face virada para Z
+    ry90 = (0, 0, 1, 0, 1, 0, -1, 0, 0)
+
+    handle = m.parte(tool, "Handle", (0.30, 3.4, 3.4), (0, 0, 0), ACO,
+                     "Metal", "Cylinder", colide=False, reflexo=0.35, rot=ry90)
+    ref_handle = handle.get("referent")
+
+    decorativas = [
+        # nome,          tamanho,             posição,           cor,  material, forma, rot
+        ("Face", (0.34, 3.0, 3.0), (0, 0, 0.01), AZUL, "SmoothPlastic", "Cylinder", ry90),
+        ("AroExterno", (0.26, 3.6, 3.6), (0, 0, 0), ACO_ESCURO, "Metal", "Cylinder", ry90),
+        ("AroInterno", (0.36, 2.1, 2.1), (0, 0, 0.02), AZUL_CLARO, "Neon", "Cylinder", ry90),
+        ("Bossa", (0.44, 0.9, 0.9), (0, 0, 0.04), ACO, "Metal", "Ball", None),
+        ("NervuraA", (0.34, 3.0, 0.16), (0, 0, 0.03), ACO_ESCURO, "Metal", "Block", None),
+        ("NervuraB", (0.34, 0.16, 3.0), (0, 0, 0.03), ACO_ESCURO, "Metal", "Block", None),
+        ("Alca", (0.22, 1.5, 0.16), (0, 0, -0.18), ACO_ESCURO, "Metal", "Block", None),
+    ]
+
+    for nome, tam, pos, rgb, mat, forma, rot in decorativas:
+        peca = m.parte(handle, nome, tam, pos, rgb, mat, forma, rot=rot)
+        solda = m.item(peca, "WeldConstraint")
+        m.p_string(solda, "Name", "Solda" + nome)
+        m.p_bool(solda, "Enabled", True)
+        m.p_ref(solda, "Part0", ref_handle)
+        m.p_ref(solda, "Part1", peca.get("referent"))
+
+    return handle
+
+
+HANDLES = {"relogio": montar_handle, "escudo": montar_handle_escudo}
+
+
 # ---------------------------------------------------------------- montagem
 
 def ler(caminho):
@@ -449,7 +655,7 @@ def construir_tool(m, raiz, nome):
     fonte_cliente = ler(os.path.join(pasta, "Client.lua"))
     fonte_animator = ler(os.path.join(pasta, "R6CFrameAnimator.lua"))
     fonte_vfx = ler(os.path.join(pasta, "VFXModule.lua"))
-    fonte_poses = ler(os.path.join(pasta, "Poses_GravidadeTelecinese_%s_V1.lua" % nome))
+    fonte_poses = ler(os.path.join(pasta, "Poses_%s_%s_V1.lua" % (dados["poses"], nome)))
 
     tool = m.item(raiz, "Tool")
     m.p_string(tool, "Name", nome)
@@ -462,7 +668,7 @@ def construir_tool(m, raiz, nome):
     # e as propriedades Grip* NÃO replicam do cliente — só valem no servidor.
     m.p_cframe(tool, "Grip", (0, 0, 0))
 
-    montar_handle(m, tool)
+    HANDLES[dados.get("handle", "relogio")](m, tool)
 
     # Values — a Tool declara o que É (§12.4)
     v = m.item(tool, "StringValue")
@@ -484,12 +690,21 @@ def construir_tool(m, raiz, nome):
     m.script(tool, "ModuleScript", "VFXModule", fonte_vfx)
     m.script(tool, "ModuleScript", "Poses", fonte_poses)
 
+    # Câmera de cutscene: LocalScript próprio, só nas Tools que têm cutscene.
+    # A câmera é 100% cliente — o Server manda beat nomeado por CutsceneRemote.
+    if dados.get("cutscene"):
+        m.script(tool, "LocalScript", "CutsceneCam",
+                 ler(os.path.join(pasta, "CutsceneCam.lua")))
+
     # Remotes
     r = m.item(tool, "RemoteEvent")
     m.p_string(r, "Name", "VFXRemote")
     if dados["extra"]:
         r = m.item(tool, "RemoteEvent")
         m.p_string(r, "Name", "AcaoRemote")
+    if dados.get("cutscene"):
+        r = m.item(tool, "RemoteEvent")
+        m.p_string(r, "Name", "CutsceneRemote")
 
     # SFX — todo Sound é filho da Tool (Regra nº 1)
     pasta_sfx = m.item(tool, "Folder")
@@ -580,6 +795,9 @@ CONJUNTOS = [
     ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
         "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
         "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
+    ("Escudos_7_Tools.rbxmx", "Escudos", [
+        "EscudoBloqueador", "EscudoBumerangue", "EscudoSkate", "EscudoProtecao",
+        "EscudoSalvador", "EscudoCiclone", "EscudoPartido"]),
 ]
 
 

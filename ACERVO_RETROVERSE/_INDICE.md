@@ -17,7 +17,12 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 | `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | CampoZeroG, MarionetePsi |
 | `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | PocoDeMassa |
 | `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | MaoTelecinetica, OrbitaPsi, LancaVetorial, MarionetePsi |
-| `AURA` | Jupiter | `Aura` | LIMPO | as 7 Tools do conjunto Gravidade / Telecinese |
+| `AURA` | Jupiter | `Aura` | LIMPO | as 7 do conjunto Gravidade / Telecinese, Bloqueador, Proteção, Salvador |
+| `ESTILHACO_ESCUDO` | **Saitama** / Death Counter | `Estilhaco` | LIMPO | Bumerangue, Skate, Partido |
+| `CLARAO_ESCUDO` | **Saitama** / Normal Uppercut | `Clarao` | LIMPO | Bloqueador, Proteção, Salvador, Partido |
+| `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | Ciclone, Partido |
+| `IMPACTO_ESCUDO` | **Saitama** / Death Counter | `Impacto` | LIMPO | as 7 do conjunto Escudos |
+| `POEIRA_ESCUDO` | **Saitama** / Serious Mode | `Poeira` | LIMPO | Skate, Ciclone |
 
 Vivem em `Tool/Efeitos/<TIPO>` e são ligados por `Enabled` + `Rate` — **zero `:Emit()`**.
 `:Emit()` dispara uma leva fixa e ignora o `Rate` autorado; a curva extraída do modelo de
@@ -26,6 +31,11 @@ origem se perde, e o efeito fica com outra cara.
 As curvas (Size, Transparency, Rate, Speed, Lifetime) são as do modelo de origem; a **cor**
 foi trocada para a paleta do repositório, que é o que costura material de dois modelos
 diferentes no mesmo conjunto.
+
+> **Dois dos cinco do Saitama NÃO são tingidos** — e é de propósito.
+> `ESTILHACO_ESCUDO` é escuro porque é isso que faz ler como metal quebrando, e
+> `POEIRA_ESCUDO` guarda o cinza `100,102,115` do original. Tingir os dois de azul
+> viraria caco de escudo em faísca mágica, e fumaça em névoa.
 
 > ⚠️ Ter o molde dentro da Tool **não basta**: alguém tem de ligá-lo. Os emissores de
 > `RAIO_TEMPORAL` e `AURA` estavam dentro das 7 Tools de gravidade sem nenhuma função no
@@ -36,8 +46,12 @@ diferentes no mesmo conjunto.
 
 | Efeito | Origem | Tipo | Status | Usado em |
 |---|---|---|---|---|
-| `IMPACTO` | **autoral** | Estilhaços subindo do ponto de contato | LIMPO | as 7 Tools |
-| `IMPACTO_NOVA` | **autoral** | Anel de choque expandindo no plano do chão | LIMPO | as 7 Tools |
+| `IMPACTO` | **autoral** | Estilhaços subindo do ponto de contato | LIMPO | as 7 de Gravidade / Telecinese |
+| `IMPACTO_NOVA` | **autoral** | Anel de choque expandindo no plano do chão | LIMPO | as 7 de Gravidade / Telecinese |
+| `ESCUDO` | **autoral** | Disco que aparece, gira e some | LIMPO | Bloqueador |
+| `LAMINA` | **autoral** | Risco de corte, ângulo por índice sequencial | LIMPO | Bumerangue, Partido |
+| `ANEL` | **autoral** | Anel de choque no plano do chão | LIMPO | conjunto Escudos (fallback) |
+| `ESTILHACOS` | **autoral** | 10 cacos em ângulo áureo, com queda parabólica | LIMPO | Ciclone, Partido |
 
 Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math.random`.
 
@@ -55,7 +69,7 @@ Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math
 > — execução de código remoto — além de 152 `BreakJoints` e 1113 `math.random`.
 > Ver a `FICHA.md`. O material **visual** é excelente; o código que vem junto, não.
 
-### O que sobrou CRU nos dois modelos
+### O que sobrou CRU nos modelos de VFX
 
 | Origem | Total | Já aproveitado | Segue CRU |
 |---|---|---|---|
@@ -74,6 +88,8 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 |---|---|---|---|---|
 | _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO (parcial) | conjunto Gravidade / Telecinese |
 | _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO (parcial) | conjunto Gravidade / Telecinese |
+| _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | conjunto Escudos |
+| _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO (parcial) | EscudoPartido |
 
 Cada Tool do conjunto Gravidade / Telecinese usa **um** som de golpe, escolhido destes dois
 catálogos. O resto segue depositado e disponível.
@@ -95,8 +111,9 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Pose / sequência | Modelo de origem | Juntas | Status | Já usado em |
 |---|---|---|---|---|
-| `Poses_GravidadeTelecinese_*_V1` | **autoral** (do molde) | 4 · 2+2+2 quadros | LIMPO | as 7 Tools do conjunto |
-| `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | as 7 Tools + o molde |
+| `Poses_GravidadeTelecinese_*_V1` | **autoral** (do molde) | 4 · 2+2+2 quadros | LIMPO | as 7 do conjunto |
+| `Poses_Escudos_*_V1` | **autoral** | 4–6 · 3 a 6 poses por Tool | LIMPO | as 7 do conjunto Escudos |
+| `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | as 14 Tools + o molde |
 | `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
 
@@ -119,7 +136,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Molde | Origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | nenhuma Tool ainda |
+| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | molde do `EscudoPartido/CutsceneCam` |
 
 Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
 `STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a
@@ -134,6 +151,9 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 
 | Pasta | Status | Ficha |
 |---|---|---|
+| `Danilo_Escudos/` | **LIMPO** | [FICHA.md](Danilo_Escudos/FICHA.md) |
+| `Judgement_Cut_End/` | **LIMPO** (parcial) | [FICHA.md](Judgement_Cut_End/FICHA.md) |
+| `Domain_Expansion_Elemental/` | **CRU** | [FICHA.md](Domain_Expansion_Elemental/FICHA.md) |
 | `Jupiter_Great_Pressure_Sword/` | **LIMPO** (parcial) | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
 | `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |

@@ -1,0 +1,5079 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<Meta name="ExplicitAutoJoints">true</Meta>
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Tool" referent="RBXEDF78407F999436C82F723056A9F8327">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip"></string>
+			<Content name="TextureId"><null></null></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Salvador</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="LocalScript" referent="RBX44A0F88241F44B0F9F88F0FBE3B9600A">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- LocalScript_Salvador_V3.lua
+-- Coloque DENTRO da Tool "Salvador"
+-- SUBSTITUI: LocalScript_Salvador_V2.lua
+-- REMOVER: LocalScript_Salvador_V2.lua
+--
+-- MUDANÇAS V3:
+--   [REMOVE] Botão E (Aura Protetora) removido — agora é a Tool "Proteção".
+--   [REMOVE] Botão Q removido — habilidade primária usa click/toque direto.
+--   [REMOVE] GUI de feedback complexa removida (era GUI completa - PROIBIDO).
+--   [CHANGE] Ativação por click direto no aliado (Tool.Activated → mouse target).
+--   [FIX]    wait() → task.wait().
+--
+-- Sem botões: Tool tem apenas 1 habilidade (primária) = click/toque direto.
+
+local Tool        = script.Parent
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+
+-- Serviços
+local Players = game:GetService("Players")
+
+-- Configurações obrigatórias
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+local Player = Players.LocalPlayer
+local Mouse  = Player:GetMouse()
+
+-- ========== ATIVAÇÃO POR CLICK ==========
+Tool.Activated:Connect(function()
+	local target = Mouse.Target
+	if not target then return end
+
+	local model = target:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then
+		RemoteEvent:FireServer("protect", model)
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{DC07790B-9610-435C-8243-08ED3C503B6E}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">LocalScript</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Script" referent="RBX06343694AA694658A42390BEFBC23408">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- ServerScript_Salvador_V4.lua
+-- Coloque DENTRO da Tool "Salvador"
+-- SUBSTITUI: ServerScript_Salvador_V3.lua
+-- REMOVER: ServerScript_Salvador_V3.lua
+--
+-- CORREÇÕES V4:
+--   [ADD] Sistema de animação CFrame via 3 Welds (RightArm, Head, HRP→Torso)
+--         IDÊNTICO ao padrão do Escudo Bloqueador V5 e Bumerangue V5.
+--         IDLE: mesma pose base dos escudos (corpo virado ~10°, escudo à frente).
+--         ACTIVE: braço estendido para cima ~130°, cabeça para cima, corpo inclinado.
+--   [ADD] RightGrip C0 configurado (mesmo valor dos outros escudos).
+--   [ADD] CleanupAnimationWelds() com ordem correta (threads→welds).
+--   [FIX] Sons: agora usa 1 único som "Sacrificio" (dentro do Handle, 4 segundos).
+--   [KEEP] Anti-recursão, NPC, task.wait, .Parent = nil.
+--
+-- REUTILIZA:
+--   Sistema de animação CFrame/Weld → Origem: ServerScript_EscudoBloqueador_V5
+--   Sistema Anti-Friendly Fire → Origem: ServerScript_EscudoBloqueador_V5
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    LISTA DE CUSTOMIZAÇÃO
+═══════════════════════════════════════════════════════════════
+--]]
+
+local CONFIG = {
+	-- ========== TRANSFERÊNCIA DE DANO ==========
+	Duration       = 7,
+	Cooldown       = 10,
+	MaxDistance     = 50,
+
+	-- ========== MINI ESCUDO (clone do Handle) ==========
+	ShieldScale       = 0.6,
+	ShieldFloatHeight = 3,
+	ShieldRotSpeed    = 3,
+
+	-- ========== EFEITOS VISUAIS ==========
+	BeamColor     = Color3.fromRGB(255, 0, 0),
+	ShieldColor   = Color3.fromRGB(255, 50, 50),
+	ParticleRate  = 15,
+	FlashOnDamage = true,
+
+	-- ========== ANIMAÇÃO ==========
+	AnimationLerpSpeed = 0.15,
+
+	-- ========== NPC ==========
+	NPCDetectRange  = 40,
+	NPCCooldownTime = 12,
+}
+
+--[[
+═══════════════════════════════════════════════════════════════
+  POSES CFRAME — SALVADOR (R6)
+
+  3 Welds: RightArm (Torso→Right Arm), Head (Torso→Head),
+           HRP (HumanoidRootPart→Torso)
+  Loop: RunService.Stepped com :lerp() entre IDLE e ACTIVE
+
+  IDLE — mesma pose base de todos os escudos:
+    Corpo virado ~10° para o lado, escudo à frente.
+    (valores exatos copiados do Bloqueador V5 / Bumerangue V5)
+
+  ACTIVE — pose de sacrifício:
+    Braço levantado ~130° oferecendo escudo ao aliado.
+    Cabeça olhando para cima ~15°.
+    Corpo inclinado para frente ~5°.
+═══════════════════════════════════════════════════════════════
+--]]
+
+local POSE_IDLE_ARM = CFrame.new(
+	1.40557981, 0.499999762, -0.579227924,
+	0.98480767, 0.173648134, 3.55271368e-15,
+	-4.39884928e-08, 2.49471157e-07, -0.999999821,
+	-0.173648134, 0.98480767, 2.5331974e-07
+)
+local POSE_IDLE_HEAD = CFrame.new(
+	0, 1.49999976, 0,
+	0.173648208, 0, -0.98480767,
+	0, 0.999999881, 0,
+	0.98480767, 0, 0.173648208
+)
+local POSE_IDLE_HRP = CFrame.new(
+	0, 0, 0,
+	0.173648134, 0, 0.98480773,
+	0, 0.99999994, 0,
+	-0.98480773, 0, 0.173648134
+)
+
+local POSE_ACTIVE_ARM = CFrame.new(1.3, 0.8, -0.3)
+	* CFrame.Angles(math.rad(130), 0, math.rad(-15))
+local POSE_ACTIVE_HEAD = CFrame.new(0, 1.5, 0)
+	* CFrame.Angles(math.rad(-15), 0, 0)
+local POSE_ACTIVE_HRP = CFrame.new(0, 0, 0)
+	* CFrame.Angles(math.rad(5), 0, 0)
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    CÓDIGO PRINCIPAL
+═══════════════════════════════════════════════════════════════
+--]]
+
+local Services = {
+	Players      = game:GetService("Players"),
+	RunService   = game:GetService("RunService"),
+	TweenService = game:GetService("TweenService"),
+}
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+-- 1 único som: "Sacrificio" (4 segundos, dentro do Handle)
+local sacrificioSound = Handle:WaitForChild("Sacrificio", 10)
+
+local owner, character, humanoid, rootpart
+local equipped       = false
+local onCooldown     = false
+local abilityActive  = false
+
+local ActiveEffects = {
+	Parts            = {},
+	Sounds           = {},
+	Connections      = {},
+	Welds            = {},
+	AnimationThreads = {},
+}
+local CleanupConnections = {}
+
+local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+if not RemoteEvent then
+	RemoteEvent        = Instance.new("RemoteEvent")
+	RemoteEvent.Name   = "RemoteEvent"
+	RemoteEvent.Parent = Tool
+end
+
+-- ========== SISTEMA ANTI-FRIENDLY FIRE ==========
+local function IsAlly(char1, char2)
+	if not char1 or not char2 then return false end
+	if char1 == char2 then return true end
+	local p1 = Services.Players:GetPlayerFromCharacter(char1)
+	local p2 = Services.Players:GetPlayerFromCharacter(char2)
+	if p1 and p2 then
+		if not p1.Neutral and not p2.Neutral then
+			return p1.Team == p2.Team
+		end
+	end
+	local cf1 = char1:FindFirstChild("ControlFollow")
+	local cf2 = char2:FindFirstChild("ControlFollow")
+	if cf1 and cf2 then
+		return cf1.Owner.Value == cf2.Owner.Value
+	end
+	return false
+end
+
+-- ========== LIMPEZA (threads PRIMEIRO, welds DEPOIS) ==========
+local function CleanupAnimationWelds()
+	for _, th in pairs(ActiveEffects.AnimationThreads) do
+		if th then task.cancel(th) end
+	end
+	ActiveEffects.AnimationThreads = {}
+	for _, weld in pairs(ActiveEffects.Welds) do
+		if weld and weld.Parent then weld.Parent = nil end
+	end
+	ActiveEffects.Welds = {}
+end
+
+local function CleanupAllEffects()
+	CleanupAnimationWelds()
+	for _, p in pairs(ActiveEffects.Parts) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	ActiveEffects.Parts = {}
+	for _, s in pairs(ActiveEffects.Sounds) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	ActiveEffects.Sounds = {}
+	for _, c in pairs(ActiveEffects.Connections) do
+		if c then c:Disconnect() end
+	end
+	ActiveEffects.Connections = {}
+	abilityActive = false
+end
+
+-- ========== ATIVAR SALVADOR ==========
+local function ActivateSalvar(targetCharacter)
+	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
+	local targetRoot     = targetCharacter:FindFirstChild("HumanoidRootPart")
+	local targetHead     = targetCharacter:FindFirstChild("Head")
+	if not targetHumanoid or not targetRoot or not targetHead then return end
+	if targetHumanoid.Health <= 0 then return end
+	if not rootpart or not humanoid then return end
+	if not IsAlly(character, targetCharacter) then return end
+	if (targetRoot.Position - rootpart.Position).Magnitude > CONFIG.MaxDistance then return end
+
+	abilityActive = true
+
+	if sacrificioSound then sacrificioSound:Play() end
+
+	-- Beam
+	local att0 = Instance.new("Attachment")
+	att0.Parent = rootpart
+	table.insert(ActiveEffects.Parts, att0)
+	local att1 = Instance.new("Attachment")
+	att1.Parent = targetRoot
+	table.insert(ActiveEffects.Parts, att1)
+	local beam       = Instance.new("Beam")
+	beam.Attachment0 = att0
+	beam.Attachment1 = att1
+	beam.Color       = ColorSequence.new(CONFIG.BeamColor)
+	beam.Width0      = 0.5
+	beam.Width1      = 0.5
+	beam.FaceCamera  = true
+	beam.Texture     = "rbxasset://textures/particles/smoke_main.dds"
+	beam.Parent      = rootpart
+	table.insert(ActiveEffects.Parts, beam)
+
+	-- Mini escudo flutuante
+	local miniShield = Handle:Clone()
+	miniShield.Name  = "SalvadorShield"
+	miniShield.CanCollide   = false
+	miniShield.CanTouch     = false
+	miniShield.Anchored     = true
+	miniShield.Material     = Enum.Material.Neon
+	miniShield.Color        = CONFIG.ShieldColor
+	miniShield.Transparency = 0.3
+	miniShield.Size         = Handle.Size * CONFIG.ShieldScale
+	miniShield.Parent       = workspace
+	table.insert(ActiveEffects.Parts, miniShield)
+	for _, child in pairs(miniShield:GetChildren()) do
+		if child:IsA("Sound") or child:IsA("Script") or child:IsA("LocalScript") then
+			child.Parent = nil
+		end
+	end
+	local particles    = Instance.new("ParticleEmitter")
+	particles.Texture  = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate     = CONFIG.ParticleRate
+	particles.Lifetime = NumberRange.new(1)
+	particles.Speed    = NumberRange.new(2)
+	particles.Color    = ColorSequence.new(CONFIG.BeamColor)
+	particles.Size     = NumberSequence.new(0.3)
+	particles.Parent   = miniShield
+	local light      = Instance.new("PointLight")
+	light.Brightness = 1
+	light.Color      = CONFIG.BeamColor
+	light.Range      = 8
+	light.Parent     = miniShield
+
+	-- Glow no usuário
+	local userGlow         = Instance.new("Part")
+	userGlow.Name          = "SalvarGlow"
+	userGlow.Shape         = Enum.PartType.Ball
+	userGlow.Size          = Vector3.new(3, 3, 3)
+	userGlow.Material      = Enum.Material.Neon
+	userGlow.Color         = CONFIG.BeamColor
+	userGlow.Transparency  = 0.5
+	userGlow.CanCollide    = false
+	userGlow.CanTouch      = false
+	userGlow.Anchored      = true
+	userGlow.Parent        = workspace
+	table.insert(ActiveEffects.Parts, userGlow)
+
+	-- Transferência de dano
+	local isTransferring = false
+	local damageConn
+	damageConn = targetHumanoid.HealthChanged:Connect(function(newHealth)
+		if isTransferring then return end
+		if not humanoid or humanoid.Health <= 0 then
+			if damageConn then damageConn:Disconnect() end
+			return
+		end
+		local oldHealth   = targetHumanoid.Health
+		local damageTaken = oldHealth - newHealth
+		if damageTaken > 0 then
+			isTransferring = true
+			targetHumanoid.Health = oldHealth
+			humanoid:TakeDamage(damageTaken)
+			if CONFIG.FlashOnDamage and userGlow and userGlow.Parent then
+				Services.TweenService:Create(userGlow,
+					TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{Transparency = 0.2}):Play()
+				task.delay(0.15, function()
+					if userGlow and userGlow.Parent then
+						Services.TweenService:Create(userGlow,
+							TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+							{Transparency = 0.5}):Play()
+					end
+				end)
+			end
+			task.wait()
+			isTransferring = false
+		end
+	end)
+	table.insert(ActiveEffects.Connections, damageConn)
+
+	-- Seguimento do mini escudo
+	local followThread = task.spawn(function()
+		local rotation = 0
+		while miniShield and miniShield.Parent and rootpart and rootpart.Parent and targetHead and targetHead.Parent do
+			local floatPos = targetHead.Position + Vector3.new(0, CONFIG.ShieldFloatHeight, 0)
+			miniShield.CFrame = CFrame.new(floatPos) * CFrame.Angles(0, math.rad(rotation), 0)
+			rotation = rotation + CONFIG.ShieldRotSpeed
+			if rotation >= 360 then rotation = 0 end
+			if userGlow and userGlow.Parent then
+				userGlow.CFrame = rootpart.CFrame
+			end
+			if (targetRoot.Position - rootpart.Position).Magnitude > CONFIG.MaxDistance then break end
+			Services.RunService.Heartbeat:Wait()
+		end
+		if damageConn then damageConn:Disconnect() end
+		if beam and beam.Parent then beam.Parent = nil end
+		if miniShield and miniShield.Parent then miniShield.Parent = nil end
+		if userGlow and userGlow.Parent then userGlow.Parent = nil end
+		if att0 and att0.Parent then att0.Parent = nil end
+		if att1 and att1.Parent then att1.Parent = nil end
+		abilityActive = false
+	end)
+
+	-- Timer
+	task.delay(CONFIG.Duration, function()
+		abilityActive = false
+		if damageConn then damageConn:Disconnect() end
+		if sacrificioSound then sacrificioSound:Stop() end
+		if miniShield and miniShield.Parent then
+			Services.TweenService:Create(miniShield,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Transparency = 1}):Play()
+			task.delay(0.5, function()
+				if miniShield and miniShield.Parent then miniShield.Parent = nil end
+			end)
+		end
+		if beam and beam.Parent then beam.Parent = nil end
+		if userGlow and userGlow.Parent then userGlow.Parent = nil end
+		if att0 and att0.Parent then att0.Parent = nil end
+		if att1 and att1.Parent then att1.Parent = nil end
+	end)
+end
+
+-- ========== REMOTEEVENT ==========
+RemoteEvent.OnServerEvent:Connect(function(player, action, targetModel)
+	if player ~= owner or not equipped then return end
+	if action == "protect" then
+		if onCooldown then return end
+		if not targetModel or not targetModel:FindFirstChildOfClass("Humanoid") then return end
+		onCooldown = true
+		ActivateSalvar(targetModel)
+		task.wait(CONFIG.Cooldown)
+		onCooldown = false
+	end
+end)
+
+-- ========== NPC ==========
+local NPCCooldown = false
+task.spawn(function()
+	while task.wait(1) do
+		if equipped and not owner and not NPCCooldown then
+			if rootpart and rootpart.Parent then
+				local bestAlly, lowestHP = nil, 1
+				for _, model in pairs(workspace:GetChildren()) do
+					if model:IsA("Model") and model ~= character then
+						local ah = model:FindFirstChildOfClass("Humanoid")
+						local ar = model:FindFirstChild("HumanoidRootPart")
+						if ah and ar and ah.Health > 0 and IsAlly(character, model) then
+							local d = (ar.Position - rootpart.Position).Magnitude
+							local hp = ah.Health / ah.MaxHealth
+							if d < CONFIG.NPCDetectRange and hp < lowestHP then
+								bestAlly = model; lowestHP = hp
+							end
+						end
+					end
+				end
+				if bestAlly and lowestHP < 0.7 then
+					NPCCooldown = true
+					ActivateSalvar(bestAlly)
+					task.wait(CONFIG.NPCCooldownTime)
+					NPCCooldown = false
+				end
+			end
+		end
+	end
+end)
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped  = true
+	owner     = Services.Players:GetPlayerFromCharacter(Tool.Parent)
+	character = Tool.Parent
+	humanoid  = character:FindFirstChildOfClass("Humanoid")
+	rootpart  = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not rootpart then return end
+	onCooldown = false; abilityActive = false
+	CleanupAllEffects()
+
+	-- RightGrip C0 (padrão de todos os escudos)
+	local rightArm = character:FindFirstChild("Right Arm")
+	if rightArm then
+		local rg = rightArm:FindFirstChild("RightGrip")
+		if rg then
+			rg.C0 = CFrame.new(
+				0.409522653, -0.000911712646, 0.516324997,
+				-0.0116359973, -0.0435790196, -0.998981893,
+				0.999929667,  0.00166221452, -0.0117195444,
+				0.0021712482, -0.999047935,   0.0435565971)
+		end
+	end
+
+	-- 3 Welds de animação (padrão dos escudos)
+	local torso = character:FindFirstChild("Torso")
+	if torso and rightArm then
+		local rightarmWeld = Instance.new("Weld")
+		rightarmWeld.Part0 = torso; rightarmWeld.Part1 = rightArm
+		rightarmWeld.C0 = CFrame.new(1.5, 0, 0)
+		rightarmWeld.Name = "RightArmWeldsalvador"
+		rightarmWeld.Parent = torso
+		table.insert(ActiveEffects.Welds, rightarmWeld)
+
+		local headPart = character:FindFirstChild("Head")
+		if headPart then
+			local headWeld = Instance.new("Weld")
+			headWeld.Part0 = torso; headWeld.Part1 = headPart
+			headWeld.C0 = CFrame.new(0, 1.5, 0)
+			headWeld.Name = "HeadWeldsalvador"
+			headWeld.Parent = torso
+			table.insert(ActiveEffects.Welds, headWeld)
+
+			local hrpWeld = Instance.new("Weld")
+			hrpWeld.Part0 = rootpart; hrpWeld.Part1 = torso
+			hrpWeld.C0 = CFrame.new()
+			hrpWeld.Name = "HRPWeldsalvador"
+			hrpWeld.Parent = rootpart
+			table.insert(ActiveEffects.Welds, hrpWeld)
+
+			-- Loop de animação (RunService.Stepped — conforme regras CFrame)
+			local animThread = task.spawn(function()
+				while equipped do
+					Services.RunService.Stepped:Wait()
+					if not rightarmWeld or not rightarmWeld.Parent then break end
+					if abilityActive then
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_ACTIVE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_ACTIVE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_ACTIVE_HRP, CONFIG.AnimationLerpSpeed)
+					else
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_IDLE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_IDLE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_IDLE_HRP, CONFIG.AnimationLerpSpeed)
+					end
+				end
+			end)
+			table.insert(ActiveEffects.AnimationThreads, animThread)
+		end
+	end
+
+	if humanoid then
+		CleanupConnections.Died = humanoid.Died:Connect(function() CleanupAllEffects() end)
+	end
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped = false; onCooldown = false; abilityActive = false
+	if sacrificioSound then sacrificioSound:Stop() end
+	CleanupAllEffects()
+	for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+	CleanupConnections = {}
+end)
+
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		if sacrificioSound then sacrificioSound:Stop() end
+		CleanupAllEffects()
+		for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+		CleanupConnections = {}
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{4D8D9A0C-8069-4ECD-A0E1-72E90F117137}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Script</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="RemoteEvent" referent="RBX85E5456C9DE44B00A3E5CC601C3B5DD9">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBX5955E2924F04403A94CA27F563398EA6">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized"></string>
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBX5B0B21C07B0045BE93EFC796D4062B69">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX989DEB09C96D4CBEABB281B8DF9B795B">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXFD9AF643D90E405FA6E500DFD4F7AFB4">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX1F28B4249A5F4F688ADDEB455E9A0AF3">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX9CC423CE75524781B2D3279C6AD023B1">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXC0E20B10CE01440CA4687F4C93C92F59">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://138415108920761</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Sacrificio</string>
+					<int64 name="SourceAssetId">138415108920761</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBXBECECC8B79674075BFFD43F917175E7A">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null></null></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+	<Item class="Tool" referent="RBX55D1E62AB5E2436CB4833131538395E2">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip"></string>
+			<Content name="TextureId"><null></null></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Prote&#195;&#167;&#195;&#163;o</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="LocalScript" referent="RBXA476AD7E539B4E349F691F81FC2632A6">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- LocalScript_Protecao_V1.lua
+-- Coloque DENTRO da Tool "Proteção"
+-- NOVO SCRIPT
+--
+-- Sem botões: Tool tem apenas 1 habilidade (primária) = click/toque direto.
+
+local Tool        = script.Parent
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+
+-- Configurações obrigatórias
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+-- ========== ATIVAÇÃO POR CLICK ==========
+Tool.Activated:Connect(function()
+	RemoteEvent:FireServer("activate")
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{0EC769FF-0AB5-4161-8EAE-1D71BBD10AF7}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">LocalScript</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Script" referent="RBXBC048A2BC65941968A0CCA8352DCC4ED">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- ServerScript_Protecao_V2.lua
+-- Coloque DENTRO da Tool "Proteção"
+-- SUBSTITUI: ServerScript_Protecao_V1.lua
+-- REMOVER: ServerScript_Protecao_V1.lua
+--
+-- CORREÇÕES V2:
+--   [ADD] Sistema de animação CFrame via 3 Welds (RightArm, Head, HRP→Torso)
+--         IDÊNTICO ao padrão do Escudo Bloqueador V5 e Bumerangue V5.
+--         IDLE: mesma pose base dos escudos (corpo virado ~10°, escudo à frente).
+--         ACTIVE: braço estendido à frente ~70° em guarda defensiva,
+--                 corpo levemente abaixado, cabeça olhando reto.
+--   [ADD] RightGrip C0 configurado (mesmo valor dos outros escudos).
+--   [ADD] CleanupAnimationWelds() com ordem correta (threads→welds).
+--   [FIX] Sons: agora usa 1 único som "Protecao" (dentro do Handle, 4 segundos).
+--   [KEEP] Órbita, reflexão de projéteis, NPC, task.wait, .Parent = nil.
+--
+-- REUTILIZA:
+--   Sistema de animação CFrame/Weld → Origem: ServerScript_EscudoBloqueador_V5
+--   Sistema Anti-Friendly Fire → Origem: ServerScript_EscudoBloqueador_V5
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    LISTA DE CUSTOMIZAÇÃO
+═══════════════════════════════════════════════════════════════
+--]]
+
+local CONFIG = {
+	-- ========== HABILIDADE ==========
+	Duration       = 4,
+	Cooldown       = 7,
+
+	-- ========== ESCUDO ORBITANTE ==========
+	OrbitRadius    = 4,
+	OrbitSpeed     = 8,
+	ShieldScale    = 0.7,
+	ShieldHeight   = 1,
+
+	-- ========== REFLEXÃO ==========
+	ReflectRadius  = 8,
+	ReflectForce   = 100,
+	ReflectDamage  = 5,
+
+	-- ========== EFEITOS VISUAIS ==========
+	ShieldColor    = Color3.fromRGB(0, 150, 255),
+	ReflectColor   = Color3.fromRGB(255, 100, 0),
+	ParticleRate   = 20,
+
+	-- ========== ANIMAÇÃO ==========
+	AnimationLerpSpeed = 0.15,
+
+	-- ========== NPC ==========
+	NPCDetectRange  = 30,
+	NPCCooldownTime = 10,
+}
+
+--[[
+═══════════════════════════════════════════════════════════════
+  POSES CFRAME — PROTEÇÃO (R6)
+
+  3 Welds: RightArm (Torso→Right Arm), Head (Torso→Head),
+           HRP (HumanoidRootPart→Torso)
+  Loop: RunService.Stepped com :lerp() entre IDLE e ACTIVE
+
+  IDLE — mesma pose base de todos os escudos:
+    Corpo virado ~10°, escudo à frente.
+
+  ACTIVE — guarda defensiva:
+    Braço estendido à frente ~70° com escudo como barreira.
+    Corpo levemente abaixado ~5° (postura defensiva).
+    Cabeça olhando para frente.
+═══════════════════════════════════════════════════════════════
+--]]
+
+local POSE_IDLE_ARM = CFrame.new(
+	1.40557981, 0.499999762, -0.579227924,
+	0.98480767, 0.173648134, 3.55271368e-15,
+	-4.39884928e-08, 2.49471157e-07, -0.999999821,
+	-0.173648134, 0.98480767, 2.5331974e-07
+)
+local POSE_IDLE_HEAD = CFrame.new(
+	0, 1.49999976, 0,
+	0.173648208, 0, -0.98480767,
+	0, 0.999999881, 0,
+	0.98480767, 0, 0.173648208
+)
+local POSE_IDLE_HRP = CFrame.new(
+	0, 0, 0,
+	0.173648134, 0, 0.98480773,
+	0, 0.99999994, 0,
+	-0.98480773, 0, 0.173648134
+)
+
+-- ACTIVE: guarda defensiva — escudo estendido à frente como barreira
+local POSE_ACTIVE_ARM = CFrame.new(1.5, 0.5, -0.8)
+	* CFrame.Angles(math.rad(70), 0, math.rad(-20))
+local POSE_ACTIVE_HEAD = CFrame.new(0, 1.5, 0)
+local POSE_ACTIVE_HRP = CFrame.new(0, -0.1, 0)
+	* CFrame.Angles(math.rad(-5), 0, 0)
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    CÓDIGO PRINCIPAL
+═══════════════════════════════════════════════════════════════
+--]]
+
+local Services = {
+	Players      = game:GetService("Players"),
+	RunService   = game:GetService("RunService"),
+	TweenService = game:GetService("TweenService"),
+}
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+-- 1 único som: "Protecao" (4 segundos, dentro do Handle)
+local protecaoSound = Handle:WaitForChild("Protecao", 10)
+
+local owner, character, humanoid, rootpart
+local equipped     = false
+local onCooldown   = false
+local abilityActive = false
+
+local ActiveEffects = {
+	Parts            = {},
+	Sounds           = {},
+	Connections      = {},
+	Welds            = {},
+	AnimationThreads = {},
+}
+local CleanupConnections = {}
+
+local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+if not RemoteEvent then
+	RemoteEvent        = Instance.new("RemoteEvent")
+	RemoteEvent.Name   = "RemoteEvent"
+	RemoteEvent.Parent = Tool
+end
+
+-- ========== ANTI-FRIENDLY FIRE ==========
+local function IsAlly(char1, char2)
+	if not char1 or not char2 then return false end
+	if char1 == char2 then return true end
+	local p1 = Services.Players:GetPlayerFromCharacter(char1)
+	local p2 = Services.Players:GetPlayerFromCharacter(char2)
+	if p1 and p2 then
+		if not p1.Neutral and not p2.Neutral then return p1.Team == p2.Team end
+	end
+	local cf1 = char1:FindFirstChild("ControlFollow")
+	local cf2 = char2:FindFirstChild("ControlFollow")
+	if cf1 and cf2 then return cf1.Owner.Value == cf2.Owner.Value end
+	return false
+end
+
+-- ========== LIMPEZA (threads PRIMEIRO, welds DEPOIS) ==========
+local function CleanupAnimationWelds()
+	for _, th in pairs(ActiveEffects.AnimationThreads) do
+		if th then task.cancel(th) end
+	end
+	ActiveEffects.AnimationThreads = {}
+	for _, weld in pairs(ActiveEffects.Welds) do
+		if weld and weld.Parent then weld.Parent = nil end
+	end
+	ActiveEffects.Welds = {}
+end
+
+local function CleanupAllEffects()
+	CleanupAnimationWelds()
+	for _, p in pairs(ActiveEffects.Parts) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	ActiveEffects.Parts = {}
+	for _, s in pairs(ActiveEffects.Sounds) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	ActiveEffects.Sounds = {}
+	for _, c in pairs(ActiveEffects.Connections) do
+		if c then c:Disconnect() end
+	end
+	ActiveEffects.Connections = {}
+	abilityActive = false
+end
+
+-- ========== ENCONTRAR INIMIGO MAIS PRÓXIMO ==========
+local function FindNearestEnemy()
+	local nearest, dist = nil, CONFIG.ReflectRadius * 2
+	for _, model in pairs(workspace:GetChildren()) do
+		if model:IsA("Model") and model ~= character then
+			local hum  = model:FindFirstChildOfClass("Humanoid")
+			local root = model:FindFirstChild("HumanoidRootPart")
+			if hum and root and hum.Health > 0 and not IsAlly(character, model) then
+				local d = (root.Position - rootpart.Position).Magnitude
+				if d < dist then nearest = model; dist = d end
+			end
+		end
+	end
+	return nearest
+end
+
+-- ========== ENCONTRAR PROJÉTEIS INIMIGOS ==========
+local function FindEnemyProjectiles()
+	local projectiles = {}
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and not obj.Anchored and not obj:IsA("Terrain") then
+			local isCharPart = obj.Parent and obj.Parent:FindFirstChildOfClass("Humanoid")
+			if not isCharPart and rootpart then
+				local dist = (obj.Position - rootpart.Position).Magnitude
+				if dist < CONFIG.ReflectRadius then
+					local vel = obj.AssemblyLinearVelocity or obj.Velocity
+					if vel and vel.Magnitude > 5 then
+						local toPlayer = (rootpart.Position - obj.Position).Unit
+						local dot = toPlayer:Dot(vel.Unit)
+						if dot > 0.3 then
+							table.insert(projectiles, obj)
+						end
+					end
+				end
+			end
+		end
+	end
+	return projectiles
+end
+
+-- ========== ATIVAR PROTEÇÃO ==========
+local function ActivateProtecao()
+	if not rootpart or not humanoid or humanoid.Health <= 0 then return end
+
+	abilityActive = true
+
+	-- Som (4 segundos)
+	if protecaoSound then protecaoSound:Play() end
+
+	-- Clone escudo orbitante
+	local shield = Handle:Clone()
+	shield.Name  = "ProtecaoShield"
+	shield.CanCollide   = false
+	shield.CanTouch     = false
+	shield.Anchored     = true
+	shield.Material     = Enum.Material.ForceField
+	shield.Color        = CONFIG.ShieldColor
+	shield.Transparency = 0.2
+	shield.Size         = Handle.Size * CONFIG.ShieldScale
+	shield.Parent       = workspace
+	table.insert(ActiveEffects.Parts, shield)
+	for _, child in pairs(shield:GetChildren()) do
+		if child:IsA("Sound") or child:IsA("Script") or child:IsA("LocalScript") then
+			child.Parent = nil
+		end
+	end
+
+	-- Partículas
+	local particles    = Instance.new("ParticleEmitter")
+	particles.Texture  = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate     = CONFIG.ParticleRate
+	particles.Lifetime = NumberRange.new(0.5)
+	particles.Speed    = NumberRange.new(3)
+	particles.Color    = ColorSequence.new(CONFIG.ShieldColor)
+	particles.Size     = NumberSequence.new(0.3)
+	particles.Parent   = shield
+
+	-- Luz
+	local light      = Instance.new("PointLight")
+	light.Brightness = 1.5
+	light.Color      = CONFIG.ShieldColor
+	light.Range      = 10
+	light.Parent     = shield
+
+	-- ========== LOOP: ÓRBITA + REFLEXÃO ==========
+	local reflectDebounce = {}
+
+	local orbitThread = task.spawn(function()
+		local startTime = tick()
+		local angle = 0
+
+		while abilityActive and shield and shield.Parent and rootpart and rootpart.Parent do
+			if tick() - startTime >= CONFIG.Duration then break end
+
+			local dt = Services.RunService.Stepped:Wait()
+			angle = angle + CONFIG.OrbitSpeed * dt
+			if not shield or not shield.Parent then break end
+
+			local basePos     = rootpart.Position + Vector3.new(0, CONFIG.ShieldHeight, 0)
+			local projectiles = FindEnemyProjectiles()
+			local enemy       = FindNearestEnemy()
+
+			if #projectiles > 0 then
+				-- Mover escudo na frente do projétil mais próximo
+				local closestProj = projectiles[1]
+				local closestDist = (closestProj.Position - rootpart.Position).Magnitude
+				for _, proj in pairs(projectiles) do
+					local d = (proj.Position - rootpart.Position).Magnitude
+					if d < closestDist then closestProj = proj; closestDist = d end
+				end
+
+				local dirToProj = (closestProj.Position - rootpart.Position).Unit
+				shield.CFrame = CFrame.new(basePos + dirToProj * CONFIG.OrbitRadius, closestProj.Position)
+
+				-- Refletir
+				if closestDist < CONFIG.OrbitRadius + 2 and not reflectDebounce[closestProj] then
+					reflectDebounce[closestProj] = true
+					if enemy then
+						local er = enemy:FindFirstChild("HumanoidRootPart")
+						if er then
+							closestProj.AssemblyLinearVelocity = (er.Position - shield.Position).Unit * CONFIG.ReflectForce
+						end
+					else
+						closestProj.AssemblyLinearVelocity = -(closestProj.AssemblyLinearVelocity or closestProj.Velocity)
+					end
+					-- Flash
+					local fx = Instance.new("Part")
+					fx.Size = Vector3.new(2, 2, 2); fx.Material = Enum.Material.Neon
+					fx.Color = CONFIG.ReflectColor; fx.Transparency = 0.3
+					fx.CanCollide = false; fx.CanTouch = false; fx.Anchored = true
+					fx.Shape = Enum.PartType.Ball; fx.CFrame = shield.CFrame
+					fx.Parent = workspace
+					table.insert(ActiveEffects.Parts, fx)
+					task.spawn(function()
+						for i = 0, 10 do
+							if not fx or not fx.Parent then break end
+							fx.Transparency = 0.3 + (i * 0.07)
+							fx.Size = fx.Size + Vector3.new(0.3, 0.3, 0.3)
+							task.wait(0.03)
+						end
+						if fx and fx.Parent then fx.Parent = nil end
+					end)
+				end
+
+			elseif enemy then
+				local er = enemy:FindFirstChild("HumanoidRootPart")
+				if er then
+					local dirToEnemy = (er.Position - rootpart.Position).Unit
+					local orbitPos = basePos + Vector3.new(math.cos(angle) * CONFIG.OrbitRadius, 0, math.sin(angle) * CONFIG.OrbitRadius)
+					local frontPos = basePos + dirToEnemy * CONFIG.OrbitRadius
+					local finalPos = frontPos * 0.7 + orbitPos * 0.3
+					shield.CFrame = CFrame.new(finalPos, er.Position)
+				end
+			else
+				local orbitPos = basePos + Vector3.new(math.cos(angle) * CONFIG.OrbitRadius, 0, math.sin(angle) * CONFIG.OrbitRadius)
+				shield.CFrame = CFrame.new(orbitPos) * CFrame.Angles(0, -angle, 0)
+			end
+
+			-- Dano por contato
+			for _, model in pairs(workspace:GetChildren()) do
+				if model:IsA("Model") and model ~= character then
+					local hum  = model:FindFirstChildOfClass("Humanoid")
+					local root = model:FindFirstChild("HumanoidRootPart")
+					if hum and root and hum.Health > 0 and not IsAlly(character, model) then
+						if (root.Position - shield.Position).Magnitude < 3 and not reflectDebounce[model] then
+							reflectDebounce[model] = true
+							hum:TakeDamage(CONFIG.ReflectDamage)
+							task.delay(1, function() reflectDebounce[model] = nil end)
+						end
+					end
+				end
+			end
+		end
+
+		abilityActive = false
+		if protecaoSound then protecaoSound:Stop() end
+
+		if shield and shield.Parent then
+			Services.TweenService:Create(shield,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Transparency = 1}):Play()
+			task.delay(0.5, function()
+				if shield and shield.Parent then shield.Parent = nil end
+			end)
+		end
+	end)
+	table.insert(ActiveEffects.AnimationThreads, orbitThread)
+end
+
+-- ========== REMOTEEVENT ==========
+RemoteEvent.OnServerEvent:Connect(function(player, action)
+	if player ~= owner or not equipped then return end
+	if action == "activate" then
+		if onCooldown then return end
+		onCooldown = true
+		ActivateProtecao()
+		task.wait(CONFIG.Cooldown)
+		onCooldown = false
+	end
+end)
+
+-- ========== NPC ==========
+local NPCCooldown = false
+task.spawn(function()
+	while task.wait(1) do
+		if equipped and not owner and not NPCCooldown then
+			if rootpart and rootpart.Parent then
+				local enemy = FindNearestEnemy()
+				if enemy then
+					local er = enemy:FindFirstChild("HumanoidRootPart")
+					if er and (er.Position - rootpart.Position).Magnitude < CONFIG.NPCDetectRange then
+						NPCCooldown = true
+						ActivateProtecao()
+						task.wait(CONFIG.NPCCooldownTime)
+						NPCCooldown = false
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped  = true
+	owner     = Services.Players:GetPlayerFromCharacter(Tool.Parent)
+	character = Tool.Parent
+	humanoid  = character:FindFirstChildOfClass("Humanoid")
+	rootpart  = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not rootpart then return end
+	onCooldown = false; abilityActive = false
+	CleanupAllEffects()
+
+	-- RightGrip C0 (padrão de todos os escudos)
+	local rightArm = character:FindFirstChild("Right Arm")
+	if rightArm then
+		local rg = rightArm:FindFirstChild("RightGrip")
+		if rg then
+			rg.C0 = CFrame.new(
+				0.409522653, -0.000911712646, 0.516324997,
+				-0.0116359973, -0.0435790196, -0.998981893,
+				0.999929667,  0.00166221452, -0.0117195444,
+				0.0021712482, -0.999047935,   0.0435565971)
+		end
+	end
+
+	-- 3 Welds de animação (padrão dos escudos)
+	local torso = character:FindFirstChild("Torso")
+	if torso and rightArm then
+		local rightarmWeld = Instance.new("Weld")
+		rightarmWeld.Part0 = torso; rightarmWeld.Part1 = rightArm
+		rightarmWeld.C0 = CFrame.new(1.5, 0, 0)
+		rightarmWeld.Name = "RightArmWeldprotecao"
+		rightarmWeld.Parent = torso
+		table.insert(ActiveEffects.Welds, rightarmWeld)
+
+		local headPart = character:FindFirstChild("Head")
+		if headPart then
+			local headWeld = Instance.new("Weld")
+			headWeld.Part0 = torso; headWeld.Part1 = headPart
+			headWeld.C0 = CFrame.new(0, 1.5, 0)
+			headWeld.Name = "HeadWeldprotecao"
+			headWeld.Parent = torso
+			table.insert(ActiveEffects.Welds, headWeld)
+
+			local hrpWeld = Instance.new("Weld")
+			hrpWeld.Part0 = rootpart; hrpWeld.Part1 = torso
+			hrpWeld.C0 = CFrame.new()
+			hrpWeld.Name = "HRPWeldprotecao"
+			hrpWeld.Parent = rootpart
+			table.insert(ActiveEffects.Welds, hrpWeld)
+
+			-- Loop de animação (RunService.Stepped)
+			local animThread = task.spawn(function()
+				while equipped do
+					Services.RunService.Stepped:Wait()
+					if not rightarmWeld or not rightarmWeld.Parent then break end
+					if abilityActive then
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_ACTIVE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_ACTIVE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_ACTIVE_HRP, CONFIG.AnimationLerpSpeed)
+					else
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_IDLE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_IDLE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_IDLE_HRP, CONFIG.AnimationLerpSpeed)
+					end
+				end
+			end)
+			table.insert(ActiveEffects.AnimationThreads, animThread)
+		end
+	end
+
+	if humanoid then
+		CleanupConnections.Died = humanoid.Died:Connect(function() CleanupAllEffects() end)
+	end
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped = false; onCooldown = false; abilityActive = false
+	if protecaoSound then protecaoSound:Stop() end
+	CleanupAllEffects()
+	for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+	CleanupConnections = {}
+end)
+
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		if protecaoSound then protecaoSound:Stop() end
+		CleanupAllEffects()
+		for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+		CleanupConnections = {}
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{A2E5A151-230C-4A01-8259-BE11C1EB9D4E}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Script</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="RemoteEvent" referent="RBX5A9CFB6E6ECA4BF9969A77CD9BB5AEC5">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBX103E6F4625614DACA68F8B45A55D3DEB">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized"></string>
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBX9FDEE0A6DB2446039FEAF024F5DCAB33">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXBE9F156C57294F71B45B1546D5B42FC4">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX5C6AD910AB854D3BB75005BA3B0E4A3C">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXF315D8C40B214F0E9550A65065B1E615">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX23B5D5135BCD43D4AA5EE9971FFBC1B6">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX57A2A69C4C80415DAB12FBFAECC8657F">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://100810444748596</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Protecao</string>
+					<int64 name="SourceAssetId">100810444748596</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBXE5FBB7D1D66440449D53F4777425D1DE">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null></null></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+	<Item class="Tool" referent="RBXC434ECEEA8C146B0B48F7F29E9810CD4">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip"></string>
+			<Content name="TextureId"><null></null></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Escudo Skate</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="LocalScript" referent="RBX31E244F6FF06465FB561C757CB756999">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- LocalScript_EscudoSkate_V1.lua
+-- Coloque DENTRO da Tool "Escudo Skate"
+-- NOVO SCRIPT
+--
+-- Sem botões: Tool tem apenas 1 habilidade (primária) = click/toque direto.
+
+local Tool        = script.Parent
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+
+-- Configurações obrigatórias
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+-- ========== ATIVAÇÃO POR CLICK ==========
+Tool.Activated:Connect(function()
+	RemoteEvent:FireServer("activate")
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{9CA8A480-8771-4980-9EC6-8825DEC5A3E1}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">LocalScript</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Script" referent="RBX4EEE989FD139444EBA163CB2BCD8C2DE">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- ServerScript_EscudoSkate_V2.lua
+-- Coloque DENTRO da Tool "Escudo Skate"
+-- SUBSTITUI: ServerScript_EscudoSkate_V1.lua
+-- REMOVER: ServerScript_EscudoSkate_V1.lua
+--
+-- CORREÇÕES V2:
+--   [ADD] Sistema de animação CFrame via 3 Welds (RightArm, Head, HRP→Torso)
+--         IDÊNTICO ao padrão do Escudo Bloqueador V5 e Bumerangue V5.
+--         IDLE: mesma pose base dos escudos (corpo virado ~10°, escudo à frente).
+--         ACTIVE: pose de skating — braço para trás, corpo inclinado à frente ~15°,
+--                 cabeça olhando para frente/baixo.
+--   [ADD] RightGrip C0 configurado (mesmo valor dos outros escudos).
+--   [ADD] CleanupAnimationWelds() com ordem correta (threads→welds).
+--   [KEEP] Escudo no pé, +35 speed, 10 dano + empurrão, NPC.
+--
+-- REUTILIZA:
+--   Sistema de animação CFrame/Weld → Origem: ServerScript_EscudoBloqueador_V5
+--   Sistema Anti-Friendly Fire → Origem: ServerScript_EscudoBloqueador_V5
+--   Regras de CFrame para R6 → Origem: Regras_instrucoes_de_Cframe_de_tool.txt
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    LISTA DE CUSTOMIZAÇÃO
+═══════════════════════════════════════════════════════════════
+--]]
+
+local CONFIG = {
+	-- ========== HABILIDADE ==========
+	Duration        = 5,
+	Cooldown        = 8,
+	SpeedBonus      = 35,
+
+	-- ========== DANO E EMPURRÃO ==========
+	ContactDamage   = 10,
+	KnockbackPower  = 60,
+	HitRadius       = 4,
+	HitCooldown     = 0.5,
+
+	-- ========== ESCUDO NO PÉ ==========
+	ShieldScale     = 0.5,
+	FootOffset      = CFrame.new(0, -0.5, 0) * CFrame.Angles(math.rad(90), 0, 0),
+
+	-- ========== EFEITOS VISUAIS ==========
+	ShieldColor     = Color3.fromRGB(0, 200, 255),
+	TrailColor      = Color3.fromRGB(100, 200, 255),
+	HitColor        = Color3.fromRGB(255, 150, 0),
+	ParticleRate    = 25,
+
+	-- ========== ANIMAÇÃO ==========
+	AnimationLerpSpeed = 0.15,
+
+	-- ========== NPC ==========
+	NPCDetectRange  = 30,
+	NPCCooldownTime = 10,
+}
+
+--[[
+═══════════════════════════════════════════════════════════════
+  POSES CFRAME — ESCUDO SKATE (R6)
+
+  3 Welds: RightArm (Torso→Right Arm), Head (Torso→Head),
+           HRP (HumanoidRootPart→Torso)
+  Loop: RunService.Stepped com :lerp() entre IDLE e ACTIVE
+
+  IDLE — mesma pose base de todos os escudos:
+    Corpo virado ~10°, escudo à frente.
+
+  ACTIVE — pose de skating/velocidade:
+    Braço direito para trás ~-30° (equilibrando na corrida).
+    Corpo inclinado para frente ~15° (aerodinâmico).
+    Cabeça olhando para frente/baixo ~10°.
+═══════════════════════════════════════════════════════════════
+--]]
+
+local POSE_IDLE_ARM = CFrame.new(
+	1.40557981, 0.499999762, -0.579227924,
+	0.98480767, 0.173648134, 3.55271368e-15,
+	-4.39884928e-08, 2.49471157e-07, -0.999999821,
+	-0.173648134, 0.98480767, 2.5331974e-07
+)
+local POSE_IDLE_HEAD = CFrame.new(
+	0, 1.49999976, 0,
+	0.173648208, 0, -0.98480767,
+	0, 0.999999881, 0,
+	0.98480767, 0, 0.173648208
+)
+local POSE_IDLE_HRP = CFrame.new(
+	0, 0, 0,
+	0.173648134, 0, 0.98480773,
+	0, 0.99999994, 0,
+	-0.98480773, 0, 0.173648134
+)
+
+-- ACTIVE: pose de skating — braço para trás, corpo inclinado à frente
+local POSE_ACTIVE_ARM = CFrame.new(1.5, 0.3, 0.3)
+	* CFrame.Angles(math.rad(-30), 0, math.rad(15))
+local POSE_ACTIVE_HEAD = CFrame.new(0, 1.5, 0)
+	* CFrame.Angles(math.rad(10), 0, 0)
+local POSE_ACTIVE_HRP = CFrame.new(0, 0, 0)
+	* CFrame.Angles(math.rad(15), 0, 0)
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    CÓDIGO PRINCIPAL
+═══════════════════════════════════════════════════════════════
+--]]
+
+local Services = {
+	Players      = game:GetService("Players"),
+	RunService   = game:GetService("RunService"),
+	TweenService = game:GetService("TweenService"),
+}
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local owner, character, humanoid, rootpart
+local equipped      = false
+local onCooldown    = false
+local skateActive   = false
+
+local ActiveEffects = {
+	Parts            = {},
+	Sounds           = {},
+	Connections      = {},
+	Welds            = {},
+	AnimationThreads = {},
+}
+local CleanupConnections = {}
+
+local RemoteEvent = Tool:FindFirstChild("RemoteEvent")
+if not RemoteEvent then
+	RemoteEvent        = Instance.new("RemoteEvent")
+	RemoteEvent.Name   = "RemoteEvent"
+	RemoteEvent.Parent = Tool
+end
+
+-- ========== ANTI-FRIENDLY FIRE ==========
+local function IsAlly(char1, char2)
+	if not char1 or not char2 then return false end
+	if char1 == char2 then return true end
+	local p1 = Services.Players:GetPlayerFromCharacter(char1)
+	local p2 = Services.Players:GetPlayerFromCharacter(char2)
+	if p1 and p2 then
+		if not p1.Neutral and not p2.Neutral then return p1.Team == p2.Team end
+	end
+	local cf1 = char1:FindFirstChild("ControlFollow")
+	local cf2 = char2:FindFirstChild("ControlFollow")
+	if cf1 and cf2 then return cf1.Owner.Value == cf2.Owner.Value end
+	return false
+end
+
+-- ========== LIMPEZA (threads PRIMEIRO, welds DEPOIS) ==========
+local function CleanupAnimationWelds()
+	for _, th in pairs(ActiveEffects.AnimationThreads) do
+		if th then task.cancel(th) end
+	end
+	ActiveEffects.AnimationThreads = {}
+	for _, weld in pairs(ActiveEffects.Welds) do
+		if weld and weld.Parent then weld.Parent = nil end
+	end
+	ActiveEffects.Welds = {}
+end
+
+local function CleanupAllEffects()
+	-- Restaurar velocidade se ativo
+	if humanoid and humanoid.Parent and skateActive then
+		humanoid.WalkSpeed = humanoid.WalkSpeed - CONFIG.SpeedBonus
+	end
+	skateActive = false
+
+	CleanupAnimationWelds()
+	for _, p in pairs(ActiveEffects.Parts) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	ActiveEffects.Parts = {}
+	for _, s in pairs(ActiveEffects.Sounds) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	ActiveEffects.Sounds = {}
+	for _, c in pairs(ActiveEffects.Connections) do
+		if c then c:Disconnect() end
+	end
+	ActiveEffects.Connections = {}
+end
+
+-- ========== ATIVAR ESCUDO SKATE ==========
+local function ActivateSkate()
+	if not rootpart or not humanoid or humanoid.Health <= 0 then return end
+
+	local rightLeg = character:FindFirstChild("Right Leg")
+	if not rightLeg then return end
+
+	skateActive = true
+
+	-- Clone escudo para o pé
+	local skateShield = Handle:Clone()
+	skateShield.Name  = "SkateShield"
+	skateShield.CanCollide   = false
+	skateShield.CanTouch     = false
+	skateShield.Anchored     = false
+	skateShield.Material     = Enum.Material.Neon
+	skateShield.Color        = CONFIG.ShieldColor
+	skateShield.Transparency = 0.1
+	skateShield.Size         = Handle.Size * CONFIG.ShieldScale
+	skateShield.Parent       = workspace
+	table.insert(ActiveEffects.Parts, skateShield)
+	for _, child in pairs(skateShield:GetChildren()) do
+		if child:IsA("Sound") or child:IsA("Script") or child:IsA("LocalScript") then
+			child.Parent = nil
+		end
+	end
+
+	-- Soldar ao pé
+	local weld   = Instance.new("Weld")
+	weld.Part0   = rightLeg
+	weld.Part1   = skateShield
+	weld.C0      = CONFIG.FootOffset
+	weld.Name    = "SkateWeld"
+	weld.Parent  = rightLeg
+	table.insert(ActiveEffects.Parts, weld)
+
+	-- Trail
+	local att1 = Instance.new("Attachment")
+	att1.Position = Vector3.new(0, 0.5, 0)
+	att1.Parent = skateShield
+	local att2 = Instance.new("Attachment")
+	att2.Position = Vector3.new(0, -0.5, 0)
+	att2.Parent = skateShield
+	local trail = Instance.new("Trail")
+	trail.Attachment0 = att1; trail.Attachment1 = att2
+	trail.Lifetime = 0.3; trail.FaceCamera = true
+	trail.Color = ColorSequence.new(CONFIG.TrailColor)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Parent = skateShield
+
+	-- Partículas
+	local particles = Instance.new("ParticleEmitter")
+	particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate = CONFIG.ParticleRate
+	particles.Lifetime = NumberRange.new(0.3)
+	particles.Speed = NumberRange.new(5)
+	particles.Color = ColorSequence.new(CONFIG.ShieldColor)
+	particles.Size = NumberSequence.new(0.3)
+	particles.SpreadAngle = Vector2.new(20, 20)
+	particles.Parent = skateShield
+
+	-- Luz
+	local light = Instance.new("PointLight")
+	light.Brightness = 1; light.Color = CONFIG.ShieldColor
+	light.Range = 8; light.Parent = skateShield
+
+	-- Velocidade
+	local originalSpeed = humanoid.WalkSpeed
+	humanoid.WalkSpeed  = humanoid.WalkSpeed + CONFIG.SpeedBonus
+
+	-- Loop de contato
+	local hitDebounce = {}
+
+	local contactThread = task.spawn(function()
+		local startTime = tick()
+
+		while skateActive and rootpart and rootpart.Parent and humanoid and humanoid.Health > 0 do
+			if tick() - startTime >= CONFIG.Duration then break end
+
+			local velocity = rootpart.AssemblyLinearVelocity or rootpart.Velocity
+			local isMoving = velocity and velocity.Magnitude > 5
+
+			if isMoving then
+				for _, model in pairs(workspace:GetChildren()) do
+					if model:IsA("Model") and model ~= character and not hitDebounce[model] then
+						local hum  = model:FindFirstChildOfClass("Humanoid")
+						local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso")
+						if hum and root and hum.Health > 0 and not IsAlly(character, model) then
+							if (root.Position - rootpart.Position).Magnitude < CONFIG.HitRadius then
+								hitDebounce[model] = true
+								hum:TakeDamage(CONFIG.ContactDamage)
+
+								local pushDir = velocity.Unit
+								local bv = Instance.new("BodyVelocity")
+								bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+								bv.Velocity = pushDir * CONFIG.KnockbackPower + Vector3.new(0, 20, 0)
+								bv.Parent = root
+								task.delay(0.3, function()
+									if bv and bv.Parent then bv.Parent = nil end
+								end)
+
+								-- Efeito
+								local hitFx = Instance.new("Part")
+								hitFx.Size = Vector3.new(3, 3, 3)
+								hitFx.Material = Enum.Material.Neon
+								hitFx.Color = CONFIG.HitColor
+								hitFx.Transparency = 0.3
+								hitFx.CanCollide = false; hitFx.CanTouch = false
+								hitFx.Anchored = true; hitFx.Shape = Enum.PartType.Ball
+								hitFx.CFrame = root.CFrame
+								hitFx.Parent = workspace
+								table.insert(ActiveEffects.Parts, hitFx)
+								task.spawn(function()
+									for i = 0, 10 do
+										if not hitFx or not hitFx.Parent then break end
+										hitFx.Transparency = 0.3 + (i * 0.07)
+										hitFx.Size = hitFx.Size + Vector3.new(0.3, 0.3, 0.3)
+										task.wait(0.03)
+									end
+									if hitFx and hitFx.Parent then hitFx.Parent = nil end
+								end)
+
+								task.delay(CONFIG.HitCooldown, function()
+									hitDebounce[model] = nil
+								end)
+							end
+						end
+					end
+				end
+			end
+
+			Services.RunService.Heartbeat:Wait()
+		end
+
+		-- Fim
+		skateActive = false
+		if humanoid and humanoid.Parent then
+			humanoid.WalkSpeed = originalSpeed
+		end
+		if skateShield and skateShield.Parent then
+			if weld and weld.Parent then weld.Parent = nil end
+			skateShield.Anchored = true
+			if rightLeg and rightLeg.Parent then
+				skateShield.CFrame = rightLeg.CFrame * CONFIG.FootOffset
+			end
+			Services.TweenService:Create(skateShield,
+				TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Transparency = 1}):Play()
+			task.delay(0.5, function()
+				if skateShield and skateShield.Parent then skateShield.Parent = nil end
+			end)
+		end
+	end)
+	table.insert(ActiveEffects.AnimationThreads, contactThread)
+end
+
+-- ========== REMOTEEVENT ==========
+RemoteEvent.OnServerEvent:Connect(function(player, action)
+	if player ~= owner or not equipped then return end
+	if action == "activate" then
+		if onCooldown or skateActive then return end
+		onCooldown = true
+		ActivateSkate()
+		task.wait(CONFIG.Cooldown)
+		onCooldown = false
+	end
+end)
+
+-- ========== NPC ==========
+local NPCCooldown = false
+task.spawn(function()
+	while task.wait(1) do
+		if equipped and not owner and not NPCCooldown and not skateActive then
+			if rootpart and rootpart.Parent then
+				local nearest, dist = nil, CONFIG.NPCDetectRange
+				for _, model in pairs(workspace:GetChildren()) do
+					if model:IsA("Model") and model ~= character then
+						local hum  = model:FindFirstChildOfClass("Humanoid")
+						local root = model:FindFirstChild("HumanoidRootPart")
+						if hum and root and hum.Health > 0 and not IsAlly(character, model) then
+							local d = (root.Position - rootpart.Position).Magnitude
+							if d < dist then nearest = model; dist = d end
+						end
+					end
+				end
+				if nearest then
+					NPCCooldown = true
+					ActivateSkate()
+					task.wait(CONFIG.NPCCooldownTime)
+					NPCCooldown = false
+				end
+			end
+		end
+	end
+end)
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped  = true
+	owner     = Services.Players:GetPlayerFromCharacter(Tool.Parent)
+	character = Tool.Parent
+	humanoid  = character:FindFirstChildOfClass("Humanoid")
+	rootpart  = character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not rootpart then return end
+	onCooldown = false; skateActive = false
+	CleanupAllEffects()
+
+	-- RightGrip C0 (padrão de todos os escudos)
+	local rightArm = character:FindFirstChild("Right Arm")
+	if rightArm then
+		local rg = rightArm:FindFirstChild("RightGrip")
+		if rg then
+			rg.C0 = CFrame.new(
+				0.409522653, -0.000911712646, 0.516324997,
+				-0.0116359973, -0.0435790196, -0.998981893,
+				0.999929667,  0.00166221452, -0.0117195444,
+				0.0021712482, -0.999047935,   0.0435565971)
+		end
+	end
+
+	-- 3 Welds de animação (padrão dos escudos)
+	local torso = character:FindFirstChild("Torso")
+	if torso and rightArm then
+		local rightarmWeld = Instance.new("Weld")
+		rightarmWeld.Part0 = torso; rightarmWeld.Part1 = rightArm
+		rightarmWeld.C0 = CFrame.new(1.5, 0, 0)
+		rightarmWeld.Name = "RightArmWeldskate"
+		rightarmWeld.Parent = torso
+		table.insert(ActiveEffects.Welds, rightarmWeld)
+
+		local headPart = character:FindFirstChild("Head")
+		if headPart then
+			local headWeld = Instance.new("Weld")
+			headWeld.Part0 = torso; headWeld.Part1 = headPart
+			headWeld.C0 = CFrame.new(0, 1.5, 0)
+			headWeld.Name = "HeadWeldskate"
+			headWeld.Parent = torso
+			table.insert(ActiveEffects.Welds, headWeld)
+
+			local hrpWeld = Instance.new("Weld")
+			hrpWeld.Part0 = rootpart; hrpWeld.Part1 = torso
+			hrpWeld.C0 = CFrame.new()
+			hrpWeld.Name = "HRPWeldskate"
+			hrpWeld.Parent = rootpart
+			table.insert(ActiveEffects.Welds, hrpWeld)
+
+			-- Loop de animação (RunService.Stepped)
+			local animThread = task.spawn(function()
+				while equipped do
+					Services.RunService.Stepped:Wait()
+					if not rightarmWeld or not rightarmWeld.Parent then break end
+					if skateActive then
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_ACTIVE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_ACTIVE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_ACTIVE_HRP, CONFIG.AnimationLerpSpeed)
+					else
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(POSE_IDLE_ARM, CONFIG.AnimationLerpSpeed)
+						headWeld.C0     = headWeld.C0:lerp(POSE_IDLE_HEAD, CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0      = hrpWeld.C0:lerp(POSE_IDLE_HRP, CONFIG.AnimationLerpSpeed)
+					end
+				end
+			end)
+			table.insert(ActiveEffects.AnimationThreads, animThread)
+		end
+	end
+
+	if humanoid then
+		CleanupConnections.Died = humanoid.Died:Connect(function() CleanupAllEffects() end)
+	end
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped = false; onCooldown = false
+	CleanupAllEffects()
+	for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+	CleanupConnections = {}
+end)
+
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		CleanupAllEffects()
+		for _, conn in pairs(CleanupConnections) do if conn then conn:Disconnect() end end
+		CleanupConnections = {}
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{E48CBA1C-40AD-4B9B-93D5-76DBA98749A0}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Script</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="RemoteEvent" referent="RBXCC2EED1FF12748B482AF7BFA96849FD9">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBXA086FF65BB7441358F8975D718E39981">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized"></string>
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBX1218BDFFBD36424EA957D35E26B1245E">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXEA610ABC51344ED9947750D01EF3B76E">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXECF9F83F7C28490A8B874A832FA6028F">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXB719DF8A6FE0471CB465860F3C9B42C0">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXA87DD0CCC71E4D5984E77A6FDCD5CCE0">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBX16112E6352554C5BA6D9A695C1646C42">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null></null></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+	<Item class="Tool" referent="RBX926B76A99E144DC1841EE4ED54FC0B5D">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip"></string>
+			<Content name="TextureId"><null></null></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Escudo Bumerangue</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Script" referent="RBXA5E3A92D5DF544D49AF43772331FD28C">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- ServerScript_EscudoBumerangue_V5.lua
+-- Coloque DENTRO da Tool "Escudo Bumerangue"
+-- SUBSTITUI: ServerScript_Escudo_Bumerangue_V4.lua
+-- REMOVER: ServerScript_Escudo_Bumerangue_V4.lua
+--
+-- REFEITO DO ZERO (V5):
+--   [FIX] :connect() → :Connect() em todo o script.
+--   [FIX] wait() → task.wait() em todo o script.
+--   [FIX] coroutine.wrap → task.spawn em todo o script.
+--   [FIX] workspace:GetDescendants() → workspace:GetChildren() em loops.
+--   [FIX] WaitForChild com timeout em sons.
+--   [FIX] .Parent = nil em vez de :Destroy() (PROIBIDO).
+--   [FIX] debris:AddItem → task.delay + .Parent = nil.
+--   [FIX] Welds limpas corretamente (threads cancelados PRIMEIRO).
+--   [ADD] Sistema de NPC completo.
+--   [ADD] Flag anti-recursão onde necessário.
+--   [KEEP] Sem math.random — PROIBIDO (som sequencial).
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    LISTA DE CUSTOMIZAÇÃO
+═══════════════════════════════════════════════════════════════
+--]]
+
+local CONFIG = {
+	-- ========== LANÇAMENTO NORMAL ==========
+	NormalDamage    = 18,
+	NormalSpeed     = 80,
+	NormalDistance   = 50,
+	NormalCooldown  = 1,
+	NormalKnockback = 15,
+
+	-- ========== LANÇAMENTO CARREGADO ==========
+	ChargedDamage    = 32,
+	ChargedSpeed     = 100,
+	ChargedDistance   = 80,
+	ChargedCooldown  = 2,
+	ChargedKnockback = 25,
+
+	-- ========== MULTI-LANÇAMENTO ==========
+	MultiCount    = 3,
+	MultiDamage   = 14,
+	MultiSpeed    = 90,
+	MultiSpread   = 15,
+	MultiCooldown = 3,
+
+	-- ========== SISTEMA DE COMBO ==========
+	ComboTimeWindow    = 3,
+	ComboDamageBonus   = 0.10,
+	MaxComboMultiplier = 2.0,
+
+	-- ========== EFEITOS VISUAIS ==========
+	TrailLifetime     = 0.5,
+	TrailColor        = Color3.new(0, 0.7, 1),
+	ChargedTrailColor = Color3.new(1, 0.5, 0),
+	ParticleRate      = 20,
+	ExplosionSize     = 8,
+	ExplosionDuration = 1,
+
+	-- ========== SONS ==========
+	ThrowSoundPitch   = 1.5,
+	HitSoundPitch     = 2.0,
+	ReturnSoundPitch  = 1.0,
+	ChargedSoundPitch = 0.8,
+
+	-- ========== ANIMAÇÃO ==========
+	AnimationLerpSpeed = 0.2,
+
+	-- ========== NPC ==========
+	NPCDetectRange  = 50,
+	NPCCooldownTime = 3,
+
+	-- ========== DETECÇÃO ==========
+	HitRadius = 5,
+}
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    CÓDIGO PRINCIPAL
+═══════════════════════════════════════════════════════════════
+--]]
+
+-- ========== SERVIÇOS ==========
+local Services = {
+	Players      = game:GetService("Players"),
+	RunService   = game:GetService("RunService"),
+	TweenService = game:GetService("TweenService"),
+}
+
+-- ========== VARIÁVEIS GLOBAIS ==========
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local equipsound  = Handle:WaitForChild("equip", 10)
+local blocksounds = {
+	Handle:WaitForChild("block", 10),
+	Handle:WaitForChild("block2", 10),
+	Handle:WaitForChild("block3", 10),
+	Handle:WaitForChild("block4", 10),
+}
+
+local owner, character, charhum, rootpart
+local equipped = false
+
+-- Cooldowns
+local normalCooldown  = false
+local chargedCooldown = false
+local multiCooldown   = false
+
+-- Combo
+local currentCombo = 0
+local lastHitTime  = 0
+
+-- Som sequencial (PROIBIDO math.random)
+local soundIndex = 1
+
+-- ========== TABELAS DE EFEITOS ATIVOS ==========
+local ActiveBoomerangs = {}
+local ActiveEffects = {
+	Parts            = {},
+	Sounds           = {},
+	Connections      = {},
+	Trails           = {},
+	Welds            = {},
+	AnimationThreads = {},
+}
+local CleanupConnections = {}
+
+-- Referências de Welds (escopo módulo para limpeza segura)
+local weldRightArm = nil
+local weldHead     = nil
+local weldRootPart = nil
+
+-- ========== REMOTEEVENT ==========
+local remoteEvent = Tool:FindFirstChild("RemoteEvent")
+if not remoteEvent then
+	remoteEvent        = Instance.new("RemoteEvent")
+	remoteEvent.Name   = "RemoteEvent"
+	remoteEvent.Parent = Tool
+end
+
+-- ========== SISTEMA ANTI-FRIENDLY FIRE ==========
+local function IsAlly(char1, char2)
+	if not char1 or not char2 then return false end
+	if char1 == char2 then return true end
+
+	local p1 = Services.Players:GetPlayerFromCharacter(char1)
+	local p2 = Services.Players:GetPlayerFromCharacter(char2)
+
+	if p1 and p2 then
+		if not p1.Neutral and not p2.Neutral then
+			return p1.Team == p2.Team
+		end
+	end
+
+	local cf1 = char1:FindFirstChild("ControlFollow")
+	local cf2 = char2:FindFirstChild("ControlFollow")
+	if cf1 and cf2 then
+		return cf1.Owner.Value == cf2.Owner.Value
+	end
+
+	return false
+end
+
+-- ========== SOM SEQUENCIAL ==========
+local function PlaySound(index, parent, pitch)
+	local snd = blocksounds[index]
+	if not snd then return end
+	local clone = snd:Clone()
+	clone.Parent = parent
+	clone.Pitch  = pitch or 1
+	clone:Play()
+	table.insert(ActiveEffects.Sounds, clone)
+	task.delay(2, function()
+		if clone and clone.Parent then clone:Stop(); clone.Parent = nil end
+	end)
+end
+
+-- ========== SISTEMA DE LIMPEZA ==========
+local function CleanupAnimationWelds()
+	for _, th in pairs(ActiveEffects.AnimationThreads) do
+		if th then task.cancel(th) end
+	end
+	ActiveEffects.AnimationThreads = {}
+
+	if weldRightArm and weldRightArm.Parent then weldRightArm.Parent = nil end
+	weldRightArm = nil
+	if weldHead and weldHead.Parent then weldHead.Parent = nil end
+	weldHead = nil
+	if weldRootPart and weldRootPart.Parent then weldRootPart.Parent = nil end
+	weldRootPart = nil
+end
+
+local function CleanupAllEffects()
+	CleanupAnimationWelds()
+
+	for _, b in pairs(ActiveBoomerangs) do
+		if b and b.Parent then b.Parent = nil end
+	end
+	ActiveBoomerangs = {}
+
+	for _, p in pairs(ActiveEffects.Parts) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	ActiveEffects.Parts = {}
+
+	for _, s in pairs(ActiveEffects.Sounds) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	ActiveEffects.Sounds = {}
+
+	for _, c in pairs(ActiveEffects.Connections) do
+		if c then c:Disconnect() end
+	end
+	ActiveEffects.Connections = {}
+
+	for _, t in pairs(ActiveEffects.Trails) do
+		if t and t.Parent then t.Enabled = false end
+	end
+	ActiveEffects.Trails = {}
+
+	currentCombo = 0
+
+	-- Restaurar Handle
+	if Handle and Handle.Parent then
+		Handle.Transparency = 0
+	end
+end
+
+-- ========== SISTEMA DE COMBO ==========
+local function UpdateCombo()
+	local now = tick()
+	if now - lastHitTime > CONFIG.ComboTimeWindow then
+		currentCombo = 0
+	end
+	currentCombo = currentCombo + 1
+	lastHitTime  = now
+
+	return math.min(1 + (currentCombo * CONFIG.ComboDamageBonus), CONFIG.MaxComboMultiplier)
+end
+
+-- ========== EFEITO DE HIT ==========
+local function CreateHitEffect(position, isCombo)
+	local fx      = Instance.new("Part")
+	fx.Name       = "HitEffect"
+	fx.Size       = Vector3.new(3, 3, 3)
+	fx.Material   = Enum.Material.Neon
+	fx.BrickColor = isCombo and BrickColor.new("New Yeller") or BrickColor.new("Electric blue")
+	fx.CanCollide = false
+	fx.CanTouch   = false
+	fx.Anchored   = true
+	fx.Shape      = Enum.PartType.Ball
+	fx.CFrame     = CFrame.new(position)
+	fx.Parent     = workspace
+	table.insert(ActiveEffects.Parts, fx)
+
+	task.spawn(function()
+		for i = 0, 10 do
+			if not fx or not fx.Parent then break end
+			fx.Transparency = i * 0.1
+			fx.Size = fx.Size + Vector3.new(0.5, 0.5, 0.5)
+			task.wait(0.03)
+		end
+		if fx and fx.Parent then fx.Parent = nil end
+	end)
+end
+
+-- ========== EXPLOSÃO DE RETORNO ==========
+local function CreateReturnExplosion(position)
+	local fx      = Instance.new("Part")
+	fx.Name       = "ReturnExplosion"
+	fx.Size       = Vector3.new(CONFIG.ExplosionSize, CONFIG.ExplosionSize, CONFIG.ExplosionSize)
+	fx.Material   = Enum.Material.Neon
+	fx.Color      = CONFIG.TrailColor
+	fx.Transparency = 0.5
+	fx.CanCollide = false
+	fx.CanTouch   = false
+	fx.Anchored   = true
+	fx.Shape      = Enum.PartType.Ball
+	fx.CFrame     = CFrame.new(position)
+	fx.Parent     = workspace
+	table.insert(ActiveEffects.Parts, fx)
+
+	local particles     = Instance.new("ParticleEmitter")
+	particles.Texture   = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate      = 100
+	particles.Lifetime  = NumberRange.new(1)
+	particles.Speed     = NumberRange.new(10)
+	particles.Color     = ColorSequence.new(CONFIG.TrailColor)
+	particles.Size      = NumberSequence.new(1)
+	particles.Parent    = fx
+	particles:Emit(30)
+
+	Services.TweenService:Create(
+		fx,
+		TweenInfo.new(CONFIG.ExplosionDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			Size = Vector3.new(CONFIG.ExplosionSize * 2, CONFIG.ExplosionSize * 2, CONFIG.ExplosionSize * 2),
+			Transparency = 1
+		}
+	):Play()
+
+	task.delay(CONFIG.ExplosionDuration + 0.5, function()
+		if fx and fx.Parent then fx.Parent = nil end
+	end)
+end
+
+-- ========== CRIAR TRAIL ==========
+local function CreateTrail(part, color)
+	local att1 = Instance.new("Attachment")
+	att1.Position = Vector3.new(0, 1, 0)
+	att1.Parent   = part
+
+	local att2 = Instance.new("Attachment")
+	att2.Position = Vector3.new(0, -1, 0)
+	att2.Parent   = part
+
+	local trail        = Instance.new("Trail")
+	trail.Attachment0  = att1
+	trail.Attachment1  = att2
+	trail.Lifetime     = CONFIG.TrailLifetime
+	trail.FaceCamera   = true
+	trail.Color        = ColorSequence.new(color)
+	trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	trail.Parent = part
+	table.insert(ActiveEffects.Trails, trail)
+end
+
+-- ========== CHECK HIT ==========
+local function CheckHit(boomerang, damage, knockback, hitTargets, phase)
+	for _, v in pairs(workspace:GetChildren()) do
+		if v:IsA("Model") and v ~= character and not hitTargets[v] then
+			local hum   = v:FindFirstChildOfClass("Humanoid")
+			local torso = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso")
+
+			if hum and torso and hum.Health > 0 then
+				if (torso.Position - boomerang.Position).Magnitude < CONFIG.HitRadius then
+					if not IsAlly(character, v) then
+						local comboMult   = UpdateCombo()
+						local finalDamage = damage * comboMult
+
+						hum:TakeDamage(finalDamage)
+						hitTargets[v] = true
+
+						-- Som sequencial
+						PlaySound(soundIndex, torso, CONFIG.HitSoundPitch)
+						soundIndex = (soundIndex % #blocksounds) + 1
+
+						CreateHitEffect(torso.Position, currentCombo >= 3)
+
+						-- Knockback
+						local knockVel     = Instance.new("BodyVelocity")
+						knockVel.MaxForce  = Vector3.new(math.huge, 0, math.huge)
+						knockVel.Velocity  = (torso.Position - boomerang.Position).Unit * knockback
+						knockVel.Parent    = torso
+						task.delay(0.2, function()
+							if knockVel and knockVel.Parent then knockVel.Parent = nil end
+						end)
+
+						-- Na ida, permite re-hit após 0.5s
+						if phase == "going" then
+							task.delay(0.5, function()
+								hitTargets[v] = nil
+							end)
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- ========== FUNÇÃO PRINCIPAL DE LANÇAMENTO ==========
+local function ThrowBoomerang(targetPosition, mode)
+	local damage, speed, distance, knockback, trailColor
+
+	if mode == "normal" then
+		damage     = CONFIG.NormalDamage
+		speed      = CONFIG.NormalSpeed
+		distance   = CONFIG.NormalDistance
+		knockback  = CONFIG.NormalKnockback
+		trailColor = CONFIG.TrailColor
+	elseif mode == "charged" then
+		damage     = CONFIG.ChargedDamage
+		speed      = CONFIG.ChargedSpeed
+		distance   = CONFIG.ChargedDistance
+		knockback  = CONFIG.ChargedKnockback
+		trailColor = CONFIG.ChargedTrailColor
+	elseif mode == "multi" then
+		damage     = CONFIG.MultiDamage
+		speed      = CONFIG.MultiSpeed
+		distance   = CONFIG.NormalDistance
+		knockback  = CONFIG.NormalKnockback
+		trailColor = CONFIG.TrailColor
+	end
+
+	-- Esconder Handle original
+	Handle.Transparency = 1
+
+	-- Criar clone do boomerang
+	local boomerang = Handle:Clone()
+	boomerang.Name  = "BoomerangShield"
+	boomerang.Transparency = 0
+	boomerang.CanCollide   = false
+	boomerang.CanTouch     = false
+	boomerang.CFrame       = Handle.CFrame
+	boomerang.Parent       = workspace
+	table.insert(ActiveBoomerangs, boomerang)
+
+	-- Remover sons do clone
+	for _, child in pairs(boomerang:GetChildren()) do
+		if child:IsA("Sound") then child.Parent = nil end
+	end
+
+	-- Som de lançamento
+	PlaySound(1, boomerang, mode == "charged" and CONFIG.ChargedSoundPitch or CONFIG.ThrowSoundPitch)
+
+	-- Trail
+	CreateTrail(boomerang, trailColor)
+
+	-- Partículas
+	local particles      = Instance.new("ParticleEmitter")
+	particles.Texture    = "rbxassetid://1084969997"
+	particles.Color      = ColorSequence.new(trailColor)
+	particles.Size       = NumberSequence.new(0.5)
+	particles.Lifetime   = NumberRange.new(0.5)
+	particles.Rate       = CONFIG.ParticleRate
+	particles.Speed      = NumberRange.new(3)
+	particles.SpreadAngle = Vector2.new(30, 30)
+	particles.Parent     = boomerang
+
+	-- Física
+	local bodyVel     = Instance.new("BodyVelocity")
+	bodyVel.MaxForce  = Vector3.new(math.huge, math.huge, math.huge)
+	bodyVel.Parent    = boomerang
+
+	local bodyAngVel            = Instance.new("BodyAngularVelocity")
+	bodyAngVel.AngularVelocity  = Vector3.new(0, 20, 0)
+	bodyAngVel.MaxTorque        = Vector3.new(0, math.huge, 0)
+	bodyAngVel.Parent           = boomerang
+
+	local direction     = (targetPosition - boomerang.Position).Unit
+	local startPosition = boomerang.Position
+	local hitTargets    = {}
+
+	-- Lançamento assíncrono
+	task.spawn(function()
+		-- FASE 1: Ida
+		local traveled = 0
+		while traveled < distance and boomerang and boomerang.Parent do
+			bodyVel.Velocity = direction * speed
+			CheckHit(boomerang, damage, knockback, hitTargets, "going")
+			traveled = (boomerang.Position - startPosition).Magnitude
+			task.wait(0.03)
+		end
+
+		-- Som de retorno
+		PlaySound(3, boomerang, CONFIG.ReturnSoundPitch)
+
+		-- FASE 2: Volta
+		while boomerang and boomerang.Parent and Handle and Handle.Parent do
+			local returnDir = (Handle.Position - boomerang.Position).Unit
+			bodyVel.Velocity = returnDir * (speed * 0.75)
+			CheckHit(boomerang, damage, knockback, hitTargets, "returning")
+
+			if (boomerang.Position - Handle.Position).Magnitude < 3 then
+				break
+			end
+			task.wait(0.03)
+		end
+
+		-- Limpeza
+		if boomerang and boomerang.Parent then
+			CreateReturnExplosion(boomerang.Position)
+			boomerang.Parent = nil
+		end
+
+		if Handle and Handle.Parent then
+			Handle.Transparency = 0
+		end
+	end)
+end
+
+-- ========== MULTI-LANÇAMENTO ==========
+local function ThrowMultiBoomerang(targetPosition)
+	local centerDir = (targetPosition - Handle.Position).Unit
+
+	for i = 1, CONFIG.MultiCount do
+		local angleOffset = (i - (CONFIG.MultiCount + 1) / 2) * CONFIG.MultiSpread
+		local radians     = math.rad(angleOffset)
+		local rotatedDir  = CFrame.new(Vector3.new(), centerDir) * CFrame.Angles(0, radians, 0)
+		local newTarget   = Handle.Position + (rotatedDir.LookVector * CONFIG.NormalDistance)
+
+		task.wait(0.1)
+		ThrowBoomerang(newTarget, "multi")
+	end
+end
+
+-- ========== REMOTEEVENT HANDLER ==========
+remoteEvent.OnServerEvent:Connect(function(player, action, mouseHit)
+	if player ~= owner or not equipped then return end
+
+	if action == "throw" and not normalCooldown then
+		normalCooldown = true
+		ThrowBoomerang(mouseHit, "normal")
+		task.wait(CONFIG.NormalCooldown)
+		normalCooldown = false
+
+	elseif action == "throwCharged" and not chargedCooldown then
+		chargedCooldown = true
+		ThrowBoomerang(mouseHit, "charged")
+		task.wait(CONFIG.ChargedCooldown)
+		chargedCooldown = false
+
+	elseif action == "throwMulti" and not multiCooldown then
+		multiCooldown = true
+		ThrowMultiBoomerang(mouseHit)
+		task.wait(CONFIG.MultiCooldown)
+		multiCooldown = false
+	end
+end)
+
+-- ========== SISTEMA DE NPC ==========
+local NPCCooldown = false
+
+local function FindNearestEnemy(pos)
+	local nearest = nil
+	local dist    = CONFIG.NPCDetectRange
+
+	for _, model in pairs(workspace:GetChildren()) do
+		if model:IsA("Model") and model ~= character then
+			local hum  = model:FindFirstChildOfClass("Humanoid")
+			local root = model:FindFirstChild("HumanoidRootPart")
+			if hum and root and hum.Health > 0 and not IsAlly(character, model) then
+				local d = (root.Position - pos).Magnitude
+				if d < dist then
+					nearest = model
+					dist    = d
+				end
+			end
+		end
+	end
+
+	return nearest
+end
+
+task.spawn(function()
+	while task.wait(1) do
+		if equipped and not owner and not NPCCooldown then
+			if rootpart and rootpart.Parent then
+				local enemy = FindNearestEnemy(rootpart.Position)
+				if enemy then
+					local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+					if enemyRoot then
+						NPCCooldown = true
+						ThrowBoomerang(enemyRoot.Position, "normal")
+						task.wait(CONFIG.NPCCooldownTime)
+						NPCCooldown = false
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped  = true
+	owner     = Services.Players:GetPlayerFromCharacter(Tool.Parent)
+	character = Tool.Parent
+	charhum   = character:FindFirstChildOfClass("Humanoid")
+	rootpart  = character:FindFirstChild("HumanoidRootPart")
+
+	if not charhum or not rootpart then return end
+
+	if equipsound then equipsound:Play() end
+
+	-- Resetar
+	normalCooldown  = false
+	chargedCooldown = false
+	multiCooldown   = false
+	currentCombo    = 0
+
+	-- RightGrip CFrame
+	local rightArm = character:FindFirstChild("Right Arm")
+	if rightArm then
+		local rg = rightArm:FindFirstChild("RightGrip")
+		if rg then
+			rg.C0 = CFrame.new(
+				0.409522653, -0.000911712646, 0.516324997,
+				-0.0116359973, -0.0435790196, -0.998981893,
+				0.999929667, 0.00166221452, -0.0117195444,
+				0.0021712482, -0.999047935, 0.0435565971
+			)
+		end
+	end
+
+	-- Criar Welds de animação
+	local torso = character:FindFirstChild("Torso")
+	if torso and rightArm then
+		weldRightArm       = Instance.new("Weld")
+		weldRightArm.Part0 = torso
+		weldRightArm.Part1 = rightArm
+		weldRightArm.C0    = CFrame.new(1.5, 0, 0)
+		weldRightArm.Name  = "RightArmWeldshield"
+		weldRightArm.Parent = torso
+
+		local headPart = character:FindFirstChild("Head")
+		if headPart then
+			weldHead       = Instance.new("Weld")
+			weldHead.Part0 = torso
+			weldHead.Part1 = headPart
+			weldHead.C0    = CFrame.new(0, 1.5, 0)
+			weldHead.Name  = "HeadWeldshield"
+			weldHead.Parent = torso
+
+			weldRootPart       = Instance.new("Weld")
+			weldRootPart.Part0 = rootpart
+			weldRootPart.Part1 = torso
+			weldRootPart.Name  = "HumanoidRootPartWeldshield"
+			weldRootPart.Parent = rootpart
+
+			-- Thread de animação
+			local animThread = task.spawn(function()
+				while equipped do
+					Services.RunService.Stepped:Wait()
+					if not weldRightArm or not weldRightArm.Parent then break end
+
+					if normalCooldown or chargedCooldown or multiCooldown then
+						weldRightArm.C0 = weldRightArm.C0:lerp(
+							CFrame.new(1.5, 0.5, -0.5) * CFrame.Angles(math.rad(90), 0, 0), 0.3)
+						weldHead.C0 = weldHead.C0:lerp(
+							CFrame.new(0, 1.5, 0), 0.3)
+						weldRootPart.C0 = weldRootPart.C0:lerp(
+							CFrame.new(), 0.3)
+					else
+						weldRightArm.C0 = weldRightArm.C0:lerp(
+							CFrame.new(1.40557981, 0.499999762, -0.579227924, 0.98480767, 0.173648134, 3.55271368e-15, -4.39884928e-08, 2.49471157e-07, -0.999999821, -0.173648134, 0.98480767, 2.5331974e-07),
+							CONFIG.AnimationLerpSpeed)
+						weldHead.C0 = weldHead.C0:lerp(
+							CFrame.new(0, 1.49999976, 0, 0.173648208, 0, -0.98480767, 0, 0.999999881, 0, 0.98480767, 0, 0.173648208),
+							CONFIG.AnimationLerpSpeed)
+						weldRootPart.C0 = weldRootPart.C0:lerp(
+							CFrame.new(0, 0, 0, 0.173648134, 0, 0.98480773, 0, 0.99999994, 0, -0.98480773, 0, 0.173648134),
+							CONFIG.AnimationLerpSpeed)
+					end
+				end
+			end)
+			table.insert(ActiveEffects.AnimationThreads, animThread)
+		end
+	end
+
+	-- Conexão de morte
+	if charhum then
+		CleanupConnections.Died = charhum.Died:Connect(function()
+			CleanupAllEffects()
+		end)
+	end
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped        = false
+	normalCooldown  = false
+	chargedCooldown = false
+	multiCooldown   = false
+
+	CleanupAllEffects()
+
+	for _, conn in pairs(CleanupConnections) do
+		if conn then conn:Disconnect() end
+	end
+	CleanupConnections = {}
+end)
+
+-- ========== LIMPEZA AO REMOVER TOOL ==========
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		CleanupAllEffects()
+		for _, conn in pairs(CleanupConnections) do
+			if conn then conn:Disconnect() end
+		end
+		CleanupConnections = {}
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{6B943206-86DF-4906-AAD0-C7CAD55BF6E9}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Script</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="LocalScript" referent="RBX60703FF3010C4344A4E576C5E4C4398D">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- LocalScript_EscudoBumerangue_V4.lua
+-- Coloque DENTRO da Tool "Escudo Bumerangue"
+-- SUBSTITUI: LocalScript_Escudo_Bumerangue_V3.lua
+-- REMOVER: LocalScript_Escudo_Bumerangue_V3.lua
+--
+-- CORREÇÕES V4:
+--   [FIX] wait() → task.wait() em todo o script.
+--   [FIX] coroutine.wrap → task.spawn.
+--   [FIX] GUI :Destroy() → .Parent = nil (PROIBIDO).
+--   [FIX] Configurações obrigatórias adicionadas.
+
+local Tool        = script.Parent
+local Player      = game.Players.LocalPlayer
+local Mouse       = Player:GetMouse()
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+
+-- Configurações obrigatórias
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+-- Variáveis de controle
+local equipped      = false
+local isHolding     = false
+local holdStartTime = 0
+local lastClickTime = 0
+local clickCount    = 0
+
+-- Conexões
+local mouseDownConn
+local mouseUpConn
+
+-- Configurações
+local DOUBLE_CLICK_TIME = 0.3
+local CHARGE_TIME       = 2
+
+-- ========== GUI DE FEEDBACK ==========
+local function CreateFeedbackGUI()
+	local old = Player.PlayerGui:FindFirstChild("BoomerangFeedback")
+	if old then old.Parent = nil end
+
+	local screenGui        = Instance.new("ScreenGui")
+	screenGui.Name         = "BoomerangFeedback"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent       = Player.PlayerGui
+
+	local chargeFrame              = Instance.new("Frame")
+	chargeFrame.Name               = "ChargeBar"
+	chargeFrame.Size               = UDim2.new(0.15, 0, 0.02, 0)
+	chargeFrame.Position           = UDim2.new(0.425, 0, 0.55, 0)
+	chargeFrame.BackgroundColor3   = Color3.new(0.2, 0.2, 0.2)
+	chargeFrame.BorderSizePixel    = 2
+	chargeFrame.Visible            = false
+	chargeFrame.Parent             = screenGui
+
+	local chargeFill            = Instance.new("Frame")
+	chargeFill.Name             = "Fill"
+	chargeFill.Size             = UDim2.new(0, 0, 1, 0)
+	chargeFill.BackgroundColor3 = Color3.new(1, 0.5, 0)
+	chargeFill.BorderSizePixel  = 0
+	chargeFill.Parent           = chargeFrame
+
+	local modeText                  = Instance.new("TextLabel")
+	modeText.Name                   = "ModeText"
+	modeText.Size                   = UDim2.new(0.2, 0, 0.05, 0)
+	modeText.Position               = UDim2.new(0.4, 0, 0.52, 0)
+	modeText.BackgroundTransparency = 1
+	modeText.Text                   = ""
+	modeText.TextColor3             = Color3.new(1, 1, 1)
+	modeText.TextScaled             = true
+	modeText.Font                   = Enum.Font.GothamBold
+	modeText.TextStrokeTransparency = 0
+	modeText.Visible                = false
+	modeText.Parent                 = screenGui
+
+	return screenGui
+end
+
+-- ========== ATUALIZAR BARRA ==========
+local function UpdateChargeBar(progress)
+	local gui = Player.PlayerGui:FindFirstChild("BoomerangFeedback")
+	if not gui then return end
+
+	local bar = gui:FindFirstChild("ChargeBar")
+	if not bar then return end
+
+	bar.Visible = true
+	local fill = bar:FindFirstChild("Fill")
+	if fill then
+		fill.Size = UDim2.new(progress, 0, 1, 0)
+		if progress < 0.5 then
+			fill.BackgroundColor3 = Color3.new(1, 1, 0)
+		elseif progress < 1 then
+			fill.BackgroundColor3 = Color3.new(1, 0.5, 0)
+		else
+			fill.BackgroundColor3 = Color3.new(1, 0, 0)
+		end
+	end
+end
+
+-- ========== MOSTRAR TEXTO ==========
+local function ShowModeText(text, color)
+	local gui = Player.PlayerGui:FindFirstChild("BoomerangFeedback")
+	if not gui then return end
+
+	local label = gui:FindFirstChild("ModeText")
+	if label then
+		label.Text       = text
+		label.TextColor3 = color
+		label.Visible    = true
+
+		task.spawn(function()
+			task.wait(1)
+			if label and label.Parent then
+				label.Visible = false
+			end
+		end)
+	end
+end
+
+-- ========== ESCONDER BARRA ==========
+local function HideChargeBar()
+	local gui = Player.PlayerGui:FindFirstChild("BoomerangFeedback")
+	if not gui then return end
+	local bar = gui:FindFirstChild("ChargeBar")
+	if bar then bar.Visible = false end
+end
+
+-- ========== DETECTAR CLIQUE DUPLO ==========
+local function ProcessClick()
+	local now = tick()
+
+	if now - lastClickTime < DOUBLE_CLICK_TIME then
+		clickCount = clickCount + 1
+	else
+		clickCount = 1
+	end
+	lastClickTime = now
+
+	if clickCount >= 2 then
+		RemoteEvent:FireServer("throwMulti", Mouse.Hit.Position)
+		ShowModeText("MULTI-LANCAMENTO!", Color3.new(0, 1, 1))
+		clickCount = 0
+		return true
+	end
+
+	return false
+end
+
+-- ========== MOUSE DOWN ==========
+local function OnMouseDown()
+	if not equipped then return end
+
+	isHolding     = true
+	holdStartTime = tick()
+
+	task.spawn(function()
+		while isHolding and equipped do
+			local elapsed  = tick() - holdStartTime
+			local progress = math.min(elapsed / CHARGE_TIME, 1)
+			UpdateChargeBar(progress)
+			task.wait(0.03)
+		end
+		HideChargeBar()
+	end)
+end
+
+-- ========== MOUSE UP ==========
+local function OnMouseUp()
+	if not equipped or not isHolding then return end
+
+	local holdDuration = tick() - holdStartTime
+	isHolding = false
+	HideChargeBar()
+
+	if holdDuration < 0.2 then
+		if not ProcessClick() then
+			task.wait(DOUBLE_CLICK_TIME)
+			if clickCount == 1 then
+				RemoteEvent:FireServer("throw", Mouse.Hit.Position)
+				ShowModeText("LANCAMENTO NORMAL", Color3.new(0, 0.7, 1))
+				clickCount = 0
+			end
+		end
+	else
+		if holdDuration >= CHARGE_TIME then
+			RemoteEvent:FireServer("throwCharged", Mouse.Hit.Position)
+			ShowModeText("LANCAMENTO CARREGADO!", Color3.new(1, 0.5, 0))
+		else
+			RemoteEvent:FireServer("throw", Mouse.Hit.Position)
+			ShowModeText("LANCAMENTO NORMAL", Color3.new(0, 0.7, 1))
+		end
+		clickCount = 0
+	end
+end
+
+-- ========== LIMPEZA ==========
+local function CleanupConnections()
+	if mouseDownConn then mouseDownConn:Disconnect(); mouseDownConn = nil end
+	if mouseUpConn then mouseUpConn:Disconnect(); mouseUpConn = nil end
+end
+
+local function CleanupGUI()
+	local gui = Player.PlayerGui:FindFirstChild("BoomerangFeedback")
+	if gui then gui.Parent = nil end
+end
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped   = true
+	clickCount = 0
+	isHolding  = false
+
+	CreateFeedbackGUI()
+	mouseDownConn = Mouse.Button1Down:Connect(OnMouseDown)
+	mouseUpConn   = Mouse.Button1Up:Connect(OnMouseUp)
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped   = false
+	isHolding  = false
+	clickCount = 0
+	CleanupConnections()
+	CleanupGUI()
+end)
+
+-- ========== LIMPEZA AO REMOVER TOOL ==========
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		CleanupConnections()
+		CleanupGUI()
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{30C3E021-5721-4A0A-8229-AB42C8BAB861}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">LocalScript</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="RemoteEvent" referent="RBX387FE9001D134B9892729A1422636C00">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBX4BC70186946E4BE1A8C53A1225C49663">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized"></string>
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBX07C86D88502F42F3A8947531446152DA">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXCD057C5CD6334225A8AF435BC2CFF058">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX52D1BEA071794BB9993F6CFD12551F53">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXF2D9DC0B149C470FA7B3DD82176D943D">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX655F01B0B8B0409A9D3D4250A46BDA31">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBX1BB54EDF1DC447229364030C9BF26DE7">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null></null></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+	<Item class="Tool" referent="RBX721065B4850745E5B56D3D911972C3D6">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip"></string>
+			<Content name="TextureId"><null></null></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Escudo Bloqueador</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Script" referent="RBXAA5F9C8D20734AE4BA274BC31244F504">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- ServerScript_EscudoBloqueador_V5.lua
+-- Coloque DENTRO da Tool "Escudo Bloqueador"
+-- SUBSTITUI: ServerScript_Escudo_Bloqueador_V4.lua
+-- REMOVER: ServerScript_Escudo_Bloqueador_V4.lua
+--
+-- CORREÇÕES V5:
+--   [FIX] HealthChanged recursão infinita: modificar Health dentro do callback
+--         causava re-trigger. Adicionado flag isProcessingDamage para evitar.
+--   [FIX] workspace:GetDescendants() substituído por workspace:GetChildren()
+--         em loops frequentes (CPU intensivo).
+--   [FIX] wait() → task.wait() em todo o script.
+--   [FIX] coroutine.wrap → task.spawn.
+--   [FIX] debris:AddItem em BodyVelocity → task.delay + .Parent = nil.
+--   [ADD] Sistema de NPC completo para uso por NPCs.
+--   [ADD] Timeout no WaitForChild com fallback.
+--   [KEEP] Sistema de animação via Welds (V4 fix mantido).
+--   [KEEP] Som sequencial cíclico (sem math.random — PROIBIDO).
+--   [KEEP] .Parent = nil em vez de :Destroy() (PROIBIDO).
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    LISTA DE CUSTOMIZAÇÃO
+═══════════════════════════════════════════════════════════════
+--]]
+
+local CONFIG = {
+	-- ========== BLOQUEIO PASSIVO ==========
+	PlayerDamageReduction    = 0.25,   -- 25% redução de dano ao portador
+	EnemyDamageReflection    = 0.15,   -- 15% reflexão de dano ao atacante
+	AllyDefenseBonus         = 0.15,   -- 15% redução para aliados próximos
+	AllyHealPerBlock         = 3,      -- Cura fixa por bloqueio em aliados
+	AllyDefenseRange         = 10,     -- Alcance da defesa aliada
+
+	-- ========== PROTEÇÃO ATIVA (Habilidade Extra - Botão Q) ==========
+	ProtectionRange            = 15,
+	ProtectionCooldown         = 8,
+	ProtectionDamageReflection = 0.52,
+	ProtectionKnockbackPower   = 90,
+	TeleportStage1Duration     = 0.3,
+	TeleportStage2Duration     = 0.5,
+	PunchAnimationDuration     = 0.8,
+
+	-- ========== EFEITOS VISUAIS ==========
+	BlockEffectColor        = Color3.new(0, 0.7, 1),
+	ReflectEffectColor      = Color3.new(1, 0, 0),
+	ProtectionEffectColor   = Color3.new(0, 1, 0),
+	PunchEffectColor        = Color3.new(1, 0.5, 0),
+	BlockEffectSize         = 5,
+	BlockEffectTransparency = 0.7,
+
+	-- ========== SONS ==========
+	BlockSoundPitch      = 1.0,
+	ReflectSoundPitch    = 1.3,
+	ProtectionSoundPitch = 0.8,
+	PunchSoundPitch      = 1.5,
+
+	-- ========== ANIMAÇÃO ==========
+	AnimationLerpSpeed   = 0.2,
+
+	-- ========== NPC ==========
+	NPCDetectRange = 50,
+	NPCCooldownTime = 8,
+}
+
+--[[
+═══════════════════════════════════════════════════════════════
+                    CÓDIGO PRINCIPAL
+═══════════════════════════════════════════════════════════════
+--]]
+
+-- ========== SERVIÇOS ==========
+local Services = {
+	Players    = game:GetService("Players"),
+	RunService = game:GetService("RunService"),
+	TweenService = game:GetService("TweenService"),
+}
+
+-- ========== VARIÁVEIS GLOBAIS ==========
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local equipsound  = Handle:WaitForChild("equip", 10)
+local blocksounds = {
+	Handle:WaitForChild("block", 10),
+	Handle:WaitForChild("block2", 10),
+	Handle:WaitForChild("block3", 10),
+	Handle:WaitForChild("block4", 10),
+}
+
+local owner, character, charhum, rootpart
+local equipped         = false
+local protectionActive = false
+local protectionCooldown = false
+local isProcessingDamage = false  -- [FIX V5] Flag anti-recursão
+
+-- [KEEP V4] Índice sequencial de som (sem math.random — PROIBIDO)
+local soundIndex = 1
+
+-- ========== TABELAS DE EFEITOS ATIVOS ==========
+local ActiveEffects = {
+	Parts            = {},
+	Sounds           = {},
+	Connections      = {},
+	Welds            = {},
+	AnimationThreads = {},
+}
+local CleanupConnections = {}
+local protectedAllies = {}
+
+-- ========== REMOTEEVENT ==========
+local remoteEvent = Tool:FindFirstChild("RemoteEvent")
+if not remoteEvent then
+	remoteEvent        = Instance.new("RemoteEvent")
+	remoteEvent.Name   = "RemoteEvent"
+	remoteEvent.Parent = Tool
+end
+
+-- ========== SISTEMA ANTI-FRIENDLY FIRE ==========
+local function IsAlly(char1, char2)
+	if not char1 or not char2 then return false end
+	if char1 == char2 then return true end
+
+	local p1 = Services.Players:GetPlayerFromCharacter(char1)
+	local p2 = Services.Players:GetPlayerFromCharacter(char2)
+
+	if p1 and p2 then
+		if not p1.Neutral and not p2.Neutral then
+			return p1.Team == p2.Team
+		end
+	end
+
+	-- NPC ally check
+	local cf1 = char1:FindFirstChild("ControlFollow")
+	local cf2 = char2:FindFirstChild("ControlFollow")
+	if cf1 and cf2 then
+		return cf1.Owner.Value == cf2.Owner.Value
+	end
+
+	return false
+end
+
+-- ========== SOM SEQUENCIAL ==========
+local function PlayBlockSound()
+	local snd = blocksounds[soundIndex]
+	if snd and snd.Parent then
+		snd.Pitch = CONFIG.BlockSoundPitch
+		snd:Play()
+	end
+	soundIndex = (soundIndex % #blocksounds) + 1
+end
+
+-- ========== SISTEMA DE LIMPEZA ==========
+local function CleanupAnimationWelds()
+	-- 1. Cancelar threads PRIMEIRO
+	for _, th in pairs(ActiveEffects.AnimationThreads) do
+		if th then task.cancel(th) end
+	end
+	ActiveEffects.AnimationThreads = {}
+
+	-- 2. Remover Welds DEPOIS (Motor6D assume controle)
+	for _, weld in pairs(ActiveEffects.Welds) do
+		if weld and weld.Parent then weld.Parent = nil end
+	end
+	ActiveEffects.Welds = {}
+end
+
+local function CleanupAllEffects()
+	CleanupAnimationWelds()
+
+	for _, p in pairs(ActiveEffects.Parts) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	ActiveEffects.Parts = {}
+
+	for _, s in pairs(ActiveEffects.Sounds) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	ActiveEffects.Sounds = {}
+
+	for _, c in pairs(ActiveEffects.Connections) do
+		if c then c:Disconnect() end
+	end
+	ActiveEffects.Connections = {}
+
+	protectionActive = false
+	protectedAllies  = {}
+	isProcessingDamage = false
+end
+
+-- ========== EFEITO VISUAL DE BLOQUEIO ==========
+local function CreateBlockEffect(position, effectColor)
+	local fx        = Instance.new("Part")
+	fx.Name         = "BlockEffect"
+	fx.Size         = Vector3.new(CONFIG.BlockEffectSize, CONFIG.BlockEffectSize, 0.5)
+	fx.Material     = Enum.Material.Neon
+	fx.Color        = effectColor
+	fx.Transparency = CONFIG.BlockEffectTransparency
+	fx.CanCollide   = false
+	fx.CanTouch     = false
+	fx.Anchored     = true
+	fx.CFrame       = CFrame.new(position) * CFrame.new(0, 0, -2)
+	fx.Parent       = workspace
+	table.insert(ActiveEffects.Parts, fx)
+
+	task.spawn(function()
+		for i = 0, 10 do
+			if not fx or not fx.Parent then break end
+			fx.Transparency = CONFIG.BlockEffectTransparency + (i * 0.03)
+			fx.Size = fx.Size + Vector3.new(0.5, 0.5, 0)
+			task.wait(0.03)
+		end
+		if fx and fx.Parent then fx.Parent = nil end
+	end)
+end
+
+-- ========== EFEITO VISUAL DE REFLEXÃO ==========
+local function CreateReflectionEffect(position, direction)
+	local fx        = Instance.new("Part")
+	fx.Name         = "ReflectEffect"
+	fx.Size         = Vector3.new(2, 2, 4)
+	fx.Material     = Enum.Material.Neon
+	fx.Color        = CONFIG.ReflectEffectColor
+	fx.Transparency = 0.5
+	fx.CanCollide   = false
+	fx.CanTouch     = false
+	fx.Anchored     = true
+	fx.CFrame       = CFrame.new(position, position + direction)
+	fx.Parent       = workspace
+	table.insert(ActiveEffects.Parts, fx)
+
+	local particles     = Instance.new("ParticleEmitter")
+	particles.Texture   = "rbxasset://textures/particles/sparkles_main.dds"
+	particles.Rate      = 50
+	particles.Lifetime  = NumberRange.new(0.5)
+	particles.Speed     = NumberRange.new(10)
+	particles.Color     = ColorSequence.new(CONFIG.ReflectEffectColor)
+	particles.Size      = NumberSequence.new(0.5)
+	particles.Parent    = fx
+	particles:Emit(20)
+
+	task.spawn(function()
+		for i = 0, 10 do
+			if not fx or not fx.Parent then break end
+			fx.Transparency = 0.5 + (i * 0.05)
+			fx.Size = fx.Size + Vector3.new(0.3, 0.3, 0.6)
+			task.wait(0.03)
+		end
+		if fx and fx.Parent then fx.Parent = nil end
+	end)
+end
+
+-- ========== EFEITO ESFERA EXPANSIVA ==========
+local function CreateSphereEffect(pos, color, startSize, growRate, duration)
+	local fx        = Instance.new("Part")
+	fx.Name         = "SphereEffect"
+	fx.Size         = Vector3.new(startSize, startSize, startSize)
+	fx.Material     = Enum.Material.Neon
+	fx.Color        = color
+	fx.Transparency = 0.3
+	fx.CanCollide   = false
+	fx.CanTouch     = false
+	fx.Anchored     = true
+	fx.Shape        = Enum.PartType.Ball
+	fx.CFrame       = CFrame.new(pos)
+	fx.Parent       = workspace
+	table.insert(ActiveEffects.Parts, fx)
+
+	task.spawn(function()
+		local steps = math.floor(duration / 0.03)
+		for i = 0, steps do
+			if not fx or not fx.Parent then break end
+			local t = i / steps
+			fx.Transparency = 0.3 + (t * 0.7)
+			fx.Size = fx.Size + Vector3.new(growRate, growRate, growRate)
+			task.wait(0.03)
+		end
+		if fx and fx.Parent then fx.Parent = nil end
+	end)
+end
+
+-- ========== ENCONTRAR ATACANTE MAIS PRÓXIMO ==========
+-- [FIX V5] Usa workspace:GetChildren() em vez de GetDescendants()
+local function FindNearestAttacker()
+	local closestDist = 10
+	local attacker    = nil
+
+	for _, v in pairs(workspace:GetChildren()) do
+		if v:IsA("Model") and v ~= character then
+			local head = v:FindFirstChild("Head")
+			if head then
+				local dist = (head.Position - Handle.Position).Magnitude
+				if dist < closestDist and not IsAlly(character, v) then
+					local hum = v:FindFirstChildOfClass("Humanoid")
+					if hum and hum.Health > 0 then
+						closestDist = dist
+						attacker    = v
+					end
+				end
+			end
+		end
+	end
+
+	return attacker
+end
+
+-- ========== DEFESA DE ALIADOS PRÓXIMOS ==========
+local function ApplyAllyDefense()
+	if not rootpart then return end
+
+	for _, v in pairs(workspace:GetChildren()) do
+		if v:IsA("Model") and v ~= character then
+			local allyHum  = v:FindFirstChildOfClass("Humanoid")
+			local allyRoot = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChild("Torso")
+
+			if allyHum and allyRoot and allyHum.Health > 0 then
+				local dist = (allyRoot.Position - rootpart.Position).Magnitude
+
+				if dist <= CONFIG.AllyDefenseRange and IsAlly(character, v) and not v:FindFirstChild("ShieldDefenseActive") then
+					local tag    = Instance.new("BoolValue")
+					tag.Name     = "ShieldDefenseActive"
+					tag.Parent   = v
+					table.insert(ActiveEffects.Parts, tag)
+
+					local lastHP = allyHum.Health
+					local allyProcessing = false
+
+					local conn = allyHum.HealthChanged:Connect(function(hp)
+						if allyProcessing then return end
+						if hp < lastHP then
+							allyProcessing = true
+
+							local damage        = lastHP - hp
+							local reducedDamage  = damage * CONFIG.AllyDefenseBonus
+							allyHum.Health       = math.min(allyHum.MaxHealth, hp + reducedDamage)
+							allyHum.Health       = math.min(allyHum.MaxHealth, allyHum.Health + CONFIG.AllyHealPerBlock)
+
+							CreateSphereEffect(allyRoot.Position, CONFIG.BlockEffectColor, 3, 0.3, 0.5)
+
+							task.wait()
+							allyProcessing = false
+						end
+						lastHP = allyHum.Health
+					end)
+					table.insert(ActiveEffects.Connections, conn)
+				end
+			end
+		end
+	end
+end
+
+-- ========== PROTEÇÃO ATIVA (HABILIDADE EXTRA) ==========
+local function ActivateAllyProtection(ally, attacker, damageAmount)
+	if protectionCooldown then return end
+	protectionCooldown = true
+	protectionActive   = true
+
+	local activateSound = blocksounds[1]:Clone()
+	activateSound.Parent = rootpart
+	activateSound.Pitch  = CONFIG.ProtectionSoundPitch
+	activateSound:Play()
+	table.insert(ActiveEffects.Sounds, activateSound)
+
+	local allyRoot = ally:FindFirstChild("HumanoidRootPart") or ally:FindFirstChild("Torso")
+	if not allyRoot then
+		protectionCooldown = false
+		protectionActive   = false
+		return
+	end
+
+	-- Efeito de saída
+	CreateSphereEffect(rootpart.Position, CONFIG.ProtectionEffectColor, 4, 0.5, 0.3)
+
+	-- Teleportar para o aliado
+	rootpart.CFrame = allyRoot.CFrame * CFrame.new(0, 0, -3)
+
+	-- Efeito de chegada
+	CreateSphereEffect(rootpart.Position, CONFIG.ProtectionEffectColor, 1, 0.8, 0.3)
+
+	task.wait(CONFIG.TeleportStage1Duration)
+
+	-- Teleportar para o atacante
+	local attackerRoot = attacker:FindFirstChild("HumanoidRootPart") or attacker:FindFirstChild("Torso")
+	if not attackerRoot then
+		protectionCooldown = false
+		protectionActive   = false
+		return
+	end
+
+	CreateSphereEffect(rootpart.Position, CONFIG.PunchEffectColor, 4, 0.5, 0.3)
+
+	rootpart.CFrame = attackerRoot.CFrame * CFrame.new(0, 0, -3)
+	rootpart.CFrame = CFrame.new(
+		rootpart.Position,
+		Vector3.new(attackerRoot.Position.X, rootpart.Position.Y, attackerRoot.Position.Z)
+	)
+
+	task.wait(CONFIG.TeleportStage2Duration)
+
+	-- Soco no atacante
+	local punchSound = blocksounds[3]:Clone()
+	punchSound.Parent = attackerRoot
+	punchSound.Pitch  = CONFIG.PunchSoundPitch
+	punchSound:Play()
+	table.insert(ActiveEffects.Sounds, punchSound)
+
+	CreateSphereEffect(attackerRoot.Position, CONFIG.PunchEffectColor, 5, 0.8, 0.3)
+
+	local attackerHum = attacker:FindFirstChildOfClass("Humanoid")
+	if attackerHum then
+		local reflectedDamage = damageAmount * CONFIG.ProtectionDamageReflection
+		attackerHum:TakeDamage(reflectedDamage)
+
+		-- Knockback
+		local bv        = Instance.new("BodyVelocity")
+		bv.MaxForce     = Vector3.new(math.huge, math.huge, math.huge)
+		bv.Velocity     = rootpart.CFrame.LookVector * CONFIG.ProtectionKnockbackPower
+		bv.Parent       = attackerRoot
+		task.delay(0.3, function()
+			if bv and bv.Parent then bv.Parent = nil end
+		end)
+	end
+
+	task.wait(CONFIG.PunchAnimationDuration)
+	protectionActive = false
+
+	task.wait(CONFIG.ProtectionCooldown)
+	protectionCooldown = false
+end
+
+-- ========== MONITORAR ATAQUES EM ALIADOS ==========
+local function MonitorAllyAttacks()
+	for _, ally in pairs(workspace:GetChildren()) do
+		if ally:IsA("Model") and ally ~= character and IsAlly(character, ally) then
+			local allyHum  = ally:FindFirstChildOfClass("Humanoid")
+			local allyRoot = ally:FindFirstChild("HumanoidRootPart") or ally:FindFirstChild("Torso")
+
+			if allyHum and allyRoot and allyHum.Health > 0 then
+				local dist = (allyRoot.Position - rootpart.Position).Magnitude
+
+				if dist <= CONFIG.ProtectionRange and not protectedAllies[ally] then
+					protectedAllies[ally] = true
+					local lastHP = allyHum.Health
+
+					local conn = allyHum.HealthChanged:Connect(function(hp)
+						if hp < lastHP and protectionActive then
+							local damageAmount = lastHP - hp
+							allyHum.Health     = lastHP
+
+							local attackerFound = FindNearestAttacker()
+							if attackerFound then
+								ActivateAllyProtection(ally, attackerFound, damageAmount)
+							end
+						end
+						lastHP = allyHum.Health
+					end)
+					table.insert(ActiveEffects.Connections, conn)
+				end
+			end
+		end
+	end
+end
+
+-- ========== SISTEMA DE BLOQUEIO PRINCIPAL ==========
+local function SetupBlockSystem()
+	local thechar = character
+	local lasthp  = charhum.Health
+
+	local conn = charhum.HealthChanged:Connect(function(hp)
+		if character ~= thechar or not equipped then return end
+		if isProcessingDamage then return end  -- [FIX V5] Anti-recursão
+
+		if hp < lasthp then
+			isProcessingDamage = true
+
+			local damageAmount  = lasthp - hp
+			local reducedDamage = damageAmount * CONFIG.PlayerDamageReduction
+			charhum.Health      = math.min(charhum.MaxHealth, hp + reducedDamage)
+
+			PlayBlockSound()
+
+			local nearestAttacker = FindNearestAttacker()
+			if nearestAttacker then
+				-- Virar para o atacante
+				local atkHead = nearestAttacker:FindFirstChild("Head")
+				if atkHead then
+					rootpart.CFrame = CFrame.new(
+						rootpart.Position,
+						Vector3.new(atkHead.Position.X, rootpart.Position.Y, atkHead.Position.Z)
+					)
+				end
+
+				CreateBlockEffect(Handle.Position, CONFIG.BlockEffectColor)
+
+				-- Reflexão de dano
+				local atkHum = nearestAttacker:FindFirstChildOfClass("Humanoid")
+				if atkHum then
+					local reflectDamage = damageAmount * CONFIG.EnemyDamageReflection
+					atkHum:TakeDamage(reflectDamage)
+
+					local atkRoot = nearestAttacker:FindFirstChild("HumanoidRootPart") or nearestAttacker:FindFirstChild("Head")
+					if atkRoot then
+						CreateReflectionEffect(
+							atkRoot.Position,
+							(atkRoot.Position - Handle.Position).Unit
+						)
+					end
+
+					local reflectSound = blocksounds[4]:Clone()
+					reflectSound.Parent = atkRoot or Handle
+					reflectSound.Pitch  = CONFIG.ReflectSoundPitch
+					reflectSound:Play()
+					table.insert(ActiveEffects.Sounds, reflectSound)
+				end
+
+				-- Recuo leve
+				local bv        = Instance.new("BodyVelocity")
+				bv.MaxForce     = Vector3.new(math.huge, 0, math.huge)
+				bv.Velocity     = rootpart.CFrame.LookVector * -4
+				bv.Parent       = rootpart
+				task.delay(0.15, function()
+					if bv and bv.Parent then bv.Parent = nil end
+				end)
+			end
+
+			ApplyAllyDefense()
+
+			task.wait()
+			isProcessingDamage = false
+		end
+
+		lasthp = charhum.Health
+	end)
+	table.insert(ActiveEffects.Connections, conn)
+end
+
+-- ========== REMOTEEVENT HANDLER ==========
+remoteEvent.OnServerEvent:Connect(function(player, action)
+	if player ~= owner or not equipped then return end
+
+	if action == "toggleProtection" then
+		if not protectionCooldown then
+			protectionActive = not protectionActive
+			if protectionActive then
+				MonitorAllyAttacks()
+			else
+				protectedAllies = {}
+			end
+		end
+	end
+end)
+
+-- ========== SISTEMA DE NPC ==========
+local NPCCooldown = false
+
+task.spawn(function()
+	while task.wait(1) do
+		if equipped and not owner and not NPCCooldown then
+			if rootpart and rootpart.Parent then
+				-- NPC: ativar proteção aliada automaticamente
+				local nearestAlly = nil
+				local shortestDist = CONFIG.NPCDetectRange
+
+				for _, model in pairs(workspace:GetChildren()) do
+					if model:IsA("Model") and model ~= character then
+						local allyHum  = model:FindFirstChildOfClass("Humanoid")
+						local allyRoot = model:FindFirstChild("HumanoidRootPart")
+						if allyHum and allyRoot and allyHum.Health > 0 and IsAlly(character, model) then
+							local dist = (allyRoot.Position - rootpart.Position).Magnitude
+							if dist < shortestDist then
+								nearestAlly = model
+								shortestDist = dist
+							end
+						end
+					end
+				end
+
+				if nearestAlly then
+					NPCCooldown = true
+					protectionActive = true
+					MonitorAllyAttacks()
+					task.wait(CONFIG.NPCCooldownTime)
+					protectionActive = false
+					NPCCooldown = false
+				end
+			end
+		end
+	end
+end)
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped = true
+	owner    = Services.Players:GetPlayerFromCharacter(Tool.Parent)
+	character = Tool.Parent
+	charhum   = character:FindFirstChildOfClass("Humanoid")
+	rootpart  = character:FindFirstChild("HumanoidRootPart")
+
+	if not charhum or not rootpart then return end
+
+	if equipsound then equipsound:Play() end
+	CleanupAllEffects()
+
+	-- Configurar RightGrip
+	local rightArm = character:FindFirstChild("Right Arm")
+	if rightArm then
+		local rg = rightArm:FindFirstChild("RightGrip")
+		if rg then
+			rg.C0 = CFrame.new(
+				0.409522653, -0.000911712646, 0.516324997,
+				-0.0116359973, -0.0435790196, -0.998981893,
+				0.999929667,  0.00166221452, -0.0117195444,
+				0.0021712482, -0.999047935,   0.0435565971
+			)
+		end
+	end
+
+	-- Criar Welds de animação
+	local torso = character:FindFirstChild("Torso")
+	if torso and rightArm then
+		local rightarmWeld = Instance.new("Weld")
+		rightarmWeld.Part0 = torso
+		rightarmWeld.Part1 = rightArm
+		rightarmWeld.C0    = CFrame.new(1.5, 0, 0)
+		rightarmWeld.Name  = "RightArmWeldshield"
+		rightarmWeld.Parent = torso
+		table.insert(ActiveEffects.Welds, rightarmWeld)
+
+		local headPart = character:FindFirstChild("Head")
+		if headPart then
+			local headWeld = Instance.new("Weld")
+			headWeld.Part0 = torso
+			headWeld.Part1 = headPart
+			headWeld.C0    = CFrame.new(0, 1.5, 0)
+			headWeld.Name  = "HeadWeldshield"
+			headWeld.Parent = torso
+			table.insert(ActiveEffects.Welds, headWeld)
+
+			local hrpWeld = Instance.new("Weld")
+			hrpWeld.Part0 = rootpart
+			hrpWeld.Part1 = torso
+			hrpWeld.Name  = "HumanoidRootPartWeldshield"
+			hrpWeld.Parent = rootpart
+			table.insert(ActiveEffects.Welds, hrpWeld)
+
+			-- Thread de animação
+			local animThread = task.spawn(function()
+				while equipped do
+					Services.RunService.Stepped:Wait()
+					if not rightarmWeld or not rightarmWeld.Parent then break end
+
+					if protectionActive then
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(
+							CFrame.new(1.5, 0.5, -0.3) * CFrame.Angles(math.rad(45), 0, math.rad(10)),
+							CONFIG.AnimationLerpSpeed
+						)
+						headWeld.C0 = headWeld.C0:lerp(CFrame.new(0, 1.5, 0), CONFIG.AnimationLerpSpeed)
+						hrpWeld.C0  = hrpWeld.C0:lerp(CFrame.new(), CONFIG.AnimationLerpSpeed)
+					else
+						rightarmWeld.C0 = rightarmWeld.C0:lerp(
+							CFrame.new(1.40557981, 0.499999762, -0.579227924, 0.98480767, 0.173648134, 3.55271368e-15, -4.39884928e-08, 2.49471157e-07, -0.999999821, -0.173648134, 0.98480767, 2.5331974e-07),
+							CONFIG.AnimationLerpSpeed
+						)
+						headWeld.C0 = headWeld.C0:lerp(
+							CFrame.new(0, 1.49999976, 0, 0.173648208, 0, -0.98480767, 0, 0.999999881, 0, 0.98480767, 0, 0.173648208),
+							CONFIG.AnimationLerpSpeed
+						)
+						hrpWeld.C0 = hrpWeld.C0:lerp(
+							CFrame.new(0, 0, 0, 0.173648134, 0, 0.98480773, 0, 0.99999994, 0, -0.98480773, 0, 0.173648134),
+							CONFIG.AnimationLerpSpeed
+						)
+					end
+				end
+			end)
+			table.insert(ActiveEffects.AnimationThreads, animThread)
+		end
+	end
+
+	-- Sistema de bloqueio
+	SetupBlockSystem()
+
+	-- Conexão de morte
+	if charhum then
+		CleanupConnections.Died = charhum.Died:Connect(function()
+			CleanupAllEffects()
+		end)
+	end
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped         = false
+	protectionActive = false
+	protectionCooldown = false
+	isProcessingDamage = false
+
+	CleanupAllEffects()
+
+	for _, conn in pairs(CleanupConnections) do
+		if conn then conn:Disconnect() end
+	end
+	CleanupConnections = {}
+end)
+
+-- ========== LIMPEZA AO REMOVER TOOL ==========
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		CleanupAllEffects()
+		for _, conn in pairs(CleanupConnections) do
+			if conn then conn:Disconnect() end
+		end
+		CleanupConnections = {}
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{0B0B931B-BAEF-4A62-85E9-C40AD5936C50}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Script</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="LocalScript" referent="RBXAB6D9538F54E4C9592D3D88D43096784">
+			<Properties>
+				<ProtectedString name="Source"><![CDATA[-- LocalScript_EscudoBloqueador_V2.lua
+-- Coloque DENTRO da Tool "Escudo Bloqueador"
+-- SUBSTITUI: LocalScript_Escudo_Bloqueador_V1.lua
+-- REMOVER: LocalScript_Escudo_Bloqueador_V1.lua
+--
+-- CORREÇÕES V2:
+--   [FIX] Adicionado CanBeDropped/RequiresHandle no LocalScript (segurança extra).
+--   [FIX] Limpeza correta do botão no AncestryChanged.
+--   [ADD] Feedback visual ao ativar/desativar proteção.
+--
+-- REUTILIZA:
+--   Estrutura de botão via ContextActionService → Origem: LocalScript_TacoDeBaseball_V1_1.lua
+
+local Tool = script.Parent
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+
+-- Serviços
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+
+-- Configurações obrigatórias
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+local Player = Players.LocalPlayer
+local equipped = false
+
+-- ========== BOTÃO DE PROTEÇÃO (Habilidade Extra - Q) ==========
+local function OnProtectionButton(actionName, inputState, inputObj)
+	if inputState == Enum.UserInputState.Begin then
+		RemoteEvent:FireServer("toggleProtection")
+	end
+end
+
+-- ========== EQUIPAR ==========
+Tool.Equipped:Connect(function()
+	equipped = true
+
+	-- Botão mobile para habilidade Extra (Proteção de Aliado)
+	ContextActionService:BindAction(
+		"EscudoProtecao",
+		OnProtectionButton,
+		true,
+		Enum.KeyCode.Q,
+		Enum.KeyCode.ButtonX
+	)
+	ContextActionService:SetTitle("EscudoProtecao", "Proteção")
+	ContextActionService:SetPosition("EscudoProtecao", UDim2.new(0.85, 0, 0.15, 0))
+end)
+
+-- ========== DESEQUIPAR ==========
+Tool.Unequipped:Connect(function()
+	equipped = false
+	ContextActionService:UnbindAction("EscudoProtecao")
+end)
+
+-- ========== LIMPEZA AO REMOVER TOOL ==========
+Tool.AncestryChanged:Connect(function()
+	if not Tool.Parent then
+		equipped = false
+		ContextActionService:UnbindAction("EscudoProtecao")
+	end
+end)]]></ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null></null></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{FC83CD54-931D-4310-8494-30A9DBE0A756}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">LocalScript</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="RemoteEvent" referent="RBX3C7877F1A0B549C0ABDB45D6E17A2AEC">
+			<Properties>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBX57EF58CA4FCD47C19B1D879707C7F26A">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized"></string>
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBXF78966E46C714AE1BBB6C8B0125DE7DB">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX91443A43BA834E2196BCF6BD042956AC">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX0C0AE50523634F24AEFBBF6A90E01CBB">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX84C9C1280F654A81AF0BA7ED1262F5E9">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXC2D5FA149EC4489396EB3DB58D2BC1C8">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBXF72EFF6871FA4A89B8640A60D655A5BC">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null></null></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+	<SharedStrings>
+		<SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA=="></SharedString>
+	</SharedStrings>
+</roblox>

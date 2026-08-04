@@ -18,6 +18,8 @@ O trabalho desta pasta é um só: **converter modelos (`.rbxm` / `.rbxmx`) em To
 | [`DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md`](DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md) | Núcleo de combate, material de terceiros, Acervo |
 | [`DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md`](DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md) | Quantas Tools saem de um modelo — piso 3, teto 7 |
 | [`DIRETRIZES/REGRA_ENTREGA_RBXMX.md`](DIRETRIZES/REGRA_ENTREGA_RBXMX.md) | Todo modelo convertido sai como `.rbxmx` |
+| [`DIRETRIZES/REGRA_ANIMACAO_R6.md`](DIRETRIZES/REGRA_ANIMACAO_R6.md) | Weld C0, animator canônico, perna sob demanda |
+| [`DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md`](DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md) | Câmera é 100% cliente, e sempre devolvida |
 | [`DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md`](DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md) | Passo a passo da conversão modelo → Tool |
 | [`DIRETRIZES/CHECKLIST_ENTREGA.md`](DIRETRIZES/CHECKLIST_ENTREGA.md) | Checklist final, copiável, de toda entrega |
 
@@ -34,6 +36,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │
 ├── Tools/
 │   ├── _TEMPLATE_Tool/            ← Molde de toda Tool nova
+│   ├── ESCUDOS.md                 ← Conjunto de 7 Tools
 │   ├── GRAVIDADE_TELECINESE.md    ← Conjunto de 7 Tools
 │   └── [NomeDaTool]/              ← Uma pasta por Tool entregue
 │
@@ -55,6 +58,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 ├── TESTES/                        ← Bancada. Nada daqui vai para o place
 │   ├── harness_NucleoCombate.lua
 │   ├── verificar_autocontencao.sh
+│   ├── verificar_poses.py
 │   └── verificar_rbxmx.py
 │
 └── DIRETRIZES/                    ← As regras acima
@@ -65,6 +69,7 @@ Depois de qualquer edição:
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py       # regenera os .rbxmx a partir dos .lua
 python3 TESTES/verificar_rbxmx.py         # confere as Tools entregues
+python3 TESTES/verificar_poses.py         # poses x animator V2
 bash    TESTES/verificar_autocontencao.sh # Regra nº 1
 lua5.4  TESTES/harness_NucleoCombate.lua  # pipeline de dano do Núcleo
 ```

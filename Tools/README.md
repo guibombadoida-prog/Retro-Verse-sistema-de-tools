@@ -18,6 +18,7 @@ Tools/
 
 | Conjunto | Tools | Arquivo de entrega | Status |
 |---|---|---|---|
+| [Escudos](ESCUDOS.md) | 7 | `Escudos_7_Tools.rbxmx` | 5 convertidas + 2 autorais, cada uma com lógica própria |
 | [Gravidade / Telecinese](GRAVIDADE_TELECINESE.md) | 7 | `GravidadeTelecinese_7_Tools.rbxmx` | ⚠️ conformes, mas **as 7 são a mesma Tool** — falta a lógica de habilidade de seis |
 
 Um `.rbxmx` por conjunto, com as Tools daquele conjunto na **raiz** do arquivo. Nunca dentro
