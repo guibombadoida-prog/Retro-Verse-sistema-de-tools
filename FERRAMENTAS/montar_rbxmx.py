@@ -621,11 +621,20 @@ def envolver_cdata(texto):
                   trocar, texto, flags=re.S)
 
 
-ORDEM_CONJUNTO = ["TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
-                  "Temporalise", "ArmadilhaTemporal", "AvoDoTempo",
-                  "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica",
-                  "OrbitaPsi", "LancaVetorial", "PocoDeMassa", "MarionetePsi"]
-ARQUIVO_CONJUNTO = "GuardiaoDoTempo_7_Tools.rbxmx"
+# UM CONJUNTO POR MODELO DE ORIGEM — não um arquivo com tudo dentro.
+#
+# A REGRA_ENTREGA_RBXMX manda entregar as Tools DE UM MODELO num arquivo só.
+# Juntar modelos diferentes no mesmo .rbxmx não é conveniência: quem importa o
+# conjunto do Guardião passa a receber sete Tools de gravidade que não pediu, e
+# o nome do arquivo deixa de dizer o que ele tem dentro.
+CONJUNTOS = [
+    ("GuardiaoDoTempo_7_Tools.rbxmx", "Guardião do Tempo", [
+        "TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
+        "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]),
+    ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
+        "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
+        "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
+]
 
 
 def main():
@@ -639,11 +648,12 @@ def main():
                                        os.path.relpath(destino, RAIZ)))
 
     if not sys.argv[1:]:
-        destino, tamanho = montar_conjunto(ORDEM_CONJUNTO, ARQUIVO_CONJUNTO)
         print("")
-        print("CONJUNTO (todas as Tools num arquivo só)")
-        print("%-20s %7d bytes  %s" % ("Tools", tamanho,
-                                       os.path.relpath(destino, RAIZ)))
+        print("CONJUNTOS — um arquivo por modelo de origem")
+        for arquivo, modelo, ordem in CONJUNTOS:
+            destino, tamanho = montar_conjunto(ordem, arquivo)
+            print("%-22s %7d bytes  %s" % (modelo, tamanho,
+                                           os.path.relpath(destino, RAIZ)))
 
 
 if __name__ == "__main__":

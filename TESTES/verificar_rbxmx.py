@@ -207,9 +207,21 @@ def verificar(nome):
     return erros
 
 
-def verificar_conjunto(nomes):
-    """O arquivo único com todas as Tools do modelo."""
-    caminho = os.path.join(TOOLS, "GuardiaoDoTempo_7_Tools.rbxmx")
+# Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
+# Espelha CONJUNTOS de FERRAMENTAS/montar_rbxmx.py — se um mudar, o outro muda.
+CONJUNTOS = [
+    ("GuardiaoDoTempo_7_Tools.rbxmx", "Guardião do Tempo", [
+        "TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
+        "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]),
+    ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
+        "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
+        "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
+]
+
+
+def verificar_conjunto(arquivo, nomes):
+    """O arquivo único com todas as Tools de UM modelo."""
+    caminho = os.path.join(TOOLS, arquivo)
     erros = []
 
     if not os.path.exists(caminho):
@@ -228,6 +240,11 @@ def verificar_conjunto(nomes):
     for nome in nomes:
         if nome not in achados:
             erros.append("falta a Tool %r" % nome)
+    # Tool de OUTRO modelo dentro deste conjunto é entrega errada: quem importa
+    # o arquivo recebe Tools que não pediu, e o nome mente sobre o conteúdo.
+    for achado in achados:
+        if achado not in nomes:
+            erros.append("tem a Tool %r, que é de outro modelo" % achado)
 
     # As Tools têm de ser itens de RAIZ. Dentro de uma Folder, a StarterPack
     # não entrega nada ao jogador.
@@ -290,17 +307,19 @@ def main():
             caminho = os.path.join(TOOLS, nome, "%s.rbxmx" % nome)
             print(VERDE % ("✓ %-20s %7d bytes" % (nome, os.path.getsize(caminho))))
 
-    erros = verificar_conjunto(nomes)
     print("")
-    if erros:
-        total += len(erros)
-        print(VERMELHO % "✗ GuardiaoDoTempo_7_Tools.rbxmx  (conjunto)")
-        for e in erros:
-            print("    %s" % e)
-    else:
-        caminho = os.path.join(TOOLS, "GuardiaoDoTempo_7_Tools.rbxmx")
-        print(VERDE % ("✓ %-20s %7d bytes  (as %d Tools num arquivo só)"
-                       % ("CONJUNTO", os.path.getsize(caminho), len(nomes))))
+    print(CINZA % "CONJUNTOS — um arquivo por modelo de origem")
+    for arquivo, modelo, ordem in CONJUNTOS:
+        erros = verificar_conjunto(arquivo, ordem)
+        if erros:
+            total += len(erros)
+            print(VERMELHO % ("✗ %s" % arquivo))
+            for e in erros:
+                print("    %s" % e)
+        else:
+            caminho = os.path.join(TOOLS, arquivo)
+            print(VERDE % ("✓ %-22s %7d bytes  (as %d Tools num arquivo só)"
+                           % (modelo, os.path.getsize(caminho), len(ordem))))
 
     print("")
     if total == 0:
