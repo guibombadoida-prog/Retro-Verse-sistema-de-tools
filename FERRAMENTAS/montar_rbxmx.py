@@ -79,6 +79,42 @@ CATALOGO = {
         "sfx": {"Plantar": (447682521, 4.0, 0.7, 60), "Disparo": (782199941, 6.0, 1.5, 70),
                 "Brasa": (114121130345944, 4.0, 1.1, 70), "Faisca": (785201669, 4.0, 1.2, 60)},
     },
+
+    "PulsoGravitacional": {
+        "tooltip": "Pulso Gravitacional - comprime a gravidade ao redor. X lança singularidade",
+        "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (9125403260, 5.0, 0.8, 80)},
+    },
+    "CampoZeroG": {
+        "tooltip": "Campo Zero G - levita inimigos em órbita curta. X detona o campo",
+        "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (447682521, 4.0, 0.7, 80)},
+    },
+    "MaoTelecinetica": {
+        "tooltip": "Mão Telecinética - empurra alvos com força mental. X puxa todos para você",
+        "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (743521450, 4.0, 1.4, 80)},
+    },
+    "OrbitaPsi": {
+        "tooltip": "Órbita Psi - anéis telecinéticos protegem e cortam. X expande a órbita",
+        "classe": "Hybrid", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (588738949, 4.0, 1.1, 80)},
+    },
+    "LancaVetorial": {
+        "tooltip": "Lança Vetorial - arremessa uma linha de força gravitacional. X perfura em área",
+        "classe": "Ranged", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (908895929, 5.0, 1.5, 90)},
+    },
+    "PocoDeMassa": {
+        "tooltip": "Poço de Massa - cria um peso absurdo no chão. X colapsa o poço",
+        "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (763717897, 5.0, 0.8, 90)},
+    },
+    "MarionetePsi": {
+        "tooltip": "Marionete Psi - dobra a postura dos alvos com telecinese. X explode o vínculo",
+        "classe": "Summon", "energia": 0, "recarga": 16, "extra": True,
+        "sfx": {"Golpe": (782199941, 5.0, 1.2, 80)},
+    },
     "AvoDoTempo": {
         "tooltip": "Avô do Tempo - a hora chega para todos. T provoca",
         "classe": "Magic", "energia": 0, "recarga": 45, "extra": True,
@@ -218,6 +254,13 @@ EFEITOS = {
 
 # Que efeitos novos entram em cada Tool. A escolha é por tema, não por sobra.
 EFEITOS_POR_TOOL = {
+    "PulsoGravitacional": ["RAIO_TEMPORAL", "AURA"],
+    "CampoZeroG": ["ESTILHACO_ESTELAR", "AURA"],
+    "MaoTelecinetica": ["FAISCA", "RAIO_TEMPORAL", "AURA"],
+    "OrbitaPsi": ["FAISCA", "AURA"],
+    "LancaVetorial": ["RAIO_TEMPORAL", "FAISCA", "AURA"],
+    "PocoDeMassa": ["BRASA", "AURA"],
+    "MarionetePsi": ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
     "TemperoTemporal":   ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
     "Cronostase":        ["ESTILHACO_ESTELAR", "AURA"],
     "AvancoRapido":      ["BRASA", "FAISCA", "AURA"],
@@ -579,7 +622,9 @@ def envolver_cdata(texto):
 
 
 ORDEM_CONJUNTO = ["TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
-                  "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]
+                  "Temporalise", "ArmadilhaTemporal", "AvoDoTempo",
+                  "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica",
+                  "OrbitaPsi", "LancaVetorial", "PocoDeMassa", "MarionetePsi"]
 ARQUIVO_CONJUNTO = "GuardiaoDoTempo_7_Tools.rbxmx"
 
 
@@ -596,8 +641,8 @@ def main():
     if not sys.argv[1:]:
         destino, tamanho = montar_conjunto(ORDEM_CONJUNTO, ARQUIVO_CONJUNTO)
         print("")
-        print("CONJUNTO (as 7 num arquivo só)")
-        print("%-20s %7d bytes  %s" % ("7 Tools", tamanho,
+        print("CONJUNTO (todas as Tools num arquivo só)")
+        print("%-20s %7d bytes  %s" % ("Tools", tamanho,
                                        os.path.relpath(destino, RAIZ)))
 
 
