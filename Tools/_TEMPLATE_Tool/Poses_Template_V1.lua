@@ -2,24 +2,33 @@
 	Poses_Template_V1  —  ModuleScript "Poses", filho direto da Tool
 	Retro-Verse / Studios  ·  §10.11 — pose, ritmo e dramaturgia são AUTORAIS
 
-	Formato do R6CFrameAnimator V1 canônico do projeto.
+	Formato do R6CFrameAnimator V2 canônico do projeto.
 
 	Cada pose é o C0 de um Weld que o animator cria:
 
-		RightArm   Torso → Right Arm          base CFrame.new( 1.5, 0,   0)
-		LeftArm    Torso → Left Arm           base CFrame.new(-1.5, 0,   0)
-		Head       Torso → Head               base CFrame.new( 0,   1.5, 0)
+		RightArm   Torso → Right Arm          base CFrame.new( 1.5,  0,   0)
+		LeftArm    Torso → Left Arm           base CFrame.new(-1.5,  0,   0)
+		Head       Torso → Head               base CFrame.new( 0,    1.5, 0)
 		HRP        HumanoidRootPart → Torso   base CFrame.new()
+		RightLeg   Torso → Right Leg          base CFrame.new( 0.5, -2,   0)   sob demanda
+		LeftLeg    Torso → Left Leg           base CFrame.new(-0.5, -2,   0)   sob demanda
 
 	⚠️ NÃO escreva em Motor6D ("Right Shoulder", "Neck"…). O script `Animate`
 	padrão do Roblox escreve nesses mesmos Motor6D todo frame — os dois brigam
 	pela mesma junta, e a animação treme e volta sozinha. O animator canônico
 	existe justamente para não cair nisso: ele solda juntas próprias.
 
-	O animator não solda pernas. Se a pose precisar de perna, é decisão de
-	estender o animator — e aí é V2 declarada, não improviso local.
+	PERNA É SOB DEMANDA. O Weld só nasce quando uma pose cita RightLeg/LeftLeg,
+	e o animator o solta no fim da sequência (ReleaseLegs). Perna soldada
+	permanentemente TRAVA A CAMINHADA: o Humanoid deixa de mandar nela. Se você
+	tocar pose de perna por PlayPose avulso, chame rig:ReleaseLegs() você mesmo.
+
+	Junta com nome fora dessa lista é erro silencioso — a pose simplesmente
+	não sai. Pose cita SÓ as juntas que mexem; junta ausente fica onde estava.
 
 	Variação entre golpes vem de ÍNDICE SEQUENCIAL, nunca de math.random (§10).
+
+	Ver DIRETRIZES/REGRA_ANIMACAO_R6.md.
 --]]
 
 local Poses = {}
@@ -32,6 +41,8 @@ local BASE_BRACO_D = CFrame.new(1.5, 0, 0)
 local BASE_BRACO_E = CFrame.new(-1.5, 0, 0)
 local BASE_CABECA  = CFrame.new(0, 1.5, 0)
 local BASE_TRONCO  = CFrame.new()
+local BASE_PERNA_D = CFrame.new(0.5, -2, 0)
+local BASE_PERNA_E = CFrame.new(-0.5, -2, 0)
 
 --==============================================================================
 -- POSES
@@ -85,37 +96,47 @@ Poses.POSES = {
 }
 
 --==============================================================================
--- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
+-- SEQUÊNCIAS — timeline do V2: o animator encadeia por Tween.Completed.
+--
+-- `time` é a duração do beat; `style`/`dir` são o easing. Encadear com
+-- task.wait(duracao) some ~1 frame por beat e é proibido pela
+-- DIRETRIZES/REGRA_ANIMACAO_R6.md — quem encadeia é o animator.
 --==============================================================================
 
-local GOLPE_A = {
-	{ pose = "GOLPE_A_1", duracao = 0.10 },
-	{ pose = "GOLPE_A_2", duracao = 0.16 },
-	{ pose = "NEUTRO",    duracao = 0.18 },
+Poses.SEQUENCIAS = {
+	-- Back/In na carga, Quint/Out no golpe: é o easing que vende o peso.
+	GOLPE_A = {
+		{ pose = "GOLPE_A_1", time = 0.10, style = "Back",  dir = "In"  },
+		{ pose = "GOLPE_A_2", time = 0.16, style = "Quint", dir = "Out" },
+		{ pose = "NEUTRO",    time = 0.18, style = "Quad",  dir = "Out" },
+	},
+	GOLPE_B = {
+		{ pose = "GOLPE_B_1", time = 0.10, style = "Back",  dir = "In"  },
+		{ pose = "GOLPE_B_2", time = 0.16, style = "Quint", dir = "Out" },
+		{ pose = "NEUTRO",    time = 0.18, style = "Quad",  dir = "Out" },
+	},
+	EXTRA = {
+		{ pose = "EXTRA_1", time = 0.22, style = "Back", dir = "In",  tremor = 0.03 },
+		{ pose = "EXTRA_2", time = 0.14, style = "Quint", dir = "Out" },
+		{ pose = "NEUTRO",  time = 0.26, style = "Quad",  dir = "Out" },
+	},
 }
 
-local GOLPE_B = {
-	{ pose = "GOLPE_B_1", duracao = 0.10 },
-	{ pose = "GOLPE_B_2", duracao = 0.16 },
-	{ pose = "NEUTRO",    duracao = 0.18 },
-}
+--==============================================================================
+-- ACESSORES — devolvem o NOME da sequência, que é o que PlaySequence recebe
+--==============================================================================
 
-local CICLO = { GOLPE_A, GOLPE_B }
+local CICLO = { "GOLPE_A", "GOLPE_B" }
 
 -- `contador` é o índice sequencial do golpe, vindo do Server Script.
+-- É isto que substitui math.random: a variação é determinística.
 function Poses.golpe(contador)
 	local indice = ((contador - 1) % #CICLO) + 1
 	return CICLO[indice]
 end
 
-local EXTRA = {
-	{ pose = "EXTRA_1", duracao = 0.22 },
-	{ pose = "EXTRA_2", duracao = 0.14 },
-	{ pose = "NEUTRO",  duracao = 0.26 },
-}
-
 function Poses.extra()
-	return EXTRA
+	return "EXTRA"
 end
 
 return Poses

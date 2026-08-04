@@ -2,7 +2,7 @@
 	Poses_GuardiaoDoTempo_AvancoRapido_V1  —  ModuleScript "Poses", filho direto da Tool
 	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
+	V3 — MIGRADO PARA O R6CFrameAnimator V2 CANÔNICO DO PROJETO.
 
 	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
 	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
@@ -10,17 +10,25 @@
 	e os dois brigavam pela mesma junta.
 
 	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
-	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
-	desses Welds, convertidas por:
+	HumanoidRootPart→Torso, e Torso→pernas sob demanda). Ninguém mais toca
+	neles. As poses abaixo são o C0 desses Welds, convertidas por:
 
 		WeldC0 = MotorC0 * MotorC1⁻¹
 
 	Conferido contra as bases do animator: a pose neutra devolve exatamente
 	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
 
-	Juntas: RightArm · LeftArm · Head · HRP.
-	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
-	não solda pernas. 4 canal(is) de perna descartado(s) nesta Tool.
+	Juntas em uso: RightArm · LeftArm · Head · HRP.
+
+	⚠️ 4 canal(is) de perna (Right Hip / Left Hip) do modelo foram DESCARTADOS
+	na conversão original, quando o animator do projeto era o V1 e soldava só
+	quatro juntas. O V2 solda RightLeg e LeftLeg sob demanda — ou seja, o limite
+	que justificou o descarte NÃO EXISTE MAIS. Reautorar esses canais é trabalho
+	disponível, e sai desta Tool como V2 do arquivo de poses.
+
+	Se reautorar: perna é sob demanda e tem de ser SOLTA no fim (ReleaseLegs),
+	senão a caminhada trava. PlaySequence solta sozinho; PlayPose avulso, não.
+	Ver DIRETRIZES/REGRA_ANIMACAO_R6.md.
 --]]
 
 local Poses = {}
@@ -54,38 +62,57 @@ Poses.POSES = {
 		RightArm = CFrame.new(1.5, 0.178606, -0.383022, 1, 0, 3.99574e-23, -3.33697e-23, 0.642788, -0.766044, -1.33365e-23, 0.766044, 0.642788),
 		LeftArm  = CFrame.new(-0.250304, 0.367444, 0.600457, -0.00152229, -0.999391, -0.0348663, 0.0697299, -0.0348875, 0.996956, -0.997565, -0.000913562, 0.0697405),
 	},
+	-- EXTRA (SPEDUP, 16 ↔ 48) — o modelo não anima esta habilidade. As duas
+	-- poses abaixo são AUTORAIS: consultar o relógio e sair andando.
+	-- A V2 deste arquivo deixava as duas iguais à base, e a habilidade não
+	-- animava nada.
+
+	-- 1. Consultar: o relógio sobe à altura do olho, a cabeça desce para ler
 	EXTRA_1 = {
-		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(-95), 0, math.rad(28)),
+		LeftArm  = CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(-14), 0, math.rad(-10)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-16), math.rad(18), 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(4), math.rad(-14), 0),
 	},
+
+	-- 2. Sair: o braço cai e o tronco inclina para a frente — postura de quem
+	--    já está mais rápido do que estava
 	EXTRA_2 = {
-		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(-24), 0, math.rad(-12)),
+		LeftArm  = CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(-30), 0, math.rad(14)),
+		Head     = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-8), 0, 0),
+		HRP      = CFrame.new() * CFrame.Angles(math.rad(-10), 0, 0),
 	},
 }
 
 --==============================================================================
--- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
+-- SEQUÊNCIAS — timeline do V2: o animator encadeia por Tween.Completed.
+--
+-- `time` é a duração do beat; `style`/`dir` são o easing. Encadear com
+-- task.wait(duracao) some ~1 frame por beat e é proibido pela
+-- DIRETRIZES/REGRA_ANIMACAO_R6.md — quem encadeia é o animator.
 --==============================================================================
 
-local PRIMARIA = {
-	{ pose = "PRIMARIA_1", duracao = 0.08, easing = "quadOut" },
-	{ pose = "PRIMARIA_2", duracao = 0.08, easing = "quadInOut" },
-	{ pose = "PRIMARIA_3", duracao = 0.25, easing = "backOut" },
-	{ pose = "PRIMARIA_4", duracao = 0.08, easing = "cubicOut" },
+Poses.SEQUENCIAS = {
+	PRIMARIA = {
+		{ pose = "PRIMARIA_1", time = 0.08, style = "Quad", dir = "Out" },
+		{ pose = "PRIMARIA_2", time = 0.08, style = "Quad", dir = "InOut" },
+		{ pose = "PRIMARIA_3", time = 0.25, style = "Back", dir = "Out" },
+		{ pose = "PRIMARIA_4", time = 0.08, style = "Cubic", dir = "Out" },
+	},
+	EXTRA = {
+		{ pose = "EXTRA_1", time = 0.14, style = "Quad", dir = "Out" },
+		{ pose = "EXTRA_2", time = 0.18, style = "Quad", dir = "InOut" },
+	},
 }
 
+-- Os acessores devolvem o NOME da sequência — é o que PlaySequence recebe.
 function Poses.primaria()
-	return PRIMARIA
+	return "PRIMARIA"
 end
 
-local EXTRA = {
-	{ pose = "EXTRA_1", duracao = 0.14, easing = "quadOut" },
-	{ pose = "EXTRA_2", duracao = 0.18, easing = "quadInOut" },
-}
-
 function Poses.extra()
-	return EXTRA
+	return "EXTRA"
 end
 
 return Poses

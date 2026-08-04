@@ -102,6 +102,59 @@ checar "sem busca em workspace"         'workspace[:.](FindFirstChild|WaitForChi
 # Escrever em Motor6D.C0 briga com o script Animate padrão do Roblox, que escreve
 # nas mesmas juntas todo frame. Foi o que bugou a primeira versão do Guardião.
 checar "sem escrita em Motor6D.C0"      'Motor6D|\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]'
+checar "sem Animation / LoadAnimation"  'Instance\.new\("Animation"\)|LoadAnimation|AnimationTrack'
+
+# Encadear beat com task.wait(duração) some ~1 frame por beat — com 100 beats
+# vira quase 2 s de atraso. Quem encadeia é o animator (Tween.Completed / dt).
+checar "sem encadear beat por task.wait" 'task\.wait\(\s*(passo|kf|beat|quadro)\.'
+
+# --- Câmera: 100% cliente (REGRA_CAMERA_DE_CUTSCENE) -------------------------
+# workspace.CurrentCamera é singleton por cliente, não depósito de asset — não
+# viola a Regra nº 1. Mas em Server Script é violação das duas regras.
+CAMERA_NO_SERVIDOR=$(printf '%s\n' "$PURO" \
+	| grep -E '_Server_V[0-9]+\.lua:' \
+	| grep -E 'CurrentCamera|CameraType|FieldOfView' || true)
+if [ -n "$CAMERA_NO_SERVIDOR" ]; then
+	vermelho "✗ câmera só no cliente"
+	printf '%s\n' "$CAMERA_NO_SERVIDOR" | sed 's|^|    |'
+	cinza "    Não existe a câmera do jogo: existe uma por cliente. Mande beat."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ câmera só no cliente"
+fi
+
+# Câmera presa sem devolução é bug sem saída para o jogador: quem escreve em
+# CameraType tem de desligar em Unequipped E em Destroying.
+SEM_DEVOLVER=$(printf '%s\n' "$PURO" | awk -F: '
+	{
+		arquivo = $1
+		corpo   = substr($0, index($0, $3))
+
+		if (arquivo != anterior) {
+			if (anterior != "" && prende && !(desliga_uneq && desliga_dest)) {
+				print anterior
+			}
+			anterior = arquivo
+			prende = 0; desliga_uneq = 0; desliga_dest = 0
+		}
+		if (corpo ~ /CameraType[ \t]*=/)   { prende = 1 }
+		if (corpo ~ /Unequipped/)          { desliga_uneq = 1 }
+		if (corpo ~ /Destroying/)          { desliga_dest = 1 }
+	}
+	END {
+		if (anterior != "" && prende && !(desliga_uneq && desliga_dest)) {
+			print anterior
+		}
+	}
+')
+if [ -n "$SEM_DEVOLVER" ]; then
+	vermelho "✗ câmera presa é sempre devolvida"
+	printf '%s\n' "$SEM_DEVOLVER" | sed 's|^|    |'
+	cinza "    Escreve em CameraType sem ligar Tool.Unequipped E Tool.Destroying."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ câmera presa é sempre devolvida"
+fi
 
 # --- Código de fora ----------------------------------------------------------
 checar "sem require de id numérico"     'require\(\s*[0-9]'

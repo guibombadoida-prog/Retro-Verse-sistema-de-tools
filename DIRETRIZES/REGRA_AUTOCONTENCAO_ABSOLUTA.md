@@ -52,9 +52,9 @@ Se faltar **uma** partícula, **um** som, **uma** pose ou **um** mesh, a Tool vi
 
 ---
 
-## As três coisas que NÃO são violação
+## As quatro coisas que NÃO são violação
 
-Esta regra proíbe **referenciar instância fora da Tool**. Três coisas se parecem com isso e não são:
+Esta regra proíbe **referenciar instância fora da Tool**. Quatro coisas se parecem com isso e não são:
 
 ### 1. `_G.Combate` — o Núcleo
 ```lua
@@ -79,6 +79,27 @@ instância seja **filha da Tool**, o conteúdo vem do asset e a Tool é autocont
 não é caminho de hierarquia.
 
 Proibido continua sendo `require(<id numérico>)`: isso é **código** de fora, não conteúdo.
+
+### 4. `workspace.CurrentCamera` — só no cliente
+```lua
+local camera = workspace.CurrentCamera   -- LocalScript
+```
+Parece leitura de `workspace`, que o item 2 acabou de proibir. A diferença é o que se lê:
+
+| | |
+|---|---|
+| `workspace:FindFirstChild("Efeitos")` | **dependência** — se o place não tiver a pasta, a Tool quebra |
+| `workspace.CurrentCamera` | **singleton por cliente** — existe em todo place, sempre, sem depósito |
+
+É acesso de serviço, da mesma natureza que `Players.LocalPlayer`. O teste do place vazio
+continua passando: a Tool sozinha roda a cutscene inteira.
+
+Duas condições, e não são negociáveis:
+
+- **Só em `LocalScript`.** Câmera em Server Script é violação — não existe "a câmera do
+  jogo", existe uma por cliente. Ver `REGRA_CAMERA_DE_CUTSCENE.md`.
+- **Sempre restaurada.** `CameraType` e `FieldOfView` voltam ao valor guardado em
+  `Unequipped`, `Destroying` e morte. Câmera presa é bug sem saída para o jogador.
 
 ### Serviços que a Tool pode usar
 

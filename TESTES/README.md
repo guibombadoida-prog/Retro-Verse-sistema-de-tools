@@ -3,9 +3,10 @@
 Bancada de verificação. **Nada aqui vai para o place.**
 
 ```bash
-bash   TESTES/verificar_autocontencao.sh   # Regra nº 1 — roda primeiro
-python3 TESTES/verificar_rbxmx.py          # as Tools entregues
-lua5.4 TESTES/harness_NucleoCombate.lua    # pipeline de dano do Núcleo
+bash    TESTES/verificar_autocontencao.sh   # Regra nº 1 — roda primeiro
+python3 TESTES/verificar_poses.py           # tabelas de pose × animator V2
+python3 TESTES/verificar_rbxmx.py           # as Tools entregues
+lua5.4  TESTES/harness_NucleoCombate.lua    # pipeline de dano do Núcleo
 ```
 
 ## `verificar_rbxmx.py`
@@ -36,11 +37,41 @@ Comentários de linha e de bloco são removidos antes da comparação — docume
 | `require(<id numérico>)` · `require` do Núcleo | Código de fora |
 | `require` que não aponte para módulo da própria Tool | Referência externa |
 | `_G.Combate.` sem guarda | A Tool tem de funcionar com o Núcleo deletado |
+| Escrita em `Motor6D.C0` | Briga com o script `Animate` padrão — a animação treme |
+| `Animation` · `LoadAnimation` · `AnimationTrack` | Animação é tabela de poses CFrame |
+| `task.wait(passo.…)` encadeando beat | Some ~1 frame por beat; quem encadeia é o animator |
+| `Camera` em Server Script | Câmera é 100% cliente; o servidor manda beat |
+| `CameraType` sem `Unequipped` **e** `Destroying` | Câmera presa é bug sem saída para o jogador |
+
+`workspace.CurrentCamera` em `LocalScript` **não** é falha: é singleton por cliente, como
+`Players.LocalPlayer`. Em Server Script é.
+
+Testado contra um violador proposital: pegou as 4 falhas novas e saiu com 1.
 
 **Limite conhecido:** é lint por texto, não análise de fluxo. Ele pega
 `local x = game:GetService("ReplicatedStorage")`, mas não rastreia o uso de `x` depois.
 A guarda de `_G.Combate` é aceita se houver `if _G.Combate` até 15 linhas acima.
 O checklist manual continua valendo — o verificador reduz o esforço, não o substitui.
+
+## `verificar_poses.py`
+
+Confere cada `Poses_*.lua` contra o `R6CFrameAnimator_V2`.
+
+| Verifica | Achado é falha porque |
+|---|---|
+| Junta citada existe no animator | Nome errado é **erro silencioso**: o animator ignora e a pose não sai |
+| `pose = "X"` de sequência aponta para pose existente | O beat é pulado sem aviso |
+| Nenhuma sequência é inteiramente neutra | Sequência que não move nada é **animação morta** |
+| Sequência usa `time`/`style`/`dir`, não `duracao`/`easing` | Formato do V1; o V2 ignora as chaves velhas |
+| Pose com perna cita `ReleaseLegs` | Perna soldada permanentemente trava a caminhada |
+
+A terceira checagem nasceu de defeito real: `Cronostase` tinha 3 poses e a Extra do
+`AvancoRapido` tinha 2, **todas iguais à base do Weld**. As duas habilidades não animavam
+nada, o Studio não reclamaria disso, e o mapa de fidelidade declarava as poses como
+autorais. As cinco foram reautoradas.
+
+Testado contra uma tabela sabotada de propósito: pegou junta inexistente, pose fantasma,
+chaves do V1 e sequência morta, e saiu com 1.
 
 ## `harness_NucleoCombate.lua`
 

@@ -13,9 +13,11 @@ matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate
 2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
 3. `DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md` — quantas Tools saem de um modelo
 4. `DIRETRIZES/REGRA_ENTREGA_RBXMX.md` — todo modelo convertido sai como `.rbxmx`
-5. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
-6. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
-7. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
+5. `DIRETRIZES/REGRA_ANIMACAO_R6.md` — Weld C0, animator canônico, perna sob demanda
+6. `DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md` — câmera é 100% cliente, e sempre devolvida
+7. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
+8. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
+9. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
 
 ## Entrega é `.rbxmx`, não `.lua` solto
 
@@ -27,6 +29,7 @@ O `.rbxmx` é **derivado** dos `.lua` — nunca escrito à mão:
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py     # editou o .lua? monta de novo
 python3 TESTES/verificar_rbxmx.py       # confere fonte byte a byte
+python3 TESTES/verificar_poses.py       # poses × animator V2
 ```
 
 ## Quantas Tools saem de um modelo
@@ -44,8 +47,9 @@ primária em `Tool.Activated`, Extra por tecla via `AcaoRemote`.
 sem `ReplicatedStorage`, sem `ServerStorage`. **Ela funciona por inteiro.**
 
 Não são violação: `_G.Combate` com guarda (global opcional, não caminho de instância),
-`parte.Parent = workspace` (escrever no mundo é saída; **ler** dele é dependência), e
-`rbxassetid://` dentro de instância que já é filha da Tool.
+`parte.Parent = workspace` (escrever no mundo é saída; **ler** dele é dependência),
+`rbxassetid://` dentro de instância que já é filha da Tool, e `workspace.CurrentCamera`
+**em `LocalScript`** (singleton por cliente, como `Players.LocalPlayer` — não é depósito de asset).
 
 Verificar sempre antes de fechar: `bash TESTES/verificar_autocontencao.sh`
 
@@ -62,7 +66,11 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
 | Tool é autocontida | Tool sozinha em place vazio funciona por inteiro |
 | Asset vem de dentro | `Sound` clonado de `Tool/SFX/`; molde de VFX de `Tool/Efeitos/` |
-| Animação R6 usa o animator canônico | Zero escrita em `Motor6D.C0`; poses no formato `Weld` (RightArm/LeftArm/Head/HRP) |
+| Animação R6 usa o animator canônico | Zero escrita em `Motor6D.C0`; poses no formato `Weld` (RightArm/LeftArm/Head/HRP/RightLeg/LeftLeg) |
+| Quem encadeia beat é o animator | Zero `task.wait(passo.…)`; `PlaySequence` / `PlayTrack` |
+| Perna volta ao `Humanoid` | `ReleaseLegs` no fim; perna soldada permanentemente trava a caminhada |
+| Câmera é 100% cliente | Zero `Camera` em Server Script; servidor manda beat por `RemoteEvent` |
+| Câmera presa é devolvida | Quem escreve `CameraType` liga `Tool.Unequipped` **e** `Tool.Destroying` |
 | Núcleo é a única porta de regra de combate | Zero `canDamage` / `IsTeamMate` / `TagHumanoid` fora de `NucleoCombate.lua` |
 | Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `_G.Combate.transmitirVFX` + `VFXRemote` |
 | Toda chamada ao Núcleo é opcional | Sempre `_G.Combate and _G.Combate.x(...) or <fallback>` |
@@ -82,7 +90,10 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | `ScreenGui` · `ColorCorrection` · `Sky` dentro da Tool | Efeito só no mundo 3D |
 | `require(<id numérico>)` | Módulo copiado para dentro da Tool |
 | `Animation` / `LoadAnimation` | Tabela de poses CFrame sob `R6CFrameAnimator` |
-| **Escrever em `Motor6D.C0`** | **`R6CFrameAnimator` V1 canônico — ele solda `Weld`s próprios** |
+| **Escrever em `Motor6D.C0`** | **`R6CFrameAnimator` V2 canônico — ele solda `Weld`s próprios** |
+| `task.wait(passo.duracao)` para encadear beat | `rig:PlaySequence` (Tween.Completed) ou `rig:PlayTrack` (acumulador `dt`) |
+| `Camera` em Server Script | `RemoteEvent` com beat nomeado; quem enquadra é o `LocalScript` |
+| Animator escrito na hora, dentro de uma Tool | O canônico do Acervo, copiado para dentro |
 
 Números mágicos espalhados pelo corpo do script são violação: bloco `CFG` único no topo,
 junto do `ARQUETIPO`.

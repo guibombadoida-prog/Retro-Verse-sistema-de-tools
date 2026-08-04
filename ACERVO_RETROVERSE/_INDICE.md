@@ -96,13 +96,37 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses_GuardiaoDoTempo_Temporalise_V1` | Guardiao_Do_Tempo | 6 · 1 quadro | LIMPO | Temporalise |
 | `Poses_GuardiaoDoTempo_ArmadilhaTemporal_V1` | Guardiao_Do_Tempo | 6 · 2 quadros | LIMPO | ArmadilhaTemporal |
 | `Poses_GuardiaoDoTempo_AvoDoTempo_V1` | Guardiao_Do_Tempo | 6 · 3+2 quadros | LIMPO | AvoDoTempo |
-| `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | **APROVADO** | as 7 Tools + o molde |
+| `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | as 7 Tools + o molde |
+| `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
+| `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
 
-> ⚠️ **`R6CFrameAnimator_V1` é O animator do projeto. Não escreva outro.**
+> ⚠️ **`R6CFrameAnimator_V2` é O animator do projeto. Não escreva outro.**
 > Ele cria `Weld`s próprios; escrever em `Motor6D.C0` briga com o script `Animate`
 > padrão do Roblox e **buga a animação** — foi o que aconteceu na primeira versão do
-> Guardião do Tempo. O `V2` que eu havia escrito foi **removido do Acervo**.
-> Ver [`_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md`](_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md).
+> Guardião do Tempo.
+>
+> V2 é **superset do V1**: mesma API, mesmas bases, mesmos nomes de junta — toda tabela
+> de poses do V1 roda no V2 sem alteração. Acrescenta perna sob demanda, `PlaySequence`,
+> `PlayTrack`, tremor determinístico e `LockCharacter`. O V1 fica como referência.
+>
+> Nota: houve um `V2` **meu**, baseado em `Motor6D`, removido do Acervo por ser a versão
+> errada. O V2 que está aqui não é aquele — não tem parentesco com o arquivo removido.
+>
+> Ver [`_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md`](_AUTORAL_RetroVerse/R6_CFRAME/NOTAS.md)
+> e `DIRETRIZES/REGRA_ANIMACAO_R6.md`.
+
+## CÂMERA
+
+| Molde | Origem | Tipo | Status | Já usado em |
+|---|---|---|---|---|
+| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | nenhuma Tool ainda |
+
+Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
+`STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a
+Regra nº 1 — mas só em `LocalScript`, e sempre devolvida em `Unequipped`/`Destroying`.
+
+Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md) e
+`DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md`.
 
 ---
 
@@ -112,8 +136,9 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 |---|---|---|
 | `Guardiao_Do_Tempo/` | **LIMPO** | [FICHA.md](Guardiao_Do_Tempo/FICHA.md) |
 | `Jupiter_Great_Pressure_Sword/` | **LIMPO** (parcial) | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
-| `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) |
-| `VFX_Library_V2/` | **CRU** | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
+| `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
+| `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |
+| `Saitama_Animacoes_Referencia/` | **CRU** | [FICHA.md](Saitama_Animacoes_Referencia/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 

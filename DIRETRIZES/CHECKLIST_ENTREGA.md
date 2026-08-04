@@ -49,6 +49,53 @@ python3 TESTES/verificar_rbxmx.py
 
 ---
 
+## ANIMAÇÃO R6 (`REGRA_ANIMACAO_R6.md`)
+
+```bash
+python3 TESTES/verificar_poses.py
+```
+
+- [ ] `verificar_poses.py` passa sem nenhuma falha
+- [ ] O `R6CFrameAnimator` dentro da Tool é o **V2 canônico**, byte a byte
+- [ ] Zero escrita em `Motor6D.C0`; zero `Animation` / `LoadAnimation`
+- [ ] Toda junta citada está entre as seis do animator
+- [ ] Nenhuma sequência é inteiramente neutra — **animação morta não é animação**
+- [ ] Sequência encadeada por `PlaySequence`/`PlayTrack`, nunca por `task.wait(passo…)`
+- [ ] Até ~10 beats → `PlaySequence`; acima disso → `PlayTrack`
+- [ ] Se usa perna: é solta no fim (`ReleaseLegs`, ou via `PlaySequence`)
+- [ ] `rig:Destroy()` ligado em `Unequipped`, `Destroying` **e** `Died`
+
+**Teste manual:**
+
+- [ ] Equipar e andar/correr/pular → caminhada normal
+- [ ] Tocar sequência com perna, esperar acabar, **andar de novo** → voltou ao normal
+- [ ] Desequipar no meio da sequência → nada fica preso
+- [ ] Morrer no meio → respawn limpo, sem `Weld` órfão
+- [ ] O dano entra no **quadro de impacto**, não no fim da animação
+
+---
+
+## CÂMERA DE CUTSCENE (`REGRA_CAMERA_DE_CUTSCENE.md`)
+
+Só se a Tool tiver cutscene. Se não tiver, pular a seção inteira.
+
+- [ ] Toda escrita em câmera está em `LocalScript` — zero `Camera` em Server Script
+- [ ] O servidor manda **beat nomeado**, nunca `CFrame` de câmera
+- [ ] `CameraType` anterior é guardado e restaurado (não `Custom` chutado)
+- [ ] `FieldOfView` volta ao valor base
+- [ ] Desligada em `Unequipped`, `Destroying` e morte
+- [ ] É pulável, e o pulo **não** encurta a timeline do servidor
+- [ ] Zero `ScreenGui` / `ColorCorrection` / `Blur` / `Sky`
+
+**Teste manual:**
+
+- [ ] Cutscene inteira → câmera volta sozinha, com `CameraType` e FOV originais
+- [ ] Desequipar no meio → câmera volta na hora
+- [ ] Morrer no meio → câmera volta, respawn normal
+- [ ] Dois jogadores, um pula e o outro não → a timeline dos dois termina junto
+
+---
+
 ## Base da Tool (§14)
 
 - [ ] `CanBeDropped = false`

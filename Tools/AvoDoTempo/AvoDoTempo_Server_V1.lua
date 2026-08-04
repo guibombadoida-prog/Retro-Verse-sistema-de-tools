@@ -68,21 +68,13 @@ local CFG = {
 
 local animador = nil
 
--- O Animator canônico toca UMA pose por chamada (PlayPose). A sequência é
--- encadeada aqui, não dentro dele.
-local function tocarSequencia(sequencia)
-	if not animador or not sequencia then
+-- O V2 encadeia a sequência sozinho, por Tween.Completed. Passar o NOME da
+-- sequência é o contrato; encadear com task.wait aqui somaria ~1 frame por beat.
+local function tocarSequencia(nome)
+	if not animador or not nome then
 		return
 	end
-	task.spawn(function()
-		for _, passo in ipairs(sequencia) do
-			if not animador then
-				return
-			end
-			animador:PlayPose(passo.pose, passo.duracao)
-			task.wait(passo.duracao)
-		end
-	end)
+	animador:PlaySequence(nome)
 end
 local cancelamentos = {}
 local cancelarReducao = nil

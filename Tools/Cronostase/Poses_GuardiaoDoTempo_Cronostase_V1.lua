@@ -2,60 +2,93 @@
 	Poses_GuardiaoDoTempo_Cronostase_V1  —  ModuleScript "Poses", filho direto da Tool
 	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
+	V3 — POSES AUTORAIS DE VERDADE, no formato do R6CFrameAnimator V2.
 
-	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
-	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
-	o script `Animate` padrão do Roblox escreve nesses mesmos Motor6D todo frame,
-	e os dois brigavam pela mesma junta.
+	A V2 deste arquivo declarava as poses como "autorais" mas emitia as três
+	iguais à BASE dos Welds — ou seja, a sequência inteira não movia nada. O
+	modelo de origem não anima Chronostasis, então não havia o que converter, e
+	o conversor devolveu as bases. Isso não é pose autoral, é buraco. Agora tem
+	coreografia escrita à mão.
 
-	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
-	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
-	desses Welds, convertidas por:
+	Cada pose é o C0 de um Weld que o animator cria:
 
-		WeldC0 = MotorC0 * MotorC1⁻¹
+		RightArm   Torso → Right Arm          base CFrame.new( 1.5,  0,   0)
+		LeftArm    Torso → Left Arm           base CFrame.new(-1.5,  0,   0)
+		Head       Torso → Head               base CFrame.new( 0,    1.5, 0)
+		HRP        HumanoidRootPart → Torso   base CFrame.new()
 
-	Conferido contra as bases do animator: a pose neutra devolve exatamente
-	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
+	⚠️ NÃO escreva em Motor6D. O script `Animate` padrão do Roblox escreve nessas
+	mesmas juntas todo frame — os dois brigam e a animação treme.
 
-	Juntas: RightArm · LeftArm · Head · HRP.
-	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
-	não solda pernas. 0 canal(is) de perna descartado(s) nesta Tool.
+	Ver DIRETRIZES/REGRA_ANIMACAO_R6.md.
+
+	DRAMATURGIA — Chronostasis marca um ponto no tempo e depois devolve você a
+	ele. A leitura é de ANCORAGEM: o braço desce e "crava" a marca no chão do
+	tempo, o tronco recua com o impacto da marca, e o corpo assenta.
 --]]
 
 local Poses = {}
+
+local function graus(x, y, z)
+	return CFrame.Angles(math.rad(x), math.rad(y), math.rad(z))
+end
+
+local BASE_BRACO_D = CFrame.new(1.5, 0, 0)
+local BASE_BRACO_E = CFrame.new(-1.5, 0, 0)
+local BASE_CABECA  = CFrame.new(0, 1.5, 0)
+local BASE_TRONCO  = CFrame.new()
 
 --==============================================================================
 -- POSES — C0 de Weld, no formato que o Animator canônico consome
 --==============================================================================
 
 Poses.POSES = {
+	-- 1. Armar: o relógio sobe à altura do olho, o tronco gira para acompanhar
 	PRIMARIA_1 = {
-		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = BASE_BRACO_D * graus(-105, 0, 18),
+		LeftArm  = BASE_BRACO_E * graus(-18, 0, -14),
+		Head     = BASE_CABECA * graus(-12, 22, 0),
+		HRP      = BASE_TRONCO * graus(0, -20, 0),
 	},
+
+	-- 2. Cravar: o braço desce firme e a marca assenta. É o quadro de impacto —
+	--    é aqui que o CFrame do jogador é guardado, não no fim da sequência.
 	PRIMARIA_2 = {
-		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = BASE_BRACO_D * graus(-32, 0, -8),
+		LeftArm  = BASE_BRACO_E * graus(-8, 0, -22),
+		Head     = BASE_CABECA * graus(8, -6, 0),
+		HRP      = BASE_TRONCO * graus(6, 14, 0),
 	},
+
+	-- 3. Assentar: volta ao repouso, sem voltar à base exata — sobra um resíduo
+	--    de peso no tronco, que lê como "alguma coisa ficou marcada ali"
 	PRIMARIA_3 = {
-		HRP      = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
-		RightArm = CFrame.new(1.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+		RightArm = BASE_BRACO_D * graus(-6, 0, 3),
+		LeftArm  = BASE_BRACO_E * graus(-4, 0, -5),
+		Head     = BASE_CABECA,
+		HRP      = BASE_TRONCO * graus(0, 4, 0),
 	},
 }
 
 --==============================================================================
--- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
+-- SEQUÊNCIAS — timeline do V2: o animator encadeia por Tween.Completed.
+--
+-- `time` é a duração do beat; `style`/`dir` são o easing. Encadear com
+-- task.wait(duracao) some ~1 frame por beat e é proibido pela
+-- DIRETRIZES/REGRA_ANIMACAO_R6.md — quem encadeia é o animator.
 --==============================================================================
 
-local PRIMARIA = {
-	{ pose = "PRIMARIA_1", duracao = 0.16, easing = "quadOut" },
-	{ pose = "PRIMARIA_2", duracao = 0.22, easing = "backOut" },
-	{ pose = "PRIMARIA_3", duracao = 0.2, easing = "quadInOut" },
+Poses.SEQUENCIAS = {
+	PRIMARIA = {
+		{ pose = "PRIMARIA_1", time = 0.16, style = "Back",  dir = "Out" },
+		{ pose = "PRIMARIA_2", time = 0.22, style = "Quint", dir = "Out", tremor = 0.02 },
+		{ pose = "PRIMARIA_3", time = 0.2,  style = "Quad",  dir = "InOut" },
+	},
 }
 
+-- Os acessores devolvem o NOME da sequência — é o que PlaySequence recebe.
 function Poses.primaria()
-	return PRIMARIA
+	return "PRIMARIA"
 end
 
 return Poses

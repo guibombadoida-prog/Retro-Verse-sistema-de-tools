@@ -2,7 +2,7 @@
 	Poses_GuardiaoDoTempo_TemperoTemporal_V1  —  ModuleScript "Poses", filho direto da Tool
 	Retro-Verse / Studios  ·  §10.11 · §12.12.1
 
-	V2 — REESCRITO PARA O R6CFrameAnimator V1 CANÔNICO DO PROJETO.
+	V3 — MIGRADO PARA O R6CFrameAnimator V2 CANÔNICO DO PROJETO.
 
 	A versão anterior guardava C0 ABSOLUTA de Motor6D ("Right Shoulder", "Neck"…),
 	porque o animator que eu havia escrito mexia nos Motor6D direto. Isso BUGAVA:
@@ -10,17 +10,25 @@
 	e os dois brigavam pela mesma junta.
 
 	O animator canônico cria Welds PRÓPRIOS (Torso→Right Arm, Torso→Head,
-	HumanoidRootPart→Torso). Ninguém mais toca neles. As poses abaixo são o C0
-	desses Welds, convertidas por:
+	HumanoidRootPart→Torso, e Torso→pernas sob demanda). Ninguém mais toca
+	neles. As poses abaixo são o C0 desses Welds, convertidas por:
 
 		WeldC0 = MotorC0 * MotorC1⁻¹
 
 	Conferido contra as bases do animator: a pose neutra devolve exatamente
 	CFrame.new(1.5, 0, 0), CFrame.new(-1.5, 0, 0), CFrame.new(0, 1.5, 0) e CFrame.new().
 
-	Juntas: RightArm · LeftArm · Head · HRP.
-	⚠️ Right Hip e Left Hip do modelo NÃO têm equivalente — o animator canônico
-	não solda pernas. 5 canal(is) de perna descartado(s) nesta Tool.
+	Juntas em uso: RightArm · LeftArm · Head · HRP.
+
+	⚠️ 5 canal(is) de perna (Right Hip / Left Hip) do modelo foram DESCARTADOS
+	na conversão original, quando o animator do projeto era o V1 e soldava só
+	quatro juntas. O V2 solda RightLeg e LeftLeg sob demanda — ou seja, o limite
+	que justificou o descarte NÃO EXISTE MAIS. Reautorar esses canais é trabalho
+	disponível, e sai desta Tool como V2 do arquivo de poses.
+
+	Se reautorar: perna é sob demanda e tem de ser SOLTA no fim (ReleaseLegs),
+	senão a caminhada trava. PlaySequence solta sozinho; PlayPose avulso, não.
+	Ver DIRETRIZES/REGRA_ANIMACAO_R6.md.
 --]]
 
 local Poses = {}
@@ -63,19 +71,26 @@ Poses.POSES = {
 }
 
 --==============================================================================
--- SEQUÊNCIAS — o Server toca uma pose por vez, com PlayPose(nome, duracao)
+-- SEQUÊNCIAS — timeline do V2: o animator encadeia por Tween.Completed.
+--
+-- `time` é a duração do beat; `style`/`dir` são o easing. Encadear com
+-- task.wait(duracao) some ~1 frame por beat e é proibido pela
+-- DIRETRIZES/REGRA_ANIMACAO_R6.md — quem encadeia é o animator.
 --==============================================================================
 
-local PRIMARIA = {
-	{ pose = "PRIMARIA_1", duracao = 0.08, easing = "quadOut" },
-	{ pose = "PRIMARIA_2", duracao = 0.15, easing = "quadInOut" },
-	{ pose = "PRIMARIA_3", duracao = 0.08, easing = "backOut" },
-	{ pose = "PRIMARIA_4", duracao = 0.08, easing = "cubicOut" },
-	{ pose = "PRIMARIA_5", duracao = 0.25, easing = "quadOut" },
+Poses.SEQUENCIAS = {
+	PRIMARIA = {
+		{ pose = "PRIMARIA_1", time = 0.08, style = "Quad", dir = "Out" },
+		{ pose = "PRIMARIA_2", time = 0.15, style = "Quad", dir = "InOut" },
+		{ pose = "PRIMARIA_3", time = 0.08, style = "Back", dir = "Out" },
+		{ pose = "PRIMARIA_4", time = 0.08, style = "Cubic", dir = "Out" },
+		{ pose = "PRIMARIA_5", time = 0.25, style = "Quad", dir = "Out" },
+	},
 }
 
+-- Os acessores devolvem o NOME da sequência — é o que PlaySequence recebe.
 function Poses.primaria()
-	return PRIMARIA
+	return "PRIMARIA"
 end
 
 return Poses
