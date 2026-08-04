@@ -167,9 +167,6 @@ local function romper()
 	for _, cancelar in ipairs(vinculo.cancelamentos or {}) do
 		pcall(cancelar)
 	end
-	if vinculo.marca then
-		vinculo.marca.Parent = nil
-	end
 	vinculo = nil
 end
 
@@ -186,20 +183,25 @@ local function vincular(jogador, personagem, humanoide, raiz)
 		return false
 	end
 
-	local marca = Instance.new("Part")
-	marca.Name = "MarcaDoSalvador"
-	marca.Anchored = true
-	marca.CanCollide = false
-	marca.CanQuery = false
-	marca.CanTouch = false
-	marca.CastShadow = false
-	marca.Material = Enum.Material.Neon
-	marca.Color = CFG.COR_VINCULO
-	marca.Transparency = 0.25
-	marca.Size = CFG.MARCA_TAMANHO
-	marca.Parent = workspace
+	vinculo = { alvo = aliado, cancelamentos = {} }
 
-	vinculo = { alvo = aliado, marca = marca, cancelamentos = {} }
+	-- A marca sobre o aliado é desenhada no CLIENTE. Girar uma Part ancorada
+	-- pelo servidor entrega ~20 Hz sem interpolação — a marca tremia.
+	local aliadoJogador = Players:GetPlayerFromCharacter(aliado.Parent)
+	if aliadoJogador then
+		local marcaPayload = {
+			userId = aliadoJogador.UserId,
+			altura = CFG.MARCA_ALTURA,
+			voltas = CFG.MARCA_VOLTAS,
+			duracao = CFG.DURACAO,
+			cor = CFG.COR_VINCULO,
+		}
+		if _G.Combate and _G.Combate.transmitirVFX then
+			_G.Combate.transmitirVFX(VFXRemote, "MARCA_ORBITAL", marcaPayload)
+		else
+			VFXRemote:FireAllClients("MARCA_ORBITAL", marcaPayload)
+		end
+	end
 
 	tocarSequencia(Poses.primaria())
 	tocarSom(CFG.SFX_VINCULO, raiz.Position)
@@ -265,10 +267,7 @@ local function vincular(jogador, personagem, humanoide, raiz)
 			return
 		end
 
-		-- Marca flutuando e girando sobre o aliado.
 		local centro = vivoAliado.Position + Vector3.new(0, CFG.MARCA_ALTURA, 0)
-		vinculo.marca.CFrame = CFrame.new(centro)
-			* CFrame.Angles(0, t * CFG.MARCA_VOLTAS * math.pi * 2, 0)
 
 		desdeVerificacao = desdeVerificacao + dt
 		if desdeVerificacao < CFG.VERIFICACAO_INTERVALO then

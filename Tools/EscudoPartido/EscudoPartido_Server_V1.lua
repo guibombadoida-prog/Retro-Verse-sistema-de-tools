@@ -89,7 +89,6 @@ local CFG = {
 local animador = nil
 local emSentenca = false
 local ultimaSentenca = 0
-local laminasVivas = {}
 
 local function tocarSequencia(nome)
 	if not animador or not nome then
@@ -212,48 +211,48 @@ end
 -- PRIMÁRIA — a lâmina que não volta
 --==============================================================================
 
+--[[
+	A lâmina que não volta.
+
+	O DESENHO é do cliente: `DISCO_VOO` com `volta = false`. O servidor não cria
+	Part — Part ancorada movida por script de servidor replica a ~20 Hz sem
+	interpolação, e era isso que picotava o voo. A trajetória é fórmula, e os
+	dois lados usam a mesma.
+]]
 local function lancarLamina(jogador, personagem, raiz)
 	local direcao = raiz.CFrame.LookVector
 	local origem = raiz.Position + direcao * 2 + Vector3.new(0, 1.2, 0)
 
-	local lamina = Instance.new("Part")
-	lamina.Name = "LaminaPartida"
-	lamina.Anchored = true
-	lamina.CanCollide = false
-	lamina.CanQuery = false
-	lamina.CanTouch = false
-	lamina.CastShadow = false
-	lamina.Material = Enum.Material.Metal
-	lamina.Color = CFG.COR_VFX
-	lamina.Reflectance = 0.4
-	lamina.Size = CFG.LAMINA_TAMANHO
-	lamina.CFrame = CFrame.lookAt(origem, origem + direcao)
-	lamina.Parent = workspace
-	table.insert(laminasVivas, lamina)
-
 	tocarSom(CFG.SFX_CORTE, origem)
 	transmitir("LAMINA", origem, 1.0, CFG.COR_VFX, direcao)
 
+	local payload = {
+		posicao = origem,
+		frente = direcao,
+		velocidade = CFG.LAMINA_VELOCIDADE,
+		alcance = CFG.LAMINA_ALCANCE,
+		volta = false,
+		tamanho = CFG.LAMINA_TAMANHO,
+		cor = CFG.COR_VFX,
+		userId = jogador.UserId,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "DISCO_VOO", payload)
+	else
+		VFXRemote:FireAllClients("DISCO_VOO", payload)
+	end
+
 	local percorrido = 0
+	local posicao = origem
 	local jaAtingidos = {}
 	local conexao
 
 	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not lamina.Parent then
-			conexao:Disconnect()
-			return
-		end
-
 		local passo = CFG.LAMINA_VELOCIDADE * dt
 		percorrido = percorrido + passo
-		local nova = lamina.Position + direcao * passo
+		posicao = posicao + direcao * passo
 
-		-- Gira no próprio eixo enquanto vai — é o que faz ler como lâmina
-		-- girando, e não como placa deslizando.
-		lamina.CFrame = CFrame.lookAt(nova, nova + direcao)
-			* CFrame.Angles(0, 0, percorrido * 0.42)
-
-		for _, alvo in ipairs(humanoidesEmArea(nova, CFG.LAMINA_RAIO, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(posicao, CFG.LAMINA_RAIO, personagem, jogador, nil)) do
 			if not jaAtingidos[alvo] and podeAtingir(jogador, alvo) then
 				jaAtingidos[alvo] = true
 				aplicarDano(jogador, alvo, CFG.LAMINA_DANO)
@@ -277,14 +276,16 @@ local function lancarLamina(jogador, personagem, raiz)
 		-- esta Tool do Bumerangue.
 		if percorrido >= CFG.LAMINA_ALCANCE then
 			conexao:Disconnect()
-			transmitir("ESTILHACO_ESCUDO", lamina.Position, 1.0)
-			transmitir("ESTILHACOS", lamina.Position, 0.9)
-			tocarSom(CFG.SFX_ESTILHACO, lamina.Position)
-			lamina.Parent = nil
+			transmitir("ESTILHACOS", posicao, 0.9)
+			tocarSom(CFG.SFX_ESTILHACO, posicao)
 		end
 	end)
 
-	Debris:AddItem(lamina, CFG.LAMINA_ALCANCE / CFG.LAMINA_VELOCIDADE + 1)
+	task.delay(CFG.LAMINA_ALCANCE / CFG.LAMINA_VELOCIDADE + 1, function()
+		if conexao.Connected then
+			conexao:Disconnect()
+		end
+	end)
 end
 
 --==============================================================================
@@ -348,32 +349,11 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 		animador:LockCharacter(true)
 	end
 
-	-- Os dois escudos que cortam. São geometria de verdade, no mundo, porque o
-	-- alvo e os espectadores precisam ver de onde vem cada corte.
-	local pasta = Instance.new("Folder")
-	pasta.Name = "SentencaDeEscudos"
-	pasta.Parent = workspace
-
-	local escudos = {}
-	for i = 1, 2 do
-		local escudo = Instance.new("Part")
-		escudo.Name = "EscudoSentenca" .. i
-		escudo.Anchored = true
-		escudo.CanCollide = false
-		escudo.CanQuery = false
-		escudo.CanTouch = false
-		escudo.CastShadow = false
-		escudo.Material = Enum.Material.Metal
-		escudo.Color = CFG.COR_SENTENCA
-		escudo.Reflectance = 0.45
-		escudo.Size = CFG.LAMINA_TAMANHO
-		escudo.Parent = pasta
-		table.insert(escudos, escudo)
-	end
-
+	-- Os dois escudos que cortam são desenhados no CLIENTE, um par de LAMINA por
+	-- corte, em lados opostos do alvo. Manter duas Part no servidor e
+	-- reposicioná-las por corte custaria replicação e chegaria picotado.
 	local function encerrar()
 		emSentenca = false
-		pasta.Parent = nil
 		if animador then
 			animador:LockCharacter(false)
 			animador:PlaySequence(Poses.repouso())
@@ -399,13 +379,11 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 				local centro = alvoRaiz.Position
 				local desloca = Vector3.new(math.cos(angulo) * 4.5, 1.4, math.sin(angulo) * 4.5)
 
-				-- Os dois escudos ficam em lados opostos do alvo a cada corte.
-				escudos[1].CFrame = CFrame.lookAt(centro + desloca, centro)
-				escudos[2].CFrame = CFrame.lookAt(centro - desloca, centro)
-
 				aplicarDano(jogador, alvo, CFG.SENTENCA_DANO)
 				tocarSom(CFG.SFX_CORTE, centro)
+				-- Os dois cortes, em lados opostos, no mesmo quadro.
 				transmitir("LAMINA", centro, 1.1, CFG.COR_SENTENCA, desloca.Unit)
+				transmitir("LAMINA", centro, 1.1, CFG.COR_SENTENCA, -desloca.Unit)
 				transmitir("IMPACTO_ESCUDO", centro, 0.7, CFG.COR_SENTENCA)
 				avisarCamera(jogador, "CORTE", indice)
 			end)
@@ -476,13 +454,6 @@ acaoRemote.OnServerEvent:Connect(function(quemPediu)
 end)
 
 local function desmontar()
-	for _, lamina in ipairs(laminasVivas) do
-		if lamina and lamina.Parent then
-			lamina.Parent = nil
-		end
-	end
-	table.clear(laminasVivas)
-
 	if emSentenca then
 		emSentenca = false
 		local jogador = tool.Parent and Players:GetPlayerFromCharacter(tool.Parent)

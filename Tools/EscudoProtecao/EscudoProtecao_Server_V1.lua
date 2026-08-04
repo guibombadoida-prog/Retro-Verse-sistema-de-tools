@@ -200,9 +200,6 @@ local function pararOrbita()
 		orbita.conexao:Disconnect()
 		orbita.conexao = nil
 	end
-	if orbita.parte then
-		orbita.parte.Parent = nil
-	end
 	orbita = nil
 	table.clear(jaRebatidos)
 end
@@ -210,21 +207,27 @@ end
 local function soltar(jogador, personagem, humanoide, raiz)
 	pararOrbita()
 
-	local escudo = Instance.new("Part")
-	escudo.Name = "EscudoOrbitando"
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.CanTouch = false
-	escudo.CastShadow = false
-	escudo.Material = Enum.Material.Metal
-	escudo.Color = CFG.COR_VFX
-	escudo.Reflectance = 0.4
-	escudo.Transparency = 0.08
-	escudo.Size = CFG.ESCUDO_TAMANHO
-	escudo.Parent = workspace
+	orbita = { ativa = true }
 
-	orbita = { parte = escudo }
+	-- O DESENHO do escudo é do CLIENTE, com um beat só. Part ancorada movida
+	-- por script de servidor replica a ~20 Hz sem interpolação — a órbita
+	-- chegava em passos. A posição é fórmula, e a mesma fórmula roda aqui só
+	-- para saber onde varrer projétil.
+	local orbitaPayload = {
+		userId = jogador.UserId,
+		quantidade = 1,
+		raio = CFG.ORBITA_RAIO,
+		altura = CFG.ORBITA_ALTURA,
+		voltas = CFG.ORBITA_VOLTAS,
+		duracao = CFG.DURACAO,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = CFG.COR_VFX,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "ORBITA_ESCUDOS", orbitaPayload)
+	else
+		VFXRemote:FireAllClients("ORBITA_ESCUDOS", orbitaPayload)
+	end
 
 	tocarSequencia(Poses.primaria())
 	tocarSom(CFG.SFX_ORBITA, raiz.Position)
@@ -245,11 +248,12 @@ local function soltar(jogador, personagem, humanoide, raiz)
 
 		t = t + dt
 		if t >= CFG.DURACAO then
-			transmitir("FAISCA", escudo.Position, 0.8)
+			transmitir("FAISCA", raiz.Position, 0.8)
 			pararOrbita()
 			return
 		end
 
+		-- Onde o escudo ESTÁ, pela mesma fórmula que o cliente desenha.
 		local centro = raiz.Position + Vector3.new(0, CFG.ORBITA_ALTURA, 0)
 		local angulo = t * CFG.ORBITA_VOLTAS * math.pi * 2
 		local pos = centro + Vector3.new(
@@ -257,7 +261,6 @@ local function soltar(jogador, personagem, humanoide, raiz)
 			0,
 			math.sin(angulo) * CFG.ORBITA_RAIO
 		)
-		escudo.CFrame = CFrame.lookAt(pos, pos + (pos - centro).Unit)
 
 		desdeVarredura = desdeVarredura + dt
 		if desdeVarredura < CFG.REFLEXO_INTERVALO then
@@ -265,7 +268,7 @@ local function soltar(jogador, personagem, humanoide, raiz)
 		end
 		desdeVarredura = 0
 
-		for _, projetil in ipairs(projeteisPerto(escudo.Position, personagem)) do
+		for _, projetil in ipairs(projeteisPerto(pos, personagem)) do
 			if not jaRebatidos[projetil] then
 				jaRebatidos[projetil] = true
 

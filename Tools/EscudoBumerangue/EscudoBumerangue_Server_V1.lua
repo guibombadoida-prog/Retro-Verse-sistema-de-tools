@@ -82,7 +82,6 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
-local voando = {}
 local comboAcertos = 0
 local comboAte = 0
 local ultimaTrinca = 0
@@ -231,86 +230,72 @@ end
 -- O DISCO
 --==============================================================================
 
-local function novoDisco(cor)
-	local disco = Instance.new("Part")
-	disco.Name = "EscudoArremessado"
-	disco.Anchored = true
-	disco.CanCollide = false
-	disco.CanQuery = false
-	disco.CanTouch = false
-	disco.CastShadow = false
-	disco.Material = Enum.Material.Metal
-	disco.Color = cor
-	disco.Reflectance = 0.4
-	disco.Size = CFG.ESCUDO_TAMANHO
-	return disco
-end
-
 --[[
 	Lança um disco. `volta` decide se ele retorna à mão — é o que separa esta
 	Tool do Escudo Partido, que usa o mesmo voo sem o retorno.
+
+	O DESENHO é do cliente. O servidor não cria Part nenhuma: a trajetória é
+	fórmula (origem, direção, velocidade, alcance), e o cliente reproduz a mesma
+	fórmula a 60 Hz. Part ancorada movida por script de servidor replica a ~20 Hz
+	sem interpolação — era isso que deixava o voo picotado.
 ]]
 local function lancar(jogador, personagem, raiz, direcao, dano, velocidade, alcance, cor, volta)
 	local origem = raiz.Position + direcao * 2 + Vector3.new(0, 1.2, 0)
-	local disco = novoDisco(cor)
-	disco.CFrame = CFrame.lookAt(origem, origem + direcao)
-	disco.Parent = workspace
-	table.insert(voando, disco)
 
-	transmitir("LAMINA", origem, 0.9, cor, direcao)
+	local payload = {
+		posicao = origem,
+		frente = direcao,
+		velocidade = velocidade,
+		alcance = alcance,
+		volta = volta,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = cor,
+		userId = jogador.UserId,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "DISCO_VOO", payload)
+	else
+		VFXRemote:FireAllClients("DISCO_VOO", payload)
+	end
 
+	-- O servidor acompanha o MESMO voo, só que sem geometria: a posição sai da
+	-- fórmula e serve para detectar quem foi atingido.
 	local percorrido = 0
+	local posicao = origem
 	local voltando = false
-	local giro = 0
 	local jaAtingidos = {}
 	local conexao
 
 	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not disco.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		-- Acumulador dt a partir de zero. NUNCA tick(): tick() é tempo de
-		-- parede e dá salto quando o servidor engasga.
 		local passo = velocidade * dt
-		giro = giro + dt * 14
 
-		local alvoPos
 		if not voltando then
 			percorrido = percorrido + passo
-			alvoPos = disco.Position + direcao * passo
+			posicao = posicao + direcao * passo
 			if percorrido >= alcance then
 				if volta then
 					voltando = true
 					table.clear(jaAtingidos)   -- pode acertar de novo na volta
-					tocarSom(CFG.SFX_RETORNO, disco.Position)
+					tocarSom(CFG.SFX_RETORNO, posicao)
 				else
 					conexao:Disconnect()
-					transmitir("ESTILHACO_ESCUDO", disco.Position, 1.0, cor)
-					disco.Parent = nil
 					return
 				end
 			end
 		else
 			if not (raiz and raiz.Parent) then
 				conexao:Disconnect()
-				disco.Parent = nil
 				return
 			end
-			local paraMao = (raiz.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			local paraMao = (raiz.Position + Vector3.new(0, 1.2, 0)) - posicao
 			if paraMao.Magnitude <= 3.0 then
 				conexao:Disconnect()
-				transmitir("FAISCA", disco.Position, 0.7, cor)
-				disco.Parent = nil
 				return
 			end
-			alvoPos = disco.Position + paraMao.Unit * passo
+			posicao = posicao + paraMao.Unit * passo
 		end
 
-		disco.CFrame = CFrame.lookAt(alvoPos, alvoPos + direcao) * CFrame.Angles(0, 0, giro)
-
-		for _, alvo in ipairs(humanoidesEmArea(alvoPos, CFG.RAIO_ACERTO, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(posicao, CFG.RAIO_ACERTO, personagem, jogador, nil)) do
 			if not jaAtingidos[alvo] then
 				jaAtingidos[alvo] = true
 				local cancelar = bonusDeCombo(jogador, alvo)
@@ -335,7 +320,12 @@ local function lancar(jogador, personagem, raiz, direcao, dano, velocidade, alca
 		end
 	end)
 
-	Debris:AddItem(disco, (alcance / velocidade) * 2.5 + 1)
+	-- Corda de segurança: se nada desconectar, o laço morre sozinho.
+	task.delay((alcance / velocidade) * 3 + 1, function()
+		if conexao.Connected then
+			conexao:Disconnect()
+		end
+	end)
 end
 
 --==============================================================================
@@ -420,12 +410,6 @@ acaoRemote.OnServerEvent:Connect(function(quemPediu)
 end)
 
 local function desmontar()
-	for _, disco in ipairs(voando) do
-		if disco and disco.Parent then
-			disco.Parent = nil
-		end
-	end
-	table.clear(voando)
 	comboAcertos = 0
 
 	if animador then

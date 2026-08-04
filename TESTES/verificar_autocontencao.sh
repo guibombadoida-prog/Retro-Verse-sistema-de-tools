@@ -202,6 +202,37 @@ else
 	verde "✓ detecção de alvo enxerga NPC"
 fi
 
+# --- Fluidez: nada de mover geometria pelo servidor ---------------------------
+#
+# Part ancorada cujo CFrame é escrito por script de SERVIDOR replica a ~20 Hz e
+# o cliente NÃO interpola: o movimento chega em passos discretos. Foi isso que
+# deixou a órbita, o voo do disco e a marca do vínculo "não fluidos".
+#
+# Movimento contínuo é do cliente, a 60 Hz, a partir de um beat com parâmetros.
+# O servidor segue dono do dano, calculando a MESMA fórmula sem geometria.
+MOVE_NO_SERVIDOR=$(printf '%s\n' "$PURO" | awk -F: '
+	{
+		arquivo = $1
+		corpo   = substr($0, index($0, $3))
+
+		if (arquivo !~ /_Server_V[0-9]+\.lua/) { next }
+		if (corpo ~ /Heartbeat:Connect|RenderStepped:Connect|Stepped:Connect/) {
+			dentro[arquivo] = 1
+		}
+		if (dentro[arquivo] && corpo ~ /\.CFrame[ \t]*=/) {
+			print arquivo ":" $2 ":" corpo
+		}
+	}
+')
+if [ -n "$MOVE_NO_SERVIDOR" ]; then
+	vermelho "✗ servidor não move geometria por frame"
+	printf '%s\n' "$MOVE_NO_SERVIDOR" | sed 's|^|    |'
+	cinza "    Replica a ~20 Hz sem interpolação. Mande beat; quem desenha é o cliente."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ servidor não move geometria por frame"
+fi
+
 # --- Código de fora ----------------------------------------------------------
 checar "sem require de id numérico"     'require\(\s*[0-9]'
 checar "sem require do Núcleo"          'require\(.*NucleoCombate'

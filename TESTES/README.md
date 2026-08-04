@@ -54,6 +54,7 @@ Comentários de linha e de bloco são removidos antes da comparação — docume
 | `aoAplicarDano` com algo antes da função | É ouvinte global; passar outra coisa devolve um no-op |
 | `detectarHumanoides` com menos de 6 argumentos | `jogador` nil desliga o filtro de time |
 | `Players:GetPlayers()` para achar alvo | Não enxerga NPC — NPC é `Model` com `Humanoid`, não `Player` |
+| `.CFrame =` dentro de laço de frame em Server Script | `Part` ancorada movida pelo servidor replica a ~20 Hz **sem interpolação** — o movimento chega picotado |
 
 As quatro últimas nasceram de defeito real: as 7 Tools de escudo saíram com
 **dano zero** e sem cutscene contra NPC. Errar aridade em Lua não gera erro —

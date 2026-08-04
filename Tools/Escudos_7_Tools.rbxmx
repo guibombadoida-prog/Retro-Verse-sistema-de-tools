@@ -952,6 +952,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -984,6 +985,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -1342,6 +1352,223 @@ function VFX.ESTILHACOS(payload)
 end
 
 --==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
+end
+
+--==============================================================================
 -- DESPACHO — chamado pelo Client ao receber VFXRemote
 --==============================================================================
 
@@ -1574,7 +1801,6 @@ local CFG = {
 --==============================================================================
 
 local animador = nil
-local voando = {}
 local comboAcertos = 0
 local comboAte = 0
 local ultimaTrinca = 0
@@ -1723,86 +1949,72 @@ end
 -- O DISCO
 --==============================================================================
 
-local function novoDisco(cor)
-	local disco = Instance.new("Part")
-	disco.Name = "EscudoArremessado"
-	disco.Anchored = true
-	disco.CanCollide = false
-	disco.CanQuery = false
-	disco.CanTouch = false
-	disco.CastShadow = false
-	disco.Material = Enum.Material.Metal
-	disco.Color = cor
-	disco.Reflectance = 0.4
-	disco.Size = CFG.ESCUDO_TAMANHO
-	return disco
-end
-
 --[[
 	Lança um disco. `volta` decide se ele retorna à mão — é o que separa esta
 	Tool do Escudo Partido, que usa o mesmo voo sem o retorno.
+
+	O DESENHO é do cliente. O servidor não cria Part nenhuma: a trajetória é
+	fórmula (origem, direção, velocidade, alcance), e o cliente reproduz a mesma
+	fórmula a 60 Hz. Part ancorada movida por script de servidor replica a ~20 Hz
+	sem interpolação — era isso que deixava o voo picotado.
 ]]
 local function lancar(jogador, personagem, raiz, direcao, dano, velocidade, alcance, cor, volta)
 	local origem = raiz.Position + direcao * 2 + Vector3.new(0, 1.2, 0)
-	local disco = novoDisco(cor)
-	disco.CFrame = CFrame.lookAt(origem, origem + direcao)
-	disco.Parent = workspace
-	table.insert(voando, disco)
 
-	transmitir("LAMINA", origem, 0.9, cor, direcao)
+	local payload = {
+		posicao = origem,
+		frente = direcao,
+		velocidade = velocidade,
+		alcance = alcance,
+		volta = volta,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = cor,
+		userId = jogador.UserId,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "DISCO_VOO", payload)
+	else
+		VFXRemote:FireAllClients("DISCO_VOO", payload)
+	end
 
+	-- O servidor acompanha o MESMO voo, só que sem geometria: a posição sai da
+	-- fórmula e serve para detectar quem foi atingido.
 	local percorrido = 0
+	local posicao = origem
 	local voltando = false
-	local giro = 0
 	local jaAtingidos = {}
 	local conexao
 
 	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not disco.Parent then
-			conexao:Disconnect()
-			return
-		end
-
-		-- Acumulador dt a partir de zero. NUNCA tick(): tick() é tempo de
-		-- parede e dá salto quando o servidor engasga.
 		local passo = velocidade * dt
-		giro = giro + dt * 14
 
-		local alvoPos
 		if not voltando then
 			percorrido = percorrido + passo
-			alvoPos = disco.Position + direcao * passo
+			posicao = posicao + direcao * passo
 			if percorrido >= alcance then
 				if volta then
 					voltando = true
 					table.clear(jaAtingidos)   -- pode acertar de novo na volta
-					tocarSom(CFG.SFX_RETORNO, disco.Position)
+					tocarSom(CFG.SFX_RETORNO, posicao)
 				else
 					conexao:Disconnect()
-					transmitir("ESTILHACO_ESCUDO", disco.Position, 1.0, cor)
-					disco.Parent = nil
 					return
 				end
 			end
 		else
 			if not (raiz and raiz.Parent) then
 				conexao:Disconnect()
-				disco.Parent = nil
 				return
 			end
-			local paraMao = (raiz.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			local paraMao = (raiz.Position + Vector3.new(0, 1.2, 0)) - posicao
 			if paraMao.Magnitude <= 3.0 then
 				conexao:Disconnect()
-				transmitir("FAISCA", disco.Position, 0.7, cor)
-				disco.Parent = nil
 				return
 			end
-			alvoPos = disco.Position + paraMao.Unit * passo
+			posicao = posicao + paraMao.Unit * passo
 		end
 
-		disco.CFrame = CFrame.lookAt(alvoPos, alvoPos + direcao) * CFrame.Angles(0, 0, giro)
-
-		for _, alvo in ipairs(humanoidesEmArea(alvoPos, CFG.RAIO_ACERTO, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(posicao, CFG.RAIO_ACERTO, personagem, jogador, nil)) do
 			if not jaAtingidos[alvo] then
 				jaAtingidos[alvo] = true
 				local cancelar = bonusDeCombo(jogador, alvo)
@@ -1827,7 +2039,12 @@ local function lancar(jogador, personagem, raiz, direcao, dano, velocidade, alca
 		end
 	end)
 
-	Debris:AddItem(disco, (alcance / velocidade) * 2.5 + 1)
+	-- Corda de segurança: se nada desconectar, o laço morre sozinho.
+	task.delay((alcance / velocidade) * 3 + 1, function()
+		if conexao.Connected then
+			conexao:Disconnect()
+		end
+	end)
 end
 
 --==============================================================================
@@ -1912,12 +2129,6 @@ acaoRemote.OnServerEvent:Connect(function(quemPediu)
 end)
 
 local function desmontar()
-	for _, disco in ipairs(voando) do
-		if disco and disco.Parent then
-			disco.Parent = nil
-		end
-	end
-	table.clear(voando)
 	comboAcertos = 0
 
 	if animador then
@@ -2474,6 +2685,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -2506,6 +2718,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -2861,6 +3082,223 @@ function VFX.ESTILHACOS(payload)
 	end)
 
 	Debris:AddItem(pasta, CFG.VIDA_ESCUDO + 0.5)
+end
+
+--==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
 end
 
 --==============================================================================
@@ -3912,6 +4350,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -3944,6 +4383,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -4302,6 +4750,223 @@ function VFX.ESTILHACOS(payload)
 end
 
 --==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
+end
+
+--==============================================================================
 -- DESPACHO — chamado pelo Client ao receber VFXRemote
 --==============================================================================
 
@@ -4628,9 +5293,6 @@ local function pararOrbita()
 		orbita.conexao:Disconnect()
 		orbita.conexao = nil
 	end
-	if orbita.parte then
-		orbita.parte.Parent = nil
-	end
 	orbita = nil
 	table.clear(jaRebatidos)
 end
@@ -4638,21 +5300,27 @@ end
 local function soltar(jogador, personagem, humanoide, raiz)
 	pararOrbita()
 
-	local escudo = Instance.new("Part")
-	escudo.Name = "EscudoOrbitando"
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.CanTouch = false
-	escudo.CastShadow = false
-	escudo.Material = Enum.Material.Metal
-	escudo.Color = CFG.COR_VFX
-	escudo.Reflectance = 0.4
-	escudo.Transparency = 0.08
-	escudo.Size = CFG.ESCUDO_TAMANHO
-	escudo.Parent = workspace
+	orbita = { ativa = true }
 
-	orbita = { parte = escudo }
+	-- O DESENHO do escudo é do CLIENTE, com um beat só. Part ancorada movida
+	-- por script de servidor replica a ~20 Hz sem interpolação — a órbita
+	-- chegava em passos. A posição é fórmula, e a mesma fórmula roda aqui só
+	-- para saber onde varrer projétil.
+	local orbitaPayload = {
+		userId = jogador.UserId,
+		quantidade = 1,
+		raio = CFG.ORBITA_RAIO,
+		altura = CFG.ORBITA_ALTURA,
+		voltas = CFG.ORBITA_VOLTAS,
+		duracao = CFG.DURACAO,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = CFG.COR_VFX,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "ORBITA_ESCUDOS", orbitaPayload)
+	else
+		VFXRemote:FireAllClients("ORBITA_ESCUDOS", orbitaPayload)
+	end
 
 	tocarSequencia(Poses.primaria())
 	tocarSom(CFG.SFX_ORBITA, raiz.Position)
@@ -4673,11 +5341,12 @@ local function soltar(jogador, personagem, humanoide, raiz)
 
 		t = t + dt
 		if t >= CFG.DURACAO then
-			transmitir("FAISCA", escudo.Position, 0.8)
+			transmitir("FAISCA", raiz.Position, 0.8)
 			pararOrbita()
 			return
 		end
 
+		-- Onde o escudo ESTÁ, pela mesma fórmula que o cliente desenha.
 		local centro = raiz.Position + Vector3.new(0, CFG.ORBITA_ALTURA, 0)
 		local angulo = t * CFG.ORBITA_VOLTAS * math.pi * 2
 		local pos = centro + Vector3.new(
@@ -4685,7 +5354,6 @@ local function soltar(jogador, personagem, humanoide, raiz)
 			0,
 			math.sin(angulo) * CFG.ORBITA_RAIO
 		)
-		escudo.CFrame = CFrame.lookAt(pos, pos + (pos - centro).Unit)
 
 		desdeVarredura = desdeVarredura + dt
 		if desdeVarredura < CFG.REFLEXO_INTERVALO then
@@ -4693,7 +5361,7 @@ local function soltar(jogador, personagem, humanoide, raiz)
 		end
 		desdeVarredura = 0
 
-		for _, projetil in ipairs(projeteisPerto(escudo.Position, personagem)) do
+		for _, projetil in ipairs(projeteisPerto(pos, personagem)) do
 			if not jaRebatidos[projetil] then
 				jaRebatidos[projetil] = true
 
@@ -5316,6 +5984,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -5348,6 +6017,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -5706,6 +6384,223 @@ function VFX.ESTILHACOS(payload)
 end
 
 --==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
+end
+
+--==============================================================================
 -- DESPACHO — chamado pelo Client ao receber VFXRemote
 --==============================================================================
 
@@ -6003,9 +6898,6 @@ local function romper()
 	for _, cancelar in ipairs(vinculo.cancelamentos or {}) do
 		pcall(cancelar)
 	end
-	if vinculo.marca then
-		vinculo.marca.Parent = nil
-	end
 	vinculo = nil
 end
 
@@ -6022,20 +6914,25 @@ local function vincular(jogador, personagem, humanoide, raiz)
 		return false
 	end
 
-	local marca = Instance.new("Part")
-	marca.Name = "MarcaDoSalvador"
-	marca.Anchored = true
-	marca.CanCollide = false
-	marca.CanQuery = false
-	marca.CanTouch = false
-	marca.CastShadow = false
-	marca.Material = Enum.Material.Neon
-	marca.Color = CFG.COR_VINCULO
-	marca.Transparency = 0.25
-	marca.Size = CFG.MARCA_TAMANHO
-	marca.Parent = workspace
+	vinculo = { alvo = aliado, cancelamentos = {} }
 
-	vinculo = { alvo = aliado, marca = marca, cancelamentos = {} }
+	-- A marca sobre o aliado é desenhada no CLIENTE. Girar uma Part ancorada
+	-- pelo servidor entrega ~20 Hz sem interpolação — a marca tremia.
+	local aliadoJogador = Players:GetPlayerFromCharacter(aliado.Parent)
+	if aliadoJogador then
+		local marcaPayload = {
+			userId = aliadoJogador.UserId,
+			altura = CFG.MARCA_ALTURA,
+			voltas = CFG.MARCA_VOLTAS,
+			duracao = CFG.DURACAO,
+			cor = CFG.COR_VINCULO,
+		}
+		if _G.Combate and _G.Combate.transmitirVFX then
+			_G.Combate.transmitirVFX(VFXRemote, "MARCA_ORBITAL", marcaPayload)
+		else
+			VFXRemote:FireAllClients("MARCA_ORBITAL", marcaPayload)
+		end
+	end
 
 	tocarSequencia(Poses.primaria())
 	tocarSom(CFG.SFX_VINCULO, raiz.Position)
@@ -6101,10 +6998,7 @@ local function vincular(jogador, personagem, humanoide, raiz)
 			return
 		end
 
-		-- Marca flutuando e girando sobre o aliado.
 		local centro = vivoAliado.Position + Vector3.new(0, CFG.MARCA_ALTURA, 0)
-		vinculo.marca.CFrame = CFrame.new(centro)
-			* CFrame.Angles(0, t * CFG.MARCA_VOLTAS * math.pi * 2, 0)
 
 		desdeVerificacao = desdeVerificacao + dt
 		if desdeVerificacao < CFG.VERIFICACAO_INTERVALO then
@@ -6721,6 +7615,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -6753,6 +7648,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -7111,6 +8015,223 @@ function VFX.ESTILHACOS(payload)
 end
 
 --==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
+end
+
+--==============================================================================
 -- DESPACHO — chamado pelo Client ao receber VFXRemote
 --==============================================================================
 
@@ -7448,39 +8569,28 @@ local function aplicarDano(jogador, alvo, valor)
 	return true
 end
 
---==============================================================================
--- OS CINCO ESCUDOS
---==============================================================================
-
-local function novoEscudo(indice)
-	local escudo = Instance.new("Part")
-	escudo.Name = "EscudoOrbital" .. indice
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.CanTouch = false
-	escudo.CastShadow = false
-	escudo.Material = Enum.Material.Metal
-	escudo.Color = CFG.COR_VFX
-	escudo.Reflectance = 0.35
-	escudo.Transparency = 0.1
-	escudo.Size = CFG.ESCUDO_TAMANHO
-
-	local aro = Instance.new("Part")
-	aro.Name = "Aro"
-	aro.Anchored = true
-	aro.CanCollide = false
-	aro.CanQuery = false
-	aro.CanTouch = false
-	aro.CastShadow = false
-	aro.Material = Enum.Material.Neon
-	aro.Color = CFG.COR_COLAPSO
-	aro.Transparency = 0.35
-	aro.Size = CFG.ESCUDO_TAMANHO + Vector3.new(0.45, 0.45, -0.12)
-	aro.Parent = escudo
-
-	return escudo, aro
+-- Beat único: o cliente desenha os cinco e segue o portador sozinho.
+local function transmitirOrbita(jogador)
+	local payload = {
+		userId = jogador.UserId,
+		quantidade = CFG.ESCUDOS,
+		raio = CFG.ORBITA_RAIO,
+		altura = CFG.ORBITA_ALTURA,
+		voltas = CFG.ORBITA_VOLTAS,
+		duracao = CFG.DURACAO,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = CFG.COR_VFX,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "ORBITA_ESCUDOS", payload)
+		return
+	end
+	VFXRemote:FireAllClients("ORBITA_ESCUDOS", payload)
 end
+
+--==============================================================================
+-- O CICLONE
+--==============================================================================
 
 local function desmontarCiclone()
 	if not ciclone then
@@ -7490,9 +8600,6 @@ local function desmontarCiclone()
 		ciclone.conexao:Disconnect()
 		ciclone.conexao = nil
 	end
-	if ciclone.pasta then
-		ciclone.pasta.Parent = nil
-	end
 	ciclone.ativo = false
 	ciclone = nil
 	table.clear(ultimaCarga)
@@ -7500,24 +8607,16 @@ end
 
 local function girarCiclone(jogador, personagem, raiz)
 	desmontarCiclone()
+	ciclone = { ativo = true }
 
-	local pasta = Instance.new("Folder")
-	pasta.Name = "CicloneDeEscudos"
-	pasta.Parent = workspace
-
-	local escudos = {}
-	for i = 1, CFG.ESCUDOS do
-		local escudo, aro = novoEscudo(i)
-		escudo.Parent = pasta
-		-- Fase fixa: 360/5 = 72° entre escudos. Determinístico por construção.
-		table.insert(escudos, {
-			parte = escudo,
-			aro = aro,
-			fase = (i - 1) * (math.pi * 2 / CFG.ESCUDOS),
-		})
-	end
-
-	ciclone = { pasta = pasta, escudos = escudos, ativo = true }
+	-- O DESENHO dos cinco escudos é do CLIENTE, e o beat vai uma vez só.
+	--
+	-- Antes eu criava cinco Part ancoradas aqui e reposicionava as cinco todo
+	-- Heartbeat. Part ancorada movida por script de servidor replica a ~20 Hz e
+	-- o cliente não interpola: a órbita chegava em passos discretos. O servidor
+	-- não precisa da Part — a posição é fórmula, e é a MESMA fórmula dos dois
+	-- lados. Aqui ela serve só para saber quem está na faixa da órbita.
+	transmitirOrbita(jogador)
 
 	local t = 0
 	local desdeUltimoPulso = 0
@@ -7538,21 +8637,6 @@ local function girarCiclone(jogador, personagem, raiz)
 		end
 
 		local centro = raiz.Position
-		local volta = t * CFG.ORBITA_VOLTAS * math.pi * 2
-
-		for _, escudo in ipairs(ciclone.escudos) do
-			local angulo = volta + escudo.fase
-			local desloca = Vector3.new(
-				math.cos(angulo) * CFG.ORBITA_RAIO,
-				CFG.ORBITA_ALTURA,
-				math.sin(angulo) * CFG.ORBITA_RAIO
-			)
-			local pos = centro + desloca
-			-- O escudo olha para fora: a face vai para quem chega, não para o dono.
-			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
-			escudo.parte.CFrame = cf
-			escudo.aro.CFrame = cf
-		end
 
 		-- PUXÃO — em pulsos, não todo frame. Renovar BodyVelocity a 60 Hz
 		-- entope a rede e não melhora nada: o corpo já segue por inércia.
@@ -7563,7 +8647,7 @@ local function girarCiclone(jogador, personagem, raiz)
 		desdeUltimoPulso = 0
 
 		local agora = os.clock()
-		for _, alvo in ipairs(humanoidesEmArea(centro, CFG.PUXAO_ALCANCE, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(centro, CFG.PUXAO_ALCANCE, personagem, jogador, nil)) do
 			if podeAtingir(jogador, alvo) then
 				local alvoRaiz = alvo.Parent and alvo.Parent:FindFirstChild("HumanoidRootPart")
 				if alvoRaiz then
@@ -7582,7 +8666,8 @@ local function girarCiclone(jogador, personagem, raiz)
 						end
 					end
 
-					-- Roçar num escudo: dano leve, com recarga por alvo.
+					-- Roçar num escudo: dano leve, com recarga por alvo. A faixa
+					-- da órbita vem da mesma fórmula que o cliente desenha.
 					if distancia <= CFG.ORBITA_RAIO + CFG.ROCAR_RAIO
 						and distancia >= CFG.ORBITA_RAIO - CFG.ROCAR_RAIO then
 						local ultimo = ultimaCarga[alvo] or 0
@@ -7637,13 +8722,15 @@ local function colapsar(jogador, personagem, humanoide, raiz)
 	tocarSequencia(Poses.extra())
 	tocarSom(CFG.SFX_COLAPSO, centro)
 
-	-- Os cinco convergem: um ESTILHACO por escudo, na posição em que ele estava.
-	if ciclone.escudos then
-		for _, escudo in ipairs(ciclone.escudos) do
-			if escudo.parte and escudo.parte.Parent then
-				transmitir("IMPACTO_ESCUDO", escudo.parte.Position, 0.9, CFG.COR_COLAPSO)
-			end
-		end
+	-- Os cinco convergem: um IMPACTO em cada posição de órbita, pela mesma
+	-- fórmula que o cliente usa para desenhar. Ângulo fixo, sem random.
+	for i = 1, CFG.ESCUDOS do
+		local angulo = (i - 1) * (math.pi * 2 / CFG.ESCUDOS)
+		local pos = centro + Vector3.new(
+			math.cos(angulo) * CFG.ORBITA_RAIO,
+			CFG.ORBITA_ALTURA,
+			math.sin(angulo) * CFG.ORBITA_RAIO)
+		transmitir("IMPACTO_ESCUDO", pos, 0.9, CFG.COR_COLAPSO)
 	end
 
 	transmitir("ONDA_ESCUDO", centro, 2.0, CFG.COR_COLAPSO)
@@ -8273,6 +9360,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -8305,6 +9393,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -8663,6 +9760,223 @@ function VFX.ESTILHACOS(payload)
 end
 
 --==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
+end
+
+--==============================================================================
 -- DESPACHO — chamado pelo Client ao receber VFXRemote
 --==============================================================================
 
@@ -8902,7 +10216,6 @@ local CFG = {
 local animador = nil
 local emSentenca = false
 local ultimaSentenca = 0
-local laminasVivas = {}
 
 local function tocarSequencia(nome)
 	if not animador or not nome then
@@ -9025,48 +10338,48 @@ end
 -- PRIMÁRIA — a lâmina que não volta
 --==============================================================================
 
+--[[
+	A lâmina que não volta.
+
+	O DESENHO é do cliente: `DISCO_VOO` com `volta = false`. O servidor não cria
+	Part — Part ancorada movida por script de servidor replica a ~20 Hz sem
+	interpolação, e era isso que picotava o voo. A trajetória é fórmula, e os
+	dois lados usam a mesma.
+]]
 local function lancarLamina(jogador, personagem, raiz)
 	local direcao = raiz.CFrame.LookVector
 	local origem = raiz.Position + direcao * 2 + Vector3.new(0, 1.2, 0)
 
-	local lamina = Instance.new("Part")
-	lamina.Name = "LaminaPartida"
-	lamina.Anchored = true
-	lamina.CanCollide = false
-	lamina.CanQuery = false
-	lamina.CanTouch = false
-	lamina.CastShadow = false
-	lamina.Material = Enum.Material.Metal
-	lamina.Color = CFG.COR_VFX
-	lamina.Reflectance = 0.4
-	lamina.Size = CFG.LAMINA_TAMANHO
-	lamina.CFrame = CFrame.lookAt(origem, origem + direcao)
-	lamina.Parent = workspace
-	table.insert(laminasVivas, lamina)
-
 	tocarSom(CFG.SFX_CORTE, origem)
 	transmitir("LAMINA", origem, 1.0, CFG.COR_VFX, direcao)
 
+	local payload = {
+		posicao = origem,
+		frente = direcao,
+		velocidade = CFG.LAMINA_VELOCIDADE,
+		alcance = CFG.LAMINA_ALCANCE,
+		volta = false,
+		tamanho = CFG.LAMINA_TAMANHO,
+		cor = CFG.COR_VFX,
+		userId = jogador.UserId,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "DISCO_VOO", payload)
+	else
+		VFXRemote:FireAllClients("DISCO_VOO", payload)
+	end
+
 	local percorrido = 0
+	local posicao = origem
 	local jaAtingidos = {}
 	local conexao
 
 	conexao = RunService.Heartbeat:Connect(function(dt)
-		if not lamina.Parent then
-			conexao:Disconnect()
-			return
-		end
-
 		local passo = CFG.LAMINA_VELOCIDADE * dt
 		percorrido = percorrido + passo
-		local nova = lamina.Position + direcao * passo
+		posicao = posicao + direcao * passo
 
-		-- Gira no próprio eixo enquanto vai — é o que faz ler como lâmina
-		-- girando, e não como placa deslizando.
-		lamina.CFrame = CFrame.lookAt(nova, nova + direcao)
-			* CFrame.Angles(0, 0, percorrido * 0.42)
-
-		for _, alvo in ipairs(humanoidesEmArea(nova, CFG.LAMINA_RAIO, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(posicao, CFG.LAMINA_RAIO, personagem, jogador, nil)) do
 			if not jaAtingidos[alvo] and podeAtingir(jogador, alvo) then
 				jaAtingidos[alvo] = true
 				aplicarDano(jogador, alvo, CFG.LAMINA_DANO)
@@ -9090,14 +10403,16 @@ local function lancarLamina(jogador, personagem, raiz)
 		-- esta Tool do Bumerangue.
 		if percorrido >= CFG.LAMINA_ALCANCE then
 			conexao:Disconnect()
-			transmitir("ESTILHACO_ESCUDO", lamina.Position, 1.0)
-			transmitir("ESTILHACOS", lamina.Position, 0.9)
-			tocarSom(CFG.SFX_ESTILHACO, lamina.Position)
-			lamina.Parent = nil
+			transmitir("ESTILHACOS", posicao, 0.9)
+			tocarSom(CFG.SFX_ESTILHACO, posicao)
 		end
 	end)
 
-	Debris:AddItem(lamina, CFG.LAMINA_ALCANCE / CFG.LAMINA_VELOCIDADE + 1)
+	task.delay(CFG.LAMINA_ALCANCE / CFG.LAMINA_VELOCIDADE + 1, function()
+		if conexao.Connected then
+			conexao:Disconnect()
+		end
+	end)
 end
 
 --==============================================================================
@@ -9161,32 +10476,11 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 		animador:LockCharacter(true)
 	end
 
-	-- Os dois escudos que cortam. São geometria de verdade, no mundo, porque o
-	-- alvo e os espectadores precisam ver de onde vem cada corte.
-	local pasta = Instance.new("Folder")
-	pasta.Name = "SentencaDeEscudos"
-	pasta.Parent = workspace
-
-	local escudos = {}
-	for i = 1, 2 do
-		local escudo = Instance.new("Part")
-		escudo.Name = "EscudoSentenca" .. i
-		escudo.Anchored = true
-		escudo.CanCollide = false
-		escudo.CanQuery = false
-		escudo.CanTouch = false
-		escudo.CastShadow = false
-		escudo.Material = Enum.Material.Metal
-		escudo.Color = CFG.COR_SENTENCA
-		escudo.Reflectance = 0.45
-		escudo.Size = CFG.LAMINA_TAMANHO
-		escudo.Parent = pasta
-		table.insert(escudos, escudo)
-	end
-
+	-- Os dois escudos que cortam são desenhados no CLIENTE, um par de LAMINA por
+	-- corte, em lados opostos do alvo. Manter duas Part no servidor e
+	-- reposicioná-las por corte custaria replicação e chegaria picotado.
 	local function encerrar()
 		emSentenca = false
-		pasta.Parent = nil
 		if animador then
 			animador:LockCharacter(false)
 			animador:PlaySequence(Poses.repouso())
@@ -9212,13 +10506,11 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 				local centro = alvoRaiz.Position
 				local desloca = Vector3.new(math.cos(angulo) * 4.5, 1.4, math.sin(angulo) * 4.5)
 
-				-- Os dois escudos ficam em lados opostos do alvo a cada corte.
-				escudos[1].CFrame = CFrame.lookAt(centro + desloca, centro)
-				escudos[2].CFrame = CFrame.lookAt(centro - desloca, centro)
-
 				aplicarDano(jogador, alvo, CFG.SENTENCA_DANO)
 				tocarSom(CFG.SFX_CORTE, centro)
+				-- Os dois cortes, em lados opostos, no mesmo quadro.
 				transmitir("LAMINA", centro, 1.1, CFG.COR_SENTENCA, desloca.Unit)
+				transmitir("LAMINA", centro, 1.1, CFG.COR_SENTENCA, -desloca.Unit)
 				transmitir("IMPACTO_ESCUDO", centro, 0.7, CFG.COR_SENTENCA)
 				avisarCamera(jogador, "CORTE", indice)
 			end)
@@ -9289,13 +10581,6 @@ acaoRemote.OnServerEvent:Connect(function(quemPediu)
 end)
 
 local function desmontar()
-	for _, lamina in ipairs(laminasVivas) do
-		if lamina and lamina.Parent then
-			lamina.Parent = nil
-		end
-	end
-	table.clear(laminasVivas)
-
 	if emSentenca then
 		emSentenca = false
 		local jogador = tool.Parent and Players:GetPlayerFromCharacter(tool.Parent)
@@ -9859,6 +11144,7 @@ return Animator
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Este ModuleScript é filho da Tool. TUDO que ele usa vem daqui para dentro (Regra nº 1):
 -- meshes, MeshParts, texturas, ParticleEmitters e Beams moram em Tool/Efeitos/.
@@ -9891,6 +11177,15 @@ local CFG = {
 
 	COR_PADRAO    = Color3.fromRGB(0, 122, 190),
 	ESCALA_PADRAO = 1.0,
+
+	-- Movimento contínuo: rodado AQUI, no cliente, a 60 Hz.
+	--
+	-- Part ancorada movida por script de SERVIDOR replica a ~20 Hz e o cliente
+	-- não interpola: o que sai é um passo discreto por atualização. Era isso que
+	-- deixava a órbita e o voo "não fluidos". A posição é matemática pura e
+	-- determinística, então o cliente reproduz o mesmo movimento sem nenhum
+	-- pacote por frame — e o servidor segue dono do dano, com a mesma fórmula.
+	SEGURANCA_VIDA = 14,
 }
 
 --==============================================================================
@@ -10246,6 +11541,223 @@ function VFX.ESTILHACOS(payload)
 	end)
 
 	Debris:AddItem(pasta, CFG.VIDA_ESCUDO + 0.5)
+end
+
+--==============================================================================
+-- MOVIMENTO CONTÍNUO — desenhado no cliente, a 60 Hz
+--==============================================================================
+
+-- O payload traz `userId`, não o Character: Instance não viaja em payload
+-- (§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+local function raizDoJogador(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	local jogador = Players:GetPlayerByUserId(userId)
+	local personagem = jogador and jogador.Character
+	return personagem and personagem:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function novoDisco(cor, tamanho)
+	local disco = novaParte(cor, tamanho, CFrame.new(), Enum.Material.Metal)
+	disco.Reflectance = 0.35
+	disco.Transparency = 0.1
+
+	local aro = novaParte(CFG.COR_PADRAO, tamanho + Vector3.new(0.45, 0.45, -0.12), CFrame.new())
+	aro.Transparency = 0.4
+	aro.Parent = disco
+
+	return disco, aro
+end
+
+--[[
+	"ORBITA_ESCUDOS" — N discos girando em volta de um personagem.
+
+	Serve o Ciclone (5 discos) e a Proteção (1). O servidor manda os parâmetros
+	UMA vez; daqui em diante o cliente desenha sozinho, seguindo o portador
+	quadro a quadro. Zero pacote por frame, e 60 Hz de verdade.
+]]
+function VFX.ORBITA_ESCUDOS(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local quantos = math.clamp(tonumber(payload.quantidade) or 1, 1, 12)
+	local raio = tonumber(payload.raio) or 6
+	local altura = tonumber(payload.altura) or 2
+	local voltas = tonumber(payload.voltas) or 1
+	local duracao = math.min(tonumber(payload.duracao) or 4, CFG.SEGURANCA_VIDA)
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "OrbitaDeEscudos"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, quantos do
+		local disco, aro = novoDisco(cor, tamanho)
+		disco.Parent = pasta
+		table.insert(pecas, {
+			disco = disco,
+			aro = aro,
+			fase = (i - 1) * (math.pi * 2 / quantos),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			pasta.Parent = nil
+			return
+		end
+
+		local centro = vivo.Position
+		local volta = t * voltas * math.pi * 2
+		-- Fecha nos últimos 0,35 s em vez de sumir de uma vez.
+		local saida = math.clamp((duracao - t) / 0.35, 0, 1)
+
+		for _, peca in ipairs(pecas) do
+			local angulo = volta + peca.fase
+			local pos = centro + Vector3.new(
+				math.cos(angulo) * raio, altura, math.sin(angulo) * raio)
+			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
+			peca.disco.CFrame = cf
+			peca.aro.CFrame = cf
+			peca.disco.Transparency = 0.1 + (1 - saida) * 0.9
+			peca.aro.Transparency = 0.4 + (1 - saida) * 0.6
+		end
+	end)
+
+	Debris:AddItem(pasta, duracao + 1)
+end
+
+--[[
+	"DISCO_VOO" — o escudo arremessado.
+
+	Trajetória determinística: origem, direção, velocidade, alcance. O cliente
+	reproduz exatamente o que o servidor calcula para o dano, sem receber
+	posição nenhuma. `volta = true` traz o disco de volta à mão.
+]]
+function VFX.DISCO_VOO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local frente = payload.frente
+	if typeof(frente) ~= "Vector3" or frente.Magnitude < 0.001 then
+		return
+	end
+	frente = frente.Unit
+
+	local cor = lerCor(payload)
+	local velocidade = tonumber(payload.velocidade) or 80
+	local alcance = tonumber(payload.alcance) or 50
+	local volta = payload.volta == true
+	local tamanho = payload.tamanho
+	if typeof(tamanho) ~= "Vector3" then
+		tamanho = Vector3.new(3.0, 3.0, 0.26)
+	end
+
+	local disco, aro = novoDisco(cor, tamanho)
+	disco.CFrame = CFrame.lookAt(payload.posicao, payload.posicao + frente)
+	disco.Parent = workspace
+
+	local percorrido = 0
+	local giro = 0
+	local voltando = false
+	local conexao
+
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		if not disco.Parent then
+			conexao:Disconnect()
+			return
+		end
+
+		local passo = velocidade * dt
+		giro = giro + dt * 14
+		local destino
+
+		if not voltando then
+			percorrido = percorrido + passo
+			destino = disco.Position + frente * passo
+			if percorrido >= alcance then
+				if volta then
+					voltando = true
+				else
+					conexao:Disconnect()
+					VFX.ESTILHACO_ESCUDO({ posicao = disco.Position, cor = cor })
+					disco.Parent = nil
+					return
+				end
+			end
+		else
+			local mao = raizDoJogador(payload.userId)
+			if not mao then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			local paraMao = (mao.Position + Vector3.new(0, 1.2, 0)) - disco.Position
+			if paraMao.Magnitude <= 3.0 then
+				conexao:Disconnect()
+				disco.Parent = nil
+				return
+			end
+			destino = disco.Position + paraMao.Unit * passo
+		end
+
+		local cf = CFrame.lookAt(destino, destino + frente) * CFrame.Angles(0, 0, giro)
+		disco.CFrame = cf
+		aro.CFrame = cf
+	end)
+
+	Debris:AddItem(disco, (alcance / velocidade) * 3 + 1)
+end
+
+--[[
+	"MARCA_ORBITAL" — o selo que flutua sobre o aliado vinculado.
+	Mesma razão de estar aqui: girar isso no servidor entrega ~20 Hz.
+]]
+function VFX.MARCA_ORBITAL(payload)
+	local raiz = raizDoJogador(payload.userId)
+	if not raiz then
+		return
+	end
+
+	local cor = lerCor(payload)
+	local altura = tonumber(payload.altura) or 3
+	local voltas = tonumber(payload.voltas) or 0.5
+	local duracao = math.min(tonumber(payload.duracao) or 7, CFG.SEGURANCA_VIDA)
+
+	local marca = novaParte(cor, Vector3.new(1.8, 1.8, 0.2), CFrame.new())
+	marca.Transparency = 0.25
+	marca.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local vivo = raizDoJogador(payload.userId)
+		if not vivo or t >= duracao then
+			conexao:Disconnect()
+			marca.Parent = nil
+			return
+		end
+		-- Bob senoidal por acumulador dt, nunca tick().
+		local sobe = math.sin(t * 2.2) * 0.25
+		marca.CFrame = CFrame.new(vivo.Position + Vector3.new(0, altura + sobe, 0))
+			* CFrame.Angles(0, t * voltas * math.pi * 2, 0)
+	end)
+
+	Debris:AddItem(marca, duracao + 1)
 end
 
 --==============================================================================

@@ -213,39 +213,28 @@ local function aplicarDano(jogador, alvo, valor)
 	return true
 end
 
---==============================================================================
--- OS CINCO ESCUDOS
---==============================================================================
-
-local function novoEscudo(indice)
-	local escudo = Instance.new("Part")
-	escudo.Name = "EscudoOrbital" .. indice
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.CanTouch = false
-	escudo.CastShadow = false
-	escudo.Material = Enum.Material.Metal
-	escudo.Color = CFG.COR_VFX
-	escudo.Reflectance = 0.35
-	escudo.Transparency = 0.1
-	escudo.Size = CFG.ESCUDO_TAMANHO
-
-	local aro = Instance.new("Part")
-	aro.Name = "Aro"
-	aro.Anchored = true
-	aro.CanCollide = false
-	aro.CanQuery = false
-	aro.CanTouch = false
-	aro.CastShadow = false
-	aro.Material = Enum.Material.Neon
-	aro.Color = CFG.COR_COLAPSO
-	aro.Transparency = 0.35
-	aro.Size = CFG.ESCUDO_TAMANHO + Vector3.new(0.45, 0.45, -0.12)
-	aro.Parent = escudo
-
-	return escudo, aro
+-- Beat único: o cliente desenha os cinco e segue o portador sozinho.
+local function transmitirOrbita(jogador)
+	local payload = {
+		userId = jogador.UserId,
+		quantidade = CFG.ESCUDOS,
+		raio = CFG.ORBITA_RAIO,
+		altura = CFG.ORBITA_ALTURA,
+		voltas = CFG.ORBITA_VOLTAS,
+		duracao = CFG.DURACAO,
+		tamanho = CFG.ESCUDO_TAMANHO,
+		cor = CFG.COR_VFX,
+	}
+	if _G.Combate and _G.Combate.transmitirVFX then
+		_G.Combate.transmitirVFX(VFXRemote, "ORBITA_ESCUDOS", payload)
+		return
+	end
+	VFXRemote:FireAllClients("ORBITA_ESCUDOS", payload)
 end
+
+--==============================================================================
+-- O CICLONE
+--==============================================================================
 
 local function desmontarCiclone()
 	if not ciclone then
@@ -255,9 +244,6 @@ local function desmontarCiclone()
 		ciclone.conexao:Disconnect()
 		ciclone.conexao = nil
 	end
-	if ciclone.pasta then
-		ciclone.pasta.Parent = nil
-	end
 	ciclone.ativo = false
 	ciclone = nil
 	table.clear(ultimaCarga)
@@ -265,24 +251,16 @@ end
 
 local function girarCiclone(jogador, personagem, raiz)
 	desmontarCiclone()
+	ciclone = { ativo = true }
 
-	local pasta = Instance.new("Folder")
-	pasta.Name = "CicloneDeEscudos"
-	pasta.Parent = workspace
-
-	local escudos = {}
-	for i = 1, CFG.ESCUDOS do
-		local escudo, aro = novoEscudo(i)
-		escudo.Parent = pasta
-		-- Fase fixa: 360/5 = 72° entre escudos. Determinístico por construção.
-		table.insert(escudos, {
-			parte = escudo,
-			aro = aro,
-			fase = (i - 1) * (math.pi * 2 / CFG.ESCUDOS),
-		})
-	end
-
-	ciclone = { pasta = pasta, escudos = escudos, ativo = true }
+	-- O DESENHO dos cinco escudos é do CLIENTE, e o beat vai uma vez só.
+	--
+	-- Antes eu criava cinco Part ancoradas aqui e reposicionava as cinco todo
+	-- Heartbeat. Part ancorada movida por script de servidor replica a ~20 Hz e
+	-- o cliente não interpola: a órbita chegava em passos discretos. O servidor
+	-- não precisa da Part — a posição é fórmula, e é a MESMA fórmula dos dois
+	-- lados. Aqui ela serve só para saber quem está na faixa da órbita.
+	transmitirOrbita(jogador)
 
 	local t = 0
 	local desdeUltimoPulso = 0
@@ -303,21 +281,6 @@ local function girarCiclone(jogador, personagem, raiz)
 		end
 
 		local centro = raiz.Position
-		local volta = t * CFG.ORBITA_VOLTAS * math.pi * 2
-
-		for _, escudo in ipairs(ciclone.escudos) do
-			local angulo = volta + escudo.fase
-			local desloca = Vector3.new(
-				math.cos(angulo) * CFG.ORBITA_RAIO,
-				CFG.ORBITA_ALTURA,
-				math.sin(angulo) * CFG.ORBITA_RAIO
-			)
-			local pos = centro + desloca
-			-- O escudo olha para fora: a face vai para quem chega, não para o dono.
-			local cf = CFrame.lookAt(pos, pos + (pos - centro).Unit)
-			escudo.parte.CFrame = cf
-			escudo.aro.CFrame = cf
-		end
 
 		-- PUXÃO — em pulsos, não todo frame. Renovar BodyVelocity a 60 Hz
 		-- entope a rede e não melhora nada: o corpo já segue por inércia.
@@ -328,7 +291,7 @@ local function girarCiclone(jogador, personagem, raiz)
 		desdeUltimoPulso = 0
 
 		local agora = os.clock()
-		for _, alvo in ipairs(humanoidesEmArea(centro, CFG.PUXAO_ALCANCE, personagem, jogador, humanoide)) do
+		for _, alvo in ipairs(humanoidesEmArea(centro, CFG.PUXAO_ALCANCE, personagem, jogador, nil)) do
 			if podeAtingir(jogador, alvo) then
 				local alvoRaiz = alvo.Parent and alvo.Parent:FindFirstChild("HumanoidRootPart")
 				if alvoRaiz then
@@ -347,7 +310,8 @@ local function girarCiclone(jogador, personagem, raiz)
 						end
 					end
 
-					-- Roçar num escudo: dano leve, com recarga por alvo.
+					-- Roçar num escudo: dano leve, com recarga por alvo. A faixa
+					-- da órbita vem da mesma fórmula que o cliente desenha.
 					if distancia <= CFG.ORBITA_RAIO + CFG.ROCAR_RAIO
 						and distancia >= CFG.ORBITA_RAIO - CFG.ROCAR_RAIO then
 						local ultimo = ultimaCarga[alvo] or 0
@@ -402,13 +366,15 @@ local function colapsar(jogador, personagem, humanoide, raiz)
 	tocarSequencia(Poses.extra())
 	tocarSom(CFG.SFX_COLAPSO, centro)
 
-	-- Os cinco convergem: um ESTILHACO por escudo, na posição em que ele estava.
-	if ciclone.escudos then
-		for _, escudo in ipairs(ciclone.escudos) do
-			if escudo.parte and escudo.parte.Parent then
-				transmitir("IMPACTO_ESCUDO", escudo.parte.Position, 0.9, CFG.COR_COLAPSO)
-			end
-		end
+	-- Os cinco convergem: um IMPACTO em cada posição de órbita, pela mesma
+	-- fórmula que o cliente usa para desenhar. Ângulo fixo, sem random.
+	for i = 1, CFG.ESCUDOS do
+		local angulo = (i - 1) * (math.pi * 2 / CFG.ESCUDOS)
+		local pos = centro + Vector3.new(
+			math.cos(angulo) * CFG.ORBITA_RAIO,
+			CFG.ORBITA_ALTURA,
+			math.sin(angulo) * CFG.ORBITA_RAIO)
+		transmitir("IMPACTO_ESCUDO", pos, 0.9, CFG.COR_COLAPSO)
 	end
 
 	transmitir("ONDA_ESCUDO", centro, 2.0, CFG.COR_COLAPSO)

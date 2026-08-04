@@ -178,6 +178,48 @@ a cutscene não abria: `escolherAlvo` não achava o NPC, e a própria guarda
 `verificar_autocontencao.sh` ganhou as quatro checagens correspondentes,
 testadas contra um violador com os defeitos originais.
 
+## 🐛 Fluidez: o movimento saiu do servidor
+
+Relato: "os VFX não estão fluidos". A causa não era o VFX — era **onde o
+movimento rodava**.
+
+Cinco das sete criavam `Part` ancorada e reescreviam o `CFrame` dela **todo
+`Heartbeat`, no servidor**: os 5 escudos do Ciclone, o disco do Bumerangue, a
+lâmina do Partido, o escudo da Proteção e a marca do Salvador.
+
+**`Part` ancorada movida por script de servidor replica a ~20 Hz, e o cliente
+não interpola.** O que o jogador vê é um passo discreto por atualização — a
+órbita "pula" em vez de girar. Nenhum ajuste de partícula conserta isso, porque
+o problema é a taxa de replicação da geometria.
+
+**A correção:** o movimento contínuo passou para o cliente, a 60 Hz.
+
+| | Antes | Agora |
+|---|---|---|
+| Quem desenha | servidor, `Part` ancorada por `Heartbeat` | cliente, `RenderStepped` |
+| Pacotes | replicação de `CFrame` a cada atualização | **um beat**, no início |
+| Taxa | ~20 Hz, sem interpolação | 60 Hz de verdade |
+| Quem manda no dano | servidor | servidor, igual |
+
+O servidor **não perdeu autoridade nenhuma**: a posição sempre foi fórmula pura
+(ângulo, raio, velocidade, tempo). Ele continua rodando a mesma fórmula para
+saber quem está na faixa da órbita ou no caminho do disco — só não precisa mais
+de geometria para isso.
+
+Três efeitos novos no `VFXModule`, todos client-side:
+
+| Efeito | Desenha | Usado em |
+|---|---|---|
+| `ORBITA_ESCUDOS` | N discos girando em volta do portador | Ciclone (5), Proteção (1) |
+| `DISCO_VOO` | o escudo arremessado, com ou sem retorno | Bumerangue, Partido |
+| `MARCA_ORBITAL` | o selo que flutua sobre o aliado vinculado | Salvador |
+
+O payload leva `userId`, não o `Character`: `Instance` não viaja em payload
+(§12.11), e resolver o jogador por serviço não é ler o mundo (Regra nº 1).
+
+`verificar_autocontencao.sh` ganhou a checagem **"servidor não move geometria
+por frame"**, testada contra um violador.
+
 ## Verificação
 
 ```bash
