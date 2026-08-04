@@ -41,6 +41,14 @@ local CFG = {
 	NOVA_RAIO_FIM  = 3.2,   -- multiplicador da escala
 	NOVA_ALTURA    = 0.6,
 
+	-- Emissores de molde: quanto tempo ficam LIGADOS, e quanto tempo a partícula
+	-- já solta ainda tem para viver depois de desligar. O segundo é o Lifetime
+	-- máximo do emissor — cortar antes disso apaga partícula no ar.
+	RAJADA_LIGADA  = 0.18,
+	RAJADA_RESIDUO = 2.0,
+	AURA_LIGADA    = 1.20,
+	AURA_RESIDUO   = 2.0,
+
 	COR_PADRAO     = Color3.fromRGB(140, 90, 255),
 	ESCALA_PADRAO  = 1.0,
 }
@@ -198,6 +206,75 @@ function VFX.IMPACTO_NOVA(payload)
 	end)
 
 	Debris:AddItem(anel, CFG.VIDA_ONDA + 0.5)
+end
+
+--==============================================================================
+-- EFEITOS DE MOLDE — emissores que já vivem dentro da Tool
+--==============================================================================
+
+-- Liga os ParticleEmitter de um molde de Tool/Efeitos por um tempo e desliga.
+--
+-- Por Enabled + Rate, NUNCA por :Emit(). O :Emit() dispara uma leva fixa e
+-- ignora o Rate autorado no emissor; a curva extraída do modelo de origem se
+-- perde, e o efeito fica com outra cara. Ligar e desligar preserva a curva.
+--
+-- Depois de desligar, a Part fica viva mais RESIDUO segundos: partícula já
+-- solta continua no ar, e remover o pai na hora apagaria todas de uma vez.
+local function ligarMolde(nomeMolde, payload, ligada, residuo)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return false
+	end
+
+	local ancora = molde(nomeMolde)
+	if not ancora then
+		return false
+	end
+
+	ancora.Anchored = true
+	ancora.CFrame = CFrame.new(payload.posicao)
+	ancora.Parent = workspace
+
+	local cor = lerCor(payload)
+	local emissores = {}
+	for _, filho in ipairs(ancora:GetChildren()) do
+		if filho:IsA("ParticleEmitter") then
+			filho.Color = ColorSequence.new(cor)
+			filho.Enabled = true
+			table.insert(emissores, filho)
+		end
+	end
+
+	if #emissores == 0 then
+		ancora.Parent = nil
+		return false
+	end
+
+	task.delay(ligada, function()
+		for _, emissor in ipairs(emissores) do
+			if emissor.Parent then
+				emissor.Enabled = false
+			end
+		end
+	end)
+
+	Debris:AddItem(ancora, ligada + residuo)
+	return true
+end
+
+-- "RAIO_TEMPORAL" — rajada curta de plasma com clarão. Molde do Jupiter.
+function VFX.RAIO_TEMPORAL(payload)
+	if ligarMolde("RAIO_TEMPORAL", payload, CFG.RAJADA_LIGADA, CFG.RAJADA_RESIDUO) then
+		return
+	end
+	-- Sem o molde, o efeito não some: cai no anel procedural. A Tool nunca
+	-- quebra por falta de asset (Regra nº 1 — o molde é filho dela, mas o
+	-- fallback existe para o caso de alguém apagar a pasta Efeitos no Studio).
+	VFX.IMPACTO_NOVA(payload)
+end
+
+-- "AURA" — véu contínuo em volta do ponto. Molde do Jupiter.
+function VFX.AURA(payload)
+	ligarMolde("AURA", payload, CFG.AURA_LIGADA, CFG.AURA_RESIDUO)
 end
 
 --==============================================================================

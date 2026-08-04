@@ -61,7 +61,7 @@ Ao usar, renomeie para a nomenclatura do Retro-Verse.
 | `ScreenGui` | 8 instâncias |
 
 Os 13 `require(<id numérico>)` são o achado sério: execução de código remoto, o mesmo
-vetor do Guardião do Tempo. **Não rode este arquivo num place de produção sem antes
+vetor. **Não rode este arquivo num place de produção sem antes
 remover esses requires.**
 
 ---

@@ -100,7 +100,7 @@ checar "sem busca em workspace"         'workspace[:.](FindFirstChild|WaitForChi
 
 # --- Animação R6: o animator canônico solda Welds próprios -------------------
 # Escrever em Motor6D.C0 briga com o script Animate padrão do Roblox, que escreve
-# nas mesmas juntas todo frame. Foi o que bugou a primeira versão do Guardião.
+# nas mesmas juntas todo frame. Dois donos por junta: a pose treme e volta só.
 checar "sem escrita em Motor6D.C0"      'Motor6D|\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]'
 checar "sem Animation / LoadAnimation"  'Instance\.new\("Animation"\)|LoadAnimation|AnimationTrack'
 

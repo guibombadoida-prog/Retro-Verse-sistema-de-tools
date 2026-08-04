@@ -5,7 +5,7 @@ montar_rbxmx.py — Retro-Verse / Studios
 Monta o arquivo .rbxmx de cada Tool a partir dos .lua da própria pasta.
 
     python3 FERRAMENTAS/montar_rbxmx.py            # monta todas
-    python3 FERRAMENTAS/montar_rbxmx.py AvoDoTempo # monta uma
+    python3 FERRAMENTAS/montar_rbxmx.py OrbitaPsi  # monta uma
 
 Por que um montador, e não XML escrito à mão: o .rbxmx é DERIVADO dos .lua.
 Editou o Lua, roda isto de novo. Assim o arquivo que vai para o Studio nunca
@@ -37,48 +37,12 @@ def cor(r, g, b):
 
 # ---------------------------------------------------------------- catálogo
 
-BASE = (154, 205, 50)      # BASECOLOR do modelo Guardião do Tempo
+BASE = (154, 205, 50)      # paleta do repositório — verde-limão
 BRONZE = (124, 100, 58)
 ESCURO = (48, 42, 34)
 
 # SFX: nome do Sound -> (id, volume, pitch, rolloff)
 CATALOGO = {
-    "TemperoTemporal": {
-        "tooltip": "Tempero Temporal - recolhe o tempo em volta e devolve tudo de uma vez",
-        "classe": "Melee", "energia": 0, "recarga": 0, "extra": False,
-        "sfx": {"Golpe": (588694531, 5.0, 1.0, 60), "Onda": (588738949, 5.0, 1.0, 60),
-                "Estilhaco": (935843979, 5.0, 1.0, 60), "Faisca": (785201669, 4.0, 1.2, 60)},
-    },
-    "Cronostase": {
-        "tooltip": "Cronostase - marca um ponto no tempo. Ative de novo para voltar a ele",
-        "classe": "Magic", "energia": 0, "recarga": 0, "extra": False,
-        "sfx": {"Marca": (588738949, 5.0, 1.0, 60), "Retorno": (782202168, 5.0, 1.0, 60),
-                "Estelar": (1846396833, 5.0, 1.0, 60)},
-    },
-    "AvancoRapido": {
-        "tooltip": "Avanço Rápido - adianta o tempo até tudo em volta envelhecer. M acelera",
-        "classe": "Magic", "energia": 0, "recarga": 60, "extra": True,
-        "sfx": {"Avanco": (447682521, 4.0, 0.7, 60), "Aceleracao": (743521450, 4.0, 1.5, 60),
-                "Estouro": (763717897, 6.0, 0.9, 90), "Brasa": (114121130345944, 5.0, 1.0, 80)},
-    },
-    "CanhaoCronos": {
-        "tooltip": "Canhão Cronos - concentra o tempo numa linha e solta",
-        "classe": "Ranged", "energia": 0, "recarga": 9, "extra": False,
-        "sfx": {"Carga": (743521450, 4.0, 0.8, 70), "Disparo": (908895929, 5.0, 1.5, 80),
-                "Raio": (96478259, 5.0, 1.1, 80), "Impacto": (9125403260, 5.0, 1.0, 70)},
-    },
-    "Temporalise": {
-        "tooltip": "Temporálise - o tempo para para todo mundo, menos para você",
-        "classe": "Debuff", "energia": 0, "recarga": 22, "extra": False,
-        "sfx": {"Parada": (447682521, 5.0, 0.7, 80), "Retomada": (743521450, 4.0, 3.0, 80),
-                "Estelar": (1846396833, 5.0, 0.9, 80), "Brasa": (6271036459, 4.0, 1.0, 70)},
-    },
-    "ArmadilhaTemporal": {
-        "tooltip": "Armadilha Temporal - deixe o tempo esperando por alguém",
-        "classe": "Summon", "energia": 0, "recarga": 5, "extra": False,
-        "sfx": {"Plantar": (447682521, 4.0, 0.7, 60), "Disparo": (782199941, 6.0, 1.5, 70),
-                "Brasa": (114121130345944, 4.0, 1.1, 70), "Faisca": (785201669, 4.0, 1.2, 60)},
-    },
 
     "PulsoGravitacional": {
         "tooltip": "Pulso Gravitacional - comprime a gravidade ao redor. X lança singularidade",
@@ -115,31 +79,23 @@ CATALOGO = {
         "classe": "Summon", "energia": 0, "recarga": 16, "extra": True,
         "sfx": {"Golpe": (782199941, 5.0, 1.2, 80)},
     },
-    "AvoDoTempo": {
-        "tooltip": "Avô do Tempo - a hora chega para todos. T provoca",
-        "classe": "Magic", "energia": 0, "recarga": 45, "extra": True,
-        "sfx": {"Badalada": (850256806, 7.0, 1.0, 80), "Voz": (819312817, 7.0, 1.0, 80),
-                "Provocacao": (819373088, 7.0, 1.0, 80),
-                "Supernova": (95335614812989, 8.0, 1.0, 90), "Raio": (96478346, 6.0, 1.0, 85), "Estouro": (401056199, 7.0, 0.9, 90)},
-    },
 }
 
 
-# ---------------------------------------------------------------- efeitos novos
+# ---------------------------------------------------------------- efeitos
 #
-# ACRESCENTADOS ao conjunto Guardião do Tempo. Os cinco efeitos originais
-# (ONDA_TEMPORAL, ESFERA_TEMPORAL, MOSTRADOR_TEMPORAL, DETRITOS, TREMOR)
-# continuam existindo e não foram tocados — estes entram POR CIMA.
+# Emissores de verdade, extraídos de dois modelos de terceiro:
+# Jupiter_Great_Pressure_Sword e Sword_of_Cosmic_Entity.
 #
 # Curvas (Size, Transparency, Rate, Speed, Lifetime) são as do modelo de origem,
 # extraídas por FERRAMENTAS/extrair_rbxm.py. A COR foi trocada para a paleta do
-# Guardião, que é o que costura o material de dois modelos diferentes no mesmo
-# conjunto — a leitura visual é do Guardião, o comportamento é do original.
+# repositório — é o que costura material de dois modelos diferentes no mesmo
+# conjunto: a leitura visual fica única, o comportamento continua o do original.
 #
 # Passe §12.12.2 aplicado: Enabled = false na origem, e o cliente liga por
 # Enabled + Rate. Zero :Emit(), no servidor ou fora dele.
 
-VERDE = (0.604, 0.804, 0.196)      # 154,205,50 — BASECOLOR do Guardião
+VERDE = (0.604, 0.804, 0.196)      # 154,205,50 — paleta do repositório
 VERDE_CLARO = (0.78, 0.95, 0.45)
 BRANCO = (1.0, 1.0, 1.0)
 
@@ -261,14 +217,6 @@ EFEITOS_POR_TOOL = {
     "LancaVetorial": ["RAIO_TEMPORAL", "FAISCA", "AURA"],
     "PocoDeMassa": ["BRASA", "AURA"],
     "MarionetePsi": ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
-    "TemperoTemporal":   ["ESTILHACO_ESTELAR", "FAISCA", "AURA"],
-    "Cronostase":        ["ESTILHACO_ESTELAR", "AURA"],
-    "AvancoRapido":      ["BRASA", "FAISCA", "AURA"],
-    "CanhaoCronos":      ["RAIO_TEMPORAL", "FAISCA", "AURA"],
-    "Temporalise":       ["ESTILHACO_ESTELAR", "BRASA", "AURA"],
-    "ArmadilhaTemporal": ["BRASA", "FAISCA", "AURA"],
-    "AvoDoTempo":        ["RAIO_TEMPORAL", "ESTILHACO_ESTELAR", "BRASA",
-                          "FAISCA", "AURA"],
 }
 
 
@@ -501,7 +449,7 @@ def construir_tool(m, raiz, nome):
     fonte_cliente = ler(os.path.join(pasta, "Client.lua"))
     fonte_animator = ler(os.path.join(pasta, "R6CFrameAnimator.lua"))
     fonte_vfx = ler(os.path.join(pasta, "VFXModule.lua"))
-    fonte_poses = ler(os.path.join(pasta, "Poses_GuardiaoDoTempo_%s_V1.lua" % nome))
+    fonte_poses = ler(os.path.join(pasta, "Poses_GravidadeTelecinese_%s_V1.lua" % nome))
 
     tool = m.item(raiz, "Tool")
     m.p_string(tool, "Name", nome)
@@ -625,12 +573,10 @@ def envolver_cdata(texto):
 #
 # A REGRA_ENTREGA_RBXMX manda entregar as Tools DE UM MODELO num arquivo só.
 # Juntar modelos diferentes no mesmo .rbxmx não é conveniência: quem importa o
-# conjunto do Guardião passa a receber sete Tools de gravidade que não pediu, e
-# o nome do arquivo deixa de dizer o que ele tem dentro.
+# conjunto de um modelo passa a receber Tools de outro que não pediu, e o nome
+# do arquivo deixa de dizer o que ele tem dentro. Modelo novo entra como
+# entrada nova nesta lista, nunca como apêndice de uma existente.
 CONJUNTOS = [
-    ("GuardiaoDoTempo_7_Tools.rbxmx", "Guardião do Tempo", [
-        "TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
-        "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]),
     ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
         "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
         "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),

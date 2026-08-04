@@ -18,7 +18,8 @@ O que confere:
   6. A fonte embutida é BYTE A BYTE igual ao .lua do repositório
   7. VFXRemote presente; AcaoRemote só onde há habilidade Extra
   8. Todo Sound citado pelo Server Script existe dentro de Tool/SFX
-  9. Nenhum script referencia depósito fora da Tool (Regra nº 1)
+  9. Todo VFX transmitido existe no VFXModule da própria Tool
+ 10. Nenhum script referencia depósito fora da Tool (Regra nº 1)
 """
 
 import os
@@ -149,7 +150,7 @@ def verificar(nome):
         ("LocalScript", "Client", "Client.lua"),
         ("ModuleScript", "R6CFrameAnimator", "R6CFrameAnimator.lua"),
         ("ModuleScript", "VFXModule", "VFXModule.lua"),
-        ("ModuleScript", "Poses", "Poses_GuardiaoDoTempo_%s_V1.lua" % nome),
+        ("ModuleScript", "Poses", "Poses_GravidadeTelecinese_%s_V1.lua" % nome),
     ]
     fontes = {}
     for classe, nome_obj, arquivo in esperados:
@@ -196,7 +197,21 @@ def verificar(nome):
         if citado not in nomes_sfx:
             erros.append("CFG cita o som %r, que não existe em Tool/SFX" % citado)
 
-    # 9. Regra nº 1
+    # 9. todo VFX transmitido existe no VFXModule DA PRÓPRIA TOOL
+    #
+    # VFX.executar faz `local efeito = VFX[tipo]` e volta calado se não achar.
+    # Um tipo herdado de outra Tool não quebra nada, não avisa nada, e
+    # simplesmente não desenha — foi o que aconteceu com as 7 Tools de
+    # gravidade, que pediam dois tipos herdados sem implementar nenhum deles.
+    modulo = fontes.get("VFXModule", "")
+    implementados = set(re.findall(r"function VFX\.([A-Z][A-Z0-9_]*)", modulo))
+    for citado in set(re.findall(r'transmitirVFX\(\s*\w+\s*,\s*"([A-Z0-9_]+)"',
+                                 sem_comentario(servidor))):
+        if citado not in implementados:
+            erros.append("o Server transmite o VFX %r, que o VFXModule desta Tool "
+                         "não implementa — o efeito não desenha e nada avisa" % citado)
+
+    # 10. Regra nº 1
     for nome_obj, codigo in fontes.items():
         limpo = sem_comentario(codigo)
         for termo in PROIBIDOS:
@@ -210,9 +225,6 @@ def verificar(nome):
 # Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
 # Espelha CONJUNTOS de FERRAMENTAS/montar_rbxmx.py — se um mudar, o outro muda.
 CONJUNTOS = [
-    ("GuardiaoDoTempo_7_Tools.rbxmx", "Guardião do Tempo", [
-        "TemperoTemporal", "Cronostase", "AvancoRapido", "CanhaoCronos",
-        "Temporalise", "ArmadilhaTemporal", "AvoDoTempo"]),
     ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
         "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
         "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),

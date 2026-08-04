@@ -20,7 +20,7 @@ Um animator que também escreve em `Motor6D.C0` é um **segundo dono da mesma ju
 dois brigam todo frame: a pose treme, salta e volta sozinha. Não é bug de timing nem de
 easing — é dois escritores, e não tem conserto por ajuste.
 
-Foi o que bugou a primeira versão das Tools do Guardião do Tempo.
+Foi o que bugou a primeira leva de Tools deste repositório.
 
 **A saída é não disputar a junta:** o animator canônico cria `Weld`s próprios, com nome
 próprio, e anima o `C0` deles. O `Animate` segue mexendo nos `Motor6D` dele, sem colisão.

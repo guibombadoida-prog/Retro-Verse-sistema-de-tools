@@ -15,9 +15,17 @@ Confere que cada `.rbxmx` é uma Tool conforme e autocontida: raiz `Tool`, `CanB
 `RequiresHandle=true`, `Handle` com o nome exato, `DamageClass` preenchido, os cinco scripts do
 §12.10, `VFXRemote`, os `Sound` citados pelo `CFG`, e nenhuma referência fora da Tool.
 
-A verificação que sustenta a regra é a **6ª**: a fonte embutida no `.rbxmx` tem de ser
-**byte a byte** igual ao `.lua` do repositório. Sem ela, o arquivo entregue vira uma cópia
+A verificação que sustenta a regra de entrega é a **6ª**: a fonte embutida no `.rbxmx` tem de
+ser **byte a byte** igual ao `.lua` do repositório. Sem ela, o arquivo entregue vira uma cópia
 velha em que ninguém repara.
+
+A **9ª** nasceu de defeito real: **todo VFX transmitido tem de existir no `VFXModule` da
+própria Tool**. `VFX.executar` faz `VFX[tipo]` e volta calado se não achar — um tipo herdado de
+outro conjunto não quebra nada, não avisa nada, e simplesmente não desenha. Sete Tools
+transmitiam dois tipos que não implementavam.
+
+Também confere que cada **conjunto** só tem Tools do seu próprio modelo: Tool de outro modelo
+dentro de um conjunto é entrega errada, porque quem importa o arquivo recebe o que não pediu.
 
 Testado contra uma Tool sabotada de propósito: pegou as 5 falhas e saiu com 1.
 
@@ -65,10 +73,9 @@ Confere cada `Poses_*.lua` contra o `R6CFrameAnimator_V2`.
 | Sequência usa `time`/`style`/`dir`, não `duracao`/`easing` | Formato do V1; o V2 ignora as chaves velhas |
 | Pose com perna cita `ReleaseLegs` | Perna soldada permanentemente trava a caminhada |
 
-A terceira checagem nasceu de defeito real: `Cronostase` tinha 3 poses e a Extra do
-`AvancoRapido` tinha 2, **todas iguais à base do Weld**. As duas habilidades não animavam
-nada, o Studio não reclamaria disso, e o mapa de fidelidade declarava as poses como
-autorais. As cinco foram reautoradas.
+A terceira checagem nasceu de defeito real: duas Tools tinham a sequência inteira com as
+poses **iguais à base do Weld**. As habilidades não animavam nada, e o Studio não
+reclamaria disso — pose neutra é pose válida. Só uma comparação contra a base pega.
 
 Testado contra uma tabela sabotada de propósito: pegou junta inexistente, pose fantasma,
 chaves do V1 e sequência morta, e saiu com 1.

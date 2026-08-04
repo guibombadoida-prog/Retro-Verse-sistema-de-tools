@@ -63,9 +63,9 @@ todo personagem escreve nos mesmos `Motor6D` (`Right Shoulder`, `Neck`, `RootJoi
 a cada frame, para andar, parar e pular. Um segundo escritor na mesma junta significa
 dois donos brigando todo frame: a pose treme, salta e volta sozinha.
 
-Foi exatamente isso que aconteceu nas Tools do Guardião do Tempo na primeira versão:
-eu escrevi um animator que mexia nos `Motor6D` direto, em vez de usar este. A animação
-bugou. **O `Weld` próprio existe para não ter esse segundo dono.**
+Foi exatamente isso que aconteceu na primeira leva de Tools deste repositório: eu escrevi
+um animator que mexia nos `Motor6D` direto, em vez de usar este. A animação bugou.
+**O `Weld` próprio existe para não ter esse segundo dono.**
 
 > Nota histórica: houve um `R6CFrameAnimator_V2.lua` **meu**, baseado em `Motor6D`, que
 > foi removido do Acervo por ser a versão errada. O V2 que está aqui **não é aquele** —
@@ -73,8 +73,8 @@ bugou. **O `Weld` próprio existe para não ter esse segundo dono.**
 
 ## Converter pose de `Motor6D` para `Weld`
 
-Se aparecer material de terceiro com poses em `Motor6D.C0` absoluta — como o modelo
-Guardião do Tempo tinha — a conversão é exata:
+Se aparecer material de terceiro com poses em `Motor6D.C0` absoluta — é o formato mais
+comum em modelo de toolbox — a conversão é exata:
 
 ```
 WeldC0 = MotorC0 * MotorC1⁻¹
@@ -105,7 +105,7 @@ coisa, o `C1` usado está errado.
 
 ## Onde já é usado
 
-As 7 Tools do conjunto Guardião do Tempo, e o `_TEMPLATE_Tool`.
+As 7 Tools do conjunto Gravidade / Telecinese, e o `_TEMPLATE_Tool`.
 
 ## Biblioteca de referência
 

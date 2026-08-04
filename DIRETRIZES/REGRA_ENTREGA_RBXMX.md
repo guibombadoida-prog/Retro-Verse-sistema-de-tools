@@ -17,11 +17,11 @@ importa **uma** vez, não sete.
 ### As Tools ficam na RAIZ do arquivo, nunca dentro de uma `Folder`
 
 ```
-GuardiaoDoTempo_7_Tools.rbxmx
-├── Tool "TemperoTemporal"
-├── Tool "Cronostase"
+GravidadeTelecinese_7_Tools.rbxmx
+├── Tool "PulsoGravitacional"
+├── Tool "CampoZeroG"
 ├── ...
-└── Tool "AvoDoTempo"
+└── Tool "MarionetePsi"
 ```
 
 `Folder` na `StarterPack` **não entrega** o que tem dentro ao jogador. Agrupar as Tools numa
@@ -58,7 +58,7 @@ O arquivo é gerado a partir dos `.lua` da pasta da Tool:
 
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py              # as individuais + o conjunto
-python3 FERRAMENTAS/montar_rbxmx.py AvoDoTempo   # só uma individual
+python3 FERRAMENTAS/montar_rbxmx.py OrbitaPsi    # só uma individual
 ```
 
 **Editou o `.lua`, roda o montador de novo.** Editar o XML na mão é proibido: cria divergência

@@ -62,8 +62,8 @@ Cada Tool declara os seus próprios (§12.4). Tools que **dividem recarga** usam
 de uma habilidade que deveria ser única.
 
 ```
-Tool A  ChaveRecarga = "GuardiaoDoTempo_Ultimate"
-Tool B  ChaveRecarga = "GuardiaoDoTempo_Ultimate"   → uma recarga para as duas
+Tool A  ChaveRecarga = "GravidadeTelecinese_Ultimate"
+Tool B  ChaveRecarga = "GravidadeTelecinese_Ultimate"   → uma recarga para as duas
 ```
 
 ---

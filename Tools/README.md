@@ -16,9 +16,12 @@ Tools/
 
 ## Conjuntos entregues
 
-| Conjunto | Tools | Modelo de origem | Status |
+| Conjunto | Tools | Arquivo de entrega | Status |
 |---|---|---|---|
-| [Guardião do Tempo](GUARDIAO_DO_TEMPO.md) | 7 | `Guardiao_Do_Tempo` | LIMPO — falta teste no Studio |
+| [Gravidade / Telecinese](GRAVIDADE_TELECINESE.md) | 7 | `GravidadeTelecinese_7_Tools.rbxmx` | ⚠️ conformes, mas **as 7 são a mesma Tool** — falta a lógica de habilidade de seis |
+
+Um `.rbxmx` por conjunto, com as Tools daquele conjunto na **raiz** do arquivo. Nunca dentro
+de uma `Folder`: `Folder` na `StarterPack` não entrega nada ao jogador.
 
 ## Regra de ouro
 

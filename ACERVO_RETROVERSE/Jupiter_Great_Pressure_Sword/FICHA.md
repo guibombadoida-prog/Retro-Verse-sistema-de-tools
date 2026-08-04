@@ -7,14 +7,14 @@
   ⚠️ Campo obrigatório de §12.12.3.
 - **Data de entrada:** 2026-07-31
 - **Status: LIMPO**   (CRU | LIMPO | APROVADO)
-  Passe §12.12.2 executado sobre os emissores que entraram no Guardião do Tempo.
+  Passe §12.12.2 executado sobre os emissores que entraram em Tool.
   O resto do modelo segue CRU.
 - **Violações corrigidas:** nos emissores aproveitados — `Enabled` na origem e o cliente
-  liga por `Enabled` + `Rate` (zero `:Emit()`); cor trocada para a paleta do Guardião.
+  liga por `Enabled` + `Rate` (zero `:Emit()`); cor trocada para a paleta do repositório.
   O restante do modelo **não** foi reescrito — ver `LOGICA/HABILIDADES.md`
 - **Excluído do acervo:** a definir no passe. Já identificados como insalváveis:
   `Animation` (asset), `ColorCorrectionEffect`, `ScreenGui`, `Sky`
-- **Já usado em:** conjunto Guardião do Tempo (V2) — `RAIO_TEMPORAL` (Plasma + Clarão), `FAISCA` (Anel), `AURA`
+- **Já usado em:** conjunto Gravidade / Telecinese — `RAIO_TEMPORAL` (Plasma + Clarão), `FAISCA` (Anel), `AURA`
 
 > ⚠️ **Sem os quatro campos acima — autor, origem, licença, data — este material
 > fica CRU e NÃO pode entrar em Tool** (§12.12.3).

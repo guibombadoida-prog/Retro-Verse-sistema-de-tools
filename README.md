@@ -34,7 +34,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │
 ├── Tools/
 │   ├── _TEMPLATE_Tool/            ← Molde de toda Tool nova
-│   ├── GUARDIAO_DO_TEMPO.md       ← Conjunto de 7 Tools (primeira conversão)
+│   ├── GRAVIDADE_TELECINESE.md    ← Conjunto de 7 Tools
 │   └── [NomeDaTool]/              ← Uma pasta por Tool entregue
 │
 ├── MODELOS_ENTRADA/               ← .rbxm/.rbxmx crus, antes da conversão

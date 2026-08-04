@@ -76,7 +76,7 @@ padrão é limpo: dá para reaproveitar a ideia direto no `VFXModule`, no client
   tique, dentro dos laços. Ao converter, isso vira dano único por alvo com
   `jaAtingidos`, ou fica explicitamente como dano por tique — decisão de jogo.
 - **`Camera` e `ShakeCam`** mexem na câmera do jogador. O tremor vira `TREMOR` no
-  cliente, via `Humanoid.CameraOffset` (já existe no Acervo, em `Guardiao_Do_Tempo`).
+  cliente, via `Humanoid.CameraOffset` — nunca no servidor.
 - **`remove`** (16 linhas) é um script de limpeza do próprio modelo — não vai para Tool.
 
 ### O que é bom e vale reusar

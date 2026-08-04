@@ -186,7 +186,7 @@ tool.Activated:Connect(function()
 	end
 
 	if _G.Combate then
-		_G.Combate.transmitirVFX(VFXRemote, "ESFERA_TEMPORAL", {
+		_G.Combate.transmitirVFX(VFXRemote, "IMPACTO_NOVA", {
 			posicao = handle.Position,
 			escala = CFG.ESCALA_IMPACTO,
 			cor = CFG.COR_VFX,

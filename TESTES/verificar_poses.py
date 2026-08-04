@@ -17,9 +17,9 @@ O que confere:
   4. Sequência usa `time`/`style`/`dir` (V2), não `duracao`/`easing` (V1)
   5. Pose com perna traz o aviso do ReleaseLegs no cabeçalho
 
-A checagem 3 nasceu de defeito real: Cronostase tinha 3 poses e AvancoRapido
-tinha 2, todas iguais à base do Weld. As duas habilidades não animavam nada, e
-o mapa de fidelidade declarava as poses como autorais.
+A checagem 3 nasceu de defeito real: duas Tools tinham a sequência inteira com
+as poses iguais à base do Weld. As habilidades não animavam nada, e o Studio não
+reclama disso — pose neutra é pose válida.
 """
 
 import glob

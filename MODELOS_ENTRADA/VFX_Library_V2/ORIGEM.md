@@ -27,7 +27,7 @@ Não há `Tool` no arquivo: é biblioteca de efeitos, não ferramenta pronta.
 ## ⚠️ Não rode em produção como está
 
 13 `require(<id numérico>)` — execução de código remoto, o mesmo vetor achado no
-Guardião do Tempo. Mais 152 `BreakJoints`, 911 `:Destroy()`, 1113 `math.random`.
+código remoto. Mais 152 `BreakJoints`, 911 `:Destroy()`, 1113 `math.random`.
 Ver `ACERVO_RETROVERSE/VFX_Library_V2/FICHA.md`.
 
 ## Já depositado no Acervo

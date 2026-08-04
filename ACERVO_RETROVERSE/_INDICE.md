@@ -9,30 +9,37 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 
 ## VFX
 
-| Efeito | Modelo de origem | Tipo | Status | Já usado em |
-|---|---|---|---|---|
-| `ONDA_TEMPORAL` | Guardiao_Do_Tempo | Cilindro em expansão, com giro | LIMPO | TemperoTemporal, AvancoRapido, CanhaoCronos, Temporalise, AvoDoTempo |
-| `ESFERA_TEMPORAL` | Guardiao_Do_Tempo | Esfera em expansão | LIMPO | TemperoTemporal, Cronostase, CanhaoCronos, Temporalise, ArmadilhaTemporal, AvoDoTempo |
-| `MOSTRADOR_TEMPORAL` | Guardiao_Do_Tempo | 12 marcas + ponteiro girando | LIMPO | Cronostase, AvancoRapido, CanhaoCronos, Temporalise, ArmadilhaTemporal, AvoDoTempo |
-| `DETRITOS` | Guardiao_Do_Tempo | Estilhaços em parábola | LIMPO | TemperoTemporal, CanhaoCronos, ArmadilhaTemporal, AvoDoTempo |
-| `TREMOR` | Guardiao_Do_Tempo | Tremor de câmera por proximidade | LIMPO | as 7 Tools do conjunto |
-
-Módulo único que serve os cinco: `Guardiao_Do_Tempo/VFX/VFXModule_GuardiaoDoTempo.lua`.
-
-### Acrescentados ao Guardião do Tempo na V2 — emissores de verdade
+### Emissores — `ParticleEmitter` de verdade
 
 | Efeito | Origem | Emissores | Status | Usado em |
 |---|---|---|---|---|
-| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | CanhaoCronos, AvoDoTempo |
-| `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | TemperoTemporal, Cronostase, Temporalise, AvoDoTempo |
-| `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | AvancoRapido, Temporalise, ArmadilhaTemporal, AvoDoTempo |
-| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | TemperoTemporal, AvancoRapido, CanhaoCronos, ArmadilhaTemporal, AvoDoTempo |
-| `AURA` | Jupiter | `Aura` | LIMPO | as 7 Tools |
+| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | PulsoGravitacional, MaoTelecinetica, LancaVetorial |
+| `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | CampoZeroG, MarionetePsi |
+| `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | PocoDeMassa |
+| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | MaoTelecinetica, OrbitaPsi, LancaVetorial, MarionetePsi |
+| `AURA` | Jupiter | `Aura` | LIMPO | as 7 Tools do conjunto Gravidade / Telecinese |
 
-Estes usam `ParticleEmitter` **de verdade**, dentro de `Tool/Efeitos/<TIPO>`, ligados por
-`Enabled` — zero `:Emit()`. As curvas (Size, Transparency, Rate, Speed, Lifetime) são as do
-modelo de origem; a **cor** foi trocada para a paleta do Guardião, que é o que costura
-material de dois modelos diferentes no mesmo conjunto.
+Vivem em `Tool/Efeitos/<TIPO>` e são ligados por `Enabled` + `Rate` — **zero `:Emit()`**.
+`:Emit()` dispara uma leva fixa e ignora o `Rate` autorado; a curva extraída do modelo de
+origem se perde, e o efeito fica com outra cara.
+
+As curvas (Size, Transparency, Rate, Speed, Lifetime) são as do modelo de origem; a **cor**
+foi trocada para a paleta do repositório, que é o que costura material de dois modelos
+diferentes no mesmo conjunto.
+
+> ⚠️ Ter o molde dentro da Tool **não basta**: alguém tem de ligá-lo. Os emissores de
+> `RAIO_TEMPORAL` e `AURA` estavam dentro das 7 Tools de gravidade sem nenhuma função no
+> `VFXModule` que os acendesse. `VFX.executar` faz `VFX[tipo]`, não acha, e volta calado.
+> `TESTES/verificar_rbxmx.py` agora pega isso.
+
+### Procedurais — sem molde, feitos em código
+
+| Efeito | Origem | Tipo | Status | Usado em |
+|---|---|---|---|---|
+| `IMPACTO` | **autoral** | Estilhaços subindo do ponto de contato | LIMPO | as 7 Tools |
+| `IMPACTO_NOVA` | **autoral** | Anel de choque expandindo no plano do chão | LIMPO | as 7 Tools |
+
+Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math.random`.
 
 ### `VFX_Library_V2` — a maior entrada do Acervo, ainda CRU
 
@@ -50,7 +57,7 @@ material de dois modelos diferentes no mesmo conjunto.
 
 ### O que sobrou CRU nos dois modelos
 
-| Origem | Total | Aproveitado na V2 | Segue CRU |
+| Origem | Total | Já aproveitado | Segue CRU |
 |---|---|---|---|
 | `Jupiter_Great_Pressure_Sword` | 19 `ParticleEmitter` · 3 `Highlight` · 1 `Trail` | 4 emissores | o resto, inclusive o `LightningBolt` completo |
 | `Sword_of_Cosmic_Entity` | 26 `ParticleEmitter` · 6 `Trail` · 1 `Highlight` | 5 emissores | o resto, inclusive `Nova_Circle`, `MegaWave`, `ShurikenModel` |
@@ -65,12 +72,11 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 
 | Efeito | Modelo de origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| `IMPACTO_TEMPORAL` | Guardiao_Do_Tempo | 6 IDs — golpe, corte, onda | LIMPO | TemperoTemporal, Cronostase, CanhaoCronos, ArmadilhaTemporal |
-| `ENGRENAGEM` | Guardiao_Do_Tempo | 5 IDs — mecanismo, tique | LIMPO | AvancoRapido, CanhaoCronos, Temporalise, ArmadilhaTemporal |
-| `BADALADA` | Guardiao_Do_Tempo | 6 IDs — relógio, ultimate | LIMPO | AvoDoTempo |
-| `VOZ_GUARDIAO` | Guardiao_Do_Tempo | 2 IDs — fala | LIMPO | AvoDoTempo |
-| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO (4 em uso) | CanhaoCronos, AvancoRapido, AvoDoTempo |
-| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO (7 em uso) | as 7 Tools |
+| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO (parcial) | conjunto Gravidade / Telecinese |
+| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO (parcial) | conjunto Gravidade / Telecinese |
+
+Cada Tool do conjunto Gravidade / Telecinese usa **um** som de golpe, escolhido destes dois
+catálogos. O resto segue depositado e disponível.
 
 Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
@@ -89,21 +95,15 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Pose / sequência | Modelo de origem | Juntas | Status | Já usado em |
 |---|---|---|---|---|
-| `Poses_GuardiaoDoTempo_TemperoTemporal_V1` | Guardiao_Do_Tempo | 6 · 5 quadros | LIMPO | TemperoTemporal |
-| `Poses_GuardiaoDoTempo_Cronostase_V1` | **autoral** | 3 · 3 quadros | LIMPO | Cronostase |
-| `Poses_GuardiaoDoTempo_AvancoRapido_V1` | Guardiao_Do_Tempo + autoral | 6 · 4+2 quadros | LIMPO | AvancoRapido |
-| `Poses_GuardiaoDoTempo_CanhaoCronos_V1` | Guardiao_Do_Tempo | 6 · 2 quadros | LIMPO | CanhaoCronos |
-| `Poses_GuardiaoDoTempo_Temporalise_V1` | Guardiao_Do_Tempo | 6 · 1 quadro | LIMPO | Temporalise |
-| `Poses_GuardiaoDoTempo_ArmadilhaTemporal_V1` | Guardiao_Do_Tempo | 6 · 2 quadros | LIMPO | ArmadilhaTemporal |
-| `Poses_GuardiaoDoTempo_AvoDoTempo_V1` | Guardiao_Do_Tempo | 6 · 3+2 quadros | LIMPO | AvoDoTempo |
+| `Poses_GravidadeTelecinese_*_V1` | **autoral** (do molde) | 4 · 2+2+2 quadros | LIMPO | as 7 Tools do conjunto |
 | `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | as 7 Tools + o molde |
 | `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
 
 > ⚠️ **`R6CFrameAnimator_V2` é O animator do projeto. Não escreva outro.**
 > Ele cria `Weld`s próprios; escrever em `Motor6D.C0` briga com o script `Animate`
-> padrão do Roblox e **buga a animação** — foi o que aconteceu na primeira versão do
-> Guardião do Tempo.
+> padrão do Roblox e **buga a animação** — dois donos por junta, e a pose treme e volta
+> sozinha. Já aconteceu neste repositório.
 >
 > V2 é **superset do V1**: mesma API, mesmas bases, mesmos nomes de junta — toda tabela
 > de poses do V1 roda no V2 sem alteração. Acrescenta perna sob demanda, `PlaySequence`,
@@ -134,7 +134,6 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 
 | Pasta | Status | Ficha |
 |---|---|---|
-| `Guardiao_Do_Tempo/` | **LIMPO** | [FICHA.md](Guardiao_Do_Tempo/FICHA.md) |
 | `Jupiter_Great_Pressure_Sword/` | **LIMPO** (parcial) | [FICHA.md](Jupiter_Great_Pressure_Sword/FICHA.md) |
 | `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |
