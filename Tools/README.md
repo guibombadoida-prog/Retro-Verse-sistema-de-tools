@@ -1,43 +1,63 @@
 # Tools
 
-Uma pasta por Tool entregue. `_TEMPLATE_Tool/` é o molde — **não é uma Tool**, não vai para o place.
+**Vazio de propósito.** Todas as Tools foram removidas a pedido. As próximas
+nascem dos modelos que você enviar.
 
+## O método mudou — e o motivo
+
+A leva anterior foi feita **reescrevendo** as Tools do zero a partir da lógica do
+modelo. Isso produziu Tools que passavam em todo verificador e mesmo assim
+entregavam outra coisa visualmente, porque:
+
+| O que eu fiz | O que devia ter feito |
+|---|---|
+| Montei o Handle com primitivas em código | **Clonar** o Handle do modelo, com o `SpecialMesh` dele |
+| Autorei poses a olho | Ler a animação do modelo e autorar em cima da **cadência** dela |
+| Usei a V1 do modelo como base | Usar a versão **mais nova** que você enviou |
+| Um efeito por impacto | **Camadas** — flash, disco, linhas, detrito, com durações diferentes |
+
+O ponto que resume: **clonar a Tool que chegou, e trocar só o que a regra exige
+trocar.** Não remontar do zero e chamar de conversão.
+
+## Ponto de partida da próxima
+
+O material está todo aqui, pronto:
+
+| Onde | O que tem |
+|---|---|
+| `MODELOS_ENTRADA/Danilo_Escudos_V4/` | a remasterização — **é esta a base para clonar** |
+| `MODELOS_ENTRADA/Danilo_Escudos/` | a V1, para comparação |
+| `ACERVO_RETROVERSE/Jupiter_Great_Pressure_Sword/` | emissores + 21 sons |
+| `ACERVO_RETROVERSE/Sword_of_Cosmic_Entity/` | emissores + 15 sons |
+| `ACERVO_RETROVERSE/VFX_Library_V2/` | 782 emissores, 38 habilidades, `01_Saitama` incluso |
+| `ACERVO_RETROVERSE/Judgement_Cut_End/` | sons de corte + meshes de lâmina |
+| `ACERVO_RETROVERSE/Saitama_Animacoes_Referencia/` | 2417 keyframes já em `Weld.C0` |
+| `ACERVO_RETROVERSE/Domain_Expansion_Elemental/` | pack elemental, ainda CRU |
+| `ACERVO_RETROVERSE/_AUTORAL_RetroVerse/` | `R6CFrameAnimator_V2` + molde de câmera |
+
+Índice completo: [`ACERVO_RETROVERSE/_INDICE.md`](../ACERVO_RETROVERSE/_INDICE.md)
+
+## O que continua valendo
+
+As regras, as ferramentas e os verificadores ficaram — são o que sobrou de útil
+da leva anterior, e vários deles nasceram de defeito real encontrado em jogo:
+
+```bash
+bash    TESTES/verificar_autocontencao.sh   # 23 checagens
+python3 TESTES/verificar_poses.py           # poses × animator V2
+python3 TESTES/verificar_rbxmx.py           # as Tools entregues
+lua5.4  TESTES/harness_NucleoCombate.lua    # pipeline de dano
 ```
-Tools/
-├── _TEMPLATE_Tool/          molde (§12.10)
-└── [NomeDaTool]/
-    ├── ESTRUTURA.md         hierarquia real desta Tool + Values declarados
-    ├── [NomeDaTool]_Server_V[X].lua
-    ├── Client.lua
-    ├── R6CFrameAnimator.lua
-    ├── Poses_[Modelo]_V[X].lua
-    └── VFXModule.lua
-```
 
-## Conjuntos entregues
+Entre as checagens, quatro que só existem porque a coisa quebrou em jogo:
 
-| Conjunto | Tools | Arquivo de entrega | Status |
-|---|---|---|---|
-| [Escudos](ESCUDOS.md) | 7 | `Escudos_7_Tools.rbxmx` | 5 convertidas + 2 autorais, cada uma com lógica própria |
-| [Gravidade / Telecinese](GRAVIDADE_TELECINESE.md) | 7 | `GravidadeTelecinese_7_Tools.rbxmx` | ⚠️ conformes, mas **as 7 são a mesma Tool** — falta a lógica de habilidade de seis |
+- `registrarAtaque` não é aplicador de dano (7 Tools saíram com **dano zero**)
+- `Players:GetPlayers()` não enxerga NPC
+- servidor não move geometria por frame (**replica a ~20 Hz**, e é o que
+  deixava o VFX picotado)
+- sequência de pose inteiramente neutra é animação morta
 
-Um `.rbxmx` por conjunto, com as Tools daquele conjunto na **raiz** do arquivo. Nunca dentro
-de uma `Folder`: `Folder` na `StarterPack` não entrega nada ao jogador.
-
-## Regra de ouro
-
-**Apague o `ACERVO_RETROVERSE` inteiro do place — toda Tool aqui continua funcionando.**
-O material audiovisual é *copiado para dentro* da Tool na montagem. O Acervo é prateleira de
-edição, nunca dependência de runtime (§12.16.4).
-
-## Versionamento
-
-V1 → V2 → V3, sequencial, incrementado a cada modificação. O arquivo antigo é **substituído** e a
-substituição é declarada no relatório de entrega (§13).
-
-## Antes de abrir uma Tool nova
-
-1. Ler `ACERVO_RETROVERSE/_INDICE.md` — o efeito talvez já exista, testado e APROVADO.
-2. Copiar `_TEMPLATE_Tool/`, renomear, trocar `Template` em todos os arquivos.
-3. Declarar `DamageClass`. Sem ele, todo bônus por classe do jogo fica inerte (§12.4).
-4. Fechar com o `CHECKLIST_ENTREGA.md` e com o **Delta do Acervo**.
+`FERRAMENTAS/montar_rbxmx.py` tem `CATALOGO` e `CONJUNTOS` **vazios** — não
+falta nada, é que não há Tool cadastrada. Ao cadastrar uma, ela precisa de
+`tooltip · classe · energia · recarga · extra · poses · handle · sfx`, e
+`"cutscene": True` se tiver cutscene.

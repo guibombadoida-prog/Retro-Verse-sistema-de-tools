@@ -35,10 +35,8 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │   └── NucleoCombate.lua          ← Script central. Um só. Sem versão no nome.
 │
 ├── Tools/
-│   ├── _TEMPLATE_Tool/            ← Molde de toda Tool nova
-│   ├── ESCUDOS.md                 ← Conjunto de 7 Tools
-│   ├── GRAVIDADE_TELECINESE.md    ← Conjunto de 7 Tools
-│   └── [NomeDaTool]/              ← Uma pasta por Tool entregue
+│   └── README.md                  ← VAZIO por ora: as Tools saem dos modelos
+│                                      que você enviar
 │
 ├── MODELOS_ENTRADA/               ← .rbxm/.rbxmx crus, antes da conversão
 │

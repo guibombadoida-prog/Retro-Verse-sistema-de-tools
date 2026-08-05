@@ -1,5 +1,9 @@
 # _INDICE — Acervo Retro-Verse
 
+> **Nenhuma Tool no repositório.** Todas foram removidas a pedido; o Acervo
+> ficou inteiro. A coluna "Já usado em" está zerada de propósito — todo o
+> material abaixo está disponível e nada está reservado.
+
 Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer efeito novo** (§12.16.2).
 
 > Se já existe algo equivalente aqui, **reusar e adaptar** — não recriar. Esse é o único motivo
@@ -13,16 +17,16 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 
 | Efeito | Origem | Emissores | Status | Usado em |
 |---|---|---|---|---|
-| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | PulsoGravitacional, MaoTelecinetica, LancaVetorial |
-| `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | CampoZeroG, MarionetePsi |
-| `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | PocoDeMassa |
-| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | MaoTelecinetica, OrbitaPsi, LancaVetorial, MarionetePsi |
-| `AURA` | Jupiter | `Aura` | LIMPO | as 7 do conjunto Gravidade / Telecinese, Bloqueador, Proteção, Salvador |
-| `ESTILHACO_ESCUDO` | **Saitama** / Death Counter | `Estilhaco` | LIMPO | Bumerangue, Skate, Partido |
-| `CLARAO_ESCUDO` | **Saitama** / Normal Uppercut | `Clarao` | LIMPO | Bloqueador, Proteção, Salvador, Partido |
-| `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | Ciclone, Partido |
-| `IMPACTO_ESCUDO` | **Saitama** / Death Counter | `Impacto` | LIMPO | as 7 do conjunto Escudos |
-| `POEIRA_ESCUDO` | **Saitama** / Serious Mode | `Poeira` | LIMPO | Skate, Ciclone |
+| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | — (nenhuma Tool no repositório) |
+| `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | — (nenhuma Tool no repositório) |
+| `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | — (nenhuma Tool no repositório) |
+| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | — (nenhuma Tool no repositório) |
+| `AURA` | Jupiter | `Aura` | LIMPO | — (nenhuma Tool no repositório) |
+| `ESTILHACO_ESCUDO` | **Saitama** / Death Counter | `Estilhaco` | LIMPO | — (nenhuma Tool no repositório) |
+| `CLARAO_ESCUDO` | **Saitama** / Normal Uppercut | `Clarao` | LIMPO | — (nenhuma Tool no repositório) |
+| `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | — (nenhuma Tool no repositório) |
+| `IMPACTO_ESCUDO` | **Saitama** / Death Counter | `Impacto` | LIMPO | — (nenhuma Tool no repositório) |
+| `POEIRA_ESCUDO` | **Saitama** / Serious Mode | `Poeira` | LIMPO | — (nenhuma Tool no repositório) |
 
 Vivem em `Tool/Efeitos/<TIPO>` e são ligados por `Enabled` + `Rate` — **zero `:Emit()`**.
 `:Emit()` dispara uma leva fixa e ignora o `Rate` autorado; a curva extraída do modelo de
@@ -46,12 +50,12 @@ diferentes no mesmo conjunto.
 
 | Efeito | Origem | Tipo | Status | Usado em |
 |---|---|---|---|---|
-| `IMPACTO` | **autoral** | Estilhaços subindo do ponto de contato | LIMPO | as 7 de Gravidade / Telecinese |
-| `IMPACTO_NOVA` | **autoral** | Anel de choque expandindo no plano do chão | LIMPO | as 7 de Gravidade / Telecinese |
-| `ESCUDO` | **autoral** | Disco que aparece, gira e some | LIMPO | Bloqueador |
-| `LAMINA` | **autoral** | Risco de corte, ângulo por índice sequencial | LIMPO | Bumerangue, Partido |
-| `ANEL` | **autoral** | Anel de choque no plano do chão | LIMPO | conjunto Escudos (fallback) |
-| `ESTILHACOS` | **autoral** | 10 cacos em ângulo áureo, com queda parabólica | LIMPO | Ciclone, Partido |
+| `IMPACTO` | **autoral** | Estilhaços subindo do ponto de contato | LIMPO | — (nenhuma Tool no repositório) |
+| `IMPACTO_NOVA` | **autoral** | Anel de choque expandindo no plano do chão | LIMPO | — (nenhuma Tool no repositório) |
+| `ESCUDO` | **autoral** | Disco que aparece, gira e some | LIMPO | — (nenhuma Tool no repositório) |
+| `LAMINA` | **autoral** | Risco de corte, ângulo por índice sequencial | LIMPO | — (nenhuma Tool no repositório) |
+| `ANEL` | **autoral** | Anel de choque no plano do chão | LIMPO | — (nenhuma Tool no repositório) |
+| `ESTILHACOS` | **autoral** | 10 cacos em ângulo áureo, com queda parabólica | LIMPO | — (nenhuma Tool no repositório) |
 
 Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math.random`.
 
@@ -86,13 +90,10 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 
 | Efeito | Modelo de origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO (parcial) | conjunto Gravidade / Telecinese |
-| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO (parcial) | conjunto Gravidade / Telecinese |
-| _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | conjunto Escudos |
-| _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO (parcial) | EscudoPartido |
-
-Cada Tool do conjunto Gravidade / Telecinese usa **um** som de golpe, escolhido destes dois
-catálogos. O resto segue depositado e disponível.
+| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO | — (nenhuma Tool no repositório) |
+| _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO | — (nenhuma Tool no repositório) |
+| _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | — (nenhuma Tool no repositório) |
+| _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO | — (nenhuma Tool no repositório) |
 
 Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
@@ -111,9 +112,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Pose / sequência | Modelo de origem | Juntas | Status | Já usado em |
 |---|---|---|---|---|
-| `Poses_GravidadeTelecinese_*_V1` | **autoral** (do molde) | 4 · 2+2+2 quadros | LIMPO | as 7 do conjunto |
-| `Poses_Escudos_*_V1` | **autoral** | 4–6 · 3 a 6 poses por Tool | LIMPO | as 7 do conjunto Escudos |
-| `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | as 14 Tools + o molde |
+| `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | toda Tool nova nasce nele |
 | `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
 
@@ -136,7 +135,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Molde | Origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | molde do `EscudoPartido/CutsceneCam` |
+| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (nenhuma Tool no repositório) |
 
 Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
 `STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a

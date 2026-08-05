@@ -235,12 +235,7 @@ def verificar(nome):
 # Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
 # Espelha CONJUNTOS de FERRAMENTAS/montar_rbxmx.py — se um mudar, o outro muda.
 CONJUNTOS = [
-    ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
-        "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
-        "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
-    ("Escudos_7_Tools.rbxmx", "Escudos", [
-        "EscudoBloqueador", "EscudoBumerangue", "EscudoSkate", "EscudoProtecao",
-        "EscudoSalvador", "EscudoCiclone", "EscudoPartido"]),
+    # Um por MODELO de origem. Vazio enquanto não houver Tool no repositório.
 ]
 
 # Prefixo do arquivo de poses, por Tool. Espelha CATALOGO["poses"] do montador:

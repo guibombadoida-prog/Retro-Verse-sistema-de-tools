@@ -47,110 +47,18 @@ ESCURO = (48, 42, 34)
 
 # SFX: nome do Sound -> (id, volume, pitch, rolloff)
 CATALOGO = {
-
-    "PulsoGravitacional": {
-        "tooltip": "Pulso Gravitacional - comprime a gravidade ao redor. X lança singularidade",
-        "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (9125403260, 5.0, 0.8, 80)},
-    },
-    "CampoZeroG": {
-        "tooltip": "Campo Zero G - levita inimigos em órbita curta. X detona o campo",
-        "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (447682521, 4.0, 0.7, 80)},
-    },
-    "MaoTelecinetica": {
-        "tooltip": "Mão Telecinética - empurra alvos com força mental. X puxa todos para você",
-        "classe": "Magic", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (743521450, 4.0, 1.4, 80)},
-    },
-    "OrbitaPsi": {
-        "tooltip": "Órbita Psi - anéis telecinéticos protegem e cortam. X expande a órbita",
-        "classe": "Hybrid", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (588738949, 4.0, 1.1, 80)},
-    },
-    "LancaVetorial": {
-        "tooltip": "Lança Vetorial - arremessa uma linha de força gravitacional. X perfura em área",
-        "classe": "Ranged", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (908895929, 5.0, 1.5, 90)},
-    },
-    "PocoDeMassa": {
-        "tooltip": "Poço de Massa - cria um peso absurdo no chão. X colapsa o poço",
-        "classe": "Debuff", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (763717897, 5.0, 0.8, 90)},
-    },
-    "MarionetePsi": {
-        "tooltip": "Marionete Psi - dobra a postura dos alvos com telecinese. X explode o vínculo",
-        "classe": "Summon", "energia": 0, "recarga": 16, "extra": True,
-        "poses": "GravidadeTelecinese", "handle": "relogio",
-        "sfx": {"Golpe": (782199941, 5.0, 1.2, 80)},
-    },
-
-    # ------------------------------------------------------------------
-    # Conjunto Escudos — 5 convertidas do modelo Danilo + 2 autorais.
-    # Sons: block/block2/block3/block4/equip são os do modelo de origem;
-    # Corte/Sentenca vêm do Judgement Cut End.
-    # ------------------------------------------------------------------
-    "EscudoBloqueador": {
-        "tooltip": "Escudo Bloqueador - reduz o dano que voce toma e devolve parte ao atacante. X ergue a barreira",
-        "classe": "Defense", "energia": 0, "recarga": 8, "extra": True,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Bloqueio": (608595419, 3.0, 1.0, 90),
-                "Reflexo": (608568188, 3.0, 1.3, 90),
-                "Barreira": (100810444748596, 4.0, 0.8, 110)},
-    },
-    "EscudoBumerangue": {
-        "tooltip": "Escudo Bumerangue - arremessa o escudo, que volta a sua mao. X lanca tres de uma vez",
-        "classe": "Ranged", "energia": 0, "recarga": 3, "extra": True,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Arremesso": (608541070, 3.0, 1.5, 100),
-                "Impacto": (608539282, 3.0, 2.0, 90),
-                "Retorno": (2706199011, 2.5, 1.0, 90)},
-    },
-    "EscudoSkate": {
-        "tooltip": "Escudo Skate - monta no escudo e corre atropelando quem estiver na frente",
-        "classe": "Mobility", "energia": 0, "recarga": 8, "extra": False,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Partida": (2706199011, 3.0, 0.9, 90),
-                "Atropelo": (608539282, 3.0, 1.4, 80)},
-    },
-    "EscudoProtecao": {
-        "tooltip": "Escudo Protecao - um escudo orbita voce e rebate projetil de volta em quem atirou",
-        "classe": "Defense", "energia": 0, "recarga": 7, "extra": False,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Orbita": (100810444748596, 3.0, 1.1, 90),
-                "Rebate": (608568188, 3.0, 1.6, 90)},
-    },
-    "EscudoSalvador": {
-        "tooltip": "Escudo Salvador - assume o dano de um aliado por sete segundos. Voce sangra no lugar dele",
-        "classe": "Support", "energia": 0, "recarga": 10, "extra": False,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Vinculo": (138415108920761, 4.0, 1.0, 120),
-                "Transferencia": (608595419, 3.0, 0.8, 90)},
-    },
-    "EscudoCiclone": {
-        "tooltip": "Escudo Ciclone - cinco escudos giram em volta e puxam quem chega perto. X colapsa o ciclone",
-        "classe": "Debuff", "energia": 0, "recarga": 14, "extra": True,
-        "poses": "Escudos", "handle": "escudo",
-        "sfx": {"Ciclone": (608541070, 3.5, 0.7, 120),
-                "Puxao": (608568188, 3.0, 0.9, 100),
-                "Colapso": (608539282, 4.0, 0.6, 120)},
-    },
-    "EscudoPartido": {
-        "tooltip": "Escudo Partido - o escudo vira lamina e corta sem voltar. X executa a sentenca",
-        "classe": "Melee", "energia": 0, "recarga": 22, "extra": True,
-        "poses": "Escudos", "handle": "escudo", "cutscene": True,
-        "sfx": {"Corte": (220834019, 3.0, 1.2, 90),
-                "Sentenca": (5989940114, 5.0, 1.0, 150),
-                "Estilhaco": (10555593530, 4.0, 1.0, 120)},
-    },
+    # VAZIO POR DECISÃO, não por descuido.
+    #
+    # Todas as Tools foram removidas do repositório a pedido. As próximas
+    # nascem CLONANDO o modelo que o usuário enviar — não montando Handle novo
+    # com primitivas, que foi o erro da leva anterior: o modelo vinha com
+    # SpecialMesh próprio e eu remontei um escudo em código, entregando outra
+    # coisa visualmente.
+    #
+    # Ao cadastrar uma Tool aqui, ela precisa de:
+    #   tooltip · classe · energia · recarga · extra · poses · handle · sfx
+    # e, se tiver cutscene, "cutscene": True.
 }
-
 
 # ---------------------------------------------------------------- efeitos
 #
@@ -792,12 +700,7 @@ def envolver_cdata(texto):
 # do arquivo deixa de dizer o que ele tem dentro. Modelo novo entra como
 # entrada nova nesta lista, nunca como apêndice de uma existente.
 CONJUNTOS = [
-    ("GravidadeTelecinese_7_Tools.rbxmx", "Gravidade / Telecinese", [
-        "PulsoGravitacional", "CampoZeroG", "MaoTelecinetica", "OrbitaPsi",
-        "LancaVetorial", "PocoDeMassa", "MarionetePsi"]),
-    ("Escudos_7_Tools.rbxmx", "Escudos", [
-        "EscudoBloqueador", "EscudoBumerangue", "EscudoSkate", "EscudoProtecao",
-        "EscudoSalvador", "EscudoCiclone", "EscudoPartido"]),
+    # Um por MODELO de origem. Vazio enquanto não houver Tool no repositório.
 ]
 
 
