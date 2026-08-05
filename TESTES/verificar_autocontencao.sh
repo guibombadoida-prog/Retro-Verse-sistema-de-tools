@@ -86,7 +86,69 @@ cinza "Regra nº 1: nada de referência de script fora da Tool"
 echo ""
 
 # --- Depósitos de asset fora da Tool -----------------------------------------
-checar "sem ReplicatedStorage"          'ReplicatedStorage'
+# ReplicatedStorage é a ÚNICA exceção à Regra nº 1, e ela é estreita de
+# propósito: só o VFXModule, só para achar o pack de VFX compartilhado, e só
+# por uma via que não yielda. As três checagens abaixo são o que a mantém
+# estreita — ver DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md, "A exceção declarada".
+RS_FORA=$(printf '%s\n' "$PURO" | grep -E 'ReplicatedStorage' \
+	| grep -vE '/VFXModule\.lua:[0-9]+:.*game:FindService\("ReplicatedStorage"\)' || true)
+if [ -n "$RS_FORA" ]; then
+	vermelho "✗ ReplicatedStorage só no VFXModule, e só via FindService"
+	printf '%s\n' "$RS_FORA" | sed 's|^|    |'
+	cinza "    A exceção é para o pack de VFX. Som, mesh, pose e módulo continuam dentro."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ ReplicatedStorage só no VFXModule, e só via FindService"
+fi
+
+# WaitForChild num depósito que pode não existir pendura a thread para sempre.
+# É justamente o que faria a Tool QUEBRAR em vez de empobrecer sem o pack.
+RS_ESPERA=$(printf '%s\n' "$PURO" | grep -E '/VFXModule\.lua:.*:WaitForChild\(' || true)
+if [ -n "$RS_ESPERA" ]; then
+	vermelho "✗ o VFXModule não espera por nada"
+	printf '%s\n' "$RS_ESPERA" | sed 's|^|    |'
+	cinza "    Sem o pack, WaitForChild pendura. FindFirstChild devolve nil e segue."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ o VFXModule não espera por nada"
+fi
+
+# Do depósito só pode sair o pack declarado. Se dali saísse mais alguma coisa —
+# um Sound, um Mesh, uma pose — a exceção teria virado porta. A checagem segue a
+# variável que recebeu o serviço e exige que TUDO lido nela seja PACK.DEPOSITO.
+RS_LITERAL=$(printf '%s\n' "$PURO" | awk -F: '
+	{
+		arquivo = $1
+		numero  = $2
+		corpo   = substr($0, index($0, $3))
+
+		if (arquivo !~ /VFXModule\.lua$/) next
+		if (arquivo != anterior) { alca = ""; anterior = arquivo }
+
+		# `local rs = game:FindService("ReplicatedStorage")` -> alca = "rs"
+		if (corpo ~ /=[ \t]*game:FindService\("ReplicatedStorage"\)/) {
+			nome = corpo
+			sub(/[ \t]*=.*$/, "", nome)
+			sub(/^[ \t]*local[ \t]+/, "", nome)
+			gsub(/[ \t]/, "", nome)
+			alca = nome
+			next
+		}
+
+		if (alca != "" && corpo ~ (alca "[:.]")) {
+			if (corpo ~ /FindFirstChild\([ \t]*PACK\.DEPOSITO[ \t]*\)/) next
+			print arquivo ":" numero ":" corpo
+		}
+	}
+')
+if [ -n "$RS_LITERAL" ]; then
+	vermelho "✗ do depósito só sai o nome declarado em PACK.DEPOSITO"
+	printf '%s\n' "$RS_LITERAL" | sed 's|^|    |'
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ do depósito só sai o nome declarado em PACK.DEPOSITO"
+fi
+
 checar "sem ServerStorage"              'ServerStorage'
 checar "sem ServerScriptService"        'ServerScriptService'
 checar "sem StarterGui / StarterPack"   'StarterGui|StarterPack|StarterPlayer'
@@ -96,7 +158,18 @@ checar "sem InsertService"              'InsertService'
 checar "sem referência ao Acervo"       'ACERVO'
 
 # --- Ler de workspace é dependência; escrever nele é saída, e é permitido ----
-checar "sem busca em workspace"         'workspace[:.](FindFirstChild|WaitForChild|FindFirstDescendant)|game\.Workspace[:.](FindFirstChild|WaitForChild)'
+# O que a regra proíbe é BUSCAR ASSET lá fora. Resolver uma entidade viva —
+# o personagem que carrega a Tool, o alvo que levou o golpe — é outra coisa:
+# entra pelo payload como dado (um nome), não como Instance, e não há Tool
+# que acerte alguém sem localizar esse alguém. Mesma categoria de
+# workspace.CurrentCamera e Players.LocalPlayer, já declarada na Regra nº 1.
+#
+# A linha entre as duas é o literal: buscar "MeuEfeito" é depósito de asset;
+# buscar `nome`, que veio do servidor, é resolver quem está em campo.
+checar "sem buscar asset em workspace"  'workspace[:.](FindFirstChild|WaitForChild|FindFirstDescendant)\(\s*"|game\.Workspace[:.](FindFirstChild|WaitForChild)\(\s*"'
+
+# WaitForChild em workspace yielda por algo que pode nunca chegar.
+checar "sem esperar por algo em workspace" 'workspace[:.]WaitForChild|game\.Workspace[:.]WaitForChild'
 
 # --- Animação R6: o animator canônico solda Welds próprios -------------------
 # Escrever em Motor6D.C0 briga com o script Animate padrão do Roblox, que escreve
@@ -238,8 +311,12 @@ checar "sem require de id numérico"     'require\(\s*[0-9]'
 checar "sem require do Núcleo"          'require\(.*NucleoCombate'
 
 # --- Todo require aponta para módulo da própria Tool -------------------------
+# O handle da Tool aparece como `Tool` ou `tool` conforme o autor — a regra é
+# sobre PARA ONDE o require aponta, não sobre a caixa da variável. Enquanto
+# esta lista era só minúscula, `require(Tool:WaitForChild("VFXModule"))`, que é
+# módulo da própria Tool, aparecia como violação.
 FORA=$(printf '%s\n' "$PURO" | grep -E 'require\(' \
-	| grep -vE 'require\(\s*tool[:.]|require\(\s*script\.Parent' || true)
+	| grep -vE 'require\(\s*[Tt]ool[:.]|require\(\s*script[:.]' || true)
 if [ -n "$FORA" ]; then
 	vermelho "✗ todo require aponta para módulo da própria Tool"
 	printf '%s\n' "$FORA" | sed 's|^|    |'
@@ -249,20 +326,42 @@ else
 fi
 
 # --- Chamadas ao Núcleo sempre sob guarda ------------------------------------
-# Guarda válida: na mesma linha (_G.Combate and) ou num "if _G.Combate" aberto
-# até 15 linhas acima. Heurística de lint — o checklist manual continua valendo.
+# Guarda válida: na mesma linha (_G.Combate and), num "if _G.Combate" aberto até
+# 15 linhas acima, ou numa expressão que COMEÇOU guardada e continua na linha
+# seguinte. Heurística de lint — o checklist manual continua valendo.
+#
+# A continuação não é detalhe: a forma canônica da chamada opcional é
+#     local final = (_G.Combate and _G.Combate.calcular
+#         and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+# e a segunda linha, lida sozinha, parece uma chamada nua. Sem esta regra o
+# verificador acusava justamente o código que segue a diretriz.
 SEM_GUARDA=$(printf '%s\n' "$PURO" | awk -F: '
 	{
 		arquivo = $1
 		numero  = $2
 		corpo   = substr($0, index($0, $3))
 
-		if (arquivo != anterior) { guarda = -999; anterior = arquivo }
+		if (arquivo != anterior) { guarda = -999; aberta = 0; anterior = arquivo }
 		if (corpo ~ /if +_G\.Combate/) { guarda = numero }
+
+		# Uma linha que COMEÇA com and/or/)/,/.. é continuação da anterior —
+		# é assim que a quebra canônica se apresenta, com o `and` na frente.
+		inicio = corpo
+		sub(/^[ \t]*/, "", inicio)
+		emContinuacao = (inicio ~ /^(and|or|\)|,|\.\.)/)
+
+		herdada = (aberta && emContinuacao)
+
+		if (corpo ~ /_G\.Combate and/ || herdada) {
+			aberta = 1
+		} else if (!emContinuacao) {
+			aberta = 0
+		}
 
 		if (corpo ~ /_G\.Combate\./) {
 			if (corpo ~ /_G\.Combate and/) next
 			if (corpo ~ /if +_G\.Combate/) next
+			if (herdada) next
 			if (numero - guarda <= 15) next
 			print arquivo ":" numero ":" corpo
 		}

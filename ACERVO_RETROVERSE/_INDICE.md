@@ -1,8 +1,11 @@
 # _INDICE — Acervo Retro-Verse
 
-> **Nenhuma Tool no repositório.** Todas foram removidas a pedido; o Acervo
-> ficou inteiro. A coluna "Já usado em" está zerada de propósito — todo o
-> material abaixo está disponível e nada está reservado.
+> **7 Tools no repositório**, todas clonadas de `Danilo_Escudos_V4`. Ver
+> `Tools/README.md`. A coluna "Já usado em" das seções antigas continua zerada:
+> as 7 Tools chegaram prontas e **não consomem material do Acervo** — o VFX
+> delas vem do módulo próprio mais o pack compartilhado.
+>
+> Ou seja: tudo abaixo continua disponível, e nada está reservado.
 
 Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer efeito novo** (§12.16.2).
 
@@ -157,8 +160,17 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Sword_of_Cosmic_Entity/` | **LIMPO** (parcial) | [FICHA.md](Sword_of_Cosmic_Entity/FICHA.md) |
 | `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |
 | `Saitama_Animacoes_Referencia/` | **CRU** | [FICHA.md](Saitama_Animacoes_Referencia/FICHA.md) |
+| `Danilo_Escudos_V4/` | **APROVADO** — base das 7 Tools | [FICHA.md](Danilo_Escudos_V4/FICHA.md) |
+| `Stella_VFX_Addon/` | **CRU** — pack compartilhado, exceção declarada | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
+| `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
+| `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
+
+> Três das quatro pastas novas são **fichas de registro**, não depósito: o material delas
+> vive em `ReplicatedStorage/` (Stella, malhas) ou ficou só em `MODELOS_ENTRADA/` (His Cube).
+> O Acervo é prateleira de **edição**; o pack compartilhado é dependência de **runtime**.
+> A ficha existe para o §12.12.3 — autor, origem, licença, data — não para reserva.
 
 ---
 

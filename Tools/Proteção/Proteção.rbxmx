@@ -1,0 +1,3351 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Tool" referent="RBX55D1E62AB5E2436CB4833131538395E2">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip" />
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Proteção</string>
+			<int64 name="SourceAssetId">16583777477</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="RemoteEvent" referent="RBX5A9CFB6E6ECA4BF9969A77CD9BB5AEC5">
+			<Properties>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">RemoteEvent</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="Part" referent="RBX103E6F4625614DACA68F8B45A55D3DEB">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">3</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">4</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>-195122352</X>
+					<Y>-68830216</Y>
+					<Z>-144560368</Z>
+					<R00>0.830725551</R00>
+					<R01>0.0333245881</R01>
+					<R02>0.555683792</R02>
+					<R10>-0.0185350701</R10>
+					<R11>0.999308944</R11>
+					<R12>-0.0322197601</R12>
+					<R20>-0.556373477</R20>
+					<R21>0.0164661407</R21>
+					<R22>0.830769122</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">true</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4278194352</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">864</token>
+				<string name="MaterialVariantSerialized" />
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>1</X>
+					<Y>1</Y>
+					<Z>1</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">3</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>-1.33122671e-06</X>
+					<Y>1.73006847e-05</Y>
+					<Z>2.22361521e-07</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>3.79999971</X>
+					<Y>5.19999886</Y>
+					<Z>0.400000036</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="Sound" referent="RBX9FDEE0A6DB2446039FEAF024F5DCAB33">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608595419</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXBE9F156C57294F71B45B1546D5B42FC4">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608568188</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX5C6AD910AB854D3BB75005BA3B0E4A3C">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608541070</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block3</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBXF315D8C40B214F0E9550A65065B1E615">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://608539282</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">block4</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX23B5D5135BCD43D4AA5EE9971FFBC1B6">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://2706199011</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">equip</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="RBX57A2A69C4C80415DAB12FBFAECC8657F">
+				<Properties>
+					<bool name="AcousticSimulationEnabled">true</bool>
+					<NumberRange name="LoopRegion">0 60000 </NumberRange>
+					<bool name="Looped">false</bool>
+					<bool name="PlayOnRemove">false</bool>
+					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
+					<bool name="PlaybackRegionsEnabled">false</bool>
+					<float name="PlaybackSpeed">1</float>
+					<bool name="Playing">false</bool>
+					<float name="RollOffMaxDistance">10000</float>
+					<float name="RollOffMinDistance">10</float>
+					<token name="RollOffMode">0</token>
+					<Ref name="SoundGroup">null</Ref>
+					<Content name="SoundId"><url>rbxassetid://100810444748596</url></Content>
+					<double name="TimePosition">0</double>
+					<float name="Volume">0.5</float>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Protecao</string>
+					<int64 name="SourceAssetId">100810444748596</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="SpecialMesh" referent="RBXE5FBB7D1D66440449D53F4777425D1DE">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=96670147</url></Content>
+					<Content name="TextureId"><null /></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>3.5</X>
+						<Y>5</Y>
+						<Z>3</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+		<Item class="Sound" referent="RBX1002E15E61FE4E6EB521AACCF30B9166"><Properties><string name="Name">sfx_carga</string><Content name="SoundId"><url>rbxassetid://10555593530</url></Content><float name="Volume">2.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">90</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBX4507C1E2378A4D9C9254D2FB64BB5968"><Properties><string name="Name">sfx_corte</string><Content name="SoundId"><url>rbxassetid://1086616651</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">80</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXE47CE29E25D841F4AE526A1C83CD24AE"><Properties><string name="Name">sfx_impacto</string><Content name="SoundId"><url>rbxassetid://220834019</url></Content><float name="Volume">1.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">70</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXD2313C4326694C90AAE57B6F50F89E97"><Properties><string name="Name">sfx_execucao</string><Content name="SoundId"><url>rbxassetid://5989940114</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">150</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXA992E1C4C91242388ACAEF9EE7DAC8C9"><Properties><string name="Name">sfx_dominio</string><Content name="SoundId"><url>rbxassetid://270070244</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">120</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXB8B58DF3885C455BAD7884C61780B268"><Properties><string name="Name">sfx_expansao</string><Content name="SoundId"><url>rbxassetid://357558938</url></Content><float name="Volume">2.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">140</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
+	<Item class="RemoteEvent" referent="RBX6D18A4A3D2504A4BA4638EF9BF6C22A4"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXRemote</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="StringValue" referent="RBX38EF5109612741419CF9F33EE506478F"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">DamageClass</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">Magic</string></Properties></Item><Item class="NumberValue" referent="RBX26ABD78319C44DCB946A73F5D3872D24"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EnergyCost</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">14</double></Properties></Item><Item class="NumberValue" referent="RBX9B5650B010EF4F9293F81AE0A7F39AB8"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RecargaGlobal</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">7</double></Properties></Item><Item class="StringValue" referent="RBX27DFB8A65608467A8DD687C6980390D7"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">ChaveRecarga</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">Protecao_Barreira</string></Properties></Item><Item class="Script" referent="RBXCED97545E18F4F87A5F9D2236CFEC38B"><Properties><ProtectedString name="Source"><![CDATA[-- Protecao_Server_V3.lua
+-- Script DENTRO da Tool "Proteção"
+-- SUBSTITUI: ServerScript_Protecao_V2.lua  (REMOVER a V2)
+--
+-- MECÂNICA (preservada da V2): escudo orbital que intercepta projéteis
+-- inimigos, devolve-os na direção do inimigo mais próximo e causa dano leve.
+--
+-- O QUE MUDOU NA V3
+--   [FIX] tick() no loop de órbita -> acumulador dt (§10.11.7)
+--   [FIX] partículas/luzes criadas no servidor -> VFXRemote (§12.11)
+--   [FIX] AncestryChanged -> Tool.Destroying
+--   [FIX] Welds manuais + lerp -> R6CFrameAnimator + Poses (§10)
+--   [ADD] Values §12.4, modo preciso §12.6, tag creator §12.7, recarga §12.9
+
+local ARQUETIPO  = "SUPORTE"
+local RIG_SUFIXO = "Protecao"
+
+local CFG = {
+	DURACAO         = 4,
+	RECARGA         = 7,
+
+	RAIO_ORBITA     = 4,
+	VEL_ORBITA      = 8,        -- rad/s
+	ALTURA_ORBITA   = 1,
+	ESCALA_ESCUDO   = 0.7,
+
+	RAIO_REFLEXO    = 8,
+	FORCA_REFLEXO   = 100,
+	DANO_REFLEXO    = 5,
+	RAIO_INIMIGO    = 120,
+
+	COR             = Color3.fromRGB(0, 150, 255),
+	COR_REFLEXO     = Color3.fromRGB(255, 100, 0),
+
+	NPC_ALCANCE     = 30,
+	NPC_RECARGA     = 10,
+}
+
+--═══════════════════════════════════════════════════════════════
+-- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
+-- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
+-- e diferente do portador) — TakeDamage já respeita ForceField nativo.
+--═══════════════════════════════════════════════════════════════
+
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris       = game:GetService("Debris")
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Poses     = require(Tool:WaitForChild("Poses"))
+
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -> servidor
+local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -> cliente (unidirecional)
+
+-- Values declarados na Tool (§12.4) — todos opcionais
+local function lerValue(nome, padrao)
+	local v = Tool:FindFirstChild(nome)
+	if v and v.Value ~= nil and v.Value ~= "" then return v.Value end
+	return padrao
+end
+
+local owner, character, humanoid, rootpart
+local equipped = false
+local rig      = nil
+
+-- Registro de tudo que nasce fora da Tool (§ limpeza)
+local Ativos = {
+	Partes      = {},
+	Sons        = {},
+	Conexoes    = {},
+	Cancelar    = {},   -- funções de cancelamento devolvidas pelo Núcleo
+}
+
+local function guardarParte(p, vida)
+	table.insert(Ativos.Partes, p)
+	if vida then Debris:AddItem(p, vida) end
+	return p
+end
+
+local function guardarConexao(c)
+	table.insert(Ativos.Conexoes, c)
+	return c
+end
+
+local function guardarCancelamento(fn)
+	if type(fn) == "function" then table.insert(Ativos.Cancelar, fn) end
+	return fn
+end
+
+--── VFX: o servidor TRANSMITE, nunca emite (§12.11) ──
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+--── Alvo válido ──
+local function podeAtingir(alvoHum, alvoChar)
+	if not (alvoHum and alvoChar) then return false end
+	if alvoChar == character then return false end
+	if alvoHum.Health <= 0 then return false end
+	if _G.Combate and _G.Combate.podeCausarDano then
+		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
+	end
+	return true
+end
+
+--── Crédito de abate — ORDEM DAS PROPRIEDADES (§12.7) ──
+local function creditar(alvoHum)
+	if not owner then return end
+	local antigo = alvoHum:FindFirstChild("creator")
+	if antigo then antigo.Parent = nil end
+	local credito = Instance.new("ObjectValue")
+	credito.Name   = "creator"   -- 1º
+	credito.Value  = owner       -- 2º
+	credito.Parent = alvoHum     -- 3º, sempre por último
+	Debris:AddItem(credito, 5)
+end
+
+--── Dano: modo preciso, uma linha, sem require (§12.6) ──
+local function aplicarDano(alvoHum, bruto)
+	local final = (_G.Combate and _G.Combate.calcular
+		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+--── Recarga global anti-clone (§12.9) ──
+local function recarga(chave, segundos)
+	if _G.Combate and _G.Combate.recargaGlobal then
+		return _G.Combate.recargaGlobal(owner, chave, segundos)
+	end
+	return true, 0
+end
+
+--── Detecção em área (§12.8) ──
+local function detectar(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarHumanoides then
+		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
+		if achados then return achados end
+	end
+	local lista = {}
+	for _, modelo in ipairs(workspace:GetChildren()) do
+		if modelo:IsA("Model") and modelo ~= character then
+			local hum  = modelo:FindFirstChildOfClass("Humanoid")
+			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+			if hum and raiz and podeAtingir(hum, modelo) then
+				if (raiz.Position - posicao).Magnitude <= raio then
+					table.insert(lista, hum)
+					if limite and #lista >= limite then break end
+				end
+			end
+		end
+	end
+	return lista
+end
+
+local function raizDe(hum)
+	local m = hum.Parent
+	if not m then return nil end
+	return m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso")
+end
+
+--── Empurrão padronizado (BodyVelocity temporário, sem :Destroy) ──
+local function empurrar(parte, direcao, forca, duracao)
+	if not (parte and parte.Parent) then return end
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bv.Velocity = direcao.Unit * forca
+	bv.Parent   = parte
+	Debris:AddItem(bv, duracao or 0.2)
+end
+
+--── Sons: sequenciais, nunca math.random ──
+local somIndice = 1
+local function tocarBloco(lista, parent, pitch)
+	if #lista == 0 then return end
+	local base = lista[somIndice]
+	somIndice = (somIndice % #lista) + 1
+	if not base then return end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 3)
+end
+
+--[[
+	tocarSfx(nome, parent, pitch)
+	Sons importados dos modelos de referência (§12.12), instalados dentro do
+	Handle de cada Tool:
+	  sfx_carga     10555593530  [JC] ChangeE — carga/anúncio
+	  sfx_corte     1086616651   [DE] corte
+	  sfx_impacto   220834019    [JC] Hit4 — impacto seco
+	  sfx_execucao  5989940114   [JC] Judgement Cut End Start — cutscene
+	  sfx_dominio   270070244    [DE] gongo de abertura
+	  sfx_expansao  357558938    [DE] estouro da cúpula
+	Ausente o som, a função não faz nada — a Tool nunca quebra por SFX.
+]]
+local function tocarSfx(nome, parent, pitch)
+	local base = Handle:FindFirstChild(nome)
+	if not base then return nil end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 12)
+	return s
+end
+
+--═══════════════════════════════════════════════════════════════
+-- RIG DE ANIMAÇÃO R6 (§10 / §12.10)
+--═══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	rig = Animator.new(character, RIG_SUFIXO, Poses, Poses.SEQUENCIAS)
+	if rig then
+		rig:PlayPose("IDLE", 0.25)
+		rig:StartIdleBob("IDLE", "RightArm", 0.03, 1.8, function()
+			return equipped
+		end)
+	end
+	return rig
+end
+
+local function soltarRig()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- LIMPEZA
+--═══════════════════════════════════════════════════════════════
+
+local function limparTudo()
+	soltarRig()
+
+	for _, fn in ipairs(Ativos.Cancelar) do
+		pcall(fn)
+	end
+	table.clear(Ativos.Cancelar)
+
+	for _, p in ipairs(Ativos.Partes) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	table.clear(Ativos.Partes)
+
+	for _, s in ipairs(Ativos.Sons) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	table.clear(Ativos.Sons)
+
+	for _, c in ipairs(Ativos.Conexoes) do
+		if c then c:Disconnect() end
+	end
+	table.clear(Ativos.Conexoes)
+
+	if Handle and Handle.Parent then
+		Handle.Transparency = 0
+	end
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- SONS
+--═══════════════════════════════════════════════════════════════
+
+local somEquipar  = Handle:FindFirstChild("equip")
+local somProtecao = Handle:FindFirstChild("Protecao")
+local somImpacto  = {}
+for _, nome in ipairs({ "block", "block2", "block3", "block4" }) do
+	local s = Handle:FindFirstChild(nome)
+	if s then table.insert(somImpacto, s) end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ESTADO
+--═══════════════════════════════════════════════════════════════
+
+local barreiraAtiva = false
+local npcRecarga    = false
+local ID_AURA       = "AURA_" .. RIG_SUFIXO
+
+--═══════════════════════════════════════════════════════════════
+-- PROJÉTEIS INIMIGOS
+--═══════════════════════════════════════════════════════════════
+
+-- Projétil = BasePart solta em workspace, sem Humanoid no pai, com
+-- velocidade relevante e vindo em direção ao portador.
+local function projeteisProximos()
+	local achados = {}
+	if not (rootpart and rootpart.Parent) then return achados end
+	local centro = rootpart.Position
+
+	for _, inst in ipairs(workspace:GetChildren()) do
+		if inst:IsA("BasePart") and not inst.Anchored and inst ~= Handle then
+			local vel = inst.AssemblyLinearVelocity
+			if vel and vel.Magnitude > 20 then
+				local delta = centro - inst.Position
+				local dist  = delta.Magnitude
+				if dist <= CFG.RAIO_REFLEXO * 2.5 and delta.Unit:Dot(vel.Unit) > 0.35 then
+					table.insert(achados, inst)
+				end
+			end
+		end
+	end
+	return achados
+end
+
+local function inimigoMaisProximo()
+	if not (rootpart and rootpart.Parent) then return nil end
+	local lista = detectar(rootpart.Position, CFG.RAIO_INIMIGO, 8)
+	local melhor, menor = nil, math.huge
+	for _, hum in ipairs(lista) do
+		local raiz = raizDe(hum)
+		if raiz then
+			local d = (raiz.Position - rootpart.Position).Magnitude
+			if d < menor then melhor, menor = raiz, d end
+		end
+	end
+	return melhor
+end
+
+--═══════════════════════════════════════════════════════════════
+-- HABILIDADE — BARREIRA ORBITAL
+--═══════════════════════════════════════════════════════════════
+
+local function ativarProtecao()
+	if barreiraAtiva or not (rootpart and humanoid and humanoid.Health > 0) then return end
+
+	local liberado = recarga("Protecao_Barreira", CFG.RECARGA)
+	if not liberado then return end
+
+	barreiraAtiva = true
+	if somProtecao then somProtecao:Play() end
+
+	local escudo = Handle:Clone()
+	escudo.Name         = "EscudoProtecao"
+	escudo.CanCollide   = false
+	escudo.CanTouch     = false
+	escudo.CanQuery     = false
+	escudo.Anchored     = true
+	escudo.Massless     = true
+	escudo.Material     = Enum.Material.ForceField
+	escudo.Color        = CFG.COR
+	escudo.Transparency = 0.2
+	for _, filho in ipairs(escudo:GetChildren()) do
+		if filho:IsA("Sound") then filho.Parent = nil end
+	end
+	local malha = escudo:FindFirstChildOfClass("SpecialMesh")
+	if malha then malha.Scale = malha.Scale * CFG.ESCALA_ESCUDO end
+	escudo.CFrame = rootpart.CFrame
+	escudo.Parent = workspace
+	guardarParte(escudo)
+
+	vfx("AURA", {
+		id = ID_AURA, alvoNome = character.Name,
+		cor = CFG.COR, escala = 0.8, intensidade = 22,
+	})
+
+	local angulo    = 0
+	local decorrido = 0
+	local refletidos = {}
+	local encerrado  = false
+
+	local function encerrar()
+		if encerrado then return end
+		encerrado     = true
+		barreiraAtiva = false
+		if somProtecao then somProtecao:Stop() end
+		vfx("PARAR", { id = ID_AURA })
+		if escudo and escudo.Parent then
+			vfx("BLOQUEIO", { posicao = escudo.Position, cor = CFG.COR, escala = 1.2 })
+			escudo.Parent = nil
+		end
+		if rig then rig:PlayPose("IDLE", 0.3) end
+	end
+
+	guardarConexao(RunService.Heartbeat:Connect(function(dt)
+		if encerrado then return end
+		if not (escudo.Parent and rootpart and rootpart.Parent) then encerrar(); return end
+
+		decorrido = decorrido + dt
+		if decorrido >= CFG.DURACAO then encerrar(); return end
+
+		angulo = angulo + CFG.VEL_ORBITA * dt
+		local base = rootpart.Position + Vector3.new(0, CFG.ALTURA_ORBITA, 0)
+		local projeteis = projeteisProximos()
+
+		if #projeteis > 0 then
+			-- Escolhe o mais próximo e posiciona o escudo na frente dele
+			local alvo, menor = projeteis[1], math.huge
+			for _, p in ipairs(projeteis) do
+				local d = (p.Position - rootpart.Position).Magnitude
+				if d < menor then alvo, menor = p, d end
+			end
+
+			local dir = (alvo.Position - rootpart.Position)
+			if dir.Magnitude > 0.1 then
+				escudo.CFrame = CFrame.new(base + dir.Unit * CFG.RAIO_ORBITA, alvo.Position)
+			end
+
+			if menor < CFG.RAIO_ORBITA + 2 and not refletidos[alvo] then
+				refletidos[alvo] = true
+				local inimigo = inimigoMaisProximo()
+				local saida = inimigo
+					and (inimigo.Position - alvo.Position).Unit
+					or rootpart.CFrame.LookVector
+
+				-- SFX -> física -> VFX -> dano (§8 V2)
+				tocarSfx("sfx_corte", escudo, 1.4)
+				tocarBloco(somImpacto, escudo, 1.25)
+				alvo.AssemblyLinearVelocity = saida * CFG.FORCA_REFLEXO
+				vfx("BLOQUEIO", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 1 })
+				-- [DE] o projétil devolvido sai cortado em X
+				vfx("CORTE_X", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 0.85 })
+				vfx("TREMOR", { preset = "BUMP_PEQUENO" })
+				vfx("LINHAS_VELOCIDADE", {
+					posicao = alvo.Position, cor = CFG.COR_REFLEXO,
+					escala = 0.8, quantidade = 7,
+				})
+
+				local perto = detectar(alvo.Position, CFG.RAIO_REFLEXO, 4)
+				for _, hum in ipairs(perto) do
+					aplicarDano(hum, CFG.DANO_REFLEXO)
+				end
+
+				task.delay(1, function() refletidos[alvo] = nil end)
+			end
+		else
+			escudo.CFrame = CFrame.new(
+				base + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * CFG.RAIO_ORBITA
+			) * CFrame.Angles(0, -angulo, math.rad(10))
+		end
+	end))
+
+	if rig then
+		rig:PlaySequence("BARREIRA", function(kf)
+			if kf.marca == "CARGA" then
+				tocarSfx("sfx_carga", Handle, 1.05)
+				vfx("LINHAS_VELOCIDADE", {
+					posicao = rootpart.Position, cor = CFG.COR, escala = 0.7, quantidade = 6,
+				})
+			elseif kf.marca == "ABRIR" then
+				vfx("BLOQUEIO", { posicao = rootpart.Position, cor = CFG.COR, escala = 1.6 })
+				vfx("RAJADA", {
+					posicao = rootpart.Position + Vector3.new(0, 1.5, 0),
+					cor     = CFG.COR,
+					escala  = 0.9,
+					direcao = Vector3.new(0, 1, 0),
+				})
+				vfx("ONDA_CHOQUE", {
+					posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
+					cor = CFG.COR, escala = 0.8,
+				})
+			end
+		end)
+	end
+
+	guardarCancelamento(encerrar)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ENTRADA
+--═══════════════════════════════════════════════════════════════
+
+RemoteEvent.OnServerEvent:Connect(function(jogador, acao)
+	if jogador ~= owner or not equipped then return end
+	if acao == "activate" then ativarProtecao() end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- NPC
+--═══════════════════════════════════════════════════════════════
+
+task.spawn(function()
+	while true do
+		task.wait(1.5)
+		if equipped and not owner and not npcRecarga and rootpart and rootpart.Parent then
+			local perto = detectar(rootpart.Position, CFG.NPC_ALCANCE, 1)
+			if #perto > 0 then
+				npcRecarga = true
+				ativarProtecao()
+				task.delay(CFG.NPC_RECARGA, function() npcRecarga = false end)
+			end
+		end
+	end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA
+--═══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	character = Tool.Parent
+	if not character then return end
+	owner    = Players:GetPlayerFromCharacter(character)
+	humanoid = character:FindFirstChildOfClass("Humanoid")
+	rootpart = character:FindFirstChild("HumanoidRootPart")
+	if not (humanoid and rootpart) then return end
+
+	equipped = true
+	if somEquipar then somEquipar:Play() end
+	montarRig()
+
+	guardarConexao(humanoid.Died:Connect(function()
+		vfx("PARAR", { id = ID_AURA })
+		limparTudo()
+	end))
+end)
+
+-- Tool.Enabled NÃO é resetado aqui (§8 / §10.7)
+Tool.Unequipped:Connect(function()
+	equipped      = false
+	barreiraAtiva = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+
+Tool.Destroying:Connect(function()
+	equipped      = false
+	barreiraAtiva = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{67E4D817-5041-448F-A16E-30EFBE25A578}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Protecao_Server_V3</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="LocalScript" referent="RBX8717CB7945F0467EA96E5CE0B74339DD"><Properties><ProtectedString name="Source"><![CDATA[-- Protecao_Client_V3.lua
+-- LocalScript "Client" DENTRO da Tool "Proteção"
+--
+-- Papel (§12.10): capturar entrada e EXECUTAR os VFX recebidos pelo VFXRemote.
+-- Todo efeito visual desta Tool nasce aqui, no cliente — o servidor apenas
+-- transmite dados (§12.11). Zero ScreenGui, zero AncestryChanged.
+
+--═══════════════════════════════════════════════════════════════
+-- NÚCLEO DO CLIENTE — entrada + recepção de VFX (§12.10)
+-- O VFXRemote é UNIDIRECIONAL: aqui só existe OnClientEvent.
+-- Zero ScreenGui (§12.12).
+--═══════════════════════════════════════════════════════════════
+
+local Players              = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+local RunService           = game:GetService("RunService")
+
+local Tool        = script.Parent
+local Jogador     = Players.LocalPlayer
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")
+local VFXRemote   = Tool:WaitForChild("VFXRemote")
+local VFX         = require(Tool:WaitForChild("VFXModule"))
+local Poses       = require(Tool:WaitForChild("Poses"))
+
+Tool.CanBeDropped   = false
+Tool.RequiresHandle = true
+
+local equipado = false
+
+-- Declaração adiantada: o bloco de ENTRADA (abaixo) preenche estas duas.
+local ligarEntrada, desligarEntrada
+
+--── Resolve nome de personagem -> BasePart (payload é dado, não Instance) ──
+local function parteDe(nome)
+	if type(nome) ~= "string" or nome == "" then return nil end
+	local modelo = workspace:FindFirstChild(nome)
+	if not modelo then return nil end
+	return modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CÂMERA DE CUTSCENE (trilho de keyframes — pack Saitama)
+--═══════════════════════════════════════════════════════════════
+
+local cutsceneConn = nil
+local cameraSalva  = nil
+
+local function pararCutscene()
+	if cutsceneConn then
+		cutsceneConn:Disconnect()
+		cutsceneConn = nil
+	end
+	local cam = workspace.CurrentCamera
+	if cam and cameraSalva then
+		cam.CameraType    = Enum.CameraType.Custom
+		cam.CameraSubject = cameraSalva
+		cameraSalva = nil
+	end
+end
+
+local function iniciarCutscene(dados)
+	local trilho = Poses.CAMERA_EXECUCAO
+	if not trilho or #trilho < 2 then return end
+
+	local portador = workspace:FindFirstChild(dados.portador or "")
+	local ancora   = portador and (portador:FindFirstChild("HumanoidRootPart"))
+	if not ancora then return end
+
+	local cam = workspace.CurrentCamera
+	if not cam then return end
+
+	pararCutscene()
+	cameraSalva = cam.CameraSubject
+	cam.CameraType = Enum.CameraType.Scriptable
+
+	local duracao = dados.duracao or 2.9
+	local escalaT = duracao / trilho[#trilho].t
+	local t = 0
+
+	cutsceneConn = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local tempo = t / escalaT
+
+		if t >= duracao or not ancora.Parent then
+			pararCutscene()
+			return
+		end
+
+		-- interpolação linear entre os dois keyframes que cercam 'tempo'
+		local a, b = trilho[1], trilho[#trilho]
+		for i = 1, #trilho - 1 do
+			if tempo >= trilho[i].t and tempo <= trilho[i + 1].t then
+				a, b = trilho[i], trilho[i + 1]
+				break
+			end
+		end
+		local intervalo = b.t - a.t
+		local alfa = (intervalo > 0) and math.clamp((tempo - a.t) / intervalo, 0, 1) or 0
+
+		workspace.CurrentCamera.CFrame = ancora.CFrame * a.cf:Lerp(b.cf, alfa)
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- RECEPÇÃO DE VFX
+--═══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	dados = dados or {}
+
+	if tipo == "PARAR" then
+		VFX.Parar(dados.id)
+		return
+	end
+
+	if tipo == "CUTSCENE_INICIO" then
+		-- Só o portador entra no trilho de câmera; os demais sentem o tremor.
+		if Jogador.Character and Jogador.Character.Name == dados.portador then
+			iniciarCutscene(dados)
+		else
+			VFX.Executar("TREMOR", { intensidade = 0.5, duracao = 0.6 })
+		end
+		return
+	end
+
+	if tipo == "CUTSCENE_FIM" then
+		pararCutscene()
+		return
+	end
+
+	-- Efeitos presos a um personagem: resolve o nome em part aqui, no cliente
+	if dados.alvoNome then
+		dados.alvo = parteDe(dados.alvoNome)
+		if not dados.alvo then return end
+	end
+
+	VFX.Executar(tipo, dados)
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- LIMPEZA
+--═══════════════════════════════════════════════════════════════
+
+local function limparCliente()
+	pararCutscene()
+	VFX.LimparTudo()
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- ENTRADA (input)
+--═══════════════════════════════════════════════════════════════
+
+local conexaoClique = nil
+
+ligarEntrada = function()
+	if conexaoClique then conexaoClique:Disconnect() end
+	conexaoClique = Tool.Activated:Connect(function()
+		if equipado then RemoteEvent:FireServer("activate") end
+	end)
+end
+
+desligarEntrada = function()
+	if conexaoClique then
+		conexaoClique:Disconnect()
+		conexaoClique = nil
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA DO CLIENTE
+--═══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	equipado = true
+	if ligarEntrada then ligarEntrada() end
+end)
+
+Tool.Unequipped:Connect(function()
+	equipado = false
+	if desligarEntrada then desligarEntrada() end
+	limparCliente()
+end)
+
+-- Tool.Destroying, nunca AncestryChanged (§12.12.2)
+Tool.Destroying:Connect(function()
+	equipado = false
+	if desligarEntrada then desligarEntrada() end
+	limparCliente()
+end)
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{83C55F65-78F0-4B27-B5F1-92AEB79FAC1E}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX20040387794148EEA422B075EABDA020"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
+-- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
+-- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V2  (§10.11.7)
+═══════════════════════════════════════════════════════════════
+Compatível com a API do V1 (PlayPose / SetJoint / StartIdleBob /
+StopIdleBob / Destroy) e adiciona:
+
+- Juntas RightLeg / LeftLeg — criadas SOB DEMANDA (só quando uma
+  pose as usa) e liberadas ao fim da sequência, para não travar a
+  caminhada fora de cutscene.
+- rig:PlaySequence(seqName, onBeat, onDone) — timeline encadeada
+  por Tween.Completed (nunca task.wait(duração)).
+- rig:CancelSequence() — cancela timeline + tremor e volta ao IDLE.
+- rig:LockCharacter(bool) — WalkSpeed/JumpPower = 0, AutoRotate
+  off; guarda e restaura os valores originais.
+- rig:StartTremor(joint, amp, freq) / rig:StopTremor() — vibração
+  aditiva por acumulador dt com envelope de fade-in (sem math.random,
+  sem tick(): senoide multi-frequência determinística).
+
+Regras do projeto respeitadas: sem wait()/spawn()/delay(), sem
+tick(), sem +=/continue, sem math.random, Welds removidos por
+reparent, Destroy cancela sequência + tremor + lock.
+
+USO:
+  local Animator = require(Tool:WaitForChild("R6CFrameAnimator"))
+  local rig = Animator.new(character, "SeriousMode", POSES, SEQUENCES)
+  rig:PlaySequence("TRANSFORM", onBeat, onDone)
+═══════════════════════════════════════════════════════════════
+--]==]
+
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+
+local Animator = {}
+Animator.__index = Animator
+
+local LEG_BASE = {
+	RightLeg = CFrame.new(0.5, -2, 0),
+	LeftLeg  = CFrame.new(-0.5, -2, 0),
+}
+
+-- Enum.EasingStyle["Nome errado"] LANÇA ERRO no Roblox — não devolve nil.
+-- Um typo numa sequência de Poses derrubaria a animação inteira, então a
+-- resolução passa por tabela branca. Nome desconhecido vira o padrão.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
+local function resolveStyle(name)
+	if typeof(name) == "EnumItem" then return name end
+	return (type(name) == "string" and ESTILOS[name]) or Enum.EasingStyle.Quad
+end
+local function resolveDir(name)
+	if typeof(name) == "EnumItem" then return name end
+	return (type(name) == "string" and DIRECOES[name]) or Enum.EasingDirection.Out
+end
+
+--[[
+	Animator.new(character, weldSuffix, poses, sequences)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses { NOME = { Junta = CFrame, ... } }
+	- sequences:  tabela de timelines { NOME = { {pose,time,style,dir,tremor,cam,sfx}, ... } }
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses, sequences)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
+
+	local self = setmetatable({}, Animator)
+	self.Character   = character
+	self.Suffix      = weldSuffix or "Rig"
+	self.Poses       = poses or {}
+	self.Sequences   = sequences or {}
+	self.Welds       = {}
+	self.IdleConn    = nil
+	self.TremorConn  = nil
+	self.SeqToken    = 0          -- token de cancelamento da timeline
+	self.SeqActive   = false
+	self.SeqTweens   = {}
+	self.Locked      = false
+	self.SavedWalk   = nil
+	self.SavedJump   = nil
+	self.SavedRotate = nil
+	self.Destroyed   = false
+
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+	self._makeWeld = makeWeld
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
+	end
+
+	return self
+end
+
+-- Cria os Welds das pernas sob demanda (a pose pediu RightLeg/LeftLeg)
+function Animator:_ensureLeg(joint)
+	if self.Destroyed then return nil end
+	if self.Welds[joint] and self.Welds[joint].Parent then return self.Welds[joint] end
+	local torso = self.Character and self.Character:FindFirstChild("Torso")
+	if not torso then return nil end
+	local partName = (joint == "RightLeg") and "Right Leg" or "Left Leg"
+	local leg = self.Character:FindFirstChild(partName)
+	if not leg then return nil end
+	self.Welds[joint] = self._makeWeld(joint .. "Weld", torso, leg, LEG_BASE[joint])
+	return self.Welds[joint]
+end
+
+-- Libera as pernas (reparent) para devolver a caminhada ao Humanoid
+function Animator:ReleaseLegs()
+	for _, joint in ipairs({ "RightLeg", "LeftLeg" }) do
+		local w = self.Welds[joint]
+		if w then
+			if w.Parent then w.Parent = nil end
+			self.Welds[joint] = nil
+		end
+	end
+end
+
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if not w and LEG_BASE[joint] then
+			w = self:_ensureLeg(joint)
+		end
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
+		end
+	end
+end
+
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+	if w and w.Parent then w.C0 = c0 end
+end
+
+--[[
+	rig:PlaySequence(seqName, onBeat, onDone)
+	Timeline de keyframes { pose, time, style, dir, tremor, ... }.
+	Encadeada por Tween.Completed — o próximo beat só dispara quando o
+	tween do anterior conclui. onBeat(kf, índice) roda no INÍCIO de cada
+	beat (ponto de disparo de cam/sfx/VFX). onDone() roda ao final.
+]]
+function Animator:PlaySequence(seqName, onBeat, onDone)
+	if self.Destroyed then return false end
+	local seq = self.Sequences[seqName]
+	if not seq or #seq == 0 then return false end
+
+	self:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	local token = self.SeqToken
+	self.SeqActive = true
+
+	local index = 0
+
+	local function step()
+		if self.Destroyed or token ~= self.SeqToken then return end
+		index = index + 1
+		local kf = seq[index]
+		if not kf then
+			self.SeqActive = false
+			self:StopTremor()
+			self:ReleaseLegs()
+			if onDone then onDone() end
+			return
+		end
+
+		if kf.tremor and kf.tremor > 0 then
+			self:StartTremor("HRP", kf.tremor, kf.freq or 22)
+		else
+			self:StopTremor()
+		end
+		if onBeat then onBeat(kf, index) end
+
+		local pose = self.Poses[kf.pose]
+		if not pose then
+			step()
+			return
+		end
+		local ti = TweenInfo.new(kf.time or 0.3, resolveStyle(kf.style), resolveDir(kf.dir))
+		local chained = nil
+		for joint, c0 in pairs(pose) do
+			local w = self.Welds[joint]
+			if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+			if w and w.Parent then
+				local tw = TweenService:Create(w, ti, { C0 = c0 })
+				table.insert(self.SeqTweens, tw)
+				if not chained then chained = tw end
+				tw:Play()
+			end
+		end
+		if chained then
+			chained.Completed:Once(function()
+				if token == self.SeqToken then step() end
+			end)
+		else
+			-- pose sem junta válida: pular para o próximo beat imediatamente
+			step()
+		end
+	end
+
+	step()
+	return true
+end
+
+-- Cancela a timeline em andamento, para o tremor e libera as pernas.
+function Animator:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	self.SeqActive = false
+	for _, tw in ipairs(self.SeqTweens) do
+		tw:Cancel()
+	end
+	table.clear(self.SeqTweens)
+	self:StopTremor()
+	self:ReleaseLegs()
+end
+
+-- Trava/destrava o personagem, guardando e restaurando os valores originais.
+function Animator:LockCharacter(lock)
+	if self.Destroyed and lock then return end
+	local hum = self.Character and self.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	if lock and not self.Locked then
+		self.Locked      = true
+		self.SavedWalk   = hum.WalkSpeed
+		self.SavedJump   = hum.JumpPower
+		self.SavedRotate = hum.AutoRotate
+		hum.WalkSpeed  = 0
+		hum.JumpPower  = 0
+		hum.AutoRotate = false
+	elseif (not lock) and self.Locked then
+		self.Locked = false
+		hum.WalkSpeed  = self.SavedWalk or 16
+		hum.JumpPower  = self.SavedJump or 50
+		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
+	end
+end
+
+--[[
+	rig:StartTremor(joint, amp, freq)
+	Vibração aditiva determinística sobre o C0 corrente da junta:
+	senoide multi-frequência (freq e freq*1.73) com envelope de
+	fade-in de 0.35 s, por acumulador dt a partir de zero.
+]]
+function Animator:StartTremor(joint, amp, freq)
+	if self.Destroyed then return end
+	self:StopTremor()
+	local w = self.Welds[joint]
+	if not w then return end
+	amp  = amp or 0.03
+	freq = freq or 22
+
+	local t = 0
+	self.TremorConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		local weld = self.Welds[joint]
+		if not (weld and weld.Parent) then return end
+		t = t + dt
+		local envelope = math.min(t / 0.35, 1)
+		local a = amp * envelope
+		local ox = math.sin(t * freq) * a
+		local oy = math.sin(t * freq * 1.73 + 1.1) * a * 0.6
+		local oz = math.sin(t * freq * 0.61 + 2.3) * a * 0.4
+		weld.C0 = weld.C0 * CFrame.new(ox, oy, oz)
+	end)
+end
+
+function Animator:StopTremor()
+	if self.TremorConn then
+		self.TremorConn:Disconnect()
+		self.TremorConn = nil
+	end
+end
+
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
+
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		t = t + dt
+		local run = (shouldRun == nil) or shouldRun()
+		if run and not self.SeqActive then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
+			end
+		end
+	end)
+end
+
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
+end
+
+-- Remove todos os Welds (reparent), cancela sequência/tremor e destrava.
+function Animator:Destroy()
+	self:CancelSequence()
+	self:StopIdleBob()
+	self:LockCharacter(false)
+	self.Destroyed = true
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
+	end
+	table.clear(self.Welds)
+end
+
+return Animator
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{EACDA39B-FC24-4F98-9228-17827D190C03}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">R6CFrameAnimator</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX4270844B74FA4D5C88BC3E0416BE5E1B"><Properties><ProtectedString name="Source"><![CDATA[-- Poses_Escudos_V1.lua
+-- ModuleScript "Poses" — família ESCUDOS (Salvador, Proteção, Skate,
+-- Bumerangue, Bloqueador, Cyclone, Partido)
+--
+-- ORIGEM DAS POSES (§12.12 / §12.16)
+--   Material: SaitamaAnimacoes_Originais_V1 (pack de referência R6 CFrame).
+--   Passe de conformidade: keyframes lidos como DADO, convertidos em poses
+--   estáticas para R6CFrameAnimator. Zero LoadAnimation, zero Animation asset,
+--   zero lógica de combate importada. Só silhueta e timing.
+--
+--   Mapa keyframe -> pose:
+--     NORMAL_SHOVE        [12][23][30]  -> ARREMESSO_CARGA / SOLTA / RECUO
+--     NORMAL_UPPERCUT     [27][34]      -> SACRIFICIO_CARGA / SACRIFICIO_ALTO
+--     CONSECUTIVE_PUNCHES [8][24][31][44][57][70] -> CORTE_A..CORTE_F
+--     SERIOUS_MODE        [20][35][60]  -> CICLONE_CARGA / ABERTO / GIRO
+--     DEATH_COUNTER       [120][359]    -> GUARDA_FIRME / CONTRA_GOLPE
+--     TABLE_FLIP          [207][365]    -> PUXAO_CARGA / PUXAO_SOLTA
+--     SERIOUS_PUNCH       [85][180][260][298][349] -> EXEC_*
+--     SERIOUS_PUNCH_CAMERA (amostrado)  -> CAMERA_EXECUCAO
+--
+-- Base de Weld idêntica à do R6CFrameAnimator (V1/V2):
+--   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP identidade
+--   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+
+local P = {}
+
+--═══════════════════════════════════════════════════════════════
+-- 1. POSES BASE — comuns a toda a família
+--═══════════════════════════════════════════════════════════════
+
+-- IDLE original dos escudos (corpo virado ~10°, escudo à frente).
+-- Valores preservados do ServerScript_EscudoBloqueador_V5.
+P.IDLE = {
+	RightArm = CFrame.new(
+		1.40557981, 0.499999762, -0.579227924,
+		0.98480767, 0.173648134, 0,
+		0, 0, -0.999999821,
+		-0.173648134, 0.98480767, 0
+	),
+	LeftArm = CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(6), 0, math.rad(6)),
+	Head = CFrame.new(
+		0, 1.49999976, 0,
+		0.173648208, 0, -0.98480767,
+		0, 0.999999881, 0,
+		0.98480767, 0, 0.173648208
+	),
+	HRP = CFrame.new(
+		0, 0, 0,
+		0.173648134, 0, 0.98480773,
+		0, 0.99999994, 0,
+		-0.98480773, 0, 0.173648134
+	),
+}
+
+-- Guarda firme — DEATH_COUNTER [120]: peso no tronco, escudo colado à frente.
+P.GUARDA_FIRME = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-18.28), math.rad(-39.56), math.rad(-11.01)),
+	RightArm = CFrame.new(1.564, 0.422, -0.017) * CFrame.Angles(math.rad(72.6), math.rad(4.68), math.rad(22.04)),
+	LeftArm = CFrame.new(-1.566, 0.077, -0.035) * CFrame.Angles(math.rad(3.89), math.rad(-0.68), math.rad(-8.11)),
+	Head = CFrame.new(0, 1.466, -0.182) * CFrame.Angles(math.rad(-21.4), math.rad(-0.85), math.rad(0.03)),
+}
+
+-- Contra-golpe — DEATH_COUNTER [359]: rotação de tronco que vende a força.
+P.CONTRA_GOLPE = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-20.13), math.rad(37.64), math.rad(16.46)),
+	RightArm = CFrame.new(1.443, 0.234, 0.652) * CFrame.Angles(math.rad(99.58), math.rad(-2.93), math.rad(65.63)),
+	LeftArm = CFrame.new(-1.659, 0.316, 0.178) * CFrame.Angles(math.rad(12.43), math.rad(17.95), math.rad(-33.49)),
+	Head = CFrame.new(0.058, 1.496, -0.013) * CFrame.Angles(math.rad(-4.57), math.rad(-24.32), math.rad(-7.31)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 2. ARREMESSO — NORMAL_SHOVE (Bumerangue / Partido)
+--═══════════════════════════════════════════════════════════════
+
+P.ARREMESSO_CARGA = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(75.6), math.rad(180)),
+	RightArm = CFrame.new(0.95, 0.482, -0.945) * CFrame.Angles(math.rad(90.19), math.rad(2.32), math.rad(-46.57)),
+	LeftArm = CFrame.new(-1.31, -0.135, 0.036) * CFrame.Angles(math.rad(-1.36), math.rad(3.89), math.rad(18.95)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-77.85), math.rad(0)),
+}
+
+-- Frame de impacto do pack (índice 23). É aqui que o projétil sai.
+P.ARREMESSO_SOLTA = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(69.16), math.rad(180)),
+	RightArm = CFrame.new(0.756, 0.649, -1.012) * CFrame.Angles(math.rad(98.73), math.rad(-5.51), math.rad(-65.76)),
+	LeftArm = CFrame.new(-1.323, -0.122, 0.092) * CFrame.Angles(math.rad(-3.39), math.rad(9.68), math.rad(17.38)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-82.49), math.rad(0)),
+}
+
+P.ARREMESSO_RECUO = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(78.95), math.rad(0)),
+	RightArm = CFrame.new(1.807, 0.563, -0.447) * CFrame.Angles(math.rad(96.02), math.rad(-0.36), math.rad(13.17)),
+	LeftArm = CFrame.new(-1.546, 0.051, -0.01) * CFrame.Angles(math.rad(-0.07), math.rad(-1.11), math.rad(-5.6)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-65.52), math.rad(0)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 3. SACRIFÍCIO — NORMAL_UPPERCUT (Salvador)
+--═══════════════════════════════════════════════════════════════
+
+P.SACRIFICIO_CARGA = {
+	HRP = CFrame.new(0.012, -0.038, 0.048) * CFrame.Angles(math.rad(-39.13), math.rad(-31.46), math.rad(-14.97)),
+	RightArm = CFrame.new(1.73, 0.007, -0.191) * CFrame.Angles(math.rad(20.45), math.rad(4.51), math.rad(31.9)),
+	LeftArm = CFrame.new(-1.52, -0.154, 0.317) * CFrame.Angles(math.rad(26.35), math.rad(12.04), math.rad(-8.3)),
+	Head = CFrame.new(0.036, 1.457, 0.199) * CFrame.Angles(math.rad(26.7), math.rad(38), math.rad(-5.2)),
+}
+
+P.SACRIFICIO_ALTO = {
+	HRP = CFrame.new(0.085, 0.336, -0.174) * CFrame.Angles(math.rad(102.99), math.rad(62.95), math.rad(-91.13)),
+	RightArm = CFrame.new(1.774, 1.715, -0.269) * CFrame.Angles(math.rad(-30.91), math.rad(-37.17), math.rad(164.04)),
+	LeftArm = CFrame.new(-1.648, 0.092, 0.41) * CFrame.Angles(math.rad(38.8), math.rad(10.33), math.rad(-33.88)),
+	Head = CFrame.new(0.097, 1.453, -0.188) * CFrame.Angles(math.rad(-60.03), math.rad(-72.08), math.rad(-38.9)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 4. CORTES — CONSECUTIVE_PUNCHES (Partido, melee)
+--═══════════════════════════════════════════════════════════════
+
+P.CORTE_A = { -- [8] carga curta
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-6.97), math.rad(1.72), math.rad(2.47)),
+	RightArm = CFrame.new(1.648, 0.353, -0.45) * CFrame.Angles(math.rad(85.81), math.rad(11.16), math.rad(-2.5)),
+	LeftArm = CFrame.new(-1.591, 0.359, 0.528) * CFrame.Angles(math.rad(52.74), math.rad(-1.49), math.rad(-51.85)),
+	Head = CFrame.new(0.026, 1.499, -0.001) * CFrame.Angles(math.rad(-0.03), math.rad(1.3), math.rad(-2.94)),
+}
+
+P.CORTE_B = { -- [24] corte descendente
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-25.94), math.rad(-34.21), math.rad(-11.18)),
+	RightArm = CFrame.new(1.412, 0.635, -0.466) * CFrame.Angles(math.rad(120.14), math.rad(17.49), math.rad(0.43)),
+	LeftArm = CFrame.new(-1.52, 0.803, -1.489) * CFrame.Angles(math.rad(107.06), math.rad(-3.02), math.rad(-28.56)),
+	Head = CFrame.new(-0.011, 1.495, 0.072) * CFrame.Angles(math.rad(7.57), math.rad(28.91), math.rad(1.39)),
+}
+
+P.CORTE_C = { -- [31] corte alto
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-32.63), math.rad(-7.69), math.rad(-8.35)),
+	RightArm = CFrame.new(1.38, 1.053, -0.632) * CFrame.Angles(math.rad(136.61), math.rad(19.06), math.rad(-2.27)),
+	LeftArm = CFrame.new(-1.813, 0.573, -1.182) * CFrame.Angles(math.rad(113.48), math.rad(-5.17), math.rad(-14.42)),
+	Head = CFrame.new(0.012, 1.49, 0.097) * CFrame.Angles(math.rad(11.47), math.rad(12.46), math.rad(-1.41)),
+}
+
+P.CORTE_D = { -- [44] transversal
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-30.19), math.rad(-30.08), math.rad(-13.12)),
+	RightArm = CFrame.new(1.159, 0.819, -0.625) * CFrame.Angles(math.rad(134.11), math.rad(16.88), math.rad(-14.85)),
+	LeftArm = CFrame.new(-1.875, 0.744, -1.164) * CFrame.Angles(math.rad(119.59), math.rad(-9.75), math.rad(-32.31)),
+	Head = CFrame.new(0.005, 1.498, 0.047) * CFrame.Angles(math.rad(5.8), math.rad(31.66), math.rad(-0.68)),
+}
+
+P.CORTE_E = { -- [57] retorno
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-25.02), math.rad(-34.36), math.rad(-10.66)),
+	RightArm = CFrame.new(1.254, 0.655, -0.599) * CFrame.Angles(math.rad(120.14), math.rad(17.49), math.rad(-16.44)),
+	LeftArm = CFrame.new(-1.772, 0.912, -1.177) * CFrame.Angles(math.rad(134.81), math.rad(-16.72), math.rad(-26.54)),
+	Head = CFrame.new(-0.037, 1.498, 0.024) * CFrame.Angles(math.rad(-0.12), math.rad(33.98), math.rad(5.11)),
+}
+
+P.CORTE_F = { -- [70] abertura reversa
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-24.83), math.rad(43.09), math.rad(15.3)),
+	RightArm = CFrame.new(1.883, 0.722, -0.885) * CFrame.Angles(math.rad(91.4), math.rad(19.63), math.rad(33.13)),
+	LeftArm = CFrame.new(-1.729, 0.313, -0.144) * CFrame.Angles(math.rad(60.51), math.rad(-2.69), math.rad(-26.59)),
+	Head = CFrame.new(0.035, 1.493, 0.075) * CFrame.Angles(math.rad(5.82), math.rad(-34.64), math.rad(-4.93)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 5. CICLONE — SERIOUS_MODE (Cyclone)
+--═══════════════════════════════════════════════════════════════
+
+P.CICLONE_CARGA = { -- [20] braços fecham à frente
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(2.99), math.rad(0), math.rad(0)),
+	RightArm = CFrame.new(1.366, 0.175, -0.67) * CFrame.Angles(math.rad(80.4), math.rad(9.91), math.rad(-57.22)),
+	LeftArm = CFrame.new(-1.37, 0.281, -0.738) * CFrame.Angles(math.rad(75.31), math.rad(10.7), math.rad(12.82)),
+	Head = CFrame.new(0, 1.494, -0.075) * CFrame.Angles(math.rad(-8.61), math.rad(0), math.rad(0)),
+}
+
+P.CICLONE_ABERTO = { -- [35] pico de tensão
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-5.18), math.rad(0), math.rad(0)),
+	RightArm = CFrame.new(0.639, 0.342, -1.162) * CFrame.Angles(math.rad(99.07), math.rad(0.85), math.rad(-83.96)),
+	LeftArm = CFrame.new(-1.012, 0.238, -0.892) * CFrame.Angles(math.rad(86.66), math.rad(23.18), math.rad(45.14)),
+	Head = CFrame.new(0, 1.5, 0.002) * CFrame.Angles(math.rad(0.26), math.rad(0), math.rad(0)),
+}
+
+P.CICLONE_GIRO = { -- [60] sustentação (loop do ciclone)
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-4.86), math.rad(0), math.rad(0)),
+	RightArm = CFrame.new(0.613, 0.304, -1.164) * CFrame.Angles(math.rad(99.79), math.rad(-0.69), math.rad(-83.96)),
+	LeftArm = CFrame.new(-1.043, 0.189, -0.895) * CFrame.Angles(math.rad(85.87), math.rad(24.96), math.rad(45.01)),
+	Head = CFrame.new(0, 1.5, -0.016) * CFrame.Angles(math.rad(-1.79), math.rad(0), math.rad(0)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 6. PUXÃO — TABLE_FLIP (Cyclone, tração dos alvos)
+--═══════════════════════════════════════════════════════════════
+
+P.PUXAO_CARGA = { -- [207]
+	HRP = CFrame.new(0.007, -0.11, -0.01) * CFrame.Angles(math.rad(6.62), math.rad(-20.01), math.rad(3.93)),
+	RightArm = CFrame.new(1.542, 0.802, 0.402) * CFrame.Angles(math.rad(60.62), math.rad(4.82), math.rad(29.31)),
+	LeftArm = CFrame.new(-1.56, 0.033, 0.23) * CFrame.Angles(math.rad(18.2), math.rad(20.13), math.rad(-18.43)),
+	Head = CFrame.new(-0.017, 1.462, -0.19) * CFrame.Angles(math.rad(-22.93), math.rad(16.71), math.rad(2.06)),
+}
+
+P.PUXAO_SOLTA = { -- [365]
+	HRP = CFrame.new(-0.188, -0.18, -0.261) * CFrame.Angles(math.rad(21.38), math.rad(-27.02), math.rad(10.08)),
+	RightArm = CFrame.new(1.385, 0.87, -0.542) * CFrame.Angles(math.rad(98.93), math.rad(0), math.rad(-11.97)),
+	LeftArm = CFrame.new(-1.553, 0.08, 0.475) * CFrame.Angles(math.rad(-6.87), math.rad(33.88), math.rad(-25.37)),
+	Head = CFrame.new(0, 1.473, -0.163) * CFrame.Angles(math.rad(-18.99), math.rad(11.95), math.rad(0)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 7. EXECUÇÃO — SERIOUS_PUNCH (Partido, cutscene)
+--    Usa pernas: o Animator cria os Welds sob demanda e libera no fim.
+--═══════════════════════════════════════════════════════════════
+
+P.EXEC_POSTURA = { -- [85] postura baixa, peso no pé de trás
+	HRP = CFrame.new(0.087, -0.246, 0.013) * CFrame.Angles(math.rad(-0.51), math.rad(-8.57), math.rad(-0.43)),
+	RightArm = CFrame.new(1.012, 0.09, -0.47) * CFrame.Angles(math.rad(97.98), math.rad(-44.97), math.rad(-38.22)),
+	LeftArm = CFrame.new(-1.529, 0, 0.14) * CFrame.Angles(math.rad(0.34), math.rad(25.29), math.rad(-4.26)),
+	RightLeg = CFrame.new(0.718, -1.988, 0.092) * CFrame.Angles(math.rad(-20.97), math.rad(-14.02), math.rad(10.14)),
+	LeftLeg = CFrame.new(-0.56, -1.815, -0.323) * CFrame.Angles(math.rad(3.1), math.rad(5.2), math.rad(-3.91)),
+	Head = CFrame.new(-0.102, 1.477, -0.112) * CFrame.Angles(math.rad(-16.48), math.rad(15.39), math.rad(12.21)),
+}
+
+P.EXEC_AVANCO = { -- [180] arranque
+	HRP = CFrame.new(0.112, -0.539, 1.312) * CFrame.Angles(math.rad(-46.14), math.rad(-57.57), math.rad(-31.86)),
+	RightArm = CFrame.new(1.35, 0.488, -0.194) * CFrame.Angles(math.rad(102.27), math.rad(20.9), math.rad(5.59)),
+	LeftArm = CFrame.new(-1.708, 0.402, -0.657) * CFrame.Angles(math.rad(75.16), math.rad(-24.42), math.rad(-20.3)),
+	RightLeg = CFrame.new(0.747, -1.747, -0.442) * CFrame.Angles(math.rad(5.87), math.rad(-24.24), math.rad(16.57)),
+	LeftLeg = CFrame.new(-0.899, -1.149, -1.12) * CFrame.Angles(math.rad(39.07), math.rad(15.89), math.rad(-21)),
+	Head = CFrame.new(-0.145, 1.478, -0.021) * CFrame.Angles(math.rad(-13.58), math.rad(32.34), math.rad(20.08)),
+}
+
+P.EXEC_CORTE1 = { -- [260] primeiro corte (tronco a -147°)
+	HRP = CFrame.new(-0.024, -0.822, 1.275) * CFrame.Angles(math.rad(-147.03), math.rad(-50.21), math.rad(-131.38)),
+	RightArm = CFrame.new(1.373, 0.272, 0.673) * CFrame.Angles(math.rad(99.93), math.rad(-2.37), math.rad(62.7)),
+	LeftArm = CFrame.new(-1.254, 0.531, -0.737) * CFrame.Angles(math.rad(121.9), math.rad(-44.4), math.rad(4.03)),
+	RightLeg = CFrame.new(0.653, -1.385, -1.125) * CFrame.Angles(math.rad(34.35), math.rad(-20.96), math.rad(4.44)),
+	LeftLeg = CFrame.new(-1.443, -0.935, -0.603) * CFrame.Angles(math.rad(9.38), math.rad(39.82), math.rad(-39.23)),
+	Head = CFrame.new(-0.166, 1.47, -0.038) * CFrame.Angles(math.rad(-20.39), math.rad(37.85), math.rad(24.81)),
+}
+
+P.EXEC_CORTE2 = { -- [298] segundo corte
+	HRP = CFrame.new(0.116, -0.9, 0.666) * CFrame.Angles(math.rad(-75.56), math.rad(-50.75), math.rad(-55.57)),
+	RightArm = CFrame.new(1.118, 0.066, 0.519) * CFrame.Angles(math.rad(134.62), math.rad(-19.51), math.rad(70.72)),
+	LeftArm = CFrame.new(-1.228, 0.402, -0.595) * CFrame.Angles(math.rad(109.85), math.rad(-5.86), math.rad(33.48)),
+	RightLeg = CFrame.new(1.114, -1.901, -0.595) * CFrame.Angles(math.rad(4.43), math.rad(-4.87), math.rad(23.74)),
+	LeftLeg = CFrame.new(-0.576, -0.485, -1.173) * CFrame.Angles(math.rad(19.27), math.rad(33.17), math.rad(-5.14)),
+	Head = CFrame.new(-0.158, 1.474, -0.007) * CFrame.Angles(math.rad(-6.12), math.rad(15.61), math.rad(19.18)),
+}
+
+P.EXEC_FINAL = { -- [349] pose de saída, costas para o alvo
+	HRP = CFrame.new(0.128, -0.78, 0.544) * CFrame.Angles(math.rad(-33.55), math.rad(41.54), math.rad(22.64)),
+	RightArm = CFrame.new(1.857, 1.006, -0.642) * CFrame.Angles(math.rad(96.52), math.rad(20.99), math.rad(50.91)),
+	LeftArm = CFrame.new(-1.127, -0.11, 0.528) * CFrame.Angles(math.rad(143.16), math.rad(41.29), math.rad(-82.69)),
+	RightLeg = CFrame.new(0.147, -1.818, 0.438) * CFrame.Angles(math.rad(-45.22), math.rad(-17.42), math.rad(-34.66)),
+	LeftLeg = CFrame.new(-0.377, -0.935, -1.284) * CFrame.Angles(math.rad(33.47), math.rad(-20.96), math.rad(-0.25)),
+	Head = CFrame.new(0.083, 1.493, 0) * CFrame.Angles(math.rad(-7.04), math.rad(-35.79), math.rad(-11.83)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 8. POSES AUTORAIS DE APOIO
+--═══════════════════════════════════════════════════════════════
+
+P.GUARDA = { -- barreira defensiva (Proteção)
+	RightArm = CFrame.new(1.4, 0.45, -0.75) * CFrame.Angles(math.rad(70), 0, math.rad(-12)),
+	LeftArm = CFrame.new(-1.45, 0.2, -0.4) * CFrame.Angles(math.rad(40), 0, math.rad(14)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-4), 0, 0),
+	HRP = CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(6), math.rad(8), 0),
+}
+
+P.SKATE = { -- corpo aerodinâmico, braço atrás (Skate)
+	RightArm = CFrame.new(1.5, 0.15, 0.55) * CFrame.Angles(math.rad(-28), 0, math.rad(10)),
+	LeftArm = CFrame.new(-1.55, 0.35, -0.5) * CFrame.Angles(math.rad(46), 0, math.rad(-18)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-14), 0, 0),
+	HRP = CFrame.new(0, -0.25, 0) * CFrame.Angles(math.rad(15), 0, 0),
+}
+
+P.INVOCAR = { -- braços abertos, chamada dos escudos (Cyclone)
+	RightArm = CFrame.new(1.55, 0.7, -0.2) * CFrame.Angles(math.rad(28), 0, math.rad(-48)),
+	LeftArm = CFrame.new(-1.55, 0.7, -0.2) * CFrame.Angles(math.rad(28), 0, math.rad(48)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-18), 0, 0),
+	HRP = CFrame.new(0, 0.1, 0) * CFrame.Angles(math.rad(-8), 0, 0),
+}
+
+
+--═══════════════════════════════════════════════════════════════
+-- 8.5 DOMÍNIO — importado de "Domain Expansion(Elemental)" (§12.12)
+--
+--   Origem: KeyframeSequences "domaint1" (8 kf) e "domaint2" (1 kf).
+--   Passe: as Poses eram Motor6D-relativas; convertidas para Weld.C0 pela
+--   fórmula C0 = Motor.C0 * Pose.CFrame * Motor.C1:Inverse(). O keyframe de
+--   repouso sai exatamente em (1.5,0,0)/(-1.5,0,0)/(0,1.5,0)/(0.5,-2,0),
+--   o que confirma a conversão contra a base do R6CFrameAnimator.
+--   Descartado: a inversão de tronco de 178° do domaint2 (artefato de
+--   autoria do pack — girava o personagem de costas no meio do gesto).
+--   Zero Animation/AnimationTrack: só a tabela de CFrames entrou.
+--═══════════════════════════════════════════════════════════════
+
+P.DOMINIO_CARGA = { -- domaint1 t=0.0333: braço direito sobe, pernas travam
+	HRP = CFrame.new(0, 0, 0),
+	RightArm = CFrame.new(1.500, 0.275, -0.447) * CFrame.Angles(math.rad(63.27), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-1.500, 0.132, -0.338) * CFrame.Angles(math.rad(42.60), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.556, -2.026, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(3.14)),
+	LeftLeg = CFrame.new(-0.560, -2.028, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-3.41)),
+	Head = CFrame.new(0, 1.498, -0.044) * CFrame.Angles(math.rad(-5.08), math.rad(0), math.rad(0)),
+}
+
+P.DOMINIO_MEIO = { -- domaint1 t=0.2000: braços começam a abrir
+	HRP = CFrame.new(0, 0, 0),
+	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
+	LeftArm = CFrame.new(-1.236, 0.398, -0.659) * CFrame.Angles(math.rad(85.56), math.rad(-24.00), math.rad(14.68)),
+	Head = CFrame.new(0, 1.498, -0.044) * CFrame.Angles(math.rad(-5.08), math.rad(0), math.rad(0)),
+}
+
+P.DOMINIO_ABERTO = { -- domaint1 t=0.2667: abertura total, cabeça para cima
+	HRP = CFrame.new(0, 0, 0),
+	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
+	LeftArm = CFrame.new(-1.004, 0.367, -0.695) * CFrame.Angles(math.rad(75.69), math.rad(-41.93), math.rad(19.58)),
+	RightLeg = CFrame.new(0.585, -2.038, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(4.76)),
+	LeftLeg = CFrame.new(-0.590, -2.040, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-5.06)),
+	Head = CFrame.new(0, 1.492, -0.090) * CFrame.Angles(math.rad(-10.43), math.rad(0), math.rad(0)),
+}
+
+P.DOMINIO_SUSTENTA = { -- domaint2: pose de sustentação do domínio
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
+	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
+	LeftArm = CFrame.new(-1.004, 0.367, -0.695) * CFrame.Angles(math.rad(75.69), math.rad(-41.93), math.rad(19.58)),
+	RightLeg = CFrame.new(0.585, -2.038, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(4.76)),
+	Head = CFrame.new(0, 1.492, -0.090) * CFrame.Angles(math.rad(-10.43), math.rad(0), math.rad(0)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 9. SEQUÊNCIAS (timelines para rig:PlaySequence)
+--    { pose, time, style, dir, tremor, freq, marca }
+--    'marca' é lida pelo onBeat do servidor para disparar VFX/SFX/dano.
+--═══════════════════════════════════════════════════════════════
+
+P.SEQUENCIAS = {
+
+	-- Bumerangue / Partido: arremesso simples
+	ARREMESSO = {
+		{ pose = "ARREMESSO_CARGA",  time = 0.16, style = "Back",  dir = "In",  marca = "CARGA" },
+		{ pose = "ARREMESSO_SOLTA",  time = 0.10, style = "Quint", dir = "Out", marca = "SOLTA" },
+		{ pose = "ARREMESSO_RECUO",  time = 0.18, style = "Quad",  dir = "Out" },
+		{ pose = "IDLE",             time = 0.22, style = "Quad",  dir = "Out" },
+	},
+
+	-- Bumerangue: arremesso carregado (mesma silhueta, mais peso e tremor)
+	ARREMESSO_CARREGADO = {
+		{ pose = "ARREMESSO_CARGA",  time = 0.34, style = "Back",  dir = "In",  tremor = 0.035, freq = 26, marca = "CARGA" },
+		{ pose = "ARREMESSO_SOLTA",  time = 0.08, style = "Quint", dir = "Out", marca = "SOLTA" },
+		{ pose = "ARREMESSO_RECUO",  time = 0.22, style = "Quad",  dir = "Out" },
+		{ pose = "IDLE",             time = 0.26, style = "Quad",  dir = "Out" },
+	},
+
+	-- Salvador: oferta do escudo ao aliado
+	SACRIFICIO = {
+		{ pose = "SACRIFICIO_CARGA", time = 0.22, style = "Back",  dir = "In",  marca = "CARGA" },
+		{ pose = "SACRIFICIO_ALTO",  time = 0.14, style = "Quint", dir = "Out", tremor = 0.03, freq = 20, marca = "VINCULO" },
+		{ pose = "GUARDA_FIRME",     time = 0.30, style = "Quad",  dir = "Out" },
+	},
+
+	-- Proteção: fechar a barreira
+	BARREIRA = {
+		{ pose = "GUARDA",           time = 0.18, style = "Back",  dir = "In",  marca = "CARGA" },
+		{ pose = "GUARDA_FIRME",     time = 0.12, style = "Quint", dir = "Out", marca = "ABRIR" },
+	},
+
+	-- Bloqueador: proteção de aliado (teleporte + contra-golpe)
+	PROTEGER = {
+		{ pose = "GUARDA_FIRME",     time = 0.14, style = "Back",  dir = "In",  marca = "SAIDA" },
+		{ pose = "CONTRA_GOLPE",     time = 0.12, style = "Quint", dir = "Out", tremor = 0.04, freq = 24, marca = "CHEGADA" },
+		{ pose = "CORTE_F",          time = 0.16, style = "Quint", dir = "Out", marca = "REPULSAO" },
+		{ pose = "IDLE",             time = 0.26, style = "Quad",  dir = "Out" },
+	},
+
+	-- Cyclone: invocação dos 5 escudos orbitais
+	CICLONE_INVOCA = {
+		{ pose = "CICLONE_CARGA",    time = 0.24, style = "Back",  dir = "In",  marca = "CARGA" },
+		{ pose = "INVOCAR",          time = 0.16, style = "Quint", dir = "Out", tremor = 0.045, freq = 28, marca = "INVOCAR" },
+		{ pose = "CICLONE_ABERTO",   time = 0.20, style = "Quad",  dir = "Out", marca = "ABRIR" },
+		{ pose = "CICLONE_GIRO",     time = 0.30, style = "Sine",  dir = "InOut" },
+	},
+
+	-- Cyclone: abertura do domínio (poses do Domain Expansion)
+	DOMINIO = {
+		{ pose = "DOMINIO_CARGA",    time = 0.30, style = "Back",  dir = "In",  tremor = 0.03, freq = 18, marca = "GONGO" },
+		{ pose = "DOMINIO_MEIO",     time = 0.22, style = "Quad",  dir = "Out" },
+		{ pose = "DOMINIO_ABERTO",   time = 0.16, style = "Quint", dir = "Out", marca = "EXPANDIR" },
+		{ pose = "DOMINIO_SUSTENTA", time = 0.40, style = "Sine",  dir = "InOut", marca = "SUSTENTAR" },
+	},
+
+	-- Cyclone: pulso de tração
+	CICLONE_PUXA = {
+		{ pose = "PUXAO_CARGA",      time = 0.14, style = "Back",  dir = "In" },
+		{ pose = "PUXAO_SOLTA",      time = 0.10, style = "Quint", dir = "Out", marca = "PUXAR" },
+		{ pose = "CICLONE_GIRO",     time = 0.20, style = "Quad",  dir = "Out" },
+	},
+
+	-- Partido: combo melee de cortes (3 golpes)
+	CORTE_COMBO = {
+		{ pose = "CORTE_A",          time = 0.10, style = "Back",  dir = "In" },
+		{ pose = "CORTE_B",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE1" },
+		{ pose = "CORTE_C",          time = 0.10, style = "Back",  dir = "In" },
+		{ pose = "CORTE_D",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE2" },
+		{ pose = "CORTE_E",          time = 0.10, style = "Back",  dir = "In" },
+		{ pose = "CORTE_F",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE3" },
+		{ pose = "IDLE",             time = 0.24, style = "Quad",  dir = "Out" },
+	},
+
+	-- Partido: cutscene de execução.
+	-- Coreografia herdada de "Judgement Cut End": postura -> tempo parado ->
+	-- grade de cortes suspensa -> rajada de cortes -> colapso + golpe mortal.
+	EXECUCAO = {
+		{ pose = "EXEC_POSTURA",     time = 0.45, style = "Back",  dir = "In",  tremor = 0.02, freq = 18, marca = "POSTURA" },
+		{ pose = "EXEC_AVANCO",      time = 0.22, style = "Quint", dir = "Out", marca = "TEMPO" },
+		{ pose = "EXEC_CORTE1",      time = 0.16, style = "Quint", dir = "Out", tremor = 0.05, freq = 30, marca = "GRADE" },
+		{ pose = "EXEC_CORTE2",      time = 0.13, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE1",      time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE2",      time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE1",      time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE2",      time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_FINAL",       time = 0.30, style = "Back",  dir = "Out", marca = "MORTAL" },
+		{ pose = "IDLE",             time = 0.50, style = "Quad",  dir = "Out", marca = "FIM" },
+	},
+}
+
+--═══════════════════════════════════════════════════════════════
+-- 10. CÂMERA DA CUTSCENE — SERIOUS_PUNCH_CAMERA (amostrado)
+--     CFrame RELATIVO ao HumanoidRootPart do portador.
+--     Consumido pelo LocalScript: cam.CFrame = hrp.CFrame * cf
+--═══════════════════════════════════════════════════════════════
+
+P.CAMERA_EXECUCAO = {
+	{ t = 0.00, cf = CFrame.new(1.042, 1.045, -2.163) * CFrame.Angles(math.rad(-153.67), math.rad(27.45), math.rad(169.74)) },
+	{ t = 0.45, cf = CFrame.new(2.081, 1.996, -3.803) * CFrame.Angles(math.rad(-151.14), math.rad(26.83), math.rad(163.80)) },
+	{ t = 0.70, cf = CFrame.new(2.792, 2.024, -3.831) * CFrame.Angles(math.rad(-137.97), math.rad(-6.23), math.rad(-159.19)) },
+	{ t = 0.95, cf = CFrame.new(-3.658, 3.454, -5.347) * CFrame.Angles(math.rad(-153.86), math.rad(-21.99), math.rad(-158.36)) },
+	{ t = 1.25, cf = CFrame.new(2.819, 0.310, -1.877) * CFrame.Angles(math.rad(-152.79), math.rad(27.46), math.rad(165.08)) },
+	{ t = 1.55, cf = CFrame.new(3.027, 0.019, -1.065) * CFrame.Angles(math.rad(-151.65), math.rad(40.88), math.rad(155.28)) },
+	{ t = 1.85, cf = CFrame.new(3.023, -0.245, 0.322) * CFrame.Angles(math.rad(-130.92), math.rad(67.71), math.rad(123.45)) },
+	{ t = 2.30, cf = CFrame.new(1.822, 1.700, 5.456) * CFrame.Angles(math.rad(-6.48), math.rad(2.20), math.rad(3.20)) },
+	{ t = 2.90, cf = CFrame.new(1.707, 1.764, 6.039) * CFrame.Angles(math.rad(-1.96), math.rad(2.44), math.rad(3.02)) },
+}
+
+return P
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{162FD1E0-6DB3-47DB-B89A-448B7AFD2BC6}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Poses</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX70A1F12B40A54853876CC269E5C77AB8"><Properties><ProtectedString name="Source"><![CDATA[-- VFXModule_Escudos_V2.lua
+-- ModuleScript "VFXModule" — executor de VFX da família ESCUDOS
+--
+-- ONDE RODA: CLIENTE. O LocalScript "Client" da Tool escuta o VFXRemote e
+-- chama VFX.Executar(tipo, dados). O servidor NUNCA chama este módulo e
+-- NUNCA emite partícula (§12.11 / §4.3 das DIRETRIZES_VFX).
+--
+-- Por isso :Emit() aqui é legítimo: não há replicação envolvida — o burst
+-- nasce e morre na máquina de quem vê.
+--
+-- LINGUAGEM VISUAL (referência: pack Saitama)
+--   O impacto do pack é lido em 4 camadas sobrepostas, sempre nesta ordem:
+--     1. FLASH   — clarão branco de 1 frame, some em ~0.08 s
+--     2. DISCO   — onda de choque achatada, cresce e afina
+--     3. LINHAS  — estrias radiais finas que saem do ponto (velocidade)
+--     4. DETRITO — faíscas + poeira, a única camada que persiste
+--   Nenhum efeito usa math.random: dispersão por ÂNGULO ÁUREO (137.507°) e
+--   jitter senoidal por contador. Zero ScreenGui, zero ColorCorrection.
+--
+-- V2 — MATERIAL IMPORTADO (§12.12, ver bloco marcado mais abaixo)
+--   [JC] Judgement Cut End .......... GRADE_CORTES, TEMPO_PARADO, DESTROCOS,
+--                                     RAJADA, ZOOM, presets de TREMOR, texturas
+--   [DE] Domain Expansion(Elemental)  CORTE_X, DOMO
+--
+-- LIMPEZA: tudo nasce sob workspace.Terrain (não polui a árvore de Models),
+-- é registrado em Vivos e removido por Debris/Parent=nil. VFX.LimparTudo()
+-- é chamado pelo Client em Tool.Destroying e no Humanoid.Died do portador.
+
+local Debris       = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+
+local VFX = {}
+
+--═══════════════════════════════════════════════════════════════
+-- CONSTANTES
+--═══════════════════════════════════════════════════════════════
+
+local CFG = {
+	ANGULO_AUREO   = math.rad(137.507764),
+	PAI            = workspace,   -- efeitos nascem direto no workspace
+	COR_PADRAO     = Color3.fromRGB(90, 190, 255),
+	TEX_FAISCA     = "rbxasset://textures/particles/sparkles_main.dds",
+	TEX_FUMACA     = "rbxasset://textures/particles/smoke_main.dds",
+	VIDA_CURTA     = 1.2,
+	VIDA_MEDIA     = 2.5,
+	LIMITE_VIVOS   = 220,   -- teto de instâncias simultâneas por cliente
+}
+
+-- Registro de efeitos vivos (para limpeza e para efeitos com id)
+local Vivos     = {}   -- lista simples de Instances
+local PorId     = {}   -- [id] = { partes = {}, conexoes = {} }
+local contador  = 0    -- contador determinístico (substitui math.random)
+
+--═══════════════════════════════════════════════════════════════
+-- INFRAESTRUTURA
+--═══════════════════════════════════════════════════════════════
+
+local function proximo()
+	contador = contador + 1
+	if contador > 100000 then contador = 1 end
+	return contador
+end
+
+-- jitter determinístico em [-1, 1], varia a cada chamada
+local function jitter(fase)
+	local n = proximo()
+	return math.sin(n * 2.399963 + (fase or 0))
+end
+
+local function registrar(inst, vida)
+	table.insert(Vivos, inst)
+	if #Vivos > CFG.LIMITE_VIVOS then
+		local velho = table.remove(Vivos, 1)
+		if velho and velho.Parent then velho.Parent = nil end
+	end
+	if vida then Debris:AddItem(inst, vida) end
+	return inst
+end
+
+local function novaParte(props)
+	local p = Instance.new("Part")
+	p.Anchored     = true
+	p.CanCollide   = false
+	p.CanTouch     = false
+	p.CanQuery     = false
+	p.CastShadow   = false
+	p.Material     = Enum.Material.Neon
+	p.TopSurface   = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for k, v in pairs(props or {}) do
+		p[k] = v
+	end
+	p.Parent = CFG.PAI
+	return p
+end
+
+-- Indexar um Enum com nome inválido ERRA no Roblox (não devolve nil).
+-- Por isso todo estilo passa por uma tabela branca antes de virar TweenInfo.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+
+local function estiloValido(style)
+	if typeof(style) == "EnumItem" then return style end
+	if type(style) == "string" then return ESTILOS[style] end
+	return nil
+end
+
+local function tween(inst, tempo, alvo, style, dir)
+	local ok, tw = pcall(function()
+		local ti = TweenInfo.new(
+			tempo,
+			estiloValido(style) or Enum.EasingStyle.Quint,
+			(typeof(dir) == "EnumItem" and dir) or Enum.EasingDirection.Out
+		)
+		local t = TweenService:Create(inst, ti, alvo)
+		t:Play()
+		return t
+	end)
+	if not ok then
+		warn("[VFXModule_Escudos] tween invalido: " .. tostring(tw))
+		return nil
+	end
+	return tw
+end
+
+local function cor(d)
+	return (d and d.cor) or CFG.COR_PADRAO
+end
+
+local function pos(d)
+	return (d and d.posicao) or Vector3.new()
+end
+
+local function escala(d)
+	return (d and d.escala) or 1
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CAMADA 1 — FLASH (clarão de 1 frame)
+--═══════════════════════════════════════════════════════════════
+
+local function camadaFlash(p, c, raio, brilho)
+	local bola = novaParte({
+		Shape        = Enum.PartType.Ball,
+		Size         = Vector3.new(raio, raio, raio),
+		Color        = Color3.new(1, 1, 1):Lerp(c, 0.25),
+		Transparency = 0.05,
+		CFrame       = CFrame.new(p),
+	})
+	local luz = Instance.new("PointLight")
+	luz.Color      = c
+	luz.Brightness = brilho or 8
+	luz.Range      = raio * 3
+	luz.Parent     = bola
+
+	tween(bola, 0.09, { Size = Vector3.new(raio * 2.4, raio * 2.4, raio * 2.4), Transparency = 1 })
+	tween(luz, 0.14, { Brightness = 0, Range = 0 })
+	registrar(bola, 0.35)
+	return bola
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CAMADA 2 — DISCO / ANEL de choque
+--═══════════════════════════════════════════════════════════════
+
+local function camadaDisco(p, c, raio, tempo, inclinacao)
+	local disco = novaParte({
+		Shape        = Enum.PartType.Cylinder,
+		Size         = Vector3.new(0.35, raio * 0.35, raio * 0.35),
+		Color        = c,
+		Transparency = 0.25,
+		CFrame       = CFrame.new(p) * CFrame.Angles(0, 0, math.rad(90)) * (inclinacao or CFrame.new()),
+	})
+	tween(disco, tempo or 0.55, {
+		Size         = Vector3.new(0.06, raio * 3.2, raio * 3.2),
+		Transparency = 1,
+	})
+	registrar(disco, (tempo or 0.55) + 0.3)
+	return disco
+end
+
+local function camadaAnel(p, c, raio, tempo, normal)
+	local anel = novaParte({
+		Shape        = Enum.PartType.Cylinder,
+		Size         = Vector3.new(0.6, raio * 0.5, raio * 0.5),
+		Color        = c,
+		Transparency = 0.4,
+		CFrame       = CFrame.new(p, p + (normal or Vector3.new(0, 1, 0))) * CFrame.Angles(0, math.rad(90), 0),
+	})
+	tween(anel, tempo or 0.45, {
+		Size         = Vector3.new(0.08, raio * 2.6, raio * 2.6),
+		Transparency = 1,
+	})
+	registrar(anel, (tempo or 0.45) + 0.3)
+	return anel
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CAMADA 3 — LINHAS DE VELOCIDADE (estrias radiais)
+--═══════════════════════════════════════════════════════════════
+
+local function camadaLinhas(p, c, quantidade, comprimento, tempo, achatado)
+	quantidade = quantidade or 10
+	for i = 1, quantidade do
+		local ang = i * CFG.ANGULO_AUREO
+		local elev = achatado and 0 or (math.sin(i * 1.7) * 0.55)
+		local dir = Vector3.new(math.cos(ang), elev, math.sin(ang)).Unit
+		local comp = comprimento * (0.65 + 0.35 * math.abs(math.sin(i * 2.3)))
+
+		local linha = novaParte({
+			Size         = Vector3.new(0.14, 0.14, 0.8),
+			Color        = c,
+			Transparency = 0.15,
+			CFrame       = CFrame.new(p + dir * (comp * 0.25), p + dir * comp),
+		})
+		tween(linha, tempo or 0.32, {
+			Size         = Vector3.new(0.02, 0.02, comp * 1.6),
+			CFrame       = CFrame.new(p + dir * (comp * 1.15), p + dir * comp * 2),
+			Transparency = 1,
+		}, Enum.EasingStyle.Quart)
+		registrar(linha, (tempo or 0.32) + 0.25)
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CAMADA 4 — DETRITO (faíscas + poeira)
+--═══════════════════════════════════════════════════════════════
+
+local function camadaFaiscas(p, c, forca, quantidade)
+	local base = novaParte({
+		Size         = Vector3.new(0.2, 0.2, 0.2),
+		Transparency = 1,
+		CFrame       = CFrame.new(p),
+	})
+	local att = Instance.new("Attachment")
+	att.Parent = base
+
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture      = CFG.TEX_FAISCA
+	pe.Color        = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.35, c),
+		ColorSequenceKeypoint.new(1, c),
+	})
+	pe.LightEmission = 1
+	pe.LightInfluence = 0
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.9 * (forca or 1)),
+		NumberSequenceKeypoint.new(0.7, 0.35 * (forca or 1)),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(0.75, 0.35),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime     = NumberRange.new(0.35, 0.8)
+	pe.Speed        = NumberRange.new(14 * (forca or 1), 30 * (forca or 1))
+	pe.SpreadAngle  = Vector2.new(180, 180)
+	pe.Drag         = 4
+	pe.Acceleration = Vector3.new(0, -42, 0)
+	pe.Rate         = 0
+	pe.Enabled      = false
+	pe.Parent       = att
+	pe:Emit(quantidade or 26)
+
+	registrar(base, 1.4)
+end
+
+local function camadaPoeira(p, c, raio)
+	local base = novaParte({
+		Size         = Vector3.new(0.2, 0.2, 0.2),
+		Transparency = 1,
+		CFrame       = CFrame.new(p),
+	})
+	local att = Instance.new("Attachment")
+	att.Parent = base
+
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture       = CFG.TEX_FUMACA
+	pe.Color         = ColorSequence.new(Color3.new(1, 1, 1):Lerp(c, 0.35))
+	pe.LightEmission = 0.15
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, raio * 0.5),
+		NumberSequenceKeypoint.new(1, raio * 2.1),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.45),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime    = NumberRange.new(0.7, 1.3)
+	pe.Speed       = NumberRange.new(raio * 1.6, raio * 3.2)
+	pe.SpreadAngle = Vector2.new(180, 8)
+	pe.Drag        = 6
+	pe.Rotation    = NumberRange.new(-120, 120)
+	pe.RotSpeed    = NumberRange.new(-40, 40)
+	pe.Rate        = 0
+	pe.Enabled     = false
+	pe.Parent      = att
+	pe:Emit(math.clamp(math.floor(raio * 2.5), 8, 40))
+
+	registrar(base, 2.2)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- EFEITOS PÚBLICOS
+--═══════════════════════════════════════════════════════════════
+
+--═══════════════════════════════════════════════════════════════
+-- PONTE PARA O PACK DE VFX COMPARTILHADO
+--
+-- EXCEÇÃO DECLARADA À REGRA Nº 1 — ver ReplicatedStorage/README.md e
+-- DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md, seção "A quinta exceção".
+--
+-- O pack "Stella's VFX Addon" foi escrito para viver em ReplicatedStorage: o
+-- MainModule dele se muda para lá sozinho na primeira execução e o cabeçalho
+-- manda requerer por id. Copiar os 116 ModuleScripts para dentro de cada uma
+-- das 7 Tools não resolveria isso — daria 7 cópias do mesmo pack e o módulo
+-- continuaria tentando se mudar.
+--
+-- O QUE ESTA PONTE GARANTE, E É O QUE PAGA A EXCEÇÃO:
+--
+--   1. NUNCA YIELDA.  FindService + FindFirstChild, jamais WaitForChild.
+--      Num place sem o pack, `deposito()` devolve nil no mesmo frame — não
+--      há espera de 5 s nem thread pendurada.
+--   2. NUNCA DERRUBA O EFEITO PRÓPRIO.  O efeito da Tool roda primeiro e
+--      inteiro; o reforço vem depois, dentro de pcall. Pack ausente, quebrado
+--      ou de outra versão = a Tool empobrece, não quebra.
+--   3. NÃO IMPORTA REGRA DE JOGO.  Daqui só sai forma, cor e tempo. Dano,
+--      alvo e estado continuam sendo assunto do servidor e do Núcleo.
+--
+-- EFEITOS DO PACK QUE FICARAM DE FORA, E POR QUÊ  (a lista não é preguiça,
+-- foi lida no código de cada módulo):
+--
+--   Flung_Debris, Particle_Debris .. criam Part não-ancorada com
+--                                    AssemblyLinearVelocity e CanCollide
+--                                    (o parâmetro CanCollide é inerte: o
+--                                    módulo faz `CanCollide or true`).
+--                                    Detrito sólido no cliente empurra o
+--                                    próprio personagem — VFX não mexe em
+--                                    gameplay.
+--   Impact_Frame ................... troca o Sky, liga ColorCorrection e põe
+--                                    ScreenGui. As três são proibidas dentro
+--                                    de Tool (efeito só no mundo 3D).
+--   Sharp_Crater, Smooth_Crater .... varrem workspace:GetDescendants() a cada
+--                                    chamada. Numa arena cheia isso é engasgo
+--                                    de frame no impacto — justo onde não pode.
+--   Wind_Effect, Wind_Spiral ....... exigem uma Instance de fora como âncora.
+--   Fire_Circle .................... contrato quebrado no próprio pack: usa
+--                                    Size como Vector3 e depois chama
+--                                    :Emit(Size), que espera número.
+--
+-- O que sobrou é o que é ancorado, movido a Tween e fechado nos argumentos.
+--═══════════════════════════════════════════════════════════════
+
+local PACK = {
+	LIGADO   = true,                   -- desligue aqui para voltar ao VFX próprio
+	DEPOSITO = "Stella's VFX Addon",   -- único nome que esta Tool lê de fora
+}
+
+local raizPack        = nil
+local raizProcurada   = false
+local moduloDoPack    = {}   -- [nome] = função | false (já falhou, não insiste)
+
+local function deposito()
+	if raizProcurada then return raizPack end
+	raizProcurada = true
+	-- FindService não cria serviço nem espera por ele: devolve nil e pronto.
+	local rs = game:FindService("ReplicatedStorage")
+	if rs then
+		raizPack = rs:FindFirstChild(PACK.DEPOSITO)
+	end
+	return raizPack
+end
+
+local function efeitoDoPack(nome)
+	if not PACK.LIGADO then return nil end
+
+	local guardado = moduloDoPack[nome]
+	if guardado ~= nil then
+		if guardado == false then return nil end
+		return guardado
+	end
+
+	local raiz = deposito()
+	if not raiz then
+		moduloDoPack[nome] = false
+		return nil
+	end
+
+	local mod = raiz:FindFirstChild(nome)
+	if not mod or not mod:IsA("ModuleScript") then
+		moduloDoPack[nome] = false
+		return nil
+	end
+
+	local ok, fn = pcall(require, mod)
+	if not ok or type(fn) ~= "function" then
+		moduloDoPack[nome] = false
+		return nil
+	end
+
+	moduloDoPack[nome] = fn
+	return fn
+end
+
+-- pk: chama um efeito do pack sem deixar erro dele encostar no efeito da Tool.
+local function pk(nome, ...)
+	local fn = efeitoDoPack(nome)
+	if not fn then return false end
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[VFXModule_Escudos] pack " .. tostring(nome) .. ": " .. tostring(err))
+	end
+	return ok
+end
+
+--═══════════════════════════════════════════════════════════════
+-- REFORÇO — o que o pack acrescenta a cada tipo
+--
+-- Reforço é CAMADA NOVA, não repetição: cada entrada aqui existe porque o
+-- efeito próprio da Tool não desenha aquilo. O IMPACTO próprio faz flash,
+-- anel, linhas e faíscas — e nenhum disco; é o disco que entra. As durações
+-- são deliberadamente diferentes das camadas próprias: duas camadas com o
+-- mesmo tempo de vida leem como borrão, não como impacto.
+--═══════════════════════════════════════════════════════════════
+
+local Reforco = {}
+
+local function branco(c, t)
+	return Color3.new(1, 1, 1):Lerp(c, t)
+end
+
+-- DISCO — o IMPACTO próprio só tem anel fino
+function Reforco.IMPACTO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Shockwave",
+		CFrame.new(p), CFrame.new(p), 0.26,
+		Vector3.new(2, 0.35, 2) * e, Vector3.new(9, 0.35, 9) * e,
+		branco(c, 0.35), c, Enum.EasingStyle.Quint)
+end
+
+-- Golpe pesado: núcleo + dois discos em tempos separados + fumaça que fica
+function Reforco.IMPACTO_NOVA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Small_Nova", p, 0.5, 0, 26 * e, Color3.new(1, 1, 1), c,
+		Enum.EasingStyle.Quint)
+	pk("Shockwave_2",
+		CFrame.new(p), CFrame.new(p), 0.30,
+		Vector3.new(3, 0.4, 3) * e, Vector3.new(16, 0.4, 16) * e,
+		branco(c, 0.5), c, Enum.EasingStyle.Quint)
+	pk("Shockwave",
+		CFrame.new(p), CFrame.new(p), 0.55,
+		Vector3.new(2, 0.3, 2) * e, Vector3.new(30, 0.3, 30) * e,
+		c, c, Enum.EasingStyle.Quad)
+	pk("Smoky_Explosion", p, 0.9, 7 * e, branco(c, 0.7), c)
+end
+
+function Reforco.ONDA_CHOQUE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Shockwave",
+		CFrame.new(p), CFrame.new(p), 0.5,
+		Vector3.new(3, 0.3, 3) * e, Vector3.new(34, 0.3, 34) * e,
+		branco(c, 0.4), c, Enum.EasingStyle.Quad)
+end
+
+function Reforco.RACHADURA_SOLO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Floor_Crack", CFrame.new(p), 9 * e, 2.6, c)
+end
+
+function Reforco.CORTE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local giro = (d and d.giro) or 0
+	local dir  = (d and d.direcao) or Vector3.new(0, 0, -1)
+	pk("Small_Slash",
+		CFrame.new(p, p + dir) * CFrame.Angles(0, 0, giro),
+		9 * e, 0.22, branco(c, 0.25), c)
+end
+
+-- Retalho: cortes espalhados por ângulo áureo, nunca por math.random
+function Reforco.RETALHO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+	local i = 0
+	while i < 3 do
+		pk("Small_Slash",
+			CFrame.new(p, p + dir) * CFrame.Angles(0, 0, i * CFG.ANGULO_AUREO),
+			(7 + i * 2) * e, 0.18 + i * 0.05, branco(c, 0.3), c)
+		i = i + 1
+	end
+end
+
+function Reforco.CORTE_X(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+	pk("Small_Slash", CFrame.new(p, p + dir) * CFrame.Angles(0, 0, math.rad(45)),
+		12 * e, 0.24, branco(c, 0.3), c)
+	pk("Small_Slash", CFrame.new(p, p + dir) * CFrame.Angles(0, 0, math.rad(-45)),
+		12 * e, 0.3, branco(c, 0.3), c)
+end
+
+function Reforco.GRADE_CORTES(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local i = 0
+	while i < 5 do
+		local desvio = jitter(i) * 3 * e
+		pk("Small_Slash",
+			CFrame.new(p + Vector3.new(desvio, desvio * 0.5, 0))
+				* CFrame.Angles(0, i * CFG.ANGULO_AUREO, math.rad(90)),
+			10 * e, 0.2 + i * 0.03, branco(c, 0.4), c)
+		i = i + 1
+	end
+end
+
+function Reforco.DESTROCOS(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Smoky_Explosion", p, 1.1, 6 * e, branco(c, 0.6), c)
+	pk("Floor_Crack", CFrame.new(p), 7 * e, 3, c)
+end
+
+function Reforco.FEIXE(d)
+	local a = (d and d.origem) or Vector3.new()
+	local b = (d and d.destino) or Vector3.new()
+	local c = cor(d)
+	if (b - a).Magnitude < 0.1 then return end
+	pk("Laser_Shot", a, b, 0.6 * escala(d), 0.05, (b - a).Magnitude,
+		branco(c, 0.5), c, "Cylinder", (d and d.duracao) or 0.35)
+end
+
+function Reforco.BLOQUEIO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Sonar_Ring", CFrame.new(p), 0.45, 1, 18 * e, 1.4, 0.1,
+		branco(c, 0.4), c)
+end
+
+-- Tração: o anel vem de fora para dentro (fim menor que começo)
+function Reforco.PULSO_TRACAO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Sonar_Ring", CFrame.new(p), 0.6, 26 * e, 2, 0.2, 1.6, c, branco(c, 0.5))
+end
+
+function Reforco.AURA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Spiral_Effect", p, 0.5 * e, c, 40, 4 * e, 2.5)
+end
+
+function Reforco.CICLONE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Spiral_Effect", p, 0.7 * e, c, 60, 7 * e, 4)
+	pk("Sonar_Ring", CFrame.new(p), 0.8, 22 * e, 3, 0.8, 0.2, c, branco(c, 0.5))
+end
+
+function Reforco.DOMO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Shockwave_Explosion", p, 1.2, 2 * e, 30 * e, branco(c, 0.5), c)
+end
+
+function Reforco.POEIRA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Smoky_Explosion", p, 1.3, 5 * e, branco(c, 0.8), c)
+end
+
+function Reforco.TEMPO_PARADO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	pk("Sonar_Ring", CFrame.new(p), 1.6, 2, 90 * e, 2.4, 0.2, branco(c, 0.6), c)
+end
+
+function Reforco.RAJADA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+	pk("Shockwave",
+		CFrame.new(p, p + dir) * CFrame.Angles(math.rad(90), 0, 0),
+		CFrame.new(p + dir * 4, p + dir * 5) * CFrame.Angles(math.rad(90), 0, 0),
+		0.34,
+		Vector3.new(1.5, 0.3, 1.5) * e, Vector3.new(11, 0.3, 11) * e,
+		branco(c, 0.4), c, Enum.EasingStyle.Quint)
+end
+
+local Efeitos = {}
+
+-- Impacto leve (hit de melee, bloqueio, ricochete)
+function Efeitos.IMPACTO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	camadaFlash(p, c, 1.6 * e, 6)
+	camadaAnel(p, c, 3.2 * e, 0.4, d and d.normal)
+	camadaLinhas(p, c, 7, 4.5 * e, 0.28)
+	camadaFaiscas(p, c, 0.8 * e, 18)
+end
+
+-- Impacto pesado (arremesso carregado, explosão de retorno, golpe mortal)
+function Efeitos.IMPACTO_NOVA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	camadaFlash(p, c, 3.2 * e, 14)
+	camadaDisco(p, c, 6 * e, 0.6)
+	camadaAnel(p, c, 5 * e, 0.5)
+	camadaAnel(p, Color3.new(1, 1, 1):Lerp(c, 0.5), 3.4 * e, 0.34)
+	camadaLinhas(p, c, 16, 11 * e, 0.4)
+	camadaFaiscas(p, c, 1.6 * e, 46)
+	camadaPoeira(p, c, 5 * e)
+end
+
+-- Onda de choque rasteira (no chão)
+function Efeitos.ONDA_CHOQUE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	camadaDisco(p + Vector3.new(0, 0.25, 0), c, 8 * e, 0.7)
+	camadaLinhas(p + Vector3.new(0, 0.3, 0), c, 14, 12 * e, 0.42, true)
+	camadaPoeira(p, c, 7 * e)
+end
+
+-- Estrias de velocidade puras (sem impacto) — dash, arranque, ciclone
+function Efeitos.LINHAS_VELOCIDADE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	camadaLinhas(p, c, (d and d.quantidade) or 12, 9 * e, 0.3)
+end
+
+-- Rachaduras no solo em leque (ângulo áureo, sem math.random)
+function Efeitos.RACHADURA_SOLO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local n = (d and d.quantidade) or 9
+	for i = 1, n do
+		local ang = i * CFG.ANGULO_AUREO
+		local dir = Vector3.new(math.cos(ang), 0, math.sin(ang))
+		local comp = (6 + 5 * math.abs(math.sin(i * 1.31))) * e
+		local fenda = novaParte({
+			Size         = Vector3.new(0.5 * e, 0.35, 0.5),
+			Color        = c,
+			Material     = Enum.Material.Neon,
+			Transparency = 0.2,
+			CFrame       = CFrame.new(p + Vector3.new(0, 0.15, 0) + dir * 1.2, p + dir * 10)
+				* CFrame.Angles(0, 0, math.rad(jitter(i) * 8)),
+		})
+		tween(fenda, 0.22, { Size = Vector3.new(0.5 * e, 0.35, comp) }, Enum.EasingStyle.Exponential)
+		tween(fenda, 0.9, { Transparency = 1 })
+		registrar(fenda, 1.2)
+	end
+	camadaPoeira(p, c, 4 * e)
+end
+
+-- Arco de corte (lâmina / escudo cortante)
+function Efeitos.CORTE(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local giro = (d and d.giro) or 0
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+
+	local arco = novaParte({
+		Size         = Vector3.new(0.25, 7 * e, 0.9 * e),
+		Color        = Color3.new(1, 1, 1):Lerp(c, 0.3),
+		Transparency = 0.1,
+		CFrame       = CFrame.new(p, p + dir) * CFrame.Angles(0, 0, giro),
+	})
+	tween(arco, 0.18, {
+		Size   = Vector3.new(0.05, 12 * e, 0.15 * e),
+		CFrame = arco.CFrame * CFrame.Angles(0, 0, math.rad(28)),
+	}, Enum.EasingStyle.Exponential)
+	tween(arco, 0.3, { Transparency = 1 })
+	registrar(arco, 0.6)
+
+	camadaFlash(p, c, 1.1 * e, 5)
+	camadaLinhas(p, c, 5, 5 * e, 0.22)
+end
+
+-- Retalho: muitos cortes de uma vez (cutscene de execução)
+function Efeitos.RETALHO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local n = (d and d.quantidade) or 8
+	for i = 1, n do
+		local ang = i * CFG.ANGULO_AUREO
+		local dir = Vector3.new(math.cos(ang), math.sin(i * 2.1) * 0.4, math.sin(ang)).Unit
+		Efeitos.CORTE({
+			posicao = p + dir * (1.4 * e),
+			cor     = c,
+			escala  = e * (0.8 + 0.3 * math.abs(math.sin(i * 1.9))),
+			giro    = ang,
+			direcao = dir,
+		})
+	end
+	camadaFaiscas(p, c, 1.2 * e, 34)
+end
+
+-- Clarão branco no mundo (sem ScreenGui)
+function Efeitos.FLASH(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	camadaFlash(p, c, 5 * e, 22)
+end
+
+-- Poeira / rastro de pé (skate, corrida)
+function Efeitos.POEIRA(d)
+	camadaPoeira(pos(d), cor(d), 3 * escala(d))
+end
+
+-- Feixe entre dois pontos (vínculo do Salvador, tração do Cyclone)
+function Efeitos.FEIXE(d)
+	local a = (d and d.origem) or Vector3.new()
+	local b = (d and d.destino) or Vector3.new()
+	local c = cor(d)
+	local dist = (b - a).Magnitude
+	if dist < 0.1 then return end
+
+	local feixe = novaParte({
+		Size         = Vector3.new(0.3 * escala(d), 0.3 * escala(d), dist),
+		Color        = c,
+		Transparency = 0.25,
+		CFrame       = CFrame.new(a:Lerp(b, 0.5), b),
+	})
+	tween(feixe, (d and d.duracao) or 0.35, {
+		Size         = Vector3.new(0.02, 0.02, dist),
+		Transparency = 1,
+	})
+	registrar(feixe, ((d and d.duracao) or 0.35) + 0.3)
+end
+
+-- Pulso de tração: partículas convergindo para o centro
+function Efeitos.PULSO_TRACAO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local raio = (d and d.raio) or 18
+
+	local base = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2), Transparency = 1, CFrame = CFrame.new(p) })
+	local att = Instance.new("Attachment")
+	att.Parent = base
+
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture       = CFG.TEX_FAISCA
+	pe.Color         = ColorSequence.new(c)
+	pe.LightEmission = 1
+	pe.Size          = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1.4 * e),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime    = NumberRange.new(0.45, 0.7)
+	pe.Speed       = NumberRange.new(-raio * 1.8, -raio * 1.1)  -- negativo = para dentro
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Shape       = Enum.ParticleEmitterShape.Sphere
+	pe.Rate        = 0
+	pe.Enabled     = false
+	pe.Parent      = att
+	pe:Emit(60)
+
+	camadaAnel(p, c, raio * 0.55, 0.45)
+	registrar(base, 1.2)
+end
+
+-- Explosão de bloqueio (escudo aparando dano)
+function Efeitos.BLOQUEIO(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local hex = novaParte({
+		Shape        = Enum.PartType.Ball,
+		Size         = Vector3.new(4 * e, 4 * e, 4 * e),
+		Color        = c,
+		Transparency = 0.55,
+		Material     = Enum.Material.ForceField,
+		CFrame       = CFrame.new(p),
+	})
+	tween(hex, 0.35, { Size = Vector3.new(6.5 * e, 6.5 * e, 6.5 * e), Transparency = 1 })
+	registrar(hex, 0.7)
+	camadaAnel(p, c, 3 * e, 0.3)
+	camadaFaiscas(p, c, 0.6 * e, 12)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- EFEITOS PERSISTENTES (com id) — AURA e CICLONE
+--═══════════════════════════════════════════════════════════════
+
+local function abrirId(id)
+	if PorId[id] then VFX.Parar(id) end
+	PorId[id] = { partes = {}, conexoes = {} }
+	return PorId[id]
+end
+
+-- Aura contínua presa a uma part (personagem, escudo orbital)
+function Efeitos.AURA(d)
+	local id   = d and d.id
+	local alvo = d and d.alvo
+	if not id or not alvo or not alvo:IsA("BasePart") then return end
+	local c = cor(d)
+	local reg = abrirId(id)
+
+	local att = Instance.new("Attachment")
+	att.Parent = alvo
+	table.insert(reg.partes, att)
+
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture       = CFG.TEX_FAISCA
+	pe.Color         = ColorSequence.new(c)
+	pe.LightEmission = 0.9
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.3, 1.1 * escala(d)),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.25, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime    = NumberRange.new(0.6, 1.1)
+	pe.Speed       = NumberRange.new(2, 6)
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Rate        = (d and d.intensidade) or 34
+	pe.Drag        = 2
+	pe.Enabled     = true
+	pe.Parent      = att
+
+	local luz = Instance.new("PointLight")
+	luz.Color      = c
+	luz.Brightness = 3
+	luz.Range      = 12 * escala(d)
+	luz.Parent     = alvo
+	table.insert(reg.partes, luz)
+end
+
+-- Coluna de vórtice + estrias orbitais (Escudo Cyclone)
+function Efeitos.CICLONE(d)
+	local id   = d and d.id
+	local alvo = d and d.alvo
+	if not id or not alvo or not alvo:IsA("BasePart") then return end
+	local c   = cor(d)
+	local e   = escala(d)
+	local raio = (d and d.raio) or 14
+	local reg = abrirId(id)
+
+	-- Coluna central
+	local coluna = novaParte({
+		Shape        = Enum.PartType.Cylinder,
+		Size         = Vector3.new(20 * e, raio * 0.5, raio * 0.5),
+		Color        = c,
+		Material     = Enum.Material.ForceField,
+		Transparency = 0.85,
+		CFrame       = alvo.CFrame * CFrame.Angles(0, 0, math.rad(90)),
+	})
+	table.insert(reg.partes, coluna)
+
+	-- Emissor de vórtice
+	local att = Instance.new("Attachment")
+	att.Parent = alvo
+	table.insert(reg.partes, att)
+
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture       = CFG.TEX_FUMACA
+	pe.Color         = ColorSequence.new(c)
+	pe.LightEmission = 0.6
+	pe.Size          = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, raio * 0.35),
+		NumberSequenceKeypoint.new(1, raio * 0.1),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.75),
+		NumberSequenceKeypoint.new(0.5, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime     = NumberRange.new(0.8, 1.3)
+	pe.Speed        = NumberRange.new(-raio, -raio * 0.4)
+	pe.SpreadAngle  = Vector2.new(180, 25)
+	pe.Acceleration = Vector3.new(0, 26, 0)
+	pe.Rotation     = NumberRange.new(-180, 180)
+	pe.RotSpeed     = NumberRange.new(-180, 180)
+	pe.Rate         = 55
+	pe.Drag         = 1.5
+	pe.Enabled      = true
+	pe.Parent       = att
+
+	-- Giro da coluna por acumulador dt (nunca tick())
+	local t = 0
+	local conn = RunService.Heartbeat:Connect(function(dt)
+		if not (coluna.Parent and alvo.Parent) then return end
+		t = t + dt
+		coluna.CFrame = CFrame.new(alvo.Position)
+			* CFrame.Angles(0, t * 6, 0)
+			* CFrame.Angles(0, 0, math.rad(90))
+	end)
+	table.insert(reg.conexoes, conn)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- BLOCO IMPORTADO — §12.12 / §12.16
+--
+-- Modelos de origem:
+--   [JC] "Judgement Cut End"        — grade de cortes, tempo parado,
+--                                     destroços, presets de tremor
+--   [DE] "Domain Expansion(Elemental)" — cúpula de domínio, corte duplo
+--                                     em X, gongo de abertura
+--
+-- PASSE DE CONFORMIDADE EXECUTADO (§12.12.2)
+--   :Emit(500) / :Emit(10) no servidor .... reescrito: burst só no cliente
+--   math.random em 14 pontos ............... ângulo áureo + i*24° + jitter senoidal
+--   wait() / spawn() / :Destroy() .......... task.* + Parent=nil + Debris
+--   ColorCorrectionEffect (BlackandWhite) .. REMOVIDO — proibido §12.12.1
+--   Animation JMCN / 9744147373 / 9744151747 REMOVIDO — proibido §10
+--   MuchachoHitbox / StunHandlerV2 / GoodSignal REMOVIDO — lógica de combate
+--   Clone de ServerStorage / ReplicatedStorage REMOVIDO — Tool autocontida
+--   Meshes KatanaV2 / Stone / Shrine ....... não copiados (IP de terceiro);
+--                                            silhueta recriada com primitivas
+--
+-- O QUE ENTROU DE FATO: parâmetros de emissor, IDs de áudio, números dos
+-- presets de tremor e a COREOGRAFIA (ordem e ritmo dos beats). Nenhuma
+-- geometria e nenhuma regra de jogo alheia.
+--═══════════════════════════════════════════════════════════════
+
+-- Texturas herdadas dos emissores do [JC]
+local TEX = {
+	FAGULHA_FLIP = "rbxassetid://7994629137",   -- [JC] emissor "TP", grade 2x2
+	ANEL         = "rbxassetid://7216848832",   -- [JC] emissor "10"
+	BRILHO       = "rbxassetid://2866648598",   -- [JC] emissor de núcleo
+	DISCO        = "rbxassetid://3916186365",   -- [JC] disco girando
+	AURA_LENTA   = "rbxassetid://6250126210",   -- [JC] aura de rotação lenta
+}
+
+--── [JC] emissor "TP": rajada cônica de fagulhas em flipbook ──
+local function emissorTP(pai, c, escalaTP)
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture        = TEX.FAGULHA_FLIP
+	pe.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid2x2
+	pe.LightEmission  = 1
+	pe.LightInfluence = 0.35
+	pe.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.5, c),
+		ColorSequenceKeypoint.new(1, c),
+	})
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.194, 3.06 * escalaTP),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime    = NumberRange.new(0.1, 0.8)
+	pe.Speed       = NumberRange.new(10, 350 * escalaTP)
+	pe.Drag        = 10
+	pe.SpreadAngle = Vector2.new(0, 0)
+	pe.EmissionDirection = Enum.NormalId.Front
+	pe.Rate        = 0
+	pe.Enabled     = false
+	pe.Parent      = pai
+	return pe
+end
+
+--── [JC] emissor "10": anel de choque plano ──
+local function emissorAnel(pai, c, escalaAnel)
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture        = TEX.ANEL
+	pe.LightEmission  = 1
+	pe.LightInfluence = 0.35
+	pe.Color          = ColorSequence.new(c)
+	pe.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 3.94 * escalaAnel),
+	})
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime = NumberRange.new(0.05, 0.35)
+	pe.Speed    = NumberRange.new(0.1, 0.1)
+	pe.Rotation = NumberRange.new(-180, 180)
+	pe.Drag     = 5
+	pe.Rate     = 0
+	pe.Enabled  = false
+	pe.Parent   = pai
+	return pe
+end
+
+--── [JC] disco de aura girando (usado no domo e no ciclone) ──
+local function emissorDisco(pai, c, tamanho)
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture        = TEX.DISCO
+	pe.LightEmission  = 1
+	pe.LightInfluence = 0
+	pe.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(0, 0.07, 1):Lerp(c, 0.5)),
+		ColorSequenceKeypoint.new(0.848, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, c),
+	})
+	pe.Size         = NumberSequence.new(tamanho)
+	pe.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.06, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime          = NumberRange.new(0.3, 1)
+	pe.Speed             = NumberRange.new(0.1, 0.1)
+	pe.Rotation          = NumberRange.new(-180, 180)
+	pe.RotSpeed          = NumberRange.new(-360, 1000)
+	pe.EmissionDirection = Enum.NormalId.Top
+	pe.Rate              = 20
+	pe.Enabled           = true
+	pe.Parent            = pai
+	return pe
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [JC] GRADE DE CORTES — planos de vidro que ficam suspensos e colapsam
+--═══════════════════════════════════════════════════════════════
+
+-- No original: 30 planos com math.random de posição e orientação.
+-- Aqui: espiral de Vogel no plano + altura senoidal + orientação derivada
+-- do índice. Mesma sensação de dispersão, resultado idêntico em todo cliente.
+function Efeitos.GRADE_CORTES(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local n     = (d and d.quantidade) or 22
+	local raio  = (d and d.raio) or 30
+	local espera = (d and d.espera) or 1.4
+
+	for i = 1, n do
+		local ang = i * CFG.ANGULO_AUREO
+		local r   = raio * math.sqrt(i / n)
+		local alt = 2 + math.abs(math.sin(i * 1.31)) * 10
+		local centro = p + Vector3.new(math.cos(ang) * r, alt, math.sin(ang) * r)
+
+		local largura = 20 + math.abs(math.sin(i * 2.17)) * 20
+		local plano = novaParte({
+			Size         = Vector3.new(largura * e, 0.35, largura * e),
+			Color        = Color3.new(1, 1, 1),
+			Material     = Enum.Material.Glass,
+			Transparency = 0.9,
+			Reflectance  = 0.35,
+			CFrame       = CFrame.new(centro) * CFrame.Angles(
+				math.rad(math.sin(i * 1.7) * 50),
+				ang,
+				math.rad(math.cos(i * 2.3) * 50)
+			),
+		})
+
+		-- fio luminoso no corte, na cor do efeito
+		local fio = novaParte({
+			Size         = Vector3.new(largura * e * 1.02, 0.08, 0.4),
+			Color        = c,
+			Transparency = 0.15,
+			CFrame       = plano.CFrame,
+		})
+
+		local atraso = espera + (i / n) * 0.35
+		task.delay(atraso, function()
+			if plano.Parent then
+				tween(plano, 0.5, { Size = Vector3.new(0.2, 0.35, largura * e), Transparency = 1 })
+			end
+			if fio.Parent then
+				tween(fio, 0.35, { Size = Vector3.new(0.2, 0.02, 0.4), Transparency = 1 })
+			end
+		end)
+
+		registrar(plano, atraso + 1.2)
+		registrar(fio, atraso + 1.2)
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [JC] TEMPO PARADO — sem ColorCorrection (proibido)
+--   O original desaturava a tela inteira. Aqui o efeito é feito NO MUNDO:
+--   Highlight branco nos alvos + queda de FOV + poeira suspensa.
+--═══════════════════════════════════════════════════════════════
+
+local fovConn = nil
+
+local function pulsoFOV(alvoFov, subida, descida)
+	local cam = workspace.CurrentCamera
+	if not cam then return end
+	if fovConn then
+		fovConn:Disconnect()
+		fovConn = nil
+	end
+	local original = cam.FieldOfView
+	tween(cam, subida or 0.2, { FieldOfView = alvoFov }, Enum.EasingStyle.Sine)
+	task.delay((subida or 0.2) + (descida or 0.4), function()
+		if workspace.CurrentCamera then
+			tween(workspace.CurrentCamera, 0.35, { FieldOfView = original }, Enum.EasingStyle.Quad)
+		end
+	end)
+end
+
+function Efeitos.TEMPO_PARADO(d)
+	local p, c = pos(d), cor(d)
+	local id   = (d and d.id) or "TEMPO_PARADO"
+	local raio = (d and d.raio) or 40
+	local reg  = abrirId(id)
+
+	pulsoFOV(42, 0.18, (d and d.duracao) or 1.8)
+
+	-- Realce nos personagens dentro do raio (visual, não altera estado)
+	for _, modelo in ipairs(workspace:GetChildren()) do
+		if modelo:IsA("Model") and modelo:FindFirstChildOfClass("Humanoid") then
+			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+			if raiz and (raiz.Position - p).Magnitude <= raio then
+				local hl = Instance.new("Highlight")
+				hl.FillColor        = Color3.new(1, 1, 1)
+				hl.FillTransparency = 0.65
+				hl.OutlineColor     = c
+				hl.OutlineTransparency = 0
+				hl.DepthMode        = Enum.HighlightDepthMode.Occluded
+				hl.Parent           = modelo
+				table.insert(reg.partes, hl)
+			end
+		end
+	end
+
+	-- Poeira suspensa: partículas que quase não se movem
+	local base = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2), Transparency = 1, CFrame = CFrame.new(p) })
+	local att = Instance.new("Attachment")
+	att.Parent = base
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture       = TEX.BRILHO
+	pe.Color         = ColorSequence.new(Color3.new(1, 1, 1))
+	pe.LightEmission = 1
+	pe.Size          = NumberSequence.new(0.55)
+	pe.Transparency  = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.15, 0.35),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	pe.Lifetime    = NumberRange.new(1.4, 2.2)
+	pe.Speed       = NumberRange.new(0.4, 1.2)
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Shape       = Enum.ParticleEmitterShape.Sphere
+	pe.Drag        = 12
+	pe.Rate        = 0
+	pe.Enabled     = false
+	pe.Parent      = att
+	pe:Emit(90)
+	table.insert(reg.partes, base)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [JC] DESTROÇOS — anel de fragmentos que sobem e caem
+--   Origem: Rock.RockSpawn — o CFrame.Angles(0, rad(i*24), 0) do original
+--   já era determinístico; só o tamanho usava math.random.
+--═══════════════════════════════════════════════════════════════
+
+function Efeitos.DESTROCOS(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local n    = (d and d.quantidade) or 15
+	local raio = (d and d.raio) or 24
+
+	for i = 1, n do
+		local ang = math.rad(i * 24)
+		local tamanho = 1.5 + math.abs(math.sin(i * 1.9)) * 1.0
+		local origem = p + Vector3.new(math.cos(ang) * raio, 1.5, math.sin(ang) * raio)
+
+		local pedra = novaParte({
+			Size         = Vector3.new(4 * e, tamanho * e, tamanho * e),
+			Color        = Color3.new(0.35, 0.33, 0.32):Lerp(c, 0.2),
+			Material     = Enum.Material.Slate,
+			Transparency = 0.05,
+			CFrame       = CFrame.new(origem)
+				* CFrame.Angles(0, ang, 0)
+				* CFrame.Angles(math.rad(35), 0, math.rad(math.sin(i * 2.4) * 25)),
+		})
+
+		local subida = 3 + math.abs(math.cos(i * 1.4)) * 4
+		tween(pedra, 0.35, {
+			CFrame = pedra.CFrame * CFrame.new(0, subida, 0),
+		}, Enum.EasingStyle.Quart)
+
+		task.delay(0.5 + i * 0.02, function()
+			if pedra.Parent then
+				tween(pedra, 1.1, {
+					CFrame = pedra.CFrame * CFrame.new(0, -subida - 2, 0),
+					Transparency = 1,
+				}, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+			end
+		end)
+		registrar(pedra, 2.4)
+	end
+
+	camadaPoeira(p, c, 6 * e)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [DE] CORTE EM X — dois planos cruzados sobre a vítima
+--   Origem: Domain Expansion, os dois loops de Slash a +45° e -45°.
+--═══════════════════════════════════════════════════════════════
+
+function Efeitos.CORTE_X(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local giro = (d and d.giro) or 0
+
+	for _, sinal in ipairs({ 1, -1 }) do
+		local lamina = novaParte({
+			Size         = Vector3.new(0.18, 14 * e, 2.4 * e),
+			Color        = Color3.new(1, 1, 1):Lerp(c, 0.25),
+			Transparency = 0.08,
+			CFrame       = CFrame.new(p)
+				* CFrame.Angles(0, giro, 0)
+				* CFrame.Angles(0, 0, math.rad(45 * sinal)),
+		})
+		tween(lamina, 0.22, {
+			Size         = Vector3.new(0.04, 20 * e, 0.2 * e),
+			Transparency = 1,
+		}, Enum.EasingStyle.Exponential)
+		registrar(lamina, 0.6)
+	end
+
+	camadaFlash(p, c, 1.4 * e, 7)
+	camadaFaiscas(p, c, 1.1 * e, 22)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [DE] DOMO — cúpula de domínio que se abre e se fecha
+--   Origem: Blacball + Cage do Domain Expansion.
+--   Aqui é uma esfera ForceField + esfera interna escura + discos girando.
+--═══════════════════════════════════════════════════════════════
+
+function Efeitos.DOMO(d)
+	local id   = d and d.id
+	local alvo = d and d.alvo
+	if not (id and alvo and alvo:IsA("BasePart")) then return end
+	local c    = cor(d)
+	local raio = (d and d.raio) or 50
+	local reg  = abrirId(id)
+
+	-- Casca externa
+	local casca = novaParte({
+		Shape        = Enum.PartType.Ball,
+		Size         = Vector3.new(2, 2, 2),
+		Color        = c,
+		Material     = Enum.Material.ForceField,
+		Transparency = 0.55,
+		CFrame       = CFrame.new(alvo.Position),
+	})
+	table.insert(reg.partes, casca)
+	tween(casca, 1, { Size = Vector3.new(raio, raio, raio) }, Enum.EasingStyle.Quint)
+
+	-- Núcleo escuro
+	local nucleo = novaParte({
+		Shape        = Enum.PartType.Ball,
+		Size         = Vector3.new(1, 1, 1),
+		Color        = Color3.new(0.03, 0.02, 0.05),
+		Material     = Enum.Material.Neon,
+		Transparency = 0.35,
+		CFrame       = CFrame.new(alvo.Position),
+	})
+	table.insert(reg.partes, nucleo)
+	tween(nucleo, 1.1, {
+		Size         = Vector3.new(raio * 0.92, raio * 0.92, raio * 0.92),
+		Transparency = 0.82,
+	}, Enum.EasingStyle.Quint)
+
+	-- Discos girando na base
+	local base = novaParte({
+		Size         = Vector3.new(0.2, 0.2, 0.2),
+		Transparency = 1,
+		CFrame       = CFrame.new(alvo.Position),
+	})
+	table.insert(reg.partes, base)
+	local att = Instance.new("Attachment")
+	att.Parent = base
+	emissorDisco(att, c, raio * 0.4)
+
+	local luz = Instance.new("PointLight")
+	luz.Color      = c
+	luz.Brightness = 6
+	luz.Range      = raio * 0.8
+	luz.Parent     = base
+	table.insert(reg.partes, luz)
+
+	-- Acompanha o portador
+	local conn = RunService.Heartbeat:Connect(function()
+		if not (casca.Parent and alvo.Parent) then return end
+		local cf = CFrame.new(alvo.Position)
+		casca.CFrame  = cf
+		nucleo.CFrame = cf
+		base.CFrame   = cf
+	end)
+	table.insert(reg.conexoes, conn)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [JC] RAJADA — burst cônico com os emissores importados
+--═══════════════════════════════════════════════════════════════
+
+function Efeitos.RAJADA(d)
+	local p, c, e = pos(d), cor(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 1, 0)
+
+	local base = novaParte({
+		Size         = Vector3.new(0.4, 0.4, 0.4),
+		Transparency = 1,
+		CFrame       = CFrame.new(p, p + dir),
+	})
+	emissorTP(base, c, e):Emit(math.floor(120 * e))
+	emissorAnel(base, c, e):Emit(6)
+	registrar(base, 1.6)
+
+	camadaFlash(p, c, 2 * e, 10)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- [JC] ZOOM — pulso de FOV (CameraShaker "Zoom" do Cam.lua)
+--═══════════════════════════════════════════════════════════════
+
+function Efeitos.ZOOM(d)
+	pulsoFOV((d and d.fov) or 45, (d and d.subida) or 0.2, (d and d.espera) or 0.4)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- TREMOR DE CÂMERA — presets herdados do [JC]
+--
+-- O modelo original usava o CameraShaker do Crazyman32 (3 ModuleScripts
+-- + Perlin). O que interessava eram os NÚMEROS dos presets; a máquina foi
+-- reescrita aqui em ~40 linhas, aditiva, determinística e sem dependência
+-- externa. Assinatura do preset: magnitude, aspereza, fadeIn, fadeOut,
+-- influência de posição, influência de rotação.
+--═══════════════════════════════════════════════════════════════
+
+local PRESETS = {
+	BUMP           = { 2.5,  4.0, 0.10, 0.75, 0.15, 1.0 },
+	BUMP_GRANDE    = { 2.5,  4.0, 0.10, 0.75, 0.80, 1.0 },
+	BUMP_PEQUENO   = { 2.5,  4.0, 0.10, 0.75, 0.01, 0.5 },
+	BUMP_REMADE    = { 2.0,  5.0, 0.00, 1.00, 0.20, 3.0 },
+	EXPLOSAO       = { 5.0, 10.0, 0.00, 1.50, 0.25, 4.0 },
+	EXPLOSAO_GRANDE = { 20.0, 40.0, 0.00, 2.00, 0.55, 5.0 },
+	EXPLOSAO_ENORME = { 30.0, 50.0, 0.00, 1.50, 1.00, 5.0 },
+	EXPLOSAO_PEQUENA = { 5.0, 10.0, 0.00, 1.50, 0.15, 4.0 },
+	TERREMOTO      = { 0.6,  3.5, 2.00, 10.0, 0.25, 1.0 },
+	VIBRACAO       = { 0.4, 20.0, 2.00, 2.00, 0.15, 1.25 },
+	MAO_LIVRE      = { 1.0, 0.25, 5.00, 10.0, 0.00, 1.0 },
+}
+
+local tremorConn = nil
+
+-- Ruído determinístico em [-1, 1]: soma de senoides incomensuráveis.
+local function ruido(t, semente)
+	return (
+		math.sin(t * 1.000 + semente * 1.7)
+		+ math.sin(t * 1.618 + semente * 3.1) * 0.7
+		+ math.sin(t * 2.718 + semente * 5.3) * 0.4
+	) / 2.1
+end
+
+function Efeitos.TREMOR(d)
+	local cam = workspace.CurrentCamera
+	if not cam then return end
+
+	local preset = PRESETS[(d and d.preset) or ""] or PRESETS.BUMP
+	local magnitude   = (d and d.intensidade) and (d.intensidade * 4) or preset[1]
+	local aspereza    = preset[2]
+	local fadeIn      = preset[3]
+	local fadeOut     = (d and d.duracao) or preset[4]
+	local infPosicao  = preset[5]
+	local infRotacao  = preset[6]
+
+	if tremorConn then
+		tremorConn:Disconnect()
+		tremorConn = nil
+	end
+
+	local t = 0
+	local total = fadeIn + fadeOut
+	tremorConn = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		if t >= total or not workspace.CurrentCamera then
+			if tremorConn then
+				tremorConn:Disconnect()
+				tremorConn = nil
+			end
+			return
+		end
+
+		local envelope
+		if t < fadeIn and fadeIn > 0 then
+			envelope = t / fadeIn
+		else
+			local restante = total - t
+			envelope = math.clamp(restante / fadeOut, 0, 1)
+		end
+		envelope = envelope * envelope
+
+		local f = t * aspereza
+		local a = magnitude * envelope * 0.06
+
+		local px = ruido(f, 1) * a * infPosicao
+		local py = ruido(f, 2) * a * infPosicao
+		local pz = ruido(f, 3) * a * infPosicao * 0.5
+		local rx = ruido(f, 4) * a * infRotacao * 0.012
+		local ry = ruido(f, 5) * a * infRotacao * 0.012
+		local rz = ruido(f, 6) * a * infRotacao * 0.012
+
+		workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame
+			* CFrame.new(px, py, pz)
+			* CFrame.Angles(rx, ry, rz)
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- API
+--═══════════════════════════════════════════════════════════════
+
+function VFX.Executar(tipo, dados)
+	local fn = Efeitos[tipo]
+	if not fn then return false end
+	local ok, err = pcall(fn, dados)
+	if not ok then
+		warn("[VFXModule_Escudos] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+	end
+
+	-- Reforço do pack compartilhado. Vem DEPOIS e é opcional por construção:
+	-- num place sem o pack nada aqui acha nada, e o efeito próprio acima já
+	-- aconteceu por inteiro. É esta ordem que faz a Tool empobrecer em vez de
+	-- quebrar quando a exceção da Regra nº 1 não está instalada.
+	local extra = Reforco[tipo]
+	if extra then
+		local okReforco, erroReforco = pcall(extra, dados)
+		if not okReforco then
+			warn("[VFXModule_Escudos] reforço de " .. tostring(tipo)
+				.. ": " .. tostring(erroReforco))
+		end
+	end
+
+	return ok
+end
+
+function VFX.Parar(id)
+	local reg = PorId[id]
+	if not reg then return end
+	for _, conn in ipairs(reg.conexoes) do
+		if conn then conn:Disconnect() end
+	end
+	for _, inst in ipairs(reg.partes) do
+		if inst and inst.Parent then
+			if inst:IsA("ParticleEmitter") then inst.Enabled = false end
+			inst.Parent = nil
+		end
+	end
+	PorId[id] = nil
+end
+
+function VFX.LimparTudo()
+	for id in pairs(PorId) do
+		VFX.Parar(id)
+	end
+	for _, inst in ipairs(Vivos) do
+		if inst and inst.Parent then inst.Parent = nil end
+	end
+	table.clear(Vivos)
+	if tremorConn then
+		tremorConn:Disconnect()
+		tremorConn = nil
+	end
+end
+
+return VFX
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{085F9048-D77A-4E64-9D0A-D058F4654848}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
+	</roblox>

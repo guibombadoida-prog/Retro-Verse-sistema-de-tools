@@ -35,8 +35,12 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │   └── NucleoCombate.lua          ← Script central. Um só. Sem versão no nome.
 │
 ├── Tools/
-│   └── README.md                  ← VAZIO por ora: as Tools saem dos modelos
-│                                      que você enviar
+│   ├── Escudos_7_Tools.rbxmx      ← as 7 Tools num arquivo só
+│   └── [Nome]/[Nome].rbxmx        ← e uma por arquivo, pronta para arrastar
+│
+├── ReplicatedStorage/             ← A EXCEÇÃO DECLARADA à Regra nº 1
+│   ├── VFX_Module.rbxmx           ← pack de VFX compartilhado (Stella's Addon)
+│   └── VFX_Meshes.rbxmx           ← 200 MeshPart de molde
 │
 ├── MODELOS_ENTRADA/               ← .rbxm/.rbxmx crus, antes da conversão
 │
@@ -48,7 +52,8 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │       └── VFX/ SFX/ R6_CFRAME/
 │
 ├── FERRAMENTAS/
-│   ├── montar_rbxmx.py            ← Monta o .rbxmx a partir dos .lua
+│   ├── clonar_tool.py             ← CLONA Tool que chega pronta (não remonta nada)
+│   ├── montar_rbxmx.py            ← CONSTRÓI Tool autoral a partir dos .lua
 │   ├── extrair_rbxm.py            ← Abre .rbxm BINÁRIO (LZ4) e lê tudo
 │   ├── ler_rbxmx.py               ← Abre .rbxmx XML, mesma interface
 │   └── depositar_no_acervo.py     ← Modelo → Acervo, com parâmetros de VFX
@@ -65,12 +70,21 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 Depois de qualquer edição:
 
 ```bash
-python3 FERRAMENTAS/montar_rbxmx.py       # regenera os .rbxmx a partir dos .lua
+# Tool que CHEGOU pronta — o .rbxmx de origem é a verdade, só o Source é reescrito
+python3 FERRAMENTAS/clonar_tool.py montar \
+        MODELOS_ENTRADA/Danilo_Escudos_V4/DANILO_TOOLS_ESCUDOS_V4.rbxmx \
+        Tools/Escudos_7_Tools.rbxmx
+
+python3 FERRAMENTAS/montar_rbxmx.py       # Tool AUTORAL, nascida aqui
 python3 TESTES/verificar_rbxmx.py         # confere as Tools entregues
 python3 TESTES/verificar_poses.py         # poses x animator V2
 bash    TESTES/verificar_autocontencao.sh # Regra nº 1
 lua5.4  TESTES/harness_NucleoCombate.lua  # pipeline de dano do Núcleo
 ```
+
+**Clonar não é montar.** `montar_rbxmx.py` constrói o Handle a partir de primitivas — serve
+para Tool autoral. Tool que chega pronta passa por `clonar_tool.py`, que **não toca** em
+Handle, Mesh, Model, Sound nem Value.
 
 ### Mapeamento para o Studio
 
@@ -89,6 +103,10 @@ lua5.4  TESTES/harness_NucleoCombate.lua  # pipeline de dano do Núcleo
    Arraste a Tool sozinha para um place vazio — sem Acervo, sem Núcleo, sem `ReplicatedStorage`
    nem `ServerStorage` — e **ela funciona por inteiro**. Se faltar uma partícula, um som ou uma
    pose, a Tool violou a regra nº 1.
+
+   Há **uma** exceção, declarada e verificada: o pack de VFX compartilhado em
+   `ReplicatedStorage`. Sem ele a Tool perde os efeitos do pack e cai nos próprios —
+   **empobrece, não quebra**. Ver a seção "A exceção declarada" da regra.
 
    ```bash
    bash TESTES/verificar_autocontencao.sh

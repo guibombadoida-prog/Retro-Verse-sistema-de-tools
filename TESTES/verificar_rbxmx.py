@@ -103,6 +103,39 @@ def sem_comentario(codigo):
     return "\n".join(saida)
 
 
+CLASSES_SCRIPT = ("Script", "LocalScript", "ModuleScript")
+
+
+def percorrer_scripts(item, caminho=""):
+    """(item, caminho) de todo script descendente. Espelha clonar_tool.py."""
+    nome = texto(item, "Name") or item.get("class")
+    atual = (caminho + "/" + nome) if caminho else nome
+    if item.get("class") in CLASSES_SCRIPT:
+        yield item, atual
+    for filho in item.findall("Item"):
+        for par in percorrer_scripts(filho, atual):
+            yield par
+
+
+def nome_arquivo(caminho):
+    """Nome de arquivo estável a partir do caminho do script dentro da Tool.
+
+    Tem de ser byte a byte a mesma regra de FERRAMENTAS/clonar_tool.py — se as
+    duas divergirem, o verificador procura um arquivo que o clonador nunca
+    escreveu e acusa divergência onde não há.
+    """
+    limpo = re.sub(r"[^\w/]", "_", caminho)
+    return limpo.replace("/", "__") + ".lua"
+
+
+def achar_servidor(fontes):
+    """O Script de servidor da Tool, seja qual for o V do nome."""
+    for nome_obj in sorted(fontes):
+        if re.search(r"_Server_V\d+$", nome_obj):
+            return nome_obj, fontes[nome_obj]
+    return None, ""
+
+
 def verificar(nome):
     pasta = os.path.join(TOOLS, nome)
     caminho = os.path.join(pasta, "%s.rbxmx" % nome)
@@ -146,30 +179,45 @@ def verificar(nome):
         erros.append("DamageClass vazio")
 
     # 5 + 6. scripts, com fonte idêntica ao .lua do repositório
-    esperados = [
-        ("Script", "%s_Server_V1" % nome, "%s_Server_V1.lua" % nome),
-        ("LocalScript", "Client", "Client.lua"),
-        ("ModuleScript", "R6CFrameAnimator", "R6CFrameAnimator.lua"),
-        ("ModuleScript", "VFXModule", "VFXModule.lua"),
-        ("ModuleScript", "Poses", "Poses_%s_%s_V1.lua" % (CONJUNTO_DE[nome], nome)),
-    ]
-    if os.path.exists(os.path.join(pasta, "CutsceneCam.lua")):
-        esperados.append(("LocalScript", "CutsceneCam", "CutsceneCam.lua"))
+    #
+    # A lista de scripts sai da PRÓPRIA Tool, não de uma convenção de nome.
+    # Enquanto ela era fixa ("Poses_<Conjunto>_<Tool>_V1.lua"), só Tool nascida
+    # aqui passava: Tool que CHEGA pronta traz os nomes dela, e o clonador grava
+    # o .lua por caminho (FERRAMENTAS/clonar_tool.py, nome_arquivo). Verificador
+    # que só entende o que ele mesmo montou não verifica o que a gente entrega.
     fontes = {}
-    for classe, nome_obj, arquivo in esperados:
-        item = achar(tool, classe, nome_obj)
-        if item is None:
-            erros.append("sem %s chamado %r" % (classe, nome_obj))
-            continue
+    vistos = set()
+    for item, caminho in percorrer_scripts(tool):
+        nome_obj = caminho.rsplit("/", 1)[-1]
+        relativo = caminho.split("/", 1)[1] if "/" in caminho else caminho
+        arquivo = nome_arquivo(relativo)
+        vistos.add(arquivo)
+
         embutido = texto(item, "Source")
         if embutido is None:
             erros.append("%s sem Source" % nome_obj)
             continue
         fontes[nome_obj] = embutido
-        disco = open(os.path.join(pasta, arquivo), encoding="utf-8").read()
-        if embutido != disco:
-            erros.append("%s diverge de %s — rode montar_rbxmx.py de novo"
+
+        no_disco = os.path.join(pasta, arquivo)
+        if not os.path.exists(no_disco):
+            erros.append("%s está no .rbxmx mas não há %s no repositório"
+                         % (caminho, arquivo))
+            continue
+        if embutido != open(no_disco, encoding="utf-8").read():
+            erros.append("%s diverge de %s — rode clonar_tool.py montar de novo"
                          % (nome_obj, arquivo))
+
+    # O caminho inverso: .lua versionado que não entrou no .rbxmx é código morto
+    # no repositório — alguém editou e o arquivo entregue não tem a edição.
+    for arquivo in sorted(os.listdir(pasta)):
+        if arquivo.endswith(".lua") and arquivo not in vistos:
+            erros.append("%s existe no repositório mas não entrou no .rbxmx"
+                         % arquivo)
+
+    for obrigatorio in ("Client", "VFXModule", "Poses", "R6CFrameAnimator"):
+        if obrigatorio not in fontes:
+            erros.append("sem script chamado %r" % obrigatorio)
 
     # 7. remotes
     if achar(tool, "RemoteEvent", "VFXRemote") is None:
@@ -182,7 +230,9 @@ def verificar(nome):
     if tem_cut and not tem_cam:
         erros.append("CutsceneRemote presente sem CutsceneCam que o escute")
 
-    servidor = fontes.get("%s_Server_V1" % nome, "")
+    nome_servidor, servidor = achar_servidor(fontes)
+    if nome_servidor is None:
+        erros.append("sem Script de servidor (<Nome>_Server_V<N>)")
     usa_acao = "AcaoRemote" in sem_comentario(servidor)
     tem_acao = achar(tool, "RemoteEvent", "AcaoRemote") is not None
     if usa_acao and not tem_acao:
@@ -214,36 +264,64 @@ def verificar(nome):
     # simplesmente não desenha — foi o que aconteceu com as 7 Tools de
     # gravidade, que pediam dois tipos herdados sem implementar nenhum deles.
     modulo = fontes.get("VFXModule", "")
-    implementados = set(re.findall(r"function VFX\.([A-Z][A-Z0-9_]*)", modulo))
-    for citado in set(re.findall(r'transmitirVFX\(\s*\w+\s*,\s*"([A-Z0-9_]+)"',
-                                 sem_comentario(servidor))):
+    implementados = set(re.findall(r"function (?:VFX|Efeitos)\.([A-Z][A-Z0-9_]*)",
+                                   modulo))
+    # O servidor transmite por um wrapper local — `vfx("TIPO", {...})` — ou
+    # direto pelo Remote. As duas formas contam: o que importa é o nome do tipo
+    # que chega ao cliente.
+    #
+    # Nem tudo que trafega pelo VFXRemote é efeito: PARAR, CUTSCENE_INICIO e
+    # CUTSCENE_FIM são CONTROLE, e o Client os intercepta antes de chegar ao
+    # VFXModule. Cobrar implementação deles seria acusar o desenho correto — a
+    # lista de controle sai do próprio Client, não de uma constante aqui.
+    controle = set(re.findall(r'if\s+tipo\s*==\s*"([A-Z0-9_]+)"',
+                              sem_comentario(fontes.get("Client", ""))))
+
+    limpo_srv = sem_comentario(servidor)
+    transmitidos = set(re.findall(r'\bvfx\(\s*"([A-Z0-9_]+)"', limpo_srv))
+    transmitidos |= set(re.findall(r'transmitirVFX\(\s*\w+\s*,\s*"([A-Z0-9_]+)"',
+                                   limpo_srv))
+    transmitidos |= set(re.findall(
+        r'VFXRemote:Fire(?:All)?Clients?\(\s*(?:\w+\s*,\s*)?"([A-Z0-9_]+)"',
+        limpo_srv))
+    for citado in sorted(transmitidos - controle):
         if citado not in implementados:
             erros.append("o Server transmite o VFX %r, que o VFXModule desta Tool "
                          "não implementa — o efeito não desenha e nada avisa" % citado)
 
     # 10. Regra nº 1
+    #
+    # Única ressalva: o VFXModule pode ler ReplicatedStorage para achar o pack de
+    # VFX compartilhado — exceção declarada, ver REGRA_AUTOCONTENCAO_ABSOLUTA.md,
+    # "A exceção declarada". A forma é fixa e é ela que passa; qualquer outra
+    # menção a ReplicatedStorage, inclusive no VFXModule, continua caindo aqui.
     for nome_obj, codigo in fontes.items():
         limpo = sem_comentario(codigo)
         for termo in PROIBIDOS:
-            if termo in limpo:
-                erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
-                             % (nome_obj, termo))
+            if termo not in limpo:
+                continue
+            if termo == "ReplicatedStorage" and nome_obj == "VFXModule":
+                restante = limpo.replace('game:FindService("ReplicatedStorage")', "")
+                if "ReplicatedStorage" not in restante:
+                    continue
+            erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
+                         % (nome_obj, termo))
 
     return erros
 
 
 # Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
-# Espelha CONJUNTOS de FERRAMENTAS/montar_rbxmx.py — se um mudar, o outro muda.
 CONJUNTOS = [
-    # Um por MODELO de origem. Vazio enquanto não houver Tool no repositório.
+    ("Escudos_7_Tools.rbxmx", "Danilo_Escudos_V4", [
+        "Salvador",
+        "Proteção",
+        "Escudo Skate",
+        "Escudo Bumerangue",
+        "Escudo Bloqueador",
+        "Escudo Cyclone",
+        "Escudo Partido",
+    ]),
 ]
-
-# Prefixo do arquivo de poses, por Tool. Espelha CATALOGO["poses"] do montador:
-# o nome do conjunto é o pedaço antes do primeiro "_" no arquivo de entrega.
-CONJUNTO_DE = {}
-for _arq, _modelo, _ordem in CONJUNTOS:
-    for _t in _ordem:
-        CONJUNTO_DE[_t] = _arq.split("_")[0]
 
 
 def verificar_conjunto(arquivo, nomes):
@@ -298,16 +376,20 @@ def verificar_conjunto(arquivo, nomes):
             continue
         r2 = ET.parse(individual).getroot()
         t2 = [i for i in r2.findall("Item") if i.get("class") == "Tool"][0]
-        for classe, nome_obj in (("Script", "%s_Server_V1" % nome),
-                                 ("LocalScript", "Client"),
-                                 ("ModuleScript", "Poses")):
-            a = achar(tool, classe, nome_obj)
-            b = achar(t2, classe, nome_obj)
-            if a is None or b is None:
-                erros.append("%s/%s ausente na comparação com o arquivo individual"
-                             % (nome, nome_obj))
-            elif texto(a, "Source") != texto(b, "Source"):
-                erros.append("%s/%s diverge do .rbxmx individual" % (nome, nome_obj))
+
+        # Compara TODO script por caminho, não uma lista fixa de três nomes: o
+        # conjunto e o individual saem da mesma montagem, então qualquer
+        # divergência é sinal de que um dos dois ficou para trás.
+        no_conjunto = {c: texto(i, "Source") for i, c in percorrer_scripts(tool)}
+        no_individual = {c: texto(i, "Source") for i, c in percorrer_scripts(t2)}
+
+        for caminho in sorted(set(no_conjunto) | set(no_individual)):
+            if caminho not in no_individual:
+                erros.append("%s falta no .rbxmx individual" % caminho)
+            elif caminho not in no_conjunto:
+                erros.append("%s está no individual mas não no conjunto" % caminho)
+            elif no_conjunto[caminho] != no_individual[caminho]:
+                erros.append("%s diverge do .rbxmx individual" % caminho)
 
     return erros
 
