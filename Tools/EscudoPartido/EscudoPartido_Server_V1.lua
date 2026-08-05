@@ -67,7 +67,7 @@ local CFG = {
 	SENTENCA_DANO     = 12,     -- por corte, antes do golpe final
 	SENTENCA_FINAL    = 299,    -- o golpe mortal
 	SENTENCA_RECARGA  = 22,
-	CORTE_INTERVALO   = 0.26,
+	CORTE_INTERVALO   = 0.217,  -- cadência medida no pack de referência
 	ABERTURA          = 0.55,   -- da câmera prender até o primeiro corte
 	FECHAMENTO        = 0.90,   -- do golpe final até a câmera voltar
 
@@ -367,6 +367,11 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 			return
 		end
 
+		-- A série de cortes é UMA sequência de animação, disparada uma vez: os
+		-- seis beats já vêm na cadência de 0,217 s medida no pack. Chamar
+		-- PlaySequence por corte cancelaria a anterior no meio.
+		tocarSequencia(Poses.cortes())
+
 		-- Os cortes. `indice` é sequencial: o ângulo de cada corte vem dele, e
 		-- não de math.random — a mesma sentença sai igual toda vez.
 		for indice = 1, CFG.SENTENCA_CORTES do
@@ -393,6 +398,7 @@ local function sentenca(jogador, personagem, humanoide, raiz)
 		task.delay(CFG.SENTENCA_CORTES * CFG.CORTE_INTERVALO, function()
 			if alvo.Parent and alvoRaiz.Parent then
 				local centro = alvoRaiz.Position
+				tocarSequencia(Poses.mortal())
 				avisarCamera(jogador, "SENTENCA")
 				tocarSom(CFG.SFX_SENTENCA, centro)
 				transmitir("CLARAO_ESCUDO", centro + Vector3.new(0, 1.5, 0), 1.8, CFG.COR_SENTENCA)

@@ -48,7 +48,11 @@ IDENTIDADE = (1, 0, 0, 0, 1, 0, 0, 0, 1)
 TOLERANCIA = 1e-4
 
 NUMERO = re.compile(r"-?\d*\.?\d+(?:[eE][-+]?\d+)?")
-BLOCO_POSE = re.compile(r"\n\t(\w+)\s*=\s*\{\n((?:\t+\w+\s*=\s*[^\n]*\n)+)\t\},")
+# `{` pode ser seguido de comentário na mesma linha — é Lua válido, e ignorar
+# isso fazia o bloco inteiro passar despercebido (uma pose invisível para o
+# lint é pior que uma pose errada).
+BLOCO_POSE = re.compile(
+    r"\n\t(\w+)\s*=\s*\{[^\n]*\n((?:\t+\w+\s*=\s*[^\n]*\n)+)\t\},")
 CAMPO = re.compile(r"\t+(\w+)\s*=\s*([^\n]+),\s*$", re.MULTILINE)
 BLOCO_SEQ = re.compile(r"\n\t(\w+)\s*=\s*\{\n((?:\t\t\{ pose[^\n]*\n)+)\t\},")
 PASSO = re.compile(r'\{ pose = "(\w+)",([^}]*)\}')

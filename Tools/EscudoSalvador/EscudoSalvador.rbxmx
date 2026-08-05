@@ -1049,10 +1049,11 @@ end
 
 -- "IMPACTO_ESCUDO" — rajada curta e presa ao ponto. Saitama / Death Counter.
 function VFX.IMPACTO_ESCUDO(payload)
-	if ligarMolde("IMPACTO_ESCUDO", payload, CFG.RAJADA_LIGADA, CFG.RAJADA_RESIDUO) then
-		return
-	end
-	VFX.ANEL(payload)
+	-- Molde E camadas, não molde OU camadas. O emissor traz a textura do pack;
+	-- as camadas trazem o flash, a escala, a velocidade e o peso. Sozinho, o
+	-- emissor lê chapado — foi o que aconteceu na primeira versão.
+	ligarMolde("IMPACTO_ESCUDO", payload, CFG.RAJADA_LIGADA, CFG.RAJADA_RESIDUO)
+	VFX.IMPACTO(payload)
 end
 
 -- "ESTILHACO_ESCUDO" — caco de escudo quebrando. Saitama / Death Counter.
@@ -1281,6 +1282,196 @@ function VFX.ESTILHACOS(payload)
 	end)
 
 	Debris:AddItem(pasta, CFG.VIDA_ESCUDO + 0.5)
+end
+
+--==============================================================================
+-- IMPACTO EM CAMADAS — a linguagem visual do conjunto
+--==============================================================================
+
+--[[
+	Um impacto não é UM efeito: são quatro, sobrepostos, em ordem e em escalas
+	de tempo diferentes. Foi isto que faltava — os efeitos anteriores eram uma
+	camada só, e por isso liam chapados por mais que a curva do emissor
+	estivesse certa.
+
+	  1. FLASH    clarão branco de ~1 quadro. Some em 0,08 s. É ele que diz
+	              "aconteceu AGORA" — sem flash, o olho não acha o começo.
+	  2. DISCO    onda achatada que cresce e afina. Dá a ESCALA do golpe.
+	  3. LINHAS   estrias radiais finas saindo do ponto. Dão a VELOCIDADE.
+	  4. DETRITO  faíscas e poeira, a única camada que persiste. Dá o PESO,
+	              e é o que sobra depois de o resto sumir.
+
+	As três primeiras duram menos de 0,3 s somadas. A quarta segura ~1 s. Essa
+	diferença de duração é o efeito: tudo com a mesma vida vira borrão.
+
+	Dispersão por ângulo áureo e jitter senoidal por contador — nunca
+	math.random, para o mesmo golpe sair igual toda vez.
+]]
+
+local CAMADA = {
+	FLASH_VIDA   = 0.08,
+	FLASH_RAIO   = 2.6,
+	DISCO_VIDA   = 0.26,
+	DISCO_RAIO   = 5.5,
+	LINHA_VIDA   = 0.18,
+	LINHAS       = 7,
+	LINHA_COMPR  = 7.0,
+	FAISCA_VIDA  = 0.75,
+	FAISCAS      = 9,
+	FAISCA_FORCA = 26,
+}
+
+-- Jitter determinístico: senoide alimentada pelo contador. Duas frequências
+-- incomensuráveis, então o padrão não repete em série curta.
+local function jitter(indice)
+	return math.sin(indice * 12.9898) * 0.5 + math.sin(indice * 78.233) * 0.5
+end
+
+local function camadaFlash(origem, cor, escala)
+	local flash = novaParte(Color3.new(1, 1, 1),
+		Vector3.new(1, 1, 1) * CAMADA.FLASH_RAIO * escala, CFrame.new(origem))
+	flash.Shape = Enum.PartType.Ball
+	flash.Transparency = 0.05
+	flash.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local a = math.clamp(t / CAMADA.FLASH_VIDA, 0, 1)
+		flash.Size = Vector3.new(1, 1, 1) * CAMADA.FLASH_RAIO * escala * (1 + a * 0.8)
+		flash.Transparency = 0.05 + a * 0.95
+		if a >= 1 then
+			conexao:Disconnect()
+			flash.Parent = nil
+		end
+	end)
+	Debris:AddItem(flash, CAMADA.FLASH_VIDA + 0.3)
+end
+
+local function camadaDisco(origem, cor, escala, normal)
+	local base = CFrame.new(origem)
+	if typeof(normal) == "Vector3" and normal.Magnitude > 0.001 then
+		base = CFrame.lookAt(origem, origem + normal.Unit)
+	else
+		base = CFrame.new(origem) * CFrame.Angles(math.rad(90), 0, 0)
+	end
+
+	local disco = novaParte(cor, Vector3.new(0.6, 0.6, 0.12), base)
+	disco.Shape = Enum.PartType.Cylinder
+	disco.CFrame = base * CFrame.Angles(0, math.rad(90), 0)
+	disco.Transparency = 0.2
+	disco.Parent = workspace
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local a = math.clamp(t / CAMADA.DISCO_VIDA, 0, 1)
+		-- Cresce rápido e afina: (1-(1-a)^3) abre quase tudo no primeiro terço.
+		local raio = CAMADA.DISCO_RAIO * escala * (1 - (1 - a) ^ 3)
+		disco.Size = Vector3.new(0.12 * (1 - a), raio, raio)
+		disco.Transparency = 0.2 + a * 0.8
+		if a >= 1 then
+			conexao:Disconnect()
+			disco.Parent = nil
+		end
+	end)
+	Debris:AddItem(disco, CAMADA.DISCO_VIDA + 0.3)
+end
+
+local function camadaLinhas(origem, cor, escala)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "LinhasDeImpacto"
+	pasta.Parent = workspace
+
+	local linhas = {}
+	for i = 1, CAMADA.LINHAS do
+		local direcao = direcaoVogel(i, CAMADA.LINHAS)
+		direcao = (direcao + Vector3.new(0, 0.15 * jitter(i), 0)).Unit
+		local linha = novaParte(cor, Vector3.new(0.16, 0.16, 0.6), CFrame.new(origem))
+		linha.Transparency = 0.1
+		linha.Parent = pasta
+		table.insert(linhas, { parte = linha, direcao = direcao })
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local a = math.clamp(t / CAMADA.LINHA_VIDA, 0, 1)
+		local avanco = 1 - (1 - a) ^ 2
+		for _, linha in ipairs(linhas) do
+			local comp = CAMADA.LINHA_COMPR * escala * avanco
+			local meio = origem + linha.direcao * (comp * 0.5 + 0.8)
+			linha.parte.Size = Vector3.new(0.16 * (1 - a), 0.16 * (1 - a), comp)
+			linha.parte.CFrame = CFrame.lookAt(meio, meio + linha.direcao)
+			linha.parte.Transparency = 0.1 + a * 0.9
+		end
+		if a >= 1 then
+			conexao:Disconnect()
+			pasta.Parent = nil
+		end
+	end)
+	Debris:AddItem(pasta, CAMADA.LINHA_VIDA + 0.3)
+end
+
+local function camadaFaiscas(origem, cor, escala)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "FaiscasDeImpacto"
+	pasta.Parent = workspace
+
+	local pecas = {}
+	for i = 1, CAMADA.FAISCAS do
+		local direcao = direcaoVogel(i, CAMADA.FAISCAS)
+		direcao = (direcao + Vector3.new(0, 0.5 + 0.25 * jitter(i), 0)).Unit
+		local faisca = novaParte(cor, Vector3.new(0.14, 0.14, 0.5), CFrame.new(origem))
+		faisca.Parent = pasta
+		table.insert(pecas, {
+			parte = faisca,
+			direcao = direcao,
+			velocidade = CAMADA.FAISCA_FORCA * escala * (0.6 + 0.4 * math.abs(jitter(i))),
+		})
+	end
+
+	local t = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		t = t + dt
+		local a = math.clamp(t / CAMADA.FAISCA_VIDA, 0, 1)
+		for _, peca in ipairs(pecas) do
+			-- Parábola: sobe pela velocidade e cai pela gravidade acumulada.
+			local queda = Vector3.new(0, -42 * t * t * 0.5, 0)
+			local pos = origem + peca.direcao * peca.velocidade * t + queda
+			peca.parte.CFrame = CFrame.lookAt(pos, pos + peca.direcao)
+			peca.parte.Transparency = a
+		end
+		if a >= 1 then
+			conexao:Disconnect()
+			pasta.Parent = nil
+		end
+	end)
+	Debris:AddItem(pasta, CAMADA.FAISCA_VIDA + 0.3)
+end
+
+--[[
+	"IMPACTO" — as quatro camadas de uma vez. É o efeito de golpe do conjunto.
+
+	`normal` (opcional) orienta o disco: passe a direção do golpe para a onda
+	sair no plano certo. Sem ela, o disco assenta no chão.
+]]
+function VFX.IMPACTO(payload)
+	if typeof(payload.posicao) ~= "Vector3" then
+		return
+	end
+	local origem = payload.posicao
+	local cor = lerCor(payload)
+	local escala = lerEscala(payload)
+
+	camadaFlash(origem, cor, escala)
+	camadaDisco(origem, cor, escala, payload.frente)
+	camadaLinhas(origem, cor, escala)
+	camadaFaiscas(origem, cor, escala)
 end
 
 --==============================================================================
