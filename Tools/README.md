@@ -101,6 +101,7 @@ já cobra isso, e é a única checagem vermelha da autocontenção hoje.
 ## Verificação
 
 ```bash
+python3 TESTES/verificar_estrutura_rbxmx.py  # o envelope que o Studio exige
 bash    TESTES/verificar_autocontencao.sh   # Regra nº 1, sem exceção
 python3 TESTES/verificar_rbxmx.py           # as Tools entregues
 python3 TESTES/verificar_poses.py           # poses × animator V2

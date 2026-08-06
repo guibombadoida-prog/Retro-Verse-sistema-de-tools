@@ -58,6 +58,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 ├── TESTES/                        ← Bancada. Nada daqui vai para o place
 │   ├── harness_NucleoCombate.lua
 │   ├── verificar_autocontencao.sh
+│   ├── verificar_estrutura_rbxmx.py
 │   ├── verificar_poses.py
 │   └── verificar_rbxmx.py
 │
@@ -73,6 +74,7 @@ python3 FERRAMENTAS/clonar_tool.py montar \
         Tools/Escudos_7_Tools.rbxmx
 
 python3 FERRAMENTAS/montar_rbxmx.py       # Tool AUTORAL, nascida aqui
+python3 TESTES/verificar_estrutura_rbxmx.py  # o envelope: SharedStrings, Ref, CDATA
 python3 TESTES/verificar_rbxmx.py         # confere as Tools entregues
 python3 TESTES/verificar_poses.py         # poses x animator V2
 bash    TESTES/verificar_autocontencao.sh # Regra nº 1

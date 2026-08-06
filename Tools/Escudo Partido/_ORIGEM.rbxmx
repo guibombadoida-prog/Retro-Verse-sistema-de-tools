@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><External>null</External><External>nil</External><Item class="Tool" referent="RBX86CD844D2BED4F4493C1078845EF1691">
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RBX86CD844D2BED4F4493C1078845EF1691">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -331,7 +331,7 @@
 				</Properties>
 			</Item>
 		<Item class="Sound" referent="RBX7D7E6641A2904B788E0395DE57E6EDF6"><Properties><string name="Name">sfx_carga</string><Content name="SoundId"><url>rbxassetid://10555593530</url></Content><float name="Volume">2.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">90</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBX1C2BC2BA6C5145849F3595BF85F63580"><Properties><string name="Name">sfx_corte</string><Content name="SoundId"><url>rbxassetid://1086616651</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">80</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBX73CB33743045406285AFF9F3BFAE0FCC"><Properties><string name="Name">sfx_impacto</string><Content name="SoundId"><url>rbxassetid://220834019</url></Content><float name="Volume">1.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">70</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXB391450712CE400A8A26D47004972FF6"><Properties><string name="Name">sfx_execucao</string><Content name="SoundId"><url>rbxassetid://5989940114</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">150</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXD6BBF2555AB94233BC6B78530CAD4E44"><Properties><string name="Name">sfx_dominio</string><Content name="SoundId"><url>rbxassetid://270070244</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">120</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Sound" referent="RBXC39224F45AB24EA2AB2CCEF7B0E568F3"><Properties><string name="Name">sfx_expansao</string><Content name="SoundId"><url>rbxassetid://357558938</url></Content><float name="Volume">2.5</float><float name="PlaybackSpeed">1</float><bool name="Looped">false</bool><bool name="PlayOnRemove">false</bool><float name="RollOffMinDistance">10</float><float name="RollOffMaxDistance">140</float><token name="RollOffMode">0</token><Ref name="SoundGroup">null</Ref><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
-	<Item class="RemoteEvent" referent="RBXBEACDD77C54A4D60AC3F952634570510"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXRemote</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="StringValue" referent="RBXAB00F14541DD4054B9C014D1CCD38962"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">DamageClass</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">Melee</string></Properties></Item><Item class="NumberValue" referent="RBXAC94E0DE60A148ECBCF304925429AF66"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EnergyCost</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">26</double></Properties></Item><Item class="NumberValue" referent="RBX6937AD3B06D647AB9F3C84FFE2C28DED"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RecargaGlobal</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">26</double></Properties></Item><Item class="StringValue" referent="RBX3BD29FD51AFF421FBB89C1F9B61C1C4D"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">ChaveRecarga</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">EscudoPartido_Execucao</string></Properties></Item><Item class="Script" referent="RBX164B62AB542041069531BC1A49979200"><Properties><ProtectedString name="Source">-- EscudoPartido_Server_V1.lua
+	<Item class="RemoteEvent" referent="RBXBEACDD77C54A4D60AC3F952634570510"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXRemote</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="StringValue" referent="RBXAB00F14541DD4054B9C014D1CCD38962"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">DamageClass</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">Melee</string></Properties></Item><Item class="NumberValue" referent="RBXAC94E0DE60A148ECBCF304925429AF66"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EnergyCost</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">26</double></Properties></Item><Item class="NumberValue" referent="RBX6937AD3B06D647AB9F3C84FFE2C28DED"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">RecargaGlobal</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><double name="Value">26</double></Properties></Item><Item class="StringValue" referent="RBX3BD29FD51AFF421FBB89C1F9B61C1C4D"><Properties><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">ChaveRecarga</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString><string name="Value">EscudoPartido_Execucao</string></Properties></Item><Item class="Script" referent="RBX164B62AB542041069531BC1A49979200"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoPartido_Server_V1.lua
 -- Script DENTRO da Tool "Escudo Partido"
 --
 -- ORIGEM: clone estrutural do Escudo Bumerangue (Handle, Mesh, sons, grip).
@@ -350,7 +350,7 @@
 -- CONFORMIDADE
 --   §12.4  Values DamageClass / EnergyCost / RecargaGlobal / ChaveRecarga
 --   §12.6  modo preciso: _G.Combate.calcular antes do TakeDamage
---   §12.7  tag creator com Name -&gt; Value -&gt; Parent nessa ordem
+--   §12.7  tag creator com Name -> Value -> Parent nessa ordem
 --   §12.9  recarga global por chave (imune a clone na mochila)
 --   §12.11 servidor só transmite VFX; zero :Emit() aqui
 --   §10    animação por R6CFrameAnimator + Poses (pack Saitama)
@@ -422,8 +422,8 @@ local Handle = Tool:WaitForChild("Handle")
 local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local Poses     = require(Tool:WaitForChild("Poses"))
 
-local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -&gt; servidor
-local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -&gt; cliente (unidirecional)
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -> servidor
+local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -> cliente (unidirecional)
 
 -- Values declarados na Tool (§12.4) — todos opcionais
 local function lerValue(nome, padrao)
@@ -469,7 +469,7 @@ end
 local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
-	if alvoHum.Health &lt;= 0 then return false end
+	if alvoHum.Health <= 0 then return false end
 	if _G.Combate and _G.Combate.podeCausarDano then
 		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
 	end
@@ -517,9 +517,9 @@ local function detectar(posicao, raio, limite)
 			local hum  = modelo:FindFirstChildOfClass("Humanoid")
 			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
 			if hum and raiz and podeAtingir(hum, modelo) then
-				if (raiz.Position - posicao).Magnitude &lt;= raio then
+				if (raiz.Position - posicao).Magnitude <= raio then
 					table.insert(lista, hum)
-					if limite and #lista &gt;= limite then break end
+					if limite and #lista >= limite then break end
 				end
 			end
 		end
@@ -693,7 +693,7 @@ end
 --[[
 	lancarLamina(direcao, opcoes)
 	Voa em linha reta, corta quem passa por perto e SOME no fim do alcance.
-	opcoes.aoAcertar(hum, raiz) -&gt; se devolver true, a lâmina para ali.
+	opcoes.aoAcertar(hum, raiz) -> se devolver true, a lâmina para ali.
 ]]
 local function lancarLamina(direcao, opcoes)
 	opcoes = opcoes or {}
@@ -706,7 +706,7 @@ local function lancarLamina(direcao, opcoes)
 	local giro = 0
 
 	task.spawn(function()
-		while lamina and lamina.Parent and percorrido &lt; (opcoes.alcance or CFG.ALCANCE_CORTE) do
+		while lamina and lamina.Parent and percorrido < (opcoes.alcance or CFG.ALCANCE_CORTE) do
 			local dt = RunService.Heartbeat:Wait()
 			local passo = (opcoes.velocidade or CFG.VEL_CORTE) * dt
 			percorrido = percorrido + passo
@@ -729,7 +729,7 @@ local function lancarLamina(direcao, opcoes)
 					atingidos[hum] = true
 					local raiz = raizDe(hum)
 					if raiz then
-						-- SFX -&gt; física -&gt; VFX -&gt; dano (§8 V2)
+						-- SFX -> física -> VFX -> dano (§8 V2)
 						tocarSfx("sfx_impacto", raiz, 1.1)
 						tocarBloco(somImpacto, raiz, 1.7)
 						empurrar(raiz, direcao, opcoes.recuo or CFG.RECUO_CORTE, 0.2)
@@ -862,7 +862,7 @@ local function retalharVitima(centro)
 
 		local t = 0
 		task.spawn(function()
-			while lamina and lamina.Parent and t &lt; 0.14 do
+			while lamina and lamina.Parent and t < 0.14 do
 				local dt = RunService.Heartbeat:Wait()
 				t = t + dt
 				local prog = math.clamp(t / 0.14, 0, 1)
@@ -984,7 +984,7 @@ local function executarCutscene(vitimaHum, vitimaRaiz)
 
 		elseif kf.marca == "MORTAL" then
 			-- [JC] beat final: a grade colapsa, o tempo volta, tudo desaba.
-			-- SFX -&gt; física -&gt; VFX -&gt; dano (§8 V2)
+			-- SFX -> física -> VFX -> dano (§8 V2)
 			tocarSfx("sfx_impacto", vitimaRaiz, 0.6)
 			tocarSfx("sfx_expansao", Handle, 1)
 			if vitimaRaiz and vitimaRaiz.Parent then
@@ -1003,7 +1003,7 @@ local function executarCutscene(vitimaHum, vitimaRaiz)
 			})
 			vfx("TREMOR", { preset = "EXPLOSAO_GRANDE" })
 
-			if vitimaHum and vitimaHum.Parent and vitimaHum.Health &gt; 0 then
+			if vitimaHum and vitimaHum.Parent and vitimaHum.Health > 0 then
 				aplicarDano(vitimaHum, CFG.DANO_MORTAL)
 			end
 
@@ -1107,7 +1107,7 @@ task.spawn(function()
 		task.wait(1.5)
 		if equipped and not owner and not npcRecarga and rootpart and rootpart.Parent then
 			local perto = detectar(rootpart.Position, CFG.NPC_ALCANCE, 1)
-			if #perto &gt; 0 then
+			if #perto > 0 then
 				npcRecarga = true
 				local raiz = raizDe(perto[1])
 				if raiz and rootpart then
@@ -1162,7 +1162,7 @@ Tool.Destroying:Connect(function()
 	emCutscene = false
 	limparTudo()
 end)
-</ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{0AB5F6EE-2917-4E3A-89CE-F145A4D58172}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EscudoPartido_Server_V1</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="LocalScript" referent="RBXD606B8680FC5470989C5C5B56912E1A4"><Properties><ProtectedString name="Source">-- EscudoPartido_Client_V1.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{0AB5F6EE-2917-4E3A-89CE-F145A4D58172}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EscudoPartido_Server_V1</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="LocalScript" referent="RBXD606B8680FC5470989C5C5B56912E1A4"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoPartido_Client_V1.lua
 -- LocalScript "Client" DENTRO da Tool "Escudo Partido"
 --
 -- Papel (§12.10): capturar entrada e EXECUTAR os VFX recebidos pelo VFXRemote.
@@ -1194,7 +1194,7 @@ local equipado = false
 -- Declaração adiantada: o bloco de ENTRADA (abaixo) preenche estas duas.
 local ligarEntrada, desligarEntrada
 
---── Resolve nome de personagem -&gt; BasePart (payload é dado, não Instance) ──
+--── Resolve nome de personagem -> BasePart (payload é dado, não Instance) ──
 local function parteDe(nome)
 	if type(nome) ~= "string" or nome == "" then return nil end
 	local modelo = workspace:FindFirstChild(nome)
@@ -1224,7 +1224,7 @@ end
 
 local function iniciarCutscene(dados)
 	local trilho = Poses.CAMERA_EXECUCAO
-	if not trilho or #trilho &lt; 2 then return end
+	if not trilho or #trilho < 2 then return end
 
 	local portador = workspace:FindFirstChild(dados.portador or "")
 	local ancora   = portador and (portador:FindFirstChild("HumanoidRootPart"))
@@ -1245,7 +1245,7 @@ local function iniciarCutscene(dados)
 		t = t + dt
 		local tempo = t / escalaT
 
-		if t &gt;= duracao or not ancora.Parent then
+		if t >= duracao or not ancora.Parent then
 			pararCutscene()
 			return
 		end
@@ -1253,13 +1253,13 @@ local function iniciarCutscene(dados)
 		-- interpolação linear entre os dois keyframes que cercam 'tempo'
 		local a, b = trilho[1], trilho[#trilho]
 		for i = 1, #trilho - 1 do
-			if tempo &gt;= trilho[i].t and tempo &lt;= trilho[i + 1].t then
+			if tempo >= trilho[i].t and tempo <= trilho[i + 1].t then
 				a, b = trilho[i], trilho[i + 1]
 				break
 			end
 		end
 		local intervalo = b.t - a.t
-		local alfa = (intervalo &gt; 0) and math.clamp((tempo - a.t) / intervalo, 0, 1) or 0
+		local alfa = (intervalo > 0) and math.clamp((tempo - a.t) / intervalo, 0, 1) or 0
 
 		workspace.CurrentCamera.CFrame = ancora.CFrame * a.cf:Lerp(b.cf, alfa)
 	end)
@@ -1363,7 +1363,7 @@ Tool.Destroying:Connect(function()
 	if desligarEntrada then desligarEntrada() end
 	limparCliente()
 end)
-</ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{E7FB7814-6A88-42E1-BD43-8CE2AB1BF165}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXB5CA7754A35746239CC520177E1CD5D3"><Properties><ProtectedString name="Source">-- R6CFrameAnimator_V2.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{E7FB7814-6A88-42E1-BD43-8CE2AB1BF165}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXB5CA7754A35746239CC520177E1CD5D3"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
 -- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
 -- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
 --[==[
@@ -1580,7 +1580,7 @@ function Animator:PlaySequence(seqName, onBeat, onDone)
 			return
 		end
 
-		if kf.tremor and kf.tremor &gt; 0 then
+		if kf.tremor and kf.tremor > 0 then
 			self:StartTremor("HRP", kf.tremor, kf.freq or 22)
 		else
 			self:StopTremor()
@@ -1732,7 +1732,7 @@ function Animator:Destroy()
 end
 
 return Animator
-</ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{6C8D4956-FAD0-4AE2-ACCC-0C5C98153825}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">R6CFrameAnimator</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXCBCA86171B0446E793A5A4E10D6D092B"><Properties><ProtectedString name="Source">-- Poses_Escudos_V1.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{6C8D4956-FAD0-4AE2-ACCC-0C5C98153825}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">R6CFrameAnimator</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXCBCA86171B0446E793A5A4E10D6D092B"><Properties><ProtectedString name="Source"><![CDATA[-- Poses_Escudos_V1.lua
 -- ModuleScript "Poses" — família ESCUDOS (Salvador, Proteção, Skate,
 -- Bumerangue, Bloqueador, Cyclone, Partido)
 --
@@ -1742,15 +1742,15 @@ return Animator
 --   estáticas para R6CFrameAnimator. Zero LoadAnimation, zero Animation asset,
 --   zero lógica de combate importada. Só silhueta e timing.
 --
---   Mapa keyframe -&gt; pose:
---     NORMAL_SHOVE        [12][23][30]  -&gt; ARREMESSO_CARGA / SOLTA / RECUO
---     NORMAL_UPPERCUT     [27][34]      -&gt; SACRIFICIO_CARGA / SACRIFICIO_ALTO
---     CONSECUTIVE_PUNCHES [8][24][31][44][57][70] -&gt; CORTE_A..CORTE_F
---     SERIOUS_MODE        [20][35][60]  -&gt; CICLONE_CARGA / ABERTO / GIRO
---     DEATH_COUNTER       [120][359]    -&gt; GUARDA_FIRME / CONTRA_GOLPE
---     TABLE_FLIP          [207][365]    -&gt; PUXAO_CARGA / PUXAO_SOLTA
---     SERIOUS_PUNCH       [85][180][260][298][349] -&gt; EXEC_*
---     SERIOUS_PUNCH_CAMERA (amostrado)  -&gt; CAMERA_EXECUCAO
+--   Mapa keyframe -> pose:
+--     NORMAL_SHOVE        [12][23][30]  -> ARREMESSO_CARGA / SOLTA / RECUO
+--     NORMAL_UPPERCUT     [27][34]      -> SACRIFICIO_CARGA / SACRIFICIO_ALTO
+--     CONSECUTIVE_PUNCHES [8][24][31][44][57][70] -> CORTE_A..CORTE_F
+--     SERIOUS_MODE        [20][35][60]  -> CICLONE_CARGA / ABERTO / GIRO
+--     DEATH_COUNTER       [120][359]    -> GUARDA_FIRME / CONTRA_GOLPE
+--     TABLE_FLIP          [207][365]    -> PUXAO_CARGA / PUXAO_SOLTA
+--     SERIOUS_PUNCH       [85][180][260][298][349] -> EXEC_*
+--     SERIOUS_PUNCH_CAMERA (amostrado)  -> CAMERA_EXECUCAO
 --
 -- Base de Weld idêntica à do R6CFrameAnimator (V1/V2):
 --   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP identidade
@@ -2137,8 +2137,8 @@ P.SEQUENCIAS = {
 	},
 
 	-- Partido: cutscene de execução.
-	-- Coreografia herdada de "Judgement Cut End": postura -&gt; tempo parado -&gt;
-	-- grade de cortes suspensa -&gt; rajada de cortes -&gt; colapso + golpe mortal.
+	-- Coreografia herdada de "Judgement Cut End": postura -> tempo parado ->
+	-- grade de cortes suspensa -> rajada de cortes -> colapso + golpe mortal.
 	EXECUCAO = {
 		{ pose = "EXEC_POSTURA",     time = 0.45, style = "Back",  dir = "In",  tremor = 0.02, freq = 18, marca = "POSTURA" },
 		{ pose = "EXEC_AVANCO",      time = 0.22, style = "Quint", dir = "Out", marca = "TEMPO" },
@@ -2172,7 +2172,7 @@ P.CAMERA_EXECUCAO = {
 }
 
 return P
-</ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{A32424A3-E6D9-4FED-B9E9-FF7734D29B04}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Poses</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXC41C98AFA552496D8BDBFFE6C6309129"><Properties><ProtectedString name="Source">-- VFXModule_Escudos_V2.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{A32424A3-E6D9-4FED-B9E9-FF7734D29B04}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Poses</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXC41C98AFA552496D8BDBFFE6C6309129"><Properties><ProtectedString name="Source"><![CDATA[-- VFXModule_Escudos_V2.lua
 -- ModuleScript "VFXModule" — executor de VFX da família ESCUDOS
 --
 -- ONDE RODA: CLIENTE. O LocalScript "Client" da Tool escuta o VFXRemote e
@@ -2232,7 +2232,7 @@ local contador  = 0    -- contador determinístico (substitui math.random)
 
 local function proximo()
 	contador = contador + 1
-	if contador &gt; 100000 then contador = 1 end
+	if contador > 100000 then contador = 1 end
 	return contador
 end
 
@@ -2244,7 +2244,7 @@ end
 
 local function registrar(inst, vida)
 	table.insert(Vivos, inst)
-	if #Vivos &gt; CFG.LIMITE_VIVOS then
+	if #Vivos > CFG.LIMITE_VIVOS then
 		local velho = table.remove(Vivos, 1)
 		if velho and velho.Parent then velho.Parent = nil end
 	end
@@ -2610,7 +2610,7 @@ function Efeitos.FEIXE(d)
 	local b = (d and d.destino) or Vector3.new()
 	local c = cor(d)
 	local dist = (b - a).Magnitude
-	if dist &lt; 0.1 then return end
+	if dist < 0.1 then return end
 
 	local feixe = novaParte({
 		Size         = Vector3.new(0.3 * escala(d), 0.3 * escala(d), dist),
@@ -3001,7 +3001,7 @@ function Efeitos.TEMPO_PARADO(d)
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo:FindFirstChildOfClass("Humanoid") then
 			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
-			if raiz and (raiz.Position - p).Magnitude &lt;= raio then
+			if raiz and (raiz.Position - p).Magnitude <= raio then
 				local hl = Instance.new("Highlight")
 				hl.FillColor        = Color3.new(1, 1, 1)
 				hl.FillTransparency = 0.65
@@ -3268,7 +3268,7 @@ function Efeitos.TREMOR(d)
 	local total = fadeIn + fadeOut
 	tremorConn = RunService.RenderStepped:Connect(function(dt)
 		t = t + dt
-		if t &gt;= total or not workspace.CurrentCamera then
+		if t >= total or not workspace.CurrentCamera then
 			if tremorConn then
 				tremorConn:Disconnect()
 				tremorConn = nil
@@ -3277,7 +3277,7 @@ function Efeitos.TREMOR(d)
 		end
 
 		local envelope
-		if t &lt; fadeIn and fadeIn &gt; 0 then
+		if t < fadeIn and fadeIn > 0 then
 			envelope = t / fadeIn
 		else
 			local restante = total - t
@@ -3345,5 +3345,5 @@ function VFX.LimparTudo()
 end
 
 return VFX
-</ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{0A7F7B6D-C29B-47FD-82A1-255C2EC1B224}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
-	</roblox>
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{0A7F7B6D-C29B-47FD-82A1-255C2EC1B224}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
+	<SharedStrings><SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA==" /></SharedStrings></roblox>

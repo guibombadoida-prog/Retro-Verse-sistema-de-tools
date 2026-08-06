@@ -205,9 +205,30 @@ def main():
         "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
         "version": "4",
     })
+    ET.SubElement(envelope, "Meta", {"name": "ExplicitAutoJoints"}).text = "true"
     ET.SubElement(envelope, "External").text = "null"
     ET.SubElement(envelope, "External").text = "nil"
     envelope.append(pack)
+
+    # O <SharedStrings> é irmão dos <Item>, então extrair só a subárvore o
+    # deixa para trás e as instâncias ficam citando md5 que não existe. O Studio
+    # chama isso de arquivo corrompido — e chamou.
+    tabela = {}
+    for e in raiz.iter("SharedString"):
+        if e.get("md5"):
+            tabela[e.get("md5")] = e.text or ""
+
+    citadas = [t for t in sorted({(e.text or "").strip()
+                                  for e in envelope.iter("SharedString")
+                                  if e.get("name")}) if t]
+    penduradas = []
+    if citadas:
+        bloco = ET.SubElement(envelope, "SharedStrings")
+        for md5 in citadas:
+            if md5 in tabela:
+                ET.SubElement(bloco, "SharedString", {"md5": md5}).text = tabela[md5]
+            else:
+                penduradas.append(md5)
 
     saida = os.path.join(DESTINO, "PACK_VFX.rbxmx")
     ET.ElementTree(envelope).write(saida, encoding="utf-8", xml_declaration=False)
@@ -215,7 +236,9 @@ def main():
     print("")
     print("%s  —  %d bytes" % (os.path.relpath(saida, RAIZ), os.path.getsize(saida)))
     print("%d efeito(s); %d com violação remanescente" % (len(USADOS), total_sobra))
-    return 1 if total_sobra else 0
+    print("%d SharedString levada(s) junto; %d pendurada(s)"
+          % (len(citadas) - len(penduradas), len(penduradas)))
+    return 1 if (total_sobra or penduradas) else 0
 
 
 if __name__ == "__main__":

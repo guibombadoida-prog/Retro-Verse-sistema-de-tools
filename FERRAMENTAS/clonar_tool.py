@@ -76,6 +76,84 @@ def tools_de(caminho):
     return raiz, [i for i in raiz.findall("Item") if i.get("class") == "Tool"]
 
 
+def envolver_cdata(texto_xml):
+    def trocar(m):
+        corpo = m.group(1)
+        corpo = (corpo.replace("&lt;", "<").replace("&gt;", ">")
+                      .replace("&quot;", '"').replace("&#10;", "\n")
+                      .replace("&amp;", "&"))
+        return '<ProtectedString name="Source"><![CDATA[%s]]></ProtectedString>' % corpo
+
+    return re.sub(r'<ProtectedString name="Source">(.*?)</ProtectedString>',
+                  trocar, texto_xml, flags=re.S)
+
+
+def nova_raiz():
+    raiz = ET.Element("roblox", {
+        "xmlns:xmime": "http://www.w3.org/2005/05/xmlmime",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
+        "version": "4",
+    })
+    ET.SubElement(raiz, "Meta", {"name": "ExplicitAutoJoints"}).text = "true"
+    ET.SubElement(raiz, "External").text = "null"
+    ET.SubElement(raiz, "External").text = "nil"
+    return raiz
+
+
+def tabela_compartilhada(caminhos):
+    """md5 -> conteúdo, lido do <SharedStrings> dos arquivos de origem."""
+    tabela = {}
+    for caminho in caminhos:
+        if not caminho or not os.path.exists(caminho):
+            continue
+        raiz = ET.parse(caminho).getroot()
+        for e in raiz.iter("SharedString"):
+            if e.get("md5"):
+                tabela[e.get("md5")] = e.text or ""
+    return tabela
+
+
+def fechar_compartilhadas(raiz, tabela):
+    """
+    Emite o <SharedStrings> com TODA md5 que os Items citam.
+
+    ISTO É O QUE FAZIA O STUDIO DIZER "ARQUIVO CORROMPIDO".
+
+    A instância cita a string em `<SharedString name="Tags">md5</SharedString>`,
+    e a tabela que resolve essa md5 é um bloco `<SharedStrings>` **irmão** dos
+    `<Item>`, não descendente. Copiando só os Item para uma raiz nova, o bloco
+    fica para trás e a citação fica pendurada — o arquivo abre como XML válido
+    e o Studio recusa.
+
+    Devolve as md5 que os Items citam e a tabela não tem (não deve sobrar nenhuma).
+    """
+    citadas = [t for t in sorted({(e.text or "").strip()
+                                  for e in raiz.iter("SharedString")
+                                  if e.get("name")}) if t]
+    if not citadas:
+        return []
+
+    bloco = ET.SubElement(raiz, "SharedStrings")
+    faltando = []
+    for md5 in citadas:
+        if md5 not in tabela:
+            faltando.append(md5)
+            continue
+        ET.SubElement(bloco, "SharedString", {"md5": md5}).text = tabela[md5]
+    return faltando
+
+
+def escrever(raiz, destino, tabela=None):
+    faltando = fechar_compartilhadas(raiz, tabela or {})
+    ET.ElementTree(raiz).write(destino, encoding="utf-8", xml_declaration=False)
+    with open(destino, encoding="utf-8") as f:
+        conteudo = f.read()
+    with open(destino, "w", encoding="utf-8") as f:
+        f.write(envolver_cdata(conteudo))
+    return faltando
+
+
 def extrair(origem):
     raiz, tools = tools_de(origem)
     if not tools:
@@ -99,53 +177,18 @@ def extrair(origem):
                 f.write(fonte)
             n = n + 1
 
-        # a origem fica guardada: é ela que o `montar` usa como base
+        # a origem fica guardada: é ela que o `montar` usa como base — e leva o
+        # <SharedStrings> junto, senão a cópia já nasce com citação pendurada
         base = os.path.join(pasta, "_ORIGEM.rbxmx")
-        sub = ET.Element("roblox", {
-            "xmlns:xmime": "http://www.w3.org/2005/05/xmlmime",
-            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-            "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
-            "version": "4",
-        })
-        ET.SubElement(sub, "External").text = "null"
-        ET.SubElement(sub, "External").text = "nil"
+        sub = nova_raiz()
         sub.append(tool)
-        ET.ElementTree(sub).write(base, encoding="utf-8", xml_declaration=False)
+        faltando = escrever(sub, base, tabela_compartilhada([origem]))
 
-        print("%-22s %2d scripts  →  Tools/%s/" % (nome, n, nome))
+        aviso = ""
+        if faltando:
+            aviso = "   ⚠️  %d SharedString sem tabela" % len(faltando)
+        print("%-22s %2d scripts  →  Tools/%s/%s" % (nome, n, nome, aviso))
     return 0
-
-
-def envolver_cdata(texto_xml):
-    def trocar(m):
-        corpo = m.group(1)
-        corpo = (corpo.replace("&lt;", "<").replace("&gt;", ">")
-                      .replace("&quot;", '"').replace("&#10;", "\n")
-                      .replace("&amp;", "&"))
-        return '<ProtectedString name="Source"><![CDATA[%s]]></ProtectedString>' % corpo
-
-    return re.sub(r'<ProtectedString name="Source">(.*?)</ProtectedString>',
-                  trocar, texto_xml, flags=re.S)
-
-
-def nova_raiz():
-    raiz = ET.Element("roblox", {
-        "xmlns:xmime": "http://www.w3.org/2005/05/xmlmime",
-        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-        "xsi:noNamespaceSchemaLocation": "http://www.roblox.com/roblox.xsd",
-        "version": "4",
-    })
-    ET.SubElement(raiz, "External").text = "null"
-    ET.SubElement(raiz, "External").text = "nil"
-    return raiz
-
-
-def escrever(raiz, destino):
-    ET.ElementTree(raiz).write(destino, encoding="utf-8", xml_declaration=False)
-    with open(destino, encoding="utf-8") as f:
-        conteudo = f.read()
-    with open(destino, "w", encoding="utf-8") as f:
-        f.write(envolver_cdata(conteudo))
 
 
 PACK_VFX = os.path.join(RAIZ, "ACERVO_RETROVERSE", "Stella_VFX_Addon",
@@ -185,12 +228,31 @@ def enxertar_pack(tool):
     # referent tem de ser único dentro do arquivo montado: dois iguais fazem o
     # Studio religar propriedade no objeto errado. Como o mesmo pack entra em
     # 7 Tools, cada cópia ganha um sufixo.
+    #
+    # E renomear o referent SEM renomear os <Ref> que apontam para ele deixa o
+    # ponteiro pendurado — foi o que aconteceu com o `PrimaryPart` do Model do
+    # Smoky_Explosion. Os dois lados mudam juntos, sempre.
     enxerto = ET.fromstring(ET.tostring(pack))
     marca = texto(tool, "Name").replace(" ", "")
+
+    renomeado = {}
     for no in enxerto.iter("Item"):
         ref = no.get("referent")
         if ref:
-            no.set("referent", "%s_%s" % (ref, marca))
+            novo = "%s_%s" % (ref, marca)
+            renomeado[ref] = novo
+            no.set("referent", novo)
+
+    for no in enxerto.iter("Item"):
+        props = no.find("Properties")
+        if props is None:
+            continue
+        for e in props:
+            if e.tag != "Ref":
+                continue
+            alvo = (e.text or "").strip()
+            if alvo in renomeado:
+                e.text = renomeado[alvo]
 
     modulo.append(enxerto)
     return len([i for i in enxerto.findall("Item")
@@ -208,6 +270,13 @@ def montar(nomes, destino):
     """
     raiz = nova_raiz()
     trocados, mantidos, enxertados = 0, 0, 0
+    penduradas = []
+
+    # A tabela de SharedStrings vem das DUAS fontes: o _ORIGEM de cada Tool e o
+    # pack do Acervo. Sem ela o Studio recusa o arquivo como corrompido.
+    fontes = [os.path.join(TOOLS, n, "_ORIGEM.rbxmx") for n in nomes]
+    fontes.append(PACK_VFX)
+    tabela = tabela_compartilhada(fontes)
     for nome in nomes:
         pasta = os.path.join(TOOLS, nome)
         base = os.path.join(pasta, "_ORIGEM.rbxmx")
@@ -237,11 +306,11 @@ def montar(nomes, destino):
         sozinha = nova_raiz()
         sozinha.append(tool)
         individual = os.path.join(pasta, "%s.rbxmx" % nome)
-        escrever(sozinha, individual)
+        penduradas.extend(escrever(sozinha, individual, tabela))
 
         raiz.append(tool)
 
-    escrever(raiz, destino)
+    penduradas.extend(escrever(raiz, destino, tabela))
 
     print("%s  —  %d bytes" % (os.path.relpath(destino, RAIZ),
                                os.path.getsize(destino)))
@@ -250,8 +319,12 @@ def montar(nomes, destino):
           % (trocados, mantidos))
     print("   %d efeito(s) do pack enxertados DENTRO das Tools (Regra nº 1)"
           % enxertados)
+    print("   %d SharedString na tabela, 0 pendurada" % len(tabela)
+          if not penduradas else
+          "   ⚠️  %d SharedString PENDURADA: %s"
+          % (len(set(penduradas)), ", ".join(sorted(set(penduradas)))))
     print("   Handle, Mesh, Model, Sound e Value: intactos, da origem")
-    return 0
+    return 1 if penduradas else 0
 
 
 def main():
