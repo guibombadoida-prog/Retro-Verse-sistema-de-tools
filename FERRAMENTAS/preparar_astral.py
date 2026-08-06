@@ -42,23 +42,27 @@ ORIGEM = os.path.join(RAIZ, "MODELOS_ENTRADA", "Astral_Peria", "astral_peria.rbx
 
 # As 5 Tools do conjunto. A primeira leva as habilidades ORIGINAIS; as outras
 # quatro são clones com duas habilidades novas cada, no mesmo tema astral.
+# `acoes` é o que o Client lê para saber QUAIS botões criar. Sem isso ele
+# criaria os três (Q/E/X) em toda Tool, e no celular a Nova apareceria com dois
+# botões que não fazem nada. Formato: "TECLA:Rótulo" separado por "|".
 CONJUNTO = [
-    # nome, tooltip, DamageClass, energia, recarga global, chave, tem cutscene
+    # nome, tooltip, DamageClass, energia, recarga, chave, cutscene, acoes
     ("Astral Periastron",
      "Golpe astral que semeia orbes. Q redireciona, E detona, X invoca o Pulsar.",
-     "ASTRAL", 0, 0, "AstralPeriastron_Pulsar", False),
+     "ASTRAL", 0, 0, "AstralPeriastron_Pulsar", False,
+     "Q:Redirecionar|E:Detonar|X:Pulsar"),
     ("Astral Nova",
      "Nova Estelar no golpe. X colapsa a estrela e puxa quem estiver perto.",
-     "ASTRAL", 12, 18, "AstralNova_Colapso", False),
+     "ASTRAL", 12, 18, "AstralNova_Colapso", False, "X:Colapso"),
     ("Astral Cometa",
      "Cometa incandescente no golpe. X chama a Chuva Sideral.",
-     "ASTRAL", 14, 22, "AstralCometa_Chuva", False),
+     "ASTRAL", 14, 22, "AstralCometa_Chuva", False, "X:Chuva"),
     ("Astral Singularidade",
      "Horizonte de Eventos no golpe. X espaguetifica o alvo marcado.",
-     "ASTRAL", 20, 45, "AstralSingularidade_Espaguete", True),
+     "ASTRAL", 20, 45, "AstralSingularidade_Espaguete", True, "X:Espaguete"),
     ("Astral Constelacao",
      "Traço Sideral marca quem for atingido. X liga as marcas e sentencia.",
-     "ASTRAL", 16, 30, "AstralConstelacao_Sentenca", False),
+     "ASTRAL", 16, 30, "AstralConstelacao_Sentenca", False, "X:Sentenca"),
 ]
 
 # Classes que a regra não deixa entrar em Tool
@@ -239,7 +243,7 @@ def novo_item(pai, classe, nome, referent):
 
 
 def equipar_tool(tool, nome, tooltip, classe_dano, energia, recarga, chave,
-                 cutscene):
+                 cutscene, acoes):
     """
     Põe na Tool o que as diretrizes exigem e a origem não tinha:
     scripts autorais (vazios — o Source vem do .lua), Remotes e Values.
@@ -280,6 +284,11 @@ def equipar_tool(tool, nome, tooltip, classe_dano, energia, recarga, chave,
     _i, props = novo_item(tool, "NumberValue", "RecargaGlobal",
                           "RV_RG_%s" % marca)
     ET.SubElement(props, "float", {"name": "Value"}).text = str(recarga)
+
+    # Quais botões esta Tool tem. O Client lê daqui e cria SÓ esses — no
+    # celular, botão que não faz nada é pior que botão nenhum.
+    _i, props = novo_item(tool, "StringValue", "Acoes", "RV_AC_%s" % marca)
+    ET.SubElement(props, "string", {"name": "Value"}).text = acoes
 
     # Os scripts nascem vazios: o Source vem do .lua, no clonar_tool.py montar
     scripts = [
@@ -343,7 +352,8 @@ def main():
     print("")
 
     for indice, dados in enumerate(CONJUNTO):
-        nome, tooltip, classe_dano, energia, recarga, chave, cutscene = dados
+        (nome, tooltip, classe_dano, energia, recarga, chave, cutscene,
+         acoes) = dados
         copia = ET.fromstring(ET.tostring(base))
 
         removidos, resgatados = [], []
@@ -370,7 +380,7 @@ def main():
 
         registro = apagar_molde(moldes, [])
         criados = equipar_tool(copia, nome, tooltip, classe_dano, energia,
-                               recarga, chave, cutscene)
+                               recarga, chave, cutscene, acoes)
 
         marca = nome.replace(" ", "")
         renomeado = {}

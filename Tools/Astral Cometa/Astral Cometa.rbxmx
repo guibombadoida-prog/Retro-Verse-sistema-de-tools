@@ -3412,7 +3412,7 @@
 					</Item>
 				</Item>
 			</Item>
-			</Item><Item class="RemoteEvent" referent="RV_VFXRemote_AstralCometa_AstralCometa"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_AcaoRemote_AstralCometa_AstralCometa"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_DC_AstralCometa_AstralCometa"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_CR_AstralCometa_AstralCometa"><Properties><string name="Name">ChaveRecarga</string><string name="Value">AstralCometa_Chuva</string></Properties></Item><Item class="NumberValue" referent="RV_EC_AstralCometa_AstralCometa"><Properties><string name="Name">EnergyCost</string><float name="Value">14</float></Properties></Item><Item class="NumberValue" referent="RV_RG_AstralCometa_AstralCometa"><Properties><string name="Name">RecargaGlobal</string><float name="Value">22</float></Properties></Item><Item class="Script" referent="RV_AstralCometa_Server_V1_AstralCometa_AstralCometa"><Properties><string name="Name">Astral Cometa_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Astral_Cometa_Server_V1.lua
+			</Item><Item class="RemoteEvent" referent="RV_VFXRemote_AstralCometa_AstralCometa"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_AcaoRemote_AstralCometa_AstralCometa"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_DC_AstralCometa_AstralCometa"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_CR_AstralCometa_AstralCometa"><Properties><string name="Name">ChaveRecarga</string><string name="Value">AstralCometa_Chuva</string></Properties></Item><Item class="NumberValue" referent="RV_EC_AstralCometa_AstralCometa"><Properties><string name="Name">EnergyCost</string><float name="Value">14</float></Properties></Item><Item class="NumberValue" referent="RV_RG_AstralCometa_AstralCometa"><Properties><string name="Name">RecargaGlobal</string><float name="Value">22</float></Properties></Item><Item class="StringValue" referent="RV_AC_AstralCometa_AstralCometa"><Properties><string name="Name">Acoes</string><string name="Value">X:Chuva</string></Properties></Item><Item class="Script" referent="RV_AstralCometa_Server_V1_AstralCometa_AstralCometa"><Properties><string name="Name">Astral Cometa_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Astral_Cometa_Server_V1.lua
 -- Script de servidor — Astral Cometa
 --
 -- CLONE do Astral Periastron: mesmo Handle, mesmo mesh, mesmos sons e
@@ -3678,9 +3678,8 @@ Tool.Destroying:Connect(desmontar)
 -- RemoteFunction cliente->servidor para perguntar a posição do mouse: isso
 -- pendura a thread do servidor quando o cliente não responde.
 
-local Players           = game:GetService("Players")
-local UserInputService  = game:GetService("UserInputService")
-local RunService        = game:GetService("RunService")
+local Players              = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
 
 local Tool       = script.Parent
 local Jogador    = Players.LocalPlayer
@@ -3690,16 +3689,54 @@ local VFX        = require(Tool:WaitForChild("VFXModule"))
 
 local Mouse = Jogador:GetMouse()
 
--- As teclas do original: Q redireciona, E detona, X é a grande.
--- Tool que não usa uma delas simplesmente ignora o pedido no servidor.
-local TECLAS = {
-	[Enum.KeyCode.Q] = "Q",
-	[Enum.KeyCode.E] = "E",
-	[Enum.KeyCode.X] = "X",
+--═══════════════════════════════════════════════════════════════
+-- ENTRADA — teclado, controle e CELULAR, pelo mesmo caminho
+--
+-- `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...teclas)`.
+-- O terceiro argumento é o que resolve o mobile: o Roblox desenha o botão de
+-- toque sozinho, com o tamanho e a área de acerto que o jogador espera.
+--
+-- POR QUE NÃO UMA ScreenGui COM OS BOTÕES
+--   O modelo original trazia uma (`Astral_UI`, com os cooldowns de Q/E/X) e ela
+--   saiu: ScreenGui dentro de Tool é proibida — efeito só no mundo 3D. E o
+--   botão feito à mão teria de ser reposicionado a cada tamanho de tela.
+--   `ContextActionService` já está na lista de serviços que a Regra nº 1
+--   permite, porque é serviço de COMPORTAMENTO e não traz asset de fora.
+--
+-- QUAIS BOTÕES APARECEM
+--   Sai do StringValue `Acoes` da própria Tool ("Q:Redirecionar|E:Detonar|
+--   X:Pulsar"). Sem ele, a Nova mostraria três botões e dois não fariam nada —
+--   no celular, botão que não responde é pior que botão nenhum.
+--═══════════════════════════════════════════════════════════════
+
+local TECLA_DE = {
+	Q = Enum.KeyCode.Q,
+	E = Enum.KeyCode.E,
+	X = Enum.KeyCode.X,
+}
+
+-- botão do controle, para quem joga no gamepad
+local BOTAO_DE = {
+	Q = Enum.KeyCode.ButtonX,
+	E = Enum.KeyCode.ButtonY,
+	X = Enum.KeyCode.ButtonR1,
 }
 
 local equipado = false
-local ligacoes = {}
+local ligadas = {}
+
+local function acoesDaTool()
+	local declarado = Tool:FindFirstChild("Acoes")
+	local bruto = (declarado and declarado.Value) or "X:Extra"
+	local lista = {}
+	for pedaco in string.gmatch(bruto, "[^|]+") do
+		local tecla, rotulo = string.match(pedaco, "^(%w+):(.+)$")
+		if tecla and TECLA_DE[tecla] then
+			table.insert(lista, { tecla = tecla, rotulo = rotulo })
+		end
+	end
+	return lista
+end
 
 --═══════════════════════════════════════════════════════════════
 -- ENTRADA
@@ -3715,22 +3752,37 @@ local function mira()
 end
 
 local function ligarEntrada()
-	if ligacoes.entrada then return end
-	ligacoes.entrada = UserInputService.InputBegan:Connect(function(entrada, digitando)
-		if digitando then return end
-		if not equipado then return end
-		local nome = TECLAS[entrada.KeyCode]
-		if nome then
-			AcaoRemote:FireServer(nome, mira())
-		end
-	end)
+	if #ligadas > 0 then return end
+
+	local lista = acoesDaTool()
+	for indice, acao in ipairs(lista) do
+		local nome = "Astral_" .. acao.tecla
+		local tecla = acao.tecla
+
+		ContextActionService:BindAction(nome, function(_acao, estado)
+			if estado ~= Enum.UserInputState.Begin then return end
+			if not equipado then return end
+			AcaoRemote:FireServer(tecla, mira())
+			return Enum.ContextActionResult.Sink
+		end, true, TECLA_DE[tecla], BOTAO_DE[tecla])
+
+		ContextActionService:SetTitle(nome, acao.rotulo)
+
+		-- Empilhados acima do botão de pulo, de baixo para cima. Posição em
+		-- escala, não em pixel: tela de celular pequeno e tablet dividem a
+		-- mesma conta.
+		ContextActionService:SetPosition(nome, UDim2.new(
+			1, -140, 1, -180 - (indice - 1) * 76))
+
+		table.insert(ligadas, nome)
+	end
 end
 
 local function desligarEntrada()
-	if ligacoes.entrada then
-		ligacoes.entrada:Disconnect()
-		ligacoes.entrada = nil
+	for _, nome in ipairs(ligadas) do
+		ContextActionService:UnbindAction(nome)
 	end
+	table.clear(ligadas)
 end
 
 Tool.Equipped:Connect(function()

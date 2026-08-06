@@ -17,6 +17,31 @@ clones com **duas habilidades novas** cada, no mesmo tema.
 
 As 5 juntas: [`Astral_5_Tools.rbxmx`](Astral_5_Tools.rbxmx)
 
+### Mobile: os botões são nativos
+
+Entrada por `ContextActionService:BindAction(nome, fn, **true**, tecla, botão)`.
+O terceiro argumento é `createTouchButton` — **o Roblox desenha o botão de toque
+sozinho**, com o tamanho e a área de acerto que o jogador de celular espera. O
+mesmo bind cobre teclado, controle e toque.
+
+Não é `ScreenGui`: a do modelo original (`Astral_UI`, com os cooldowns de Q/E/X)
+saiu porque a regra proíbe — efeito só no mundo 3D. `ContextActionService` já
+está na lista de serviços que a Regra nº 1 permite, por ser serviço de
+**comportamento**, que não traz asset de fora.
+
+Quais botões cada Tool cria sai do `StringValue` **`Acoes`** dela:
+
+| Tool | `Acoes` | Botões no celular |
+|---|---|---|
+| `Astral Periastron` | `Q:Redirecionar\|E:Detonar\|X:Pulsar` | 3 |
+| as outras quatro | `X:<nome da extra>` | 1 |
+
+Sem esse Value o Client criaria os três em toda Tool, e na Nova dois não fariam
+nada — no celular, botão que não responde é pior que botão nenhum.
+
+O **M1** não precisa de botão: `Tool.Activated` já dispara no toque do próprio
+ícone da Tool, em qualquer plataforma.
+
 Números do original preservados: golpe **27**, orbe **25** em raio **20**,
 redirecionar CD **1 s** a **100** de velocidade, Pulsar CD **60 s** por **30 s**
 em alcance **200** a **15** por pulso, ferindo o portador em **34**.
