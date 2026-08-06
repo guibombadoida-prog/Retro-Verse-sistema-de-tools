@@ -1,11 +1,14 @@
 # _INDICE — Acervo Retro-Verse
 
 > **7 Tools no repositório**, todas clonadas de `Danilo_Escudos_V4`. Ver
-> `Tools/README.md`. A coluna "Já usado em" das seções antigas continua zerada:
-> as 7 Tools chegaram prontas e **não consomem material do Acervo** — o VFX
-> delas vem do módulo próprio mais o pack compartilhado.
+> `Tools/README.md`.
 >
-> Ou seja: tudo abaixo continua disponível, e nada está reservado.
+> A única entrada do Acervo que elas consomem é o **`Stella_VFX_Addon`**, cujos
+> 10 efeitos conformados são **copiados para dentro** de cada Tool na montagem
+> (`VFXModule/Pack/`). Nenhuma Tool lê o Acervo em runtime — nem ele, nem nada.
+>
+> A coluna "Já usado em" das seções antigas continua zerada: as 7 Tools chegaram
+> prontas com o VFX próprio delas. Tudo o mais abaixo segue disponível.
 
 Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer efeito novo** (§12.16.2).
 
@@ -161,7 +164,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |
 | `Saitama_Animacoes_Referencia/` | **CRU** | [FICHA.md](Saitama_Animacoes_Referencia/FICHA.md) |
 | `Danilo_Escudos_V4/` | **APROVADO** — base das 7 Tools | [FICHA.md](Danilo_Escudos_V4/FICHA.md) |
-| `Stella_VFX_Addon/` | **CRU** — pack compartilhado, exceção declarada | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
+| `Stella_VFX_Addon/` | **LIMPO** — 10 efeitos conformados, copiados para dentro das Tools | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |

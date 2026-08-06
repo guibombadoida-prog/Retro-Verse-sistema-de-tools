@@ -2493,27 +2493,35 @@ end
 --═══════════════════════════════════════════════════════════════
 
 --═══════════════════════════════════════════════════════════════
--- PONTE PARA O PACK DE VFX COMPARTILHADO
+-- PACK DE VFX — DENTRO DA TOOL
 --
--- EXCEÇÃO DECLARADA À REGRA Nº 1 — ver ReplicatedStorage/README.md e
--- DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md, seção "A quinta exceção".
+-- REGRA Nº 1, SEM EXCEÇÃO. Os módulos do pack são filhos deste ModuleScript,
+-- em `VFXModule/Pack/`. Nada é lido de ReplicatedStorage, de ServerStorage
+-- nem do Acervo. O teste do place vazio vale inteiro, VFX incluído.
 --
--- O pack "Stella's VFX Addon" foi escrito para viver em ReplicatedStorage: o
--- MainModule dele se muda para lá sozinho na primeira execução e o cabeçalho
--- manda requerer por id. Copiar os 116 ModuleScripts para dentro de cada uma
--- das 7 Tools não resolveria isso — daria 7 cópias do mesmo pack e o módulo
--- continuaria tentando se mudar.
+-- POR QUE ISTO ESTAVA ERRADO ANTES
 --
--- O QUE ESTA PONTE GARANTE, E É O QUE PAGA A EXCEÇÃO:
+--   Eu tinha posto o pack em ReplicatedStorage e chamado de "exceção
+--   declarada", com o argumento de que ele não cabia dentro. O argumento
+--   valia para o `MainModule` — que se muda para lá sozinho e manda requerer
+--   por id — e eu generalizei do loader para o pack inteiro.
 --
---   1. NUNCA YIELDA.  FindService + FindFirstChild, jamais WaitForChild.
---      Num place sem o pack, `deposito()` devolve nil no mesmo frame — não
---      há espera de 5 s nem thread pendurada.
+--   Os MÓDULOS DE EFEITO não dependem de nada: nenhum require, nenhum
+--   ReplicatedStorage, nenhum Takeo. Conferido nos 10 que esta Tool usa.
+--   Cabiam dentro desde o começo.
+--
+-- O QUE CONTINUA VALENDO
+--
+--   1. NUNCA YIELDA.  FindFirstChild, jamais WaitForChild.
 --   2. NUNCA DERRUBA O EFEITO PRÓPRIO.  O efeito da Tool roda primeiro e
---      inteiro; o reforço vem depois, dentro de pcall. Pack ausente, quebrado
---      ou de outra versão = a Tool empobrece, não quebra.
---   3. NÃO IMPORTA REGRA DE JOGO.  Daqui só sai forma, cor e tempo. Dano,
---      alvo e estado continuam sendo assunto do servidor e do Núcleo.
+--      inteiro; o reforço vem depois, dentro de pcall. Módulo faltando ou
+--      quebrado = a Tool empobrece, não quebra.
+--   3. NÃO IMPORTA REGRA DE JOGO.  Daqui só sai forma, cor e tempo.
+--
+-- Os 10 passaram pelo passe §12.12.2 antes de entrar (FERRAMENTAS/
+-- conformar_pack_vfx.py): 9 math.random viraram ângulo áureo e jitter
+-- senoidal, um WaitForChild por módulo virou acesso direto, e o
+-- workspace:FindFirstChild("Terrain") do Floor_Crack virou workspace.Terrain.
 --
 -- EFEITOS DO PACK QUE FICARAM DE FORA, E POR QUÊ  (a lista não é preguiça,
 -- foi lida no código de cada módulo):
@@ -2540,8 +2548,8 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local PACK = {
-	LIGADO   = true,                   -- desligue aqui para voltar ao VFX próprio
-	DEPOSITO = "Stella's VFX Addon",   -- único nome que esta Tool lê de fora
+	LIGADO = true,     -- desligue aqui para voltar só ao VFX próprio da Tool
+	PASTA  = "Pack",   -- filha DESTE módulo, dentro da Tool
 }
 
 local raizPack        = nil
@@ -2551,11 +2559,8 @@ local moduloDoPack    = {}   -- [nome] = função | false (já falhou, não insi
 local function deposito()
 	if raizProcurada then return raizPack end
 	raizProcurada = true
-	-- FindService não cria serviço nem espera por ele: devolve nil e pronto.
-	local rs = game:FindService("ReplicatedStorage")
-	if rs then
-		raizPack = rs:FindFirstChild(PACK.DEPOSITO)
-	end
+	-- script é o VFXModule, filho da Tool. Daqui não se sai da Tool.
+	raizPack = script:FindFirstChild(PACK.PASTA)
 	return raizPack
 end
 
@@ -3630,5 +3635,2530 @@ function VFX.LimparTudo()
 end
 
 return VFX
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{0A7F7B6D-C29B-47FD-82A1-255C2EC1B224}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item></Item>
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{0A7F7B6D-C29B-47FD-82A1-255C2EC1B224}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties><Item class="Folder" referent="RVPACK_EscudoPartido"><Properties><string name="Name">Pack</string></Properties><Item class="ModuleScript" referent="RBXDD62479EE0D2498691640ADECC9F7DAB_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Shockwave Effect for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+
+
+local Shockwave = script.Shockwave
+Shockwave.Parent = nil
+
+
+return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, Color_A, Color_B, Easing_Style)
+	
+	StartCFrame = StartCFrame or CFrame.new(Vector3.new(0,5,0))
+	EndCFrame = EndCFrame or StartCFrame;
+	Duration = Duration or 1
+	Vector_Size_A = Vector_Size_A or Vector3.new(10.775, 2.3, 10.505)
+	Vector_Size_B = Vector_Size_B or (Vector_Size_A * 3)
+	Color_A = Color_A or Color3.fromRGB(255, 255, 255);
+	Color_B = Color_B or Color_A
+	Easing_Style = Easing_Style or Enum.EasingStyle.Linear
+	
+	local Shockwave = Shockwave:Clone()
+	Shockwave.CFrame = StartCFrame;
+	Shockwave.Size = Vector_Size_A;
+	Shockwave.Color = Color_A;
+	Shockwave.Parent = workspace
+	
+	TweenService:Create(Shockwave,TweenInfo.new(Duration,Easing_Style),{Size = Vector_Size_B,Color = Color_B}):Play()
+	TweenService:Create(Shockwave,TweenInfo.new(Duration),{Transparency = 1}):Play()
+	
+	Debris:AddItem(Shockwave,Duration + 1)
+	
+end]]></ProtectedString>
+					<string name="ScriptGuid">{14F8DFE6-A33A-4482-AB31-D8803524516B}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Shockwave</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="MeshPart" referent="RBXE272030C2173423D8B6C953994175A03_EscudoPartido">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>234.240997</X>
+							<Y>50</Y>
+							<Z>228.365005</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://2689837482</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">4BNNqxFNMq+bqUYlzlnX/A==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>2.93829131</X>
+							<Y>1.89679825</Y>
+							<Z>-1.26050254e-05</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>2.51430912e+09</X>
+							<Y>4.56261581e+09</Y>
+							<Z>2.51431706e+09</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>-945.4375</X>
+							<Y>-455.33316</Y>
+							<Z>242.901001</Z>
+						</Vector3>
+						<float name="UnscaledVolume">1180423.75</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>20.2966537</X>
+							<Y>23.2760906</Y>
+							<Z>112.751862</Z>
+							<R00>0</R00>
+							<R01>-1.34210202e-14</R01>
+							<R02>1</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>-1.34210202e-14</R12>
+							<R20>-1</R20>
+							<R21>0</R21>
+							<R22>0</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">false</bool>
+						<bool name="CanTouch">false</bool>
+						<bool name="CastShadow">false</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">true</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">0</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>10.7750635</X>
+							<Y>2.2999959</Y>
+							<Z>10.5047703</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Shockwave</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBX518BAA6CD39E49228BF6E225D82FDF46_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Shockwave Effect for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+
+
+local Shockwave = script.Shockwave
+Shockwave.Parent = nil
+
+
+return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, Color_A, Color_B, Easing_Style)
+	
+	StartCFrame = StartCFrame or CFrame.new(Vector3.new(0,5,0))
+	EndCFrame = EndCFrame or StartCFrame;
+	Duration = Duration or 1
+	Vector_Size_A = Vector_Size_A or Vector3.new(10.775, 2.3, 10.505)
+	Vector_Size_B = Vector_Size_B or (Vector_Size_A * 3)
+	Color_A = Color_A or Color3.fromRGB(255, 255, 255);
+	Color_B = Color_B or Color_A
+	Easing_Style = Easing_Style or Enum.EasingStyle.Linear
+	
+	local Shockwave = Shockwave:Clone()
+	Shockwave.CFrame = StartCFrame;
+	Shockwave.Size = Vector_Size_A;
+	Shockwave.Color = Color_A;
+	Shockwave.Parent = workspace
+	
+	TweenService:Create(Shockwave,TweenInfo.new(Duration,Easing_Style),{Size = Vector_Size_B,Color = Color_B}):Play()
+	TweenService:Create(Shockwave,TweenInfo.new(Duration),{Transparency = 1}):Play()
+	
+	Debris:AddItem(Shockwave,Duration + 1)
+	
+end]]></ProtectedString>
+					<string name="ScriptGuid">{98F8196D-CE66-4D39-8566-D9F943244D4A}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Shockwave_2</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="MeshPart" referent="RBX98761FAB60004DFABF84F4C9DFEF4854_EscudoPartido">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>259.880951</X>
+							<Y>1.40217817</Y>
+							<Z>273.255005</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://863344136</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">Qeq9IKbRe93TnM1A1xA1Rg==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>-0.00139391888</X>
+							<Y>-6.93954553e-06</Y>
+							<Z>0.00179777364</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>95475872</X>
+							<Y>217733664</Y>
+							<Z>122263536</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>6.84848976</X>
+							<Y>1706.25</Y>
+							<Z>13.8730011</Z>
+						</Vector3>
+						<float name="UnscaledVolume">28040.3242</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>-49.0785294</X>
+							<Y>24.8382244</Y>
+							<Z>-49.3975639</Z>
+							<R00>1</R00>
+							<R01>-9.23865741e-07</R01>
+							<R02>-3.911547e-08</R02>
+							<R10>9.23865741e-07</R10>
+							<R11>1</R11>
+							<R12>2.03026886e-07</R12>
+							<R20>3.91152817e-08</R20>
+							<R21>-2.03026914e-07</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">false</bool>
+						<bool name="CanTouch">false</bool>
+						<bool name="CastShadow">false</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">0</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>7.0999999</X>
+							<Y>0.100000001</Y>
+							<Z>7</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Shockwave</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBXC6DA45285A8F4B32A31F8DEFD2283CE7_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Basic Explosion for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+
+local Wave_Base = script.Wave:Clone()
+
+return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
+	--// Keeping this local for performance and stability
+	
+	
+	local BaseURL = "rbxassetid://"
+	
+	Position = Position or Vector3.new(0,5,0)
+	Duration = Duration or .5;
+	Size_A = Size_A or 0;
+	Size_B = Size_B or 50;
+	Color_A = Color_A or Color3.fromRGB(255,255,255);
+	Color_B = Color_B or Color_A
+	Easing_Style = Easing_Style or Enum.EasingStyle.Linear
+	
+	local Sequence = ColorSequence.new({
+		ColorSequenceKeypoint.new(0,Color_A);
+		ColorSequenceKeypoint.new(1,Color_B);
+	})
+
+	
+	local function Explode(Position)
+		local ExplosionPart = Instance.new("Part");
+		ExplosionPart.Color = Color_A
+		ExplosionPart.CanCollide = false;
+		ExplosionPart.CanTouch = false;
+		ExplosionPart.CanQuery = false;
+		ExplosionPart.Anchored = true;
+		ExplosionPart.Shape = Enum.PartType.Ball;
+		ExplosionPart.Size = Vector3.new(0.001,0.001,0.001) * Size_A
+		ExplosionPart.Position = Position
+		ExplosionPart.CastShadow = false
+		ExplosionPart.Material = "Neon"
+		
+		local Mesh = Instance.new("SpecialMesh")
+		Mesh.Parent = ExplosionPart
+		Mesh.MeshType = Enum.MeshType.Sphere;
+		Mesh.Scale = Vector3.new(1000,1000,1000)
+		
+		local Attachment = Instance.new("Attachment")
+		Attachment.Name = "Holder";
+		Attachment.Parent = ExplosionPart
+
+		local ExplosionParticles = script.ExplosionParticles:Clone()
+		ExplosionParticles.Color = Sequence
+		ExplosionParticles.Lifetime = NumberRange.new(Duration - 0.5,Duration + 0.5)
+		ExplosionParticles.Speed = NumberRange.new(Size_B/2,Size_B * 2)
+		ExplosionParticles.Parent = Attachment
+		ExplosionParticles:Emit(Size_A/2 + Size_B/2)
+
+		local LastTime = Duration + 3;
+
+		local Wave = Wave_Base:Clone()
+		
+		--print(Color_A)
+		
+		Wave.CFrame = ExplosionPart.CFrame * CFrame.Angles(math.pi/2,0,0)
+		Wave.Color = Color_A;
+		Wave.Size = Vector3.new(1,1,0.1) * Size_A;
+		ExplosionPart.Parent = workspace.Camera
+		Wave.Parent = workspace
+
+		TweenService:Create(ExplosionPart,TweenInfo.new(Duration,Easing_Style),{Size = Vector3.new(0.001,0.001,0.001) * Size_B,Transparency = 1,Color = Color_B}):Play()
+		TweenService:Create(Wave,TweenInfo.new(Duration,Easing_Style),{Size = Vector3.new(1,1,0.1) * (Size_B * 1.5),Transparency = 1,Color = Color_B}):Play()
+
+		Debris:AddItem(ExplosionPart,LastTime + 1)
+		Debris:AddItem(Wave,LastTime + 1)
+
+	end
+
+	do
+		Explode(Position)
+	end
+
+
+
+
+
+
+
+end]]></ProtectedString>
+					<string name="ScriptGuid">{43CB3F44-1EC8-42FB-8B4A-2AA1A2F953F1}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Small_Nova</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="ParticleEmitter" referent="RBX265CA72773ED41D68F2D4A3659C74374_EscudoPartido">
+					<Properties>
+						<Vector3 name="Acceleration">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="Brightness">1</float>
+						<ColorSequence name="Color">0 1 1 0 0 1 1 1 0 0 </ColorSequence>
+						<float name="Drag">2</float>
+						<token name="EmissionDirection">1</token>
+						<bool name="Enabled">false</bool>
+						<bool name="FlipbookBlendFrames">true</bool>
+						<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+						<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+						<token name="FlipbookLayout">0</token>
+						<token name="FlipbookMode">0</token>
+						<int name="FlipbookSizeX">1</int>
+						<int name="FlipbookSizeY">1</int>
+						<bool name="FlipbookStartRandom">false</bool>
+						<NumberRange name="Lifetime">1 2 </NumberRange>
+						<float name="LightEmission">1</float>
+						<float name="LightInfluence">0</float>
+						<bool name="LockedToPart">false</bool>
+						<token name="Orientation">0</token>
+						<float name="Rate">1000</float>
+						<NumberRange name="RotSpeed">0 0 </NumberRange>
+						<NumberRange name="Rotation">20 20 </NumberRange>
+						<token name="Shape">0</token>
+						<token name="ShapeInOut">0</token>
+						<float name="ShapePartial">1</float>
+						<token name="ShapeStyle">0</token>
+						<NumberSequence name="Size">0 7 3 0.05 0 0 0.1 7 3 0.15 0 0 0.2 7 3 0.25 0 0 0.3 7 3 0.35 0 0 0.4 7 3 0.45 0 0 0.5 7 3 0.55 0 0 0.6 7 3 0.65 0 0 0.7 7 3 0.75 0 0 0.8 7 3 0.85 0 0 0.9 7 3 1 0 0 </NumberSequence>
+						<NumberRange name="Speed">30 60 </NumberRange>
+						<Vector2 name="SpreadAngle">
+							<X>-180</X>
+							<Y>180</Y>
+						</Vector2>
+						<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+						<Content name="Texture"><url>rbxassetid://1141830599</url></Content>
+						<float name="TimeScale">1</float>
+						<NumberSequence name="Transparency">0 0 0 1 1 0 </NumberSequence>
+						<float name="VelocityInheritance">0</float>
+						<bool name="WindAffectsDrag">false</bool>
+						<float name="ZOffset">0</float>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">ExplosionParticles</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+				<Item class="MeshPart" referent="RBX2315E0EF6E59419394FEBAF2441AF4CE_EscudoPartido">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>1.15999997</X>
+							<Y>1.15999997</Y>
+							<Z>0.159999996</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://3270017</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">640</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">nE61pkIfueR/enxFQ14Jjw==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>0.00790335424</X>
+							<Y>0.00809216499</Y>
+							<Z>0.0157881118</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="UnscaledVolume">0.0657133535</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>46.5417709</X>
+							<Y>28.9200268</Y>
+							<Z>-18.0968018</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>-2.23517418e-08</R11>
+							<R12>1</R12>
+							<R20>0</R20>
+							<R21>-1</R21>
+							<R22>-2.23517418e-08</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">false</bool>
+						<bool name="CanTouch">false</bool>
+						<bool name="CastShadow">true</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">0</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>1.15999997</X>
+							<Y>1.15999997</Y>
+							<Z>0.0600000024</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Wave</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBXDCD2358874B24F3B8315377E8D3A4351_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Smoky Explosion for convenience.
+	
+	Could be used to make a Explosion which obscures vision
+	
+	OLD
+	
+]]
+
+local Debris = (game:FindService("Debris") or game:GetService("Debris"))
+local TweenService = (game:FindService("TweenService") or game:GetService("TweenService"))
+
+local Effect = script.VFX;
+Effect.Parent = nil;
+
+return function(Position, Duration, Size, Color, Smoke_Color)
+	
+	Position = Position or Vector3.new();
+	Duration = Duration or 2
+	Size = Size or 5;
+	Color = Color or Color3.fromRGB(170, 85, 0);
+	Smoke_Color = Smoke_Color or Color3.fromRGB(99, 95, 98);
+	
+	local Explosion_Effect = Effect:Clone();
+	Explosion_Effect.Parent = workspace;
+	Explosion_Effect:SetPrimaryPartCFrame(CFrame.new(Position) * CFrame.Angles(math.rad(_rv_angulo()),math.rad(_rv_angulo()),math.rad(_rv_angulo())))
+	
+	Debris:AddItem(Explosion_Effect,Duration + 2)
+	
+	local Sphere_1 = Explosion_Effect:FindFirstChild("Sphere_1");
+	local Sphere_2 = Explosion_Effect:FindFirstChild("Sphere_2");
+	
+	local Shockwaves = Explosion_Effect:FindFirstChild("Shockwaves");
+	
+	local Core = Explosion_Effect:FindFirstChild("Core");
+	local Smoke = Explosion_Effect:FindFirstChild("Smoke")
+	
+	Sphere_1.Color = Color;
+	Sphere_2.Color = Color;
+	Core.Color = Color;
+	
+	Smoke.Color = Smoke_Color;
+	
+	Sphere_1.Size = Vector3.new(Size/10, Size * 2, Size * 2)
+	Sphere_2.Size = Vector3.new(Size/10, Size * 2, Size * 2)
+
+	
+	TweenService:Create(Sphere_1,TweenInfo.new(Duration - .5,Enum.EasingStyle.Sine),{Size = Vector3.new(Size * 10, Size/2, Size/2),Transparency = 1}):Play();
+	TweenService:Create(Sphere_2,TweenInfo.new(Duration - .5,Enum.EasingStyle.Sine),{Size = Vector3.new(Size * 10, Size/2, Size/2),Transparency = 1}):Play();
+	
+	TweenService:Create(Core,TweenInfo.new(Duration,Enum.EasingStyle.Quad),{Size = ((Core.Size * 4) * Size) + Vector3.new(_rv_jitter(),_rv_jitter(),_rv_jitter())}):Play()
+	TweenService:Create(Smoke,TweenInfo.new(Duration,Enum.EasingStyle.Quad),{Size = ((Smoke.Size * 4) * Size) + Vector3.new(_rv_jitter(),_rv_jitter(),_rv_jitter())}):Play()
+	
+	task.delay(Duration,function()
+		TweenService:Create(Core,TweenInfo.new(.5,Enum.EasingStyle.Sine),{Transparency = 1}):Play()
+		TweenService:Create(Smoke,TweenInfo.new(.5,Enum.EasingStyle.Sine),{Transparency = 1}):Play()
+
+	end)
+	
+	TweenService:Create(Shockwaves,TweenInfo.new(Duration - .7,Enum.EasingStyle.Sine),{Size = Smoke.Size * (10 * Size),Transparency = 1}):Play()
+	
+	
+end
+]]></ProtectedString>
+					<string name="ScriptGuid">{A21763F3-E198-4A35-84DE-3651C6129ABB}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Smoky_Explosion</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="Model" referent="RBX82BB96DAA3CB4D96B73A35C9B63D4C9D_EscudoPartido">
+					<Properties>
+						<token name="LevelOfDetail">0</token>
+						<CoordinateFrame name="ModelMeshCFrame">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<Vector3 name="ModelMeshSize">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<token name="ModelStreamingMode">0</token>
+						<bool name="NeedsPivotMigration">false</bool>
+						<Ref name="PrimaryPart">RBX321B2E87B1F14EFD8B0DFA055FE7EE7B</Ref>
+						<float name="ScaleFactor">1</float>
+						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<OptionalCoordinateFrame name="WorldPivotData">
+							<CFrame>
+								<X>52.1490631</X>
+								<Y>76.6236038</Y>
+								<Z>102.47155</Z>
+								<R00>0.949712515</R00>
+								<R01>-0.312118709</R01>
+								<R02>-0.0250187144</R02>
+								<R10>0.297590643</R10>
+								<R11>0.874875307</R11>
+								<R12>0.382140815</R12>
+								<R20>-0.0973850787</R20>
+								<R21>-0.370369703</R21>
+								<R22>0.923764944</R22>
+							</CFrame>
+						</OptionalCoordinateFrame>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">VFX</string>
+						<int64 name="SourceAssetId">7183818583</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+					<Item class="MeshPart" referent="RBXFEFE1F26F41046868030BE18AE7FF917_EscudoPartido">
+						<Properties>
+							<bool name="DoubleSided">false</bool>
+							<bool name="HasJointOffset">false</bool>
+							<bool name="HasSkinnedMesh">false</bool>
+							<Vector3 name="InitialSize">
+								<X>1.30000496</X>
+								<Y>0.695717514</Y>
+								<Z>0.847929478</Z>
+							</Vector3>
+							<Vector3 name="JointOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Content name="MeshId"><url>http://www.roblox.com/asset/?id=1095708</url></Content>
+							<BinaryString name="PhysicsData" />
+							<token name="RenderFidelity">1</token>
+							<Content name="TextureID"><null /></Content>
+							<int name="VertexCount">0</int>
+							<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<token name="FluidFidelityInternal">0</token>
+							<bool name="InertiaMigrated">true</bool>
+							<SharedString name="PhysicalConfigData">+qv2o0HSW+htH+ALwYQpiw==</SharedString>
+							<Vector3 name="UnscaledCofm">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaDiags">
+								<X>0.0768820047</X>
+								<Y>0.15395461</Y>
+								<Z>0.13893865</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaOffDiags">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="UnscaledVolume">0.766898155</float>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-3.85092926</X>
+								<Y>41.9920959</Y>
+								<Z>95.964386</Z>
+								<R00>0.999997854</R00>
+								<R01>-5.68106771e-08</R01>
+								<R02>7.4505806e-08</R02>
+								<R10>-5.68106771e-08</R10>
+								<R11>0.999998569</R11>
+								<R12>1.1920929e-07</R12>
+								<R20>7.4505806e-08</R20>
+								<R21>1.1920929e-07</R21>
+								<R22>0.999999285</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">false</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4284702562</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>1.32000005</X>
+								<Y>0.910000026</Y>
+								<Z>0.906000018</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Smoke</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="MeshPart" referent="RBX321B2E87B1F14EFD8B0DFA055FE7EE7B_EscudoPartido">
+						<Properties>
+							<bool name="DoubleSided">false</bool>
+							<bool name="HasJointOffset">false</bool>
+							<bool name="HasSkinnedMesh">false</bool>
+							<Vector3 name="InitialSize">
+								<X>1.30000496</X>
+								<Y>0.695717514</Y>
+								<Z>0.847929478</Z>
+							</Vector3>
+							<Vector3 name="JointOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Content name="MeshId"><url>http://www.roblox.com/asset/?id=1095708</url></Content>
+							<BinaryString name="PhysicsData" />
+							<token name="RenderFidelity">1</token>
+							<Content name="TextureID"><null /></Content>
+							<int name="VertexCount">0</int>
+							<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<token name="FluidFidelityInternal">0</token>
+							<bool name="InertiaMigrated">true</bool>
+							<SharedString name="PhysicalConfigData">+qv2o0HSW+htH+ALwYQpiw==</SharedString>
+							<Vector3 name="UnscaledCofm">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaDiags">
+								<X>0.0768820047</X>
+								<Y>0.15395461</Y>
+								<Z>0.13893865</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaOffDiags">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="UnscaledVolume">0.766898155</float>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-3.85092926</X>
+								<Y>41.9920959</Y>
+								<Z>95.964386</Z>
+								<R00>0.949710488</R00>
+								<R01>-0.312118143</R01>
+								<R02>-0.0250186194</R02>
+								<R10>0.297590137</R10>
+								<R11>0.874874055</R11>
+								<R12>0.382140368</R12>
+								<R20>-0.0973849073</R20>
+								<R21>-0.370369345</R21>
+								<R22>0.923764288</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">false</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4289352960</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>1.32000005</X>
+								<Y>0.910000026</Y>
+								<Z>0.906000018</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Core</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="MeshPart" referent="RBXD26F76E7F2F74C088D3769AC80752D95_EscudoPartido">
+						<Properties>
+							<bool name="DoubleSided">false</bool>
+							<bool name="HasJointOffset">false</bool>
+							<bool name="HasSkinnedMesh">false</bool>
+							<Vector3 name="InitialSize">
+								<X>6.15435791</X>
+								<Y>6.154356</Y>
+								<Z>6.14221573</Z>
+							</Vector3>
+							<Vector3 name="JointOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Content name="MeshId"><url>rbxassetid://1886703108</url></Content>
+							<BinaryString name="PhysicsData" />
+							<token name="RenderFidelity">1</token>
+							<Content name="TextureID"><null /></Content>
+							<int name="VertexCount">0</int>
+							<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<token name="FluidFidelityInternal">0</token>
+							<bool name="InertiaMigrated">true</bool>
+							<SharedString name="PhysicalConfigData">+qv2o0HSW+htH+ALwYQpiw==</SharedString>
+							<Vector3 name="UnscaledCofm">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaDiags">
+								<X>1465.70874</X>
+								<Y>1465.70911</Y>
+								<Z>1468.60327</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaOffDiags">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="UnscaledVolume">232.643234</float>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-3.85092926</X>
+								<Y>41.9920959</Y>
+								<Z>95.964386</Z>
+								<R00>0.869768322</R00>
+								<R01>-0.438673615</R01>
+								<R02>0.225973904</R02>
+								<R10>0.450322181</R10>
+								<R11>0.892864525</R11>
+								<R12>8.94069672e-08</R12>
+								<R20>-0.201764464</R20>
+								<R21>0.101761341</R21>
+								<R22>0.974132538</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4289352960</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>0.646000028</X>
+								<Y>1</Y>
+								<Z>1</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Sphere_2</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="MeshPart" referent="RBXE6B1C8CC8A8941DBAFABABC54C4E48C2_EscudoPartido">
+						<Properties>
+							<bool name="DoubleSided">false</bool>
+							<bool name="HasJointOffset">false</bool>
+							<bool name="HasSkinnedMesh">false</bool>
+							<Vector3 name="InitialSize">
+								<X>6.15435791</X>
+								<Y>6.154356</Y>
+								<Z>6.14221573</Z>
+							</Vector3>
+							<Vector3 name="JointOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Content name="MeshId"><url>rbxassetid://1886703108</url></Content>
+							<BinaryString name="PhysicsData" />
+							<token name="RenderFidelity">1</token>
+							<Content name="TextureID"><null /></Content>
+							<int name="VertexCount">0</int>
+							<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<token name="FluidFidelityInternal">0</token>
+							<bool name="InertiaMigrated">true</bool>
+							<SharedString name="PhysicalConfigData">+qv2o0HSW+htH+ALwYQpiw==</SharedString>
+							<Vector3 name="UnscaledCofm">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaDiags">
+								<X>1465.70874</X>
+								<Y>1465.70911</Y>
+								<Z>1468.60327</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaOffDiags">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="UnscaledVolume">232.643234</float>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-3.85092926</X>
+								<Y>41.9920959</Y>
+								<Z>95.964386</Z>
+								<R00>-0.683166027</R00>
+								<R01>-0.72731483</R01>
+								<R02>-0.0655209944</R02>
+								<R10>0.701834559</R10>
+								<R11>-0.67871505</R11>
+								<R12>0.216266677</R12>
+								<R20>-0.201764598</R20>
+								<R21>0.101761192</R21>
+								<R22>0.974132478</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4289352960</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>0.645721912</X>
+								<Y>1</Y>
+								<Z>1</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Sphere_1</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="MeshPart" referent="RBX9531E9A414BF4B9E8C6341C3DA9DBD0F_EscudoPartido">
+						<Properties>
+							<bool name="DoubleSided">false</bool>
+							<bool name="HasJointOffset">false</bool>
+							<bool name="HasSkinnedMesh">false</bool>
+							<Vector3 name="InitialSize">
+								<X>1.98125196</X>
+								<Y>1.86112905</Y>
+								<Z>1.87576771</Z>
+							</Vector3>
+							<Vector3 name="JointOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Content name="MeshId"><url>rbxassetid://881809484</url></Content>
+							<BinaryString name="PhysicsData" />
+							<token name="RenderFidelity">1</token>
+							<Content name="TextureID"><null /></Content>
+							<int name="VertexCount">0</int>
+							<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							<token name="FluidFidelityInternal">0</token>
+							<bool name="InertiaMigrated">true</bool>
+							<SharedString name="PhysicalConfigData">+qv2o0HSW+htH+ALwYQpiw==</SharedString>
+							<Vector3 name="UnscaledCofm">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaDiags">
+								<X>4.02450848</X>
+								<Y>4.29054403</Y>
+								<Z>4.25901365</Z>
+							</Vector3>
+							<Vector3 name="UnscaledVolInertiaOffDiags">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="UnscaledVolume">6.91664124</float>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-3.85092926</X>
+								<Y>41.9920959</Y>
+								<Z>95.964386</Z>
+								<R00>5.68106771e-08</R00>
+								<R01>-7.4505806e-08</R01>
+								<R02>0.999997854</R02>
+								<R10>-0.999998569</R10>
+								<R11>-1.1920929e-07</R11>
+								<R12>-5.68106771e-08</R12>
+								<R20>-1.1920929e-07</R20>
+								<R21>-0.999999285</R21>
+								<R22>7.4505806e-08</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">true</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0.850000024</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>3.86199999</X>
+								<Y>3.55800009</Y>
+								<Z>3.78399992</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Shockwaves</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBX2A5C954A0EDA47EB8F36B140290C0714_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+local Explosion = script.Explosion
+
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+
+return function(Position, Duration, Size_A, Size_B, Color_A, Color_B)
+
+	Position = Position or Vector3.new();
+	Size_A = Size_A or 0;
+	Size_B = Size_B or 0;
+	Color_A = Color_A or Color3.fromRGB(0, 0, 0)
+	Color_B = Color_B or Color_A
+
+	local ExplosionModel = Explosion:Clone()
+	ExplosionModel.Parent = workspace
+	
+	ExplosionModel:PivotTo(CFrame.new(Position))
+	
+	Debris:AddItem(ExplosionModel,Duration + 2);
+	
+	ExplosionModel.Core.Color = Color_A;
+	ExplosionModel.Core.Size = Vector3.new(1,1,1) * Size_A;
+	
+	ExplosionModel.Outer.Color = Color_A;
+	ExplosionModel.Outer.Size = Vector3.new(1.3,1.3,1.3) * Size_A
+	
+	TweenService:Create(ExplosionModel.Core,TweenInfo.new(Duration,Enum.EasingStyle.Exponential),{Size = Vector3.new(1,1,1) * Size_B,Color = Color_B}):Play()
+	TweenService:Create(ExplosionModel.Outer,TweenInfo.new(Duration,Enum.EasingStyle.Back),{Size = Vector3.new(1.3,1.3,1.3) * Size_B,Color = Color_B}):Play()
+
+	TweenService:Create(ExplosionModel.Core,TweenInfo.new(Duration),{Transparency = 1}):Play()
+	TweenService:Create(ExplosionModel.Outer,TweenInfo.new(Duration),{Transparency = 1}):Play()
+	
+	
+
+end]]></ProtectedString>
+					<string name="ScriptGuid">{2123AF5A-D61F-48F6-9D97-90F78CB0DF51}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Shockwave_Explosion</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="Model" referent="RBX9DDA33976A6D49568254957AEFEC4EEB_EscudoPartido">
+					<Properties>
+						<token name="LevelOfDetail">0</token>
+						<CoordinateFrame name="ModelMeshCFrame">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<Vector3 name="ModelMeshSize">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<token name="ModelStreamingMode">0</token>
+						<bool name="NeedsPivotMigration">false</bool>
+						<Ref name="PrimaryPart">null</Ref>
+						<float name="ScaleFactor">1</float>
+						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<OptionalCoordinateFrame name="WorldPivotData">
+							<CFrame>
+								<X>-15.9499893</X>
+								<Y>-32.6315079</Y>
+								<Z>-39.1571693</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CFrame>
+						</OptionalCoordinateFrame>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Explosion</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+					<Item class="Part" referent="RBX0C9C53626297468F98583AB8A76D2C9D_EscudoPartido">
+						<Properties>
+							<token name="shape">0</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-15.9499893</X>
+								<Y>-32.6315079</Y>
+								<Z>-39.1571693</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">false</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">1584</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>1.29999995</X>
+								<Y>1.29999995</Y>
+								<Z>1.29999995</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Outer</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="Part" referent="RBXD1C7050723354A08B7C847D4CB074A61_EscudoPartido">
+						<Properties>
+							<token name="shape">0</token>
+							<token name="formFactorRaw">1</token>
+							<bool name="Anchored">true</bool>
+							<bool name="AudioCanCollide">true</bool>
+							<float name="BackParamA">-0.5</float>
+							<float name="BackParamB">0.5</float>
+							<token name="BackSurface">0</token>
+							<token name="BackSurfaceInput">0</token>
+							<float name="BottomParamA">-0.5</float>
+							<float name="BottomParamB">0.5</float>
+							<token name="BottomSurface">0</token>
+							<token name="BottomSurfaceInput">0</token>
+							<CoordinateFrame name="CFrame">
+								<X>-15.9499893</X>
+								<Y>-32.6315079</Y>
+								<Z>-39.1571693</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="CanCollide">false</bool>
+							<bool name="CanQuery">false</bool>
+							<bool name="CanTouch">false</bool>
+							<bool name="CastShadow">false</bool>
+							<string name="CollisionGroup">Default</string>
+							<int name="CollisionGroupId">0</int>
+							<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+							<PhysicalProperties name="CustomPhysicalProperties">
+								<CustomPhysics>false</CustomPhysics>
+							</PhysicalProperties>
+							<bool name="EnableFluidForces">true</bool>
+							<float name="FrontParamA">-0.5</float>
+							<float name="FrontParamB">0.5</float>
+							<token name="FrontSurface">0</token>
+							<token name="FrontSurfaceInput">0</token>
+							<float name="LeftParamA">-0.5</float>
+							<float name="LeftParamB">0.5</float>
+							<token name="LeftSurface">0</token>
+							<token name="LeftSurfaceInput">0</token>
+							<bool name="Locked">false</bool>
+							<bool name="Massless">true</bool>
+							<token name="Material">288</token>
+							<string name="MaterialVariantSerialized" />
+							<CoordinateFrame name="PivotOffset">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<float name="Reflectance">0</float>
+							<float name="RightParamA">-0.5</float>
+							<float name="RightParamB">0.5</float>
+							<token name="RightSurface">0</token>
+							<token name="RightSurfaceInput">0</token>
+							<int name="RootPriority">0</int>
+							<Vector3 name="RotVelocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="TopParamA">-0.5</float>
+							<float name="TopParamB">0.5</float>
+							<token name="TopSurface">0</token>
+							<token name="TopSurfaceInput">0</token>
+							<float name="Transparency">0</float>
+							<Vector3 name="Velocity">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<Vector3 name="size">
+								<X>1</X>
+								<Y>1</Y>
+								<Z>1</Z>
+							</Vector3>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Core</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBX0FF24457CC6D4801BA64E74211125B9E_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Slash effect for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+
+return function(CF, Size, Duration, Color_A, Color_B)
+	
+	CF = CF or CFrame.new(Vector3.new(0,5,0))
+	Size = Size or 10;
+	Duration = Duration or .2;
+	Color_A = Color_A or Color3.fromRGB(255, 255, 255);
+	Color_B = Color_B or Color_A
+	
+	local SlashPart = Instance.new("Part")
+	SlashPart.Size = Vector3.new()
+	SlashPart.Color = Color_A;
+	SlashPart.Material = Enum.Material.Neon;
+	SlashPart.CanTouch = false;
+	SlashPart.Size = Vector3.new(1,1,1) * Size
+	SlashPart.Anchored = true;
+	SlashPart.CanCollide = false
+	SlashPart.Name = "Slash"
+	SlashPart.CFrame = CF
+
+	local SlashMesh = Instance.new("SpecialMesh")
+	SlashMesh.MeshType = Enum.MeshType.Sphere;
+	SlashMesh.Name = "SlashMesh"
+	SlashMesh.Scale = Vector3.new(1,1,1)
+	SlashMesh.Parent = SlashPart
+
+
+	SlashPart.Parent = workspace
+
+	TweenService:Create(SlashMesh,TweenInfo.new(Duration,Enum.EasingStyle.Linear),{Scale = Vector3.new(0,Size,0)}):Play()
+	TweenService:Create(SlashPart,TweenInfo.new(Duration,Enum.EasingStyle.Linear),{Transparency = 1,Color = Color_B}):Play()
+
+	Debris:AddItem(SlashPart,Duration + .8)
+
+end]]></ProtectedString>
+					<string name="ScriptGuid">{E957C1A9-95D8-43CF-8428-1EB0C24820BC}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Small_Slash</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBXD6DA4679EBA44BDC8A1C8992E1954A38_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Lightning effect for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+
+
+return function(CF, Lifetime, Size_Start, Size_End, Thickness_Start, Thickness_End, Color_A, Color_B)
+	
+	CF = CF or CFrame.new(Vector3.new())
+	Lifetime = Lifetime or 1;
+	Thickness_Start = Thickness_Start or 2;
+	Thickness_End = Thickness_End or Thickness_Start;
+	Size_Start = Size_Start or 0;
+	Size_End = Size_End or 75;
+	Color_A = Color_A or Color3.fromRGB(255, 176, 0);
+	Color_B = Color_B or Color_A;
+	
+	local Ring = script.Ring:Clone()
+	Ring.CFrame = CF * CFrame.Angles(-math.pi/2,0,0);
+	Ring.Size = Vector3.new(Size_Start,Size_Start,Thickness_Start);
+	Ring.Color = Color_A;
+	Ring.Parent = workspace;
+	
+	Debris:AddItem(Ring,Lifetime)
+	
+	TweenService:Create(Ring,TweenInfo.new(Lifetime),{Size = Vector3.new(Size_End,Size_End,Thickness_End),Transparency = 1,Color = Color_B}):Play();
+	
+	
+end
+]]></ProtectedString>
+					<string name="ScriptGuid">{1AC840AB-BEFC-4CDA-8E90-D6811005657A}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Sonar_Ring</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="MeshPart" referent="RBX5A753B61B8E54CD58E012142E1551CBC_EscudoPartido">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>18.0009995</X>
+							<Y>18.0019989</Y>
+							<Z>2.00099993</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://559831844</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">cxJVW8ojCZDNVJtdDiPu9g==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>21266.8457</X>
+							<Y>21264.7227</Y>
+							<Z>41390.8164</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="UnscaledVolume">648.432007</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>-49.6357803</X>
+							<Y>29.4205227</Y>
+							<Z>6.88979721</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>0</R11>
+							<R12>-1</R12>
+							<R20>0</R20>
+							<R21>1</R21>
+							<R22>0</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">false</bool>
+						<bool name="CanTouch">false</bool>
+						<bool name="CastShadow">false</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294946816</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">true</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">0.5</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>18.0009995</X>
+							<Y>18.0019989</Y>
+							<Z>2.00099993</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Ring</string>
+						<int64 name="SourceAssetId">559831847</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBXCB6E2B80FCEE40D7B3FF9DE3D56520D6_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+
+
+return function(CF, Size, Lasting, Color)
+	
+	CF = CF or CFrame.new()
+	Size = Size or 10;
+	Lasting = Lasting or 4;
+	Color = Color or Color3.fromRGB(255, 255, 255)
+	
+	
+	local Terrain = workspace.Terrain
+	local Attachment = Instance.new("Attachment")
+	Attachment.WorldCFrame = CF;
+	
+	local Crack = script.Crack:Clone()
+	Crack.Color = ColorSequence.new(Color)
+	Crack.Size = NumberSequence.new(Size);
+	Crack.Lifetime = NumberRange.new(Lasting);
+	
+	Crack.Parent = Attachment;
+	Attachment.Parent = Terrain;
+	Crack:Emit(1)
+	
+	Debris:AddItem(Attachment,Lasting + 5);
+	
+	
+	
+end]]></ProtectedString>
+					<string name="ScriptGuid">{35A5AED0-27E0-4F50-8AAA-D58A8FB133A7}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Floor_Crack</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="ParticleEmitter" referent="RBXC568A7C841BE4F35980B3C6F0A0947F8_EscudoPartido">
+					<Properties>
+						<Vector3 name="Acceleration">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="Brightness">1</float>
+						<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+						<float name="Drag">0</float>
+						<token name="EmissionDirection">1</token>
+						<bool name="Enabled">false</bool>
+						<bool name="FlipbookBlendFrames">true</bool>
+						<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+						<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+						<token name="FlipbookLayout">0</token>
+						<token name="FlipbookMode">0</token>
+						<int name="FlipbookSizeX">1</int>
+						<int name="FlipbookSizeY">1</int>
+						<bool name="FlipbookStartRandom">false</bool>
+						<NumberRange name="Lifetime">10 10 </NumberRange>
+						<float name="LightEmission">1</float>
+						<float name="LightInfluence">0</float>
+						<bool name="LockedToPart">true</bool>
+						<token name="Orientation">3</token>
+						<float name="Rate">0.100000001</float>
+						<NumberRange name="RotSpeed">0 0 </NumberRange>
+						<NumberRange name="Rotation">-360 360 </NumberRange>
+						<token name="Shape">0</token>
+						<token name="ShapeInOut">0</token>
+						<float name="ShapePartial">1</float>
+						<token name="ShapeStyle">0</token>
+						<NumberSequence name="Size">0 10 0 1 10 0 </NumberSequence>
+						<NumberRange name="Speed">0.01 0.01 </NumberRange>
+						<Vector2 name="SpreadAngle">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+						<Content name="Texture"><url>rbxassetid://11189079998</url></Content>
+						<float name="TimeScale">1</float>
+						<NumberSequence name="Transparency">0 0 0 0.560345 0.03125 0 0.777188 0.11875 0 0.920424 0.24375 0 0.974138 0.60625 0 0.995358 0.79375 0 1 1 0 </NumberSequence>
+						<float name="VelocityInheritance">0</float>
+						<bool name="WindAffectsDrag">false</bool>
+						<float name="ZOffset">1</float>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Crack</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			<Item class="ModuleScript" referent="RBXE3575A6461F94234A06BA668BD99A228_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Pseudoprojectile for convenience.
+	
+	
+]]
+
+	--// Variables;
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService") 
+local Debris = game:FindService("Debris") or game:GetService("Debris") 
+local Workspace = game:FindService("Workspace") or game:GetService("Workspace") 
+
+local Instant = Instance.new   -- [RV] Foreach e random eram mortos
+
+local IsA,FindFirstChild,FindFirstChildOfClass,WaitForChild,GetChildren,GetDescendants,DescendantOf,Destroy,Clone,SetAttribute,GetAttribute = script.IsA,script.FindFirstChild,script.FindFirstChildOfClass,script.WaitForChild,script.GetChildren,script.GetDescendants,script.IsDescendantOf,script.Destroy,script.Clone,script.SetAttribute,script.GetAttribute
+
+local CF,Vec3,RGB,Mat,TweenInfo_new = CFrame.new,Vector3.new,Color3.fromRGB,Enum.Material,TweenInfo.new
+
+return function(Start_Position, EndPosition, Thickness_A, Thickness_B, Length, Color_A, Color_B, Shape, Duration)
+	
+	Start_Position = Start_Position or Vector3.new(0,5,0)
+	EndPosition = EndPosition or Vector3.new(0,100,0);
+	Thickness_A = Thickness_A or 0.2;
+	Thickness_B = Thickness_B or Thickness_A;
+	Length = Length or 10
+	Color_A = Color_A or Color3.fromRGB(255, 255, 255);
+	Color_B = Color_B or Color_A;
+	Shape = Shape or "Cylinder"
+	Duration = Duration or (Start_Position - EndPosition).Magnitude * 0.005;
+	
+	local Tween_Create = TweenInfo_new(Duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0);
+	
+
+	local Distance = (Start_Position - EndPosition).Magnitude;
+
+	local Laser = Instant("Part");
+	Laser.Name = "Laser";
+	Laser.Locked = true;
+	Laser.Anchored = true;
+	Laser.CanCollide = false;
+	Laser.Material = Mat.Neon;
+	Laser.Size = Vec3(1,1,1) * 0.05;
+
+	local Mesh = Instant("SpecialMesh");
+	Mesh.Scale = (Vec3(Length, Thickness_A, Thickness_A)) * 20;
+	Mesh.MeshType = Enum.MeshType.Brick;
+	Mesh.Parent = Laser;
+
+	Laser.Color = Color3.fromRGB(255, 217, 0);
+
+	Laser.CFrame = CF(Start_Position, EndPosition) * CFrame.Angles(0,math.pi/2,0) * CF(0, 0, -(Mesh.Scale.Z / 40) );
+	Debris:AddItem(Laser, 1);
+	Laser.Parent = Workspace;
+
+	TweenService:Create(Mesh,Tween_Create,{Scale = Vec3(Length,Thickness_B,Thickness_B) * 20}):Play();
+	TweenService:Create(Laser,Tween_Create,{Position = EndPosition,Color = Color_B,Transparency = 1}):Play();
+	
+end
+
+]]></ProtectedString>
+					<string name="ScriptGuid">{339B6B84-EF80-4E25-A9C0-D55C14F9F0CB}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Laser_Shot</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX67AE4B796445464DB90D5BA99F8CD6CD_EscudoPartido">
+				<Properties>
+					<Content name="LinkedSource"><null /></Content>
+					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
+	Origem: Stella's VFX Addon (Stellabotrus). Módulo copiado PARA DENTRO da
+	Tool: sem require, sem ReplicatedStorage, sem depósito externo.
+	Alterações estão marcadas com [RV] no corpo.
+]]
+
+local _rv_n = 0
+local function _rv_passo()
+	_rv_n = _rv_n + 1
+	if _rv_n > 100000 then _rv_n = 1 end
+	return _rv_n
+end
+
+-- [RV] dispersão por ângulo áureo, no lugar de math.random(-360,360)
+local function _rv_angulo()
+	return (_rv_passo() * 137.507764) % 360
+end
+
+-- [RV] jitter determinístico em [-1,1], no lugar de math.random(-100,100)/100
+local function _rv_jitter()
+	return math.sin(_rv_passo() * 2.399963)
+end
+
+--[[ 
+	
+	Made by Stellabotrus. (7/8/2022)
+	
+	Modularized Sprial effect for convenience.
+	
+	
+]]
+local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
+local Debris = game:FindService("Debris") or game:GetService("Debris")
+local RunService = game:FindService("RunService") or game:GetService("RunService")
+
+return function(Position,Size,Color,Iterations,Radius,Distance)
+	
+	Position = Position or Vector3.new(0,5,0);
+	Size = Size or 1
+	Iterations = Iterations or 300
+	Distance = Distance or 3
+	Color = Color or Color3.fromRGB(255, 255, 255)
+	Radius = Radius or 10
+	
+	local x = 0
+
+	local t = Instance.new("Part")
+	t.Size = Vector3.new(Size, Size, Size)
+	t.Anchored = true
+	t.Color = Color;
+	t.CanCollide = false;
+	t.CastShadow = false;
+	t.CanQuery = false;
+	t.Material = Enum.Material.Neon
+	t.Shape = Enum.PartType.Ball
+	t.Transparency = 1
+
+	local A1 = Instance.new("Attachment")
+	A1.Position = Vector3.new(0,Size/2,0)
+	A1.Parent = t;
+
+	local A2 = Instance.new("Attachment")
+	A2.Position = Vector3.new(0,-Size/2,0)
+	A2.Parent = t;
+	
+	local Trail = script.SpiralTrail:Clone()
+	Trail.Attachment0 = A1;
+	Trail.Attachment1 = A2;
+	Trail.Color = ColorSequence.new(Color)
+	Trail.Parent = t;
+
+	Debris:AddItem(t,30)
+
+	for j = 1, 2*Radius/(Distance*Iterations) + 1 do
+		for i = 1, Iterations do
+		--[[local t = Instance.new("Part")
+		t.Size = Vector3.new(size, size, size)
+		t.Anchored = true
+		t.Color = color;
+		t.CanCollide = false;
+		t.CastShadow = false;
+		t.CanQuery = false;
+		t.Material = Enum.Material.Neon]]
+		if t then
+			t.CFrame = (CFrame.fromEulerAnglesXYZ(0,x,0) + Position +Vector3.new(Radius*math.sin(x),Distance*2*x,Radius*math.cos(x)))
+			local Increment = 250 * RunService.Heartbeat:Wait()
+			x = x + math.rad(Size*Increment)
+			--TweenService:Create(t,TweenInfo.new(1),{Size = Vector3.new(),Transparency = 1}):Play()
+			--Debris:AddItem(t,1)
+			t.Parent = workspace.CurrentCamera
+		end
+
+		end
+	end
+
+	Debris:AddItem(t,5)
+	Trail.Enabled = false;
+
+	if t then
+		t.Transparency = 1;
+	end
+end]]></ProtectedString>
+					<string name="ScriptGuid">{81885297-0E3F-4D59-93DC-61DC9BB277B4}</string>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Spiral_Effect</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="Trail" referent="RBXFB1C8273B9254D2A82EBD5A32E732535_EscudoPartido">
+					<Properties>
+						<Ref name="Attachment0">null</Ref>
+						<Ref name="Attachment1">null</Ref>
+						<float name="Brightness">10</float>
+						<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+						<bool name="Enabled">true</bool>
+						<bool name="FaceCamera">true</bool>
+						<float name="Lifetime">1</float>
+						<float name="LightEmission">1</float>
+						<float name="LightInfluence">0</float>
+						<float name="MaxLength">0</float>
+						<float name="MinLength">0</float>
+						<Content name="Texture"><null /></Content>
+						<float name="TextureLength">10</float>
+						<token name="TextureMode">2</token>
+						<NumberSequence name="Transparency">0 0 0 1 1 0 </NumberSequence>
+						<NumberSequence name="WidthScale">0 1 0 1 0 0 </NumberSequence>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">SpiralTrail</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+			</Item></Item></Item>
 	</roblox>

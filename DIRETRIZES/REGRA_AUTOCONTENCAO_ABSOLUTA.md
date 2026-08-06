@@ -9,12 +9,7 @@
 > Todo script, animação, VFX, SFX, mesh, MeshPart, textura, som, pose e módulo é
 > **obrigatoriamente, absolutamente** filho da Tool.
 
-Não há "só esse caso" e não há pasta compartilhada de conveniência.
-
-Há **uma** exceção, e ela é declarada, nominal e verificada: o pack de VFX compartilhado
-(ver [A exceção declarada](#a-exceção-declarada--o-pack-de-vfx-compartilhado), no fim deste
-documento). Qualquer outra coisa fora da Tool continua sendo violação — inclusive outro
-pack, inclusive "o mesmo pack, mas com um som junto".
+Não há exceção, não há "só esse caso", não há pasta compartilhada de conveniência.
 
 ---
 
@@ -33,7 +28,7 @@ Se faltar **uma** partícula, **um** som, **uma** pose ou **um** mesh, a Tool vi
 
 | ❌ Proibido | Por quê |
 |---|---|
-| `game:GetService("ReplicatedStorage")` e qualquer descendente | Referência fora da Tool — salvo a [exceção declarada](#a-exceção-declarada--o-pack-de-vfx-compartilhado) |
+| `game:GetService("ReplicatedStorage")` e qualquer descendente | Referência fora da Tool |
 | `game:GetService("ServerStorage")` e qualquer descendente | Idem |
 | `game:GetService("ServerScriptService")` e qualquer descendente | Idem |
 | `game:GetService("Lighting")` / `StarterGui` / `StarterPack` para buscar asset | Idem |
@@ -60,7 +55,8 @@ Se faltar **uma** partícula, **um** som, **uma** pose ou **um** mesh, a Tool vi
 ## As cinco coisas que NÃO são violação
 
 Esta regra proíbe **referenciar instância fora da Tool**. Cinco coisas se parecem com isso e não são.
-O que as cinco têm em comum: nenhuma delas faz o teste do place vazio falhar.
+O que as cinco têm em comum: **nenhuma delas faz o teste do place vazio falhar.** É esse o
+critério — não "é pequeno", não "é conveniente", não "o pack foi escrito assim".
 
 ### 1. `_G.Combate` — o Núcleo
 ```lua
@@ -120,16 +116,13 @@ Parece o `workspace:FindFirstChild` proibido no item 2, e a diferença de novo �
 | `workspace:FindFirstChild("Efeitos")` | **depósito de asset** — se o place não tiver a pasta, a Tool quebra |
 | `workspace:FindFirstChild(nome)` | **entidade viva** — o personagem que o servidor acabou de nomear |
 
-Não existe Tool que acerte alguém sem localizar esse alguém. O personagem não é asset que
-possa viajar dentro da Tool: ele nasce no place, em runtime. É a mesma natureza de
-`Players.LocalPlayer` e `workspace.CurrentCamera`, já aceitas nos itens anteriores.
+Não existe Tool que acerte alguém sem localizar esse alguém, e o personagem não é asset que
+possa viajar dentro da Tool: ele nasce no place, em runtime. Mesma natureza de
+`Players.LocalPlayer` e `workspace.CurrentCamera`, já aceitas acima. **O teste do place vazio
+continua passando** — é por isso que isto entra na lista, e o pack de VFX não entrava.
 
 A linha entre as duas é o **literal**. Buscar `"MeuEfeito"` é depósito; buscar `nome`, que
-chegou pelo `RemoteEvent`, é resolver quem está em campo. O verificador corta exatamente aí:
-
-```bash
-checar "sem buscar asset em workspace"   # só a forma com string literal
-```
+chegou pelo `RemoteEvent`, é resolver quem está em campo. O verificador corta exatamente aí.
 
 Duas condições:
 
@@ -172,107 +165,51 @@ Roda a varredura sobre `Tools/` e falha se qualquer script referenciar algo fora
 
 Manual, no Studio:
 
-- [ ] Tool sozinha em place vazio → funciona por inteiro, **sem os efeitos do pack**
+- [ ] Tool sozinha em place vazio → funciona por inteiro
 - [ ] `ACERVO_RETROVERSE` deletado → funciona
 - [ ] `NucleoCombate` deletado → funciona, sem os bônus
-- [ ] `ReplicatedStorage` e `ServerStorage` vazios → funciona, **sem os efeitos do pack**
+- [ ] `ReplicatedStorage` e `ServerStorage` vazios → funciona
 - [ ] Todo `Sound`, mesh, textura e molde de VFX é descendente da Tool
 
 ---
 
-## A exceção declarada — o pack de VFX compartilhado
+## Um caso real: o pack de VFX que "não cabia"
 
-Esta é a **única** exceção à Regra nº 1. Não é um caso especial descoberto depois: é uma
-decisão tomada com o custo na mesa, e escrita aqui para que ninguém precise adivinhar
-depois se aquilo era permitido.
+Vale registrar, porque o erro é fácil de repetir.
 
-### O que é
+Chegou o pack `Stella's VFX Addon`. Eu abri o `MainModule` dele e vi isto:
 
-O pack `Stella's VFX Addon` (116 ModuleScripts) vive em `ReplicatedStorage`, e cada
-`VFXModule` de Tool pode lê-lo — **só ele, e só de lá**.
-
-### Por que não coube dentro
-
-Não é preferência de estilo. É como o pack funciona:
-
-| | |
-|---|---|
-| `Script.Parent = ReplicatedStorage` | o `MainModule` **se muda para lá sozinho**, na primeira execução |
-| `require(<id>)` × 36 | o próprio cabeçalho manda: *"make sure to require via ID!"* |
-| Dependência externa | é addon do **Takeo's VFX System**, que é outro módulo |
-
-Copiar os 116 módulos para dentro de cada uma das 7 Tools daria 7 cópias do mesmo pack — e
-o `MainModule` continuaria tentando se mudar para `ReplicatedStorage` no primeiro uso.
-A cópia resolveria o tamanho do arquivo e nada mais.
-
-### O que a exceção custa, dito claramente
-
-**O teste do place vazio deixa de valer para o VFX, e só para o VFX.**
-
-Arraste uma Tool sozinha para um place sem o pack: ela funciona — golpe, dano, som,
-animação, cutscene, tudo — mas sem os efeitos do pack. O `VFXModule` cai nos efeitos
-próprios da Tool, que continuam lá dentro, filhos dela.
-
-> **A Tool não quebra. A Tool empobrece.** É essa a diferença que a exceção compra, e é
-> por isso que ela é aceitável.
-
-### As três condições que a mantêm estreita
-
-Não basta declarar a exceção; ela tem de ser **estruturalmente incapaz** de crescer.
-
-1. **Não yielda.** `game:FindService` + `FindFirstChild`, jamais `WaitForChild`. Sem o pack,
-   a busca devolve `nil` no mesmo frame. `WaitForChild` penduraria a thread para sempre — e
-   aí sim a Tool quebraria, não empobreceria.
-2. **Não derruba o efeito próprio.** O efeito da Tool roda **primeiro e inteiro**; o reforço
-   do pack vem depois, dentro de `pcall`. Pack ausente, quebrado ou de outra versão não
-   encosta no que a Tool desenha sozinha.
-3. **Só sai forma, cor e tempo.** Dano, alvo e estado continuam sendo assunto do servidor e
-   do Núcleo. Um pack de terceiro nunca decide regra de jogo (§12.12).
-
-### O que a exceção NÃO autoriza
-
-- depositar `Sound`, `Mesh`, `Texture` ou pose de Tool em `ReplicatedStorage`
-- `require(<id numérico>)` dentro de script de Tool — continua proibido, sem ressalva
-- qualquer outro `ReplicatedStorage` em script de Tool que não seja o pack declarado
-- um **segundo** pack compartilhado: a exceção é nominal, não é categoria
-
-### Como isso é verificado
-
-Três checagens em `TESTES/verificar_autocontencao.sh`, e elas falham sozinhas se alguém
-alargar a exceção sem passar por aqui:
-
-```
-✓ ReplicatedStorage só no VFXModule, e só via FindService
-✓ o VFXModule não espera por nada
-✓ do depósito só sai o nome declarado em PACK.DEPOSITO
+```lua
+Script.Parent = ReplicatedStorage     -- o módulo se muda para lá sozinho
+-- "make sure to require via ID!"     -- o cabeçalho manda requerer por id
 ```
 
-A terceira segue a variável que recebeu o serviço e exige que **tudo** lido nela seja
-`PACK.DEPOSITO`. Um `Sound` puxado de lá cai na hora.
+Concluí que o pack não cabia dentro da Tool e propus uma **exceção** à Regra nº 1: o pack
+viveria em `ReplicatedStorage` e cada `VFXModule` o leria de lá. Escrevi o custo, escrevi as
+condições, escrevi três verificadores para manter a exceção estreita. Tudo isso estava certo,
+e tudo isso era resposta para a pergunta errada.
 
-### Efeitos do pack que ficaram de fora
+**O erro:** eu li o *loader* e generalizei para o pack inteiro. Os **módulos de efeito** não
+dependem de nada. Medido, nos 10 que as Tools usam:
 
-A lista não é preguiça — foi lida no código de cada módulo, e cada linha tem motivo:
+| | `require` | `ReplicatedStorage` | `ServerStorage` | Takeo |
+|---|---|---|---|---|
+| todos os 10 | 0 | 0 | 0 | 0 |
 
-| Efeito | Por que não entra |
-|---|---|
-| `Flung_Debris`, `Particle_Debris` | criam `Part` não-ancorada com `AssemblyLinearVelocity` e `CanCollide` (o parâmetro é inerte: o módulo faz `CanCollide or true`). Detrito sólido no cliente empurra o próprio personagem — **VFX não mexe em gameplay** |
-| `Impact_Frame` | troca o `Sky`, liga `ColorCorrection` e põe `ScreenGui` — as três proibidas dentro de Tool |
-| `Sharp_Crater`, `Smooth_Crater` | varrem `workspace:GetDescendants()` a cada chamada; numa arena cheia é engasgo de frame no impacto, justo onde não pode |
-| `Wind_Effect`, `Wind_Spiral` | exigem uma `Instance` de fora como âncora |
-| `Fire_Circle` | contrato quebrado no próprio pack: usa `Size` como `Vector3` e depois chama `:Emit(Size)`, que espera número |
+Cada um é um `return function(...)` com os próprios moldes como filhos. Copiados para dentro
+da Tool, funcionam igual. Cabiam desde o começo.
 
-O que sobrou é o que é ancorado, movido a `Tween` e fechado nos argumentos.
+O loader é que não cabe — e o loader **não precisa entrar**: ele existe só para pôr o pack em
+`ReplicatedStorage`, que é justamente o que não queremos.
 
-### Origem (§12.12.3)
+### O que ficou disso
 
-| Campo | Valor |
-|---|---|
-| Autor | **Stellabotrus** (declarado no cabeçalho dos módulos) |
-| Base | addon do *Takeo's VFX System* |
-| Licença | **a confirmar** ⚠️ |
-| Data de entrada | 2026-08-05 |
-
-Enquanto a licença não estiver preenchida, o pack está **CRU** pela §12.12.2: entra como
-reforço opcional, e nenhuma Tool depende dele para funcionar — que é exatamente o estado
-que esta exceção já garante.
+1. **A regra não tem exceção.** Quando parecer que precisa de uma, o mais provável é que a
+   medição esteja errada — não a regra.
+2. **Medir por módulo, não por pacote.** O `_INDICE` do Acervo conta violações por arquivo
+   por isso.
+3. **Ficou uma ferramenta:** `FERRAMENTAS/conformar_pack_vfx.py` tira do pack só o que se
+   usa, roda o passe §12.12.2 e deposita no Acervo pronto para ser copiado para dentro.
+4. **O teste do place vazio é o critério, e é ele que decide** o que entra na lista das
+   coisas que não são violação. Se o teste falha, é violação — por mais bem documentada que
+   a justificativa esteja.

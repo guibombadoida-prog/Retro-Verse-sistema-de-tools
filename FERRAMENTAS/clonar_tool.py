@@ -148,16 +148,66 @@ def escrever(raiz, destino):
         f.write(envolver_cdata(conteudo))
 
 
+PACK_VFX = os.path.join(RAIZ, "ACERVO_RETROVERSE", "Stella_VFX_Addon",
+                        "VFX", "PACK_VFX.rbxmx")
+
+
+def enxertar_pack(tool):
+    """
+    Copia o pack de VFX do Acervo PARA DENTRO do VFXModule da Tool.
+
+    Regra nº 1: o efeito é filho da Tool, ponto. O Acervo é prateleira de
+    edição — o material sai de lá e entra na Tool na montagem, nunca é lido
+    de lá em runtime.
+
+    Devolve quantos efeitos entraram.
+    """
+    if not os.path.exists(PACK_VFX):
+        return 0
+
+    modulo = None
+    for item, _caminho in percorrer(tool):
+        if texto(item, "Name") == "VFXModule":
+            modulo = item
+            break
+    if modulo is None:
+        return 0
+
+    # Enxerto é idempotente: montar duas vezes não empilha dois packs.
+    for filho in list(modulo.findall("Item")):
+        if texto(filho, "Name") == "Pack":
+            modulo.remove(filho)
+
+    pack = ET.parse(PACK_VFX).getroot().find("Item")
+    if pack is None:
+        return 0
+
+    # referent tem de ser único dentro do arquivo montado: dois iguais fazem o
+    # Studio religar propriedade no objeto errado. Como o mesmo pack entra em
+    # 7 Tools, cada cópia ganha um sufixo.
+    enxerto = ET.fromstring(ET.tostring(pack))
+    marca = texto(tool, "Name").replace(" ", "")
+    for no in enxerto.iter("Item"):
+        ref = no.get("referent")
+        if ref:
+            no.set("referent", "%s_%s" % (ref, marca))
+
+    modulo.append(enxerto)
+    return len([i for i in enxerto.findall("Item")
+                if i.get("class") == "ModuleScript"])
+
+
 def montar(nomes, destino):
     """
     Monta o .rbxmx de entrega a partir dos _ORIGEM.rbxmx de cada Tool,
-    reescrevendo SÓ o Source dos scripts que existem como .lua na pasta.
+    reescrevendo SÓ o Source dos scripts que existem como .lua na pasta, e
+    enxertando o pack de VFX do Acervo dentro do VFXModule.
 
     Sai um arquivo por Tool (REGRA_ENTREGA_RBXMX: uma Tool, um arquivo, pronto
     para arrastar) e mais o conjunto com as Tools do modelo todo.
     """
     raiz = nova_raiz()
-    trocados, mantidos = 0, 0
+    trocados, mantidos, enxertados = 0, 0, 0
     for nome in nomes:
         pasta = os.path.join(TOOLS, nome)
         base = os.path.join(pasta, "_ORIGEM.rbxmx")
@@ -181,6 +231,8 @@ def montar(nomes, destino):
             else:
                 mantidos = mantidos + 1
 
+        enxertados = enxertados + enxertar_pack(tool)
+
         # Uma Tool, um arquivo — é assim que ela chega no Studio.
         sozinha = nova_raiz()
         sozinha.append(tool)
@@ -196,6 +248,8 @@ def montar(nomes, destino):
     print("   %d arquivo(s) individual(is) em Tools/<Nome>/<Nome>.rbxmx" % len(nomes))
     print("   %d script(s) vindos do .lua, %d mantidos como na origem"
           % (trocados, mantidos))
+    print("   %d efeito(s) do pack enxertados DENTRO das Tools (Regra nº 1)"
+          % enxertados)
     print("   Handle, Mesh, Model, Sound e Value: intactos, da origem")
     return 0
 

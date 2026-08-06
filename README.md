@@ -38,10 +38,6 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │   ├── Escudos_7_Tools.rbxmx      ← as 7 Tools num arquivo só
 │   └── [Nome]/[Nome].rbxmx        ← e uma por arquivo, pronta para arrastar
 │
-├── ReplicatedStorage/             ← A EXCEÇÃO DECLARADA à Regra nº 1
-│   ├── VFX_Module.rbxmx           ← pack de VFX compartilhado (Stella's Addon)
-│   └── VFX_Meshes.rbxmx           ← 200 MeshPart de molde
-│
 ├── MODELOS_ENTRADA/               ← .rbxm/.rbxmx crus, antes da conversão
 │
 ├── ACERVO_RETROVERSE/             ← §12.16 — VFX · SFX · R6 CFrame reutilizáveis
@@ -53,6 +49,7 @@ Em conflito, a **Regra nº 1 vence tudo**; depois dela, a **REGRA 12 V3** vence 
 │
 ├── FERRAMENTAS/
 │   ├── clonar_tool.py             ← CLONA Tool que chega pronta (não remonta nada)
+│   ├── conformar_pack_vfx.py      ← Pack de terceiro → passe §12.12.2 → Acervo
 │   ├── montar_rbxmx.py            ← CONSTRÓI Tool autoral a partir dos .lua
 │   ├── extrair_rbxm.py            ← Abre .rbxm BINÁRIO (LZ4) e lê tudo
 │   ├── ler_rbxmx.py               ← Abre .rbxmx XML, mesma interface
@@ -104,9 +101,9 @@ Handle, Mesh, Model, Sound nem Value.
    nem `ServerStorage` — e **ela funciona por inteiro**. Se faltar uma partícula, um som ou uma
    pose, a Tool violou a regra nº 1.
 
-   Há **uma** exceção, declarada e verificada: o pack de VFX compartilhado em
-   `ReplicatedStorage`. Sem ele a Tool perde os efeitos do pack e cai nos próprios —
-   **empobrece, não quebra**. Ver a seção "A exceção declarada" da regra.
+   **Sem exceção.** Já houve uma tentativa aqui — o pack de VFX em `ReplicatedStorage` —
+   e ela saiu: os módulos de efeito não dependiam de nada e cabiam dentro da Tool desde o
+   começo. Ver "Um caso real" no fim da regra.
 
    ```bash
    bash TESTES/verificar_autocontencao.sh

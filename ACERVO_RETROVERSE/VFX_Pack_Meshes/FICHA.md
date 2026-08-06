@@ -5,7 +5,7 @@
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-05
 - Status:                    CRU
-- Onde vive:                 `ReplicatedStorage/VFX_Meshes.rbxmx`
+- Onde vive:                 `MODELOS_ENTRADA/VFX_Pack_Meshes/` — **nada extraído ainda**
 
 ## Conteúdo
 

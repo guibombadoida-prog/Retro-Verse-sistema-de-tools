@@ -30,6 +30,8 @@ import xml.etree.ElementTree as ET
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(RAIZ, "Tools")
+# Fonte única do pack de VFX que viaja DENTRO de cada Tool
+PACK_ACERVO = os.path.join(RAIZ, "ACERVO_RETROVERSE", "Stella_VFX_Addon", "VFX")
 
 VERMELHO = "\033[31m%s\033[0m"
 VERDE = "\033[32m%s\033[0m"
@@ -191,7 +193,6 @@ def verificar(nome):
         nome_obj = caminho.rsplit("/", 1)[-1]
         relativo = caminho.split("/", 1)[1] if "/" in caminho else caminho
         arquivo = nome_arquivo(relativo)
-        vistos.add(arquivo)
 
         embutido = texto(item, "Source")
         if embutido is None:
@@ -199,14 +200,24 @@ def verificar(nome):
             continue
         fontes[nome_obj] = embutido
 
-        no_disco = os.path.join(pasta, arquivo)
+        # O pack de VFX vive DENTRO da Tool (Regra nº 1), mas a fonte dele é
+        # uma só: a do Acervo, já conformada pelo §12.12.2. Comparar contra ela
+        # é o que impede as 7 cópias de derivarem em silêncio.
+        if relativo.startswith("VFXModule/Pack/"):
+            no_disco = os.path.join(PACK_ACERVO, "%s.lua" % nome_obj)
+            origem = "o pack do Acervo"
+        else:
+            no_disco = os.path.join(pasta, arquivo)
+            origem = arquivo
+            vistos.add(arquivo)
+
         if not os.path.exists(no_disco):
             erros.append("%s está no .rbxmx mas não há %s no repositório"
-                         % (caminho, arquivo))
+                         % (caminho, os.path.relpath(no_disco, RAIZ)))
             continue
         if embutido != open(no_disco, encoding="utf-8").read():
-            erros.append("%s diverge de %s — rode clonar_tool.py montar de novo"
-                         % (nome_obj, arquivo))
+            erros.append("%s diverge de %s — remonte com clonar_tool.py"
+                         % (caminho, origem))
 
     # O caminho inverso: .lua versionado que não entrou no .rbxmx é código morto
     # no repositório — alguém editou e o arquivo entregue não tem a edição.
@@ -289,23 +300,13 @@ def verificar(nome):
             erros.append("o Server transmite o VFX %r, que o VFXModule desta Tool "
                          "não implementa — o efeito não desenha e nada avisa" % citado)
 
-    # 10. Regra nº 1
-    #
-    # Única ressalva: o VFXModule pode ler ReplicatedStorage para achar o pack de
-    # VFX compartilhado — exceção declarada, ver REGRA_AUTOCONTENCAO_ABSOLUTA.md,
-    # "A exceção declarada". A forma é fixa e é ela que passa; qualquer outra
-    # menção a ReplicatedStorage, inclusive no VFXModule, continua caindo aqui.
+    # 10. Regra nº 1 — sem ressalva
     for nome_obj, codigo in fontes.items():
         limpo = sem_comentario(codigo)
         for termo in PROIBIDOS:
-            if termo not in limpo:
-                continue
-            if termo == "ReplicatedStorage" and nome_obj == "VFXModule":
-                restante = limpo.replace('game:FindService("ReplicatedStorage")', "")
-                if "ReplicatedStorage" not in restante:
-                    continue
-            erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
-                         % (nome_obj, termo))
+            if termo in limpo:
+                erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
+                             % (nome_obj, termo))
 
     return erros
 

@@ -17,13 +17,19 @@ RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ALVO="${1:-$RAIZ/Tools}"
 FALHAS=0
 
+# O pack de VFX conformado viaja DENTRO de cada Tool, mas a fonte dele mora no
+# Acervo (uma só, para as 7 cópias não derivarem). Como esse código embarca na
+# Tool, ele é varrido junto — senão a Regra nº 1 teria um ponto cego do tamanho
+# de dez módulos.
+PACK_ACERVO="$RAIZ/ACERVO_RETROVERSE/Stella_VFX_Addon/VFX"
+
 vermelho() { printf '\033[31m%s\033[0m\n' "$1"; }
 verde()    { printf '\033[32m%s\033[0m\n' "$1"; }
 cinza()    { printf '\033[90m%s\033[0m\n' "$1"; }
 
 # Emite "arquivo:linha:código" com todo comentário removido e a numeração preservada.
 codigo_puro() {
-	find "$ALVO" -name '*.lua' -print0 2>/dev/null | while IFS= read -r -d '' arquivo; do
+	find "$ALVO" "$PACK_ACERVO" -name '*.lua' -print0 2>/dev/null | while IFS= read -r -d '' arquivo; do
 		awk -v nome="${arquivo#"$RAIZ"/}" '
 			# Comentário longo do Lua tem NÍVEL: --[[ ]], --[=[ ]=], --[==[ ]==].
 			# Ignorar o nível fazia o verificador ler documentação como se fosse código.
@@ -64,12 +70,25 @@ codigo_puro() {
 
 PURO="$(codigo_puro)"
 
+# Casa o padrão SÓ contra o corpo da linha, nunca contra o caminho do arquivo.
+# Sem isto, varrer ACERVO_RETROVERSE/ fazia a checagem "sem referência ao
+# Acervo" acusar todas as linhas do pack — inclusive as vazias — porque a
+# palavra estava no nome da pasta, não no código.
 checar() {
 	local rotulo="$1"
 	local padrao="$2"
 	local achado
 
-	achado=$(printf '%s\n' "$PURO" | grep -E "$padrao" || true)
+	# `substr($0, index($0, $3))` NÃO serve aqui: quando a linha de código é
+	# vazia, $3 é "" e index(s, "") devolve 0 — o substr volta a linha inteira,
+	# caminho junto, e a linha vazia passa a "conter" o padrão.
+	achado=$(printf '%s\n' "$PURO" \
+		| awk -v p="$padrao" '
+			{
+				corpo = $0
+				sub(/^[^:]*:[0-9]+:/, "", corpo)
+				if (corpo ~ p) print $0
+			}' || true)
 
 	if [ -n "$achado" ]; then
 		vermelho "✗ $rotulo"
@@ -86,69 +105,11 @@ cinza "Regra nº 1: nada de referência de script fora da Tool"
 echo ""
 
 # --- Depósitos de asset fora da Tool -----------------------------------------
-# ReplicatedStorage é a ÚNICA exceção à Regra nº 1, e ela é estreita de
-# propósito: só o VFXModule, só para achar o pack de VFX compartilhado, e só
-# por uma via que não yielda. As três checagens abaixo são o que a mantém
-# estreita — ver DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md, "A exceção declarada".
-RS_FORA=$(printf '%s\n' "$PURO" | grep -E 'ReplicatedStorage' \
-	| grep -vE '/VFXModule\.lua:[0-9]+:.*game:FindService\("ReplicatedStorage"\)' || true)
-if [ -n "$RS_FORA" ]; then
-	vermelho "✗ ReplicatedStorage só no VFXModule, e só via FindService"
-	printf '%s\n' "$RS_FORA" | sed 's|^|    |'
-	cinza "    A exceção é para o pack de VFX. Som, mesh, pose e módulo continuam dentro."
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ ReplicatedStorage só no VFXModule, e só via FindService"
-fi
-
-# WaitForChild num depósito que pode não existir pendura a thread para sempre.
-# É justamente o que faria a Tool QUEBRAR em vez de empobrecer sem o pack.
-RS_ESPERA=$(printf '%s\n' "$PURO" | grep -E '/VFXModule\.lua:.*:WaitForChild\(' || true)
-if [ -n "$RS_ESPERA" ]; then
-	vermelho "✗ o VFXModule não espera por nada"
-	printf '%s\n' "$RS_ESPERA" | sed 's|^|    |'
-	cinza "    Sem o pack, WaitForChild pendura. FindFirstChild devolve nil e segue."
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ o VFXModule não espera por nada"
-fi
-
-# Do depósito só pode sair o pack declarado. Se dali saísse mais alguma coisa —
-# um Sound, um Mesh, uma pose — a exceção teria virado porta. A checagem segue a
-# variável que recebeu o serviço e exige que TUDO lido nela seja PACK.DEPOSITO.
-RS_LITERAL=$(printf '%s\n' "$PURO" | awk -F: '
-	{
-		arquivo = $1
-		numero  = $2
-		corpo   = substr($0, index($0, $3))
-
-		if (arquivo !~ /VFXModule\.lua$/) next
-		if (arquivo != anterior) { alca = ""; anterior = arquivo }
-
-		# `local rs = game:FindService("ReplicatedStorage")` -> alca = "rs"
-		if (corpo ~ /=[ \t]*game:FindService\("ReplicatedStorage"\)/) {
-			nome = corpo
-			sub(/[ \t]*=.*$/, "", nome)
-			sub(/^[ \t]*local[ \t]+/, "", nome)
-			gsub(/[ \t]/, "", nome)
-			alca = nome
-			next
-		}
-
-		if (alca != "" && corpo ~ (alca "[:.]")) {
-			if (corpo ~ /FindFirstChild\([ \t]*PACK\.DEPOSITO[ \t]*\)/) next
-			print arquivo ":" numero ":" corpo
-		}
-	}
-')
-if [ -n "$RS_LITERAL" ]; then
-	vermelho "✗ do depósito só sai o nome declarado em PACK.DEPOSITO"
-	printf '%s\n' "$RS_LITERAL" | sed 's|^|    |'
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ do depósito só sai o nome declarado em PACK.DEPOSITO"
-fi
-
+# Sem exceção. Já teve uma aqui — o pack de VFX em ReplicatedStorage — e ela
+# saiu: os módulos de efeito não dependiam de nada e cabiam dentro da Tool
+# desde o começo. Quem não cabia era o loader do pack, e o loader não entra.
+# Ver FERRAMENTAS/conformar_pack_vfx.py.
+checar "sem ReplicatedStorage"          'ReplicatedStorage'
 checar "sem ServerStorage"              'ServerStorage'
 checar "sem ServerScriptService"        'ServerScriptService'
 checar "sem StarterGui / StarterPack"   'StarterGui|StarterPack|StarterPlayer'

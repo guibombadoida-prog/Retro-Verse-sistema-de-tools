@@ -1,29 +1,32 @@
 # Modelo: Stella's VFX Addon
 
 - Autor original:            **Stellabotrus** (declarado no cabeçalho dos módulos)
-- Origem:                    `vfx_module.rbxmx` — addon do *Takeo's VFX System* (roblox.com/library/8199013483)
+- Origem:                    `vfx_module.rbxmx` — addon do *Takeo's VFX System*
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-05
-- Status:                    CRU — entra só como reforço opcional, nenhuma Tool depende dele
-- Onde vive:                 `ReplicatedStorage/VFX_Module.rbxmx` — **não** vive no Acervo nem dentro da Tool
+- Status:                    **LIMPO** — passe §12.12.2 executado nos 10 efeitos em uso
+- Onde vive:                 `VFX/` aqui no Acervo · copiado PARA DENTRO de cada Tool
 
-## Por que este material não está no Acervo
+## Onde este material roda
 
-Ele é a **exceção declarada** à Regra nº 1: vive em `ReplicatedStorage` e é lido de lá pelo
-`VFXModule` de cada Tool. Ver `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`, seção
-"A exceção declarada", e `ReplicatedStorage/README.md`.
+Dentro da Tool, em `VFXModule/Pack/`. **Nada é lido de `ReplicatedStorage`** — o Acervo é
+prateleira de edição, e o material é copiado para dentro na montagem
+(`FERRAMENTAS/clonar_tool.py`, função `enxertar_pack`).
 
-O Acervo é prateleira de **edição**; este pack é dependência de **runtime**, opcional e
-degradável. São coisas diferentes e por isso ele não é depositado aqui — esta ficha existe
-para o registro de §12.12.3, não para reserva de material.
+> **Correção de rumo registrada.** Numa primeira versão eu pus este pack em
+> `ReplicatedStorage` e declarei uma exceção à Regra nº 1, com o argumento de que ele não
+> cabia dentro da Tool. O argumento valia para o `MainModule` — que se muda para lá sozinho
+> e manda requerer por id — e eu generalizei do loader para o pack inteiro. Os módulos de
+> efeito não dependem de nada e cabiam desde o começo. A exceção foi desfeita.
+> Ver `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`, "Um caso real".
 
-## Conteúdo
+## Os 10 efeitos em uso
 
-116 ModuleScripts, 46 emissores, 58 MeshParts. 30 efeitos chamáveis.
+Medido em cada arquivo: **zero `require`, zero `ReplicatedStorage`, zero `ServerStorage`,
+zero dependência do Takeo.** Cada um é um `return function(...)` com os próprios moldes como
+filhos.
 
-### Em uso pela ponte do `VFXModule`
-
-| Efeito do pack | Reforça |
+| Efeito | Reforça, na ponte do `VFXModule` |
 |---|---|
 | `Shockwave` | `IMPACTO`, `IMPACTO_NOVA`, `ONDA_CHOQUE`, `RAJADA` |
 | `Shockwave_2` | `IMPACTO_NOVA` |
@@ -36,31 +39,40 @@ para o registro de §12.12.3, não para reserva de material.
 | `Laser_Shot` | `FEIXE` |
 | `Spiral_Effect` | `AURA`, `CICLONE` |
 
-### Fora de uso, com motivo
+## Passe de conformidade §12.12.2 — EXECUTADO
 
-| Efeito | Por que não entra |
+`python3 FERRAMENTAS/conformar_pack_vfx.py`
+
+| Módulo | O que foi corrigido |
 |---|---|
-| `Flung_Debris`, `Particle_Debris` | `Part` não-ancorada com velocidade e `CanCollide` — empurraria o personagem |
-| `Impact_Frame` | troca `Sky`, liga `ColorCorrection`, põe `ScreenGui` |
-| `Sharp_Crater`, `Smooth_Crater` | `workspace:GetDescendants()` a cada chamada |
-| `Wind_Effect`, `Wind_Spiral` | exigem `Instance` de fora como âncora |
-| `Fire_Circle` | contrato quebrado no próprio pack (`:Emit(Vector3)`) |
+| `Smoky_Explosion` | 3 `math.random(-360,360)` → ângulo áureo · 6 `math.random(-100,100)/100` → jitter senoidal · 1 `WaitForChild` → acesso direto |
+| `Laser_Shot` | alias morto `random = math.random` / `Foreach = table.foreach` removido (nenhum dos dois era usado) |
+| `Floor_Crack` | `workspace:FindFirstChild("Terrain")` → `workspace.Terrain` |
+| `Shockwave`, `Shockwave_2`, `Small_Nova`, `Shockwave_Explosion`, `Sonar_Ring` | 1 `WaitForChild` → acesso direto, cada |
+| `Small_Slash`, `Spiral_Effect` | nada a corrigir |
 
-## Passe de conformidade (§12.12.2) — NÃO APLICADO
+Restante após o passe, conferido pelo próprio script: **zero** `math.random`, `Random.new`,
+`:Destroy()`, `wait/spawn/delay`, `tick()`, `continue`, `ReplicatedStorage`, `require(`,
+`Lighting`/`ScreenGui`/`ColorCorrection`.
 
-O pack **não passou** pelo passe, e é por isso que ele está CRU. A contagem de violações,
-medida no arquivo:
+## Efeitos do pack que ficaram de fora
 
-| Violação | Ocorrências |
+| Efeito | Por quê |
 |---|---|
-| `:Destroy()` | 114 |
-| `math.random` | 92 |
-| `Lighting` | 63 |
-| `ReplicatedStorage` | 44 |
-| `require(` | 36 |
-| `Sky` | 24 |
-| `:Emit(` | 21 |
+| `Flung_Debris`, `Particle_Debris` | `Part` não-ancorada com `AssemblyLinearVelocity` e `CanCollide` (o parâmetro é inerte — o módulo faz `CanCollide or true`). Detrito sólido no cliente empurra o próprio personagem: **VFX não mexe em gameplay** |
+| `Impact_Frame` | troca o `Sky`, liga `ColorCorrection`, põe `ScreenGui` — as três proibidas dentro de Tool |
+| `Sharp_Crater`, `Smooth_Crater` | varrem `workspace:GetDescendants()` a cada chamada |
+| `Wind_Effect`, `Wind_Spiral` | exigem uma `Instance` de fora como âncora |
+| `Fire_Circle` | contrato quebrado no próprio pack: usa `Size` como `Vector3` e chama `:Emit(Size)`, que espera número |
 
-Nada disso está dentro de Tool nenhuma: o pack roda no próprio contexto, no cliente, e o que
-atravessa a ponte é chamada de função — forma, cor e tempo. Regra de jogo continua sendo
-assunto do servidor e do Núcleo.
+O `MainModule` e o `LightningBolt` **não entram**: o primeiro existe só para pôr o pack em
+`ReplicatedStorage`, que é o que não queremos.
+
+## Já usado em
+
+As 7 Tools de `Tools/` (`Salvador`, `Proteção`, `Escudo Skate`, `Escudo Bumerangue`,
+`Escudo Bloqueador`, `Escudo Cyclone`, `Escudo Partido`).
+
+## Para sair de CRU/LIMPO e virar APROVADO
+
+Falta a **licença** e o teste em jogo.

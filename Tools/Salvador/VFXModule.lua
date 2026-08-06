@@ -319,27 +319,35 @@ end
 --═══════════════════════════════════════════════════════════════
 
 --═══════════════════════════════════════════════════════════════
--- PONTE PARA O PACK DE VFX COMPARTILHADO
+-- PACK DE VFX — DENTRO DA TOOL
 --
--- EXCEÇÃO DECLARADA À REGRA Nº 1 — ver ReplicatedStorage/README.md e
--- DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md, seção "A exceção declarada".
+-- REGRA Nº 1, SEM EXCEÇÃO. Os módulos do pack são filhos deste ModuleScript,
+-- em `VFXModule/Pack/`. Nada é lido de ReplicatedStorage, de ServerStorage
+-- nem do Acervo. O teste do place vazio vale inteiro, VFX incluído.
 --
--- O pack "Stella's VFX Addon" foi escrito para viver em ReplicatedStorage: o
--- MainModule dele se muda para lá sozinho na primeira execução e o cabeçalho
--- manda requerer por id. Copiar os 116 ModuleScripts para dentro de cada uma
--- das 7 Tools não resolveria isso — daria 7 cópias do mesmo pack e o módulo
--- continuaria tentando se mudar.
+-- POR QUE ISTO ESTAVA ERRADO ANTES
 --
--- O QUE ESTA PONTE GARANTE, E É O QUE PAGA A EXCEÇÃO:
+--   Eu tinha posto o pack em ReplicatedStorage e chamado de "exceção
+--   declarada", com o argumento de que ele não cabia dentro. O argumento
+--   valia para o `MainModule` — que se muda para lá sozinho e manda requerer
+--   por id — e eu generalizei do loader para o pack inteiro.
 --
---   1. NUNCA YIELDA.  FindService + FindFirstChild, jamais WaitForChild.
---      Num place sem o pack, `deposito()` devolve nil no mesmo frame — não
---      há espera de 5 s nem thread pendurada.
+--   Os MÓDULOS DE EFEITO não dependem de nada: nenhum require, nenhum
+--   ReplicatedStorage, nenhum Takeo. Conferido nos 10 que esta Tool usa.
+--   Cabiam dentro desde o começo.
+--
+-- O QUE CONTINUA VALENDO
+--
+--   1. NUNCA YIELDA.  FindFirstChild, jamais WaitForChild.
 --   2. NUNCA DERRUBA O EFEITO PRÓPRIO.  O efeito da Tool roda primeiro e
---      inteiro; o reforço vem depois, dentro de pcall. Pack ausente, quebrado
---      ou de outra versão = a Tool empobrece, não quebra.
---   3. NÃO IMPORTA REGRA DE JOGO.  Daqui só sai forma, cor e tempo. Dano,
---      alvo e estado continuam sendo assunto do servidor e do Núcleo.
+--      inteiro; o reforço vem depois, dentro de pcall. Módulo faltando ou
+--      quebrado = a Tool empobrece, não quebra.
+--   3. NÃO IMPORTA REGRA DE JOGO.  Daqui só sai forma, cor e tempo.
+--
+-- Os 10 passaram pelo passe §12.12.2 antes de entrar (FERRAMENTAS/
+-- conformar_pack_vfx.py): 9 math.random viraram ângulo áureo e jitter
+-- senoidal, um WaitForChild por módulo virou acesso direto, e o
+-- workspace:FindFirstChild("Terrain") do Floor_Crack virou workspace.Terrain.
 --
 -- EFEITOS DO PACK QUE FICARAM DE FORA, E POR QUÊ  (a lista não é preguiça,
 -- foi lida no código de cada módulo):
@@ -366,8 +374,8 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local PACK = {
-	LIGADO   = true,                   -- desligue aqui para voltar ao VFX próprio
-	DEPOSITO = "Stella's VFX Addon",   -- único nome que esta Tool lê de fora
+	LIGADO = true,     -- desligue aqui para voltar só ao VFX próprio da Tool
+	PASTA  = "Pack",   -- filha DESTE módulo, dentro da Tool
 }
 
 local raizPack        = nil
@@ -377,11 +385,8 @@ local moduloDoPack    = {}   -- [nome] = função | false (já falhou, não insi
 local function deposito()
 	if raizProcurada then return raizPack end
 	raizProcurada = true
-	-- FindService não cria serviço nem espera por ele: devolve nil e pronto.
-	local rs = game:FindService("ReplicatedStorage")
-	if rs then
-		raizPack = rs:FindFirstChild(PACK.DEPOSITO)
-	end
+	-- script é o VFXModule, filho da Tool. Daqui não se sai da Tool.
+	raizPack = script:FindFirstChild(PACK.PASTA)
 	return raizPack
 end
 

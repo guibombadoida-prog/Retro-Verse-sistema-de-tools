@@ -25,7 +25,7 @@ As 7 juntas: [`Escudos_7_Tools.rbxmx`](Escudos_7_Tools.rbxmx)
 | Handle, `SpecialMesh`, Model | **intactos, da origem** |
 | `Sound` (79), `StringValue` (14), `NumberValue` (14), `RemoteEvent` (14) | **intactos, da origem** |
 | `Poses`, `R6CFrameAnimator`, `Client`, os 7 `_Server_V*` | **intactos, da origem** |
-| `VFXModule` | ponte nova para o pack compartilhado, no fim do arquivo |
+| `VFXModule` | ponte nova para o pack, **mais os 10 efeitos como filhos** |
 
 Conferido contra `MODELOS_ENTRADA/Danilo_Escudos_V4/DANILO_TOOLS_ESCUDOS_V4.rbxmx`:
 censo de classes idêntico, `SpecialMesh` iguais propriedade a propriedade.
@@ -49,15 +49,30 @@ A arquitetura agora codifica "não mexa no Handle" — não é mais uma promessa
 
 ---
 
-## O VFX
+## O VFX — dentro da Tool
 
 Cada `VFXModule` roda **primeiro** o efeito próprio da Tool, inteiro, e **depois** sobrepõe o
-reforço do pack compartilhado (`ReplicatedStorage/VFX_Module.rbxmx`), dentro de `pcall`.
+reforço do pack, dentro de `pcall`.
 
-Sem o pack no place, o reforço não acha nada e o efeito próprio já aconteceu:
-**a Tool empobrece, não quebra.** É a exceção declarada da Regra nº 1 — ver
-[`DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md`](../DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md),
-seção "A exceção declarada".
+Os 10 módulos do pack são **filhos do `VFXModule`**, em `VFXModule/Pack/`. Nada é lido de
+`ReplicatedStorage`, de `ServerStorage` nem do Acervo — **a Regra nº 1 vale inteira, e o
+teste do place vazio cobre o VFX junto com o resto.**
+
+> **Isto começou errado.** Eu tinha posto o pack em `ReplicatedStorage` e chamado de "exceção
+> declarada", com o argumento de que ele não cabia dentro da Tool. O argumento valia para o
+> `MainModule` do pack — que se muda para lá sozinho e manda requerer por id — e eu
+> generalizei do loader para o pack inteiro. Medido depois, nos 10 efeitos em uso:
+> **zero `require`, zero `ReplicatedStorage`, zero dependência do Takeo.** Cabiam desde o
+> começo. A exceção foi desfeita e a regra voltou ao texto original.
+
+Os 10 passaram pelo passe §12.12.2 antes de entrar
+(`python3 FERRAMENTAS/conformar_pack_vfx.py`): 9 `math.random` viraram ângulo áureo e jitter
+senoidal, um `WaitForChild` por módulo virou acesso direto, e o
+`workspace:FindFirstChild("Terrain")` do `Floor_Crack` virou `workspace.Terrain`.
+
+A fonte é **uma só**, no Acervo (`ACERVO_RETROVERSE/Stella_VFX_Addon/VFX/`), copiada para
+dentro das 7 Tools na montagem. `verificar_rbxmx.py` compara as 7 cópias contra ela — é o
+que impede de derivarem em silêncio.
 
 O reforço é **camada nova, não repetição**: o `IMPACTO` próprio faz flash, anel, linhas e
 faíscas e nenhum disco — é o disco que o pack acrescenta, em 0.26 s, tempo diferente das
@@ -79,14 +94,14 @@ nesta leva — que era só o VFX. Nenhum deles foi tocado.
 
 O segundo é o mesmo defeito de antes, e continua na V4. A correção é mandar **um beat
 nomeado** pelo Remote e deixar o `LocalScript` desenhar a 60 Hz — o `verificar_autocontencao.sh`
-já cobra isso, e é a única checagem vermelha do repositório hoje.
+já cobra isso, e é a única checagem vermelha da autocontenção hoje.
 
 ---
 
 ## Verificação
 
 ```bash
-bash    TESTES/verificar_autocontencao.sh   # Regra nº 1 + a exceção declarada
+bash    TESTES/verificar_autocontencao.sh   # Regra nº 1, sem exceção
 python3 TESTES/verificar_rbxmx.py           # as Tools entregues
 python3 TESTES/verificar_poses.py           # poses × animator V2
 lua5.4  TESTES/harness_NucleoCombate.lua    # pipeline de dano
@@ -102,9 +117,8 @@ Entre as checagens, cinco que só existem porque a coisa quebrou em jogo:
 
 ## Instalação no place
 
-1. `ReplicatedStorage/VFX_Module.rbxmx` e `VFX_Meshes.rbxmx` → `ReplicatedStorage`
-2. `ServerScriptService/NucleoCombate.lua` → Script `NucleoCombate` em `ServerScriptService`
-3. As Tools → `StarterPack`
+1. As Tools → `StarterPack`. **Só isso.**
+2. Opcional: `ServerScriptService/NucleoCombate.lua` → Script `NucleoCombate` em
+   `ServerScriptService`, para os bônus de combate.
 
-Os passos 1 e 2 são **opcionais**: sem o 1 a Tool perde o reforço de VFX, sem o 2 perde os
-bônus de combate. Em nenhum dos dois casos ela quebra.
+Não há passo de `ReplicatedStorage`. A Tool leva tudo dentro dela.
