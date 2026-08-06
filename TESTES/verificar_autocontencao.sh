@@ -135,7 +135,17 @@ checar "sem esperar por algo em workspace" 'workspace[:.]WaitForChild|game\.Work
 # --- Animação R6: o animator canônico solda Welds próprios -------------------
 # Escrever em Motor6D.C0 briga com o script Animate padrão do Roblox, que escreve
 # nas mesmas juntas todo frame. Dois donos por junta: a pose treme e volta só.
-checar "sem escrita em Motor6D.C0"      'Motor6D|\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]'
+#
+# O perigo é escrever numa junta que JÁ TEM DONO: o script Animate padrão do
+# Roblox escreve nas juntas do personagem todo frame, e dois donos por junta
+# fazem a pose tremer e voltar sozinha. Foi o que bugou a primeira leva.
+#
+# Montar juntas de um rig que o próprio script acabou de criar — o corpo da
+# bomba-NPC, por exemplo — é outra coisa: ninguém mais escreve nelas, e um
+# Humanoid R6 não existe sem RootJoint e Neck. Por isso a checagem mira o
+# ACESSO A JUNTA DE PERSONAGEM EXISTENTE, não a classe Motor6D em si.
+checar "sem escrita em junta de personagem" \
+	'\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]|FindFirstChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)|WaitForChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)'
 checar "sem Animation / LoadAnimation"  'Instance\.new\("Animation"\)|LoadAnimation|AnimationTrack'
 
 # Encadear beat com task.wait(duração) some ~1 frame por beat — com 100 beats

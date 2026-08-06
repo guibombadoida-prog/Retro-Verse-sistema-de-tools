@@ -352,6 +352,14 @@ def verificar(nome):
 
 # Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
 CONJUNTOS = [
+    ("Bombas_6_Tools.rbxmx", "Bomba_V4", [
+        "Multiplas Bombas",
+        "Bomba Nuclear",
+        "Bomba Meteorica",
+        "Bomba Basquete",
+        "Bomba Doida",
+        "Bomba Gelada",
+    ]),
     ("Astral_5_Tools.rbxmx", "Astral_Peria", [
         "Astral Periastron",
         "Astral Nova",

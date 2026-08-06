@@ -1,6 +1,31 @@
 # Tools
 
-**12 Tools, em dois conjuntos.**
+**18 Tools, em três conjuntos.**
+
+## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
+
+Habilidade **única** em cada, no `Tool.Activated`. Nenhuma tem Extra — por isso
+nenhuma tem `AcaoRemote` nem botão de toque: o ícone da Tool já é o botão.
+
+| Tool | Habilidade | Entrega |
+|---|---|---|
+| `Multiplas Bombas` | 1 bomba → **3** mini bombas *(a do original)* | [`.rbxmx`](Multiplas%20Bombas/Multiplas%20Bombas.rbxmx) |
+| `Bomba Nuclear` | nuke — cogumelo, clarão e **3 anéis** de dano expandindo | [`.rbxmx`](Bomba%20Nuclear/Bomba%20Nuclear.rbxmx) |
+| `Bomba Meteorica` | meteoro na diagonal, **1 s** de queda com áudio, **10** mini para cima | [`.rbxmx`](Bomba%20Meteorica/Bomba%20Meteorica.rbxmx) |
+| `Bomba Basquete` | quica **3** vezes e estoura | [`.rbxmx`](Bomba%20Basquete/Bomba%20Basquete.rbxmx) |
+| `Bomba Doida` | **2** bombas-NPC R6 kamikaze; sem alvo, ficam bravas e aceleram | [`.rbxmx`](Bomba%20Doida/Bomba%20Doida.rbxmx) |
+| `Bomba Gelada` | congela e deixa **chão de gelo** escorregadio | [`.rbxmx`](Bomba%20Gelada/Bomba%20Gelada.rbxmx) |
+
+As 6 juntas: [`Bombas_6_Tools.rbxmx`](Bombas_6_Tools.rbxmx)
+
+Números do original preservados: dano **20**, raio **20**, 3 mini a **20%** em
+raio **15**, delay **1 s**, recarga **1 s**, explode ao tocar Humanoid ou por prazo.
+
+O original fazia `require(8199013483)` — **id numérico é execução de código
+remoto**, e não entra em Tool nenhuma. Ver
+[`ACERVO_RETROVERSE/Bomba_V4/FICHA.md`](../ACERVO_RETROVERSE/Bomba_V4/FICHA.md).
+
+---
 
 ## Conjunto ASTRAL — 5 Tools, de `astral_peria.rbxmx`
 
