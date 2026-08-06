@@ -75,21 +75,64 @@ def mexe(junta, valor):
     return False
 
 
+# A tabela de sequências pode ser `Poses.SEQUENCIAS`, `P.SEQUENCIAS` ou
+# `SEQUENCIAS` solta: o que importa é onde ela começa, porque é ali que o
+# bloco de poses termina. Exigir um prefixo específico só servia para o
+# formato que eu mesmo tinha escrito antes.
+ABRE_SEQ = re.compile(r"(?m)^(?:\w+\.)?SEQUENCIAS\s*=\s*\{")
+
+# Pose no topo do arquivo: `P.GUARDA = {` … `}` com o fecha na coluna zero.
+# O corpo é pego inteiro e só depois fatiado por campo — um `CFrame.new(` com
+# os doze componentes em linhas separadas é Lua perfeitamente normal, e o
+# padrão antigo (um campo por linha) não enxergava a pose inteira. Pose
+# invisível para o lint vira "a sequência chama uma pose que não existe".
+BLOCO_POSE_TOPO = re.compile(
+    r"(?m)^(?:\w+\.)?([A-Z][\w]*)\s*=\s*\{[^\n]*\n(.*?)\n\}", re.S)
+
+INICIO_CAMPO = re.compile(r"(?m)^\t(\w+)\s*=\s*")
+
+
+def campos(corpo):
+    """(junta, valor) de um corpo de pose, com valores de várias linhas."""
+    marcas = list(INICIO_CAMPO.finditer(corpo))
+    saida = []
+    for i, m in enumerate(marcas):
+        fim = marcas[i + 1].start() if i + 1 < len(marcas) else len(corpo)
+        saida.append((m.group(1), corpo[m.end():fim].strip().rstrip(",")))
+    return saida
+
+
 def verificar(caminho):
     texto = open(caminho, encoding="utf-8").read()
     erros = []
 
-    if "Poses.POSES" not in texto or "Poses.SEQUENCIAS" not in texto:
-        return ["sem Poses.POSES / Poses.SEQUENCIAS — formato do V2"]
+    # A perna é liberada pelo ANIMATOR, que viaja dentro da Tool e chama
+    # ReleaseLegs ao fim de toda sequência. Procurar a citação só no arquivo de
+    # poses acusava as 7 Tools cujo comportamento estava correto. O escopo certo
+    # é a Tool inteira: se ninguém ali libera, aí sim a perna fica soldada.
+    pasta = os.path.dirname(caminho)
+    vizinhos = ""
+    for arq in sorted(os.listdir(pasta)):
+        if arq.endswith(".lua"):
+            vizinhos = vizinhos + open(os.path.join(pasta, arq),
+                                       encoding="utf-8").read()
 
-    corte = texto.index("Poses.SEQUENCIAS")
-    bloco_poses = texto[texto.index("Poses.POSES"):corte]
+    abertura = ABRE_SEQ.search(texto)
+    if abertura is None:
+        return ["sem tabela SEQUENCIAS — formato do V2"]
+
+    corte = abertura.start()
+    bloco_poses = texto[:corte]
     bloco_seqs = texto[corte:]
 
     poses, usa_perna = {}, False
-    for nome, corpo in BLOCO_POSE.findall(bloco_poses):
+    achados = BLOCO_POSE.findall(bloco_poses) + BLOCO_POSE_TOPO.findall(bloco_poses)
+    if not achados:
+        erros.append("nenhuma pose reconhecida antes de SEQUENCIAS — "
+                     "verificador cego é pior que verificador ausente")
+    for nome, corpo in achados:
         juntas = {}
-        for junta, valor in CAMPO.findall(corpo):
+        for junta, valor in campos(corpo):
             # 1. junta conhecida
             if junta not in JUNTAS:
                 erros.append(
@@ -103,7 +146,7 @@ def verificar(caminho):
         poses[nome] = juntas
 
     # 5. perna exige o aviso do ReleaseLegs
-    if usa_perna and "ReleaseLegs" not in texto:
+    if usa_perna and "ReleaseLegs" not in vizinhos:
         erros.append(
             "usa perna sem citar ReleaseLegs — perna soldada trava a caminhada"
         )
@@ -135,12 +178,22 @@ def verificar(caminho):
 
 
 def main():
-    caminhos = sorted(glob.glob(os.path.join(RAIZ, "Tools", "*", "Poses_*.lua")))
+    # `Poses_*.lua` sozinho NÃO serve: Tool clonada traz o arquivo como
+    # `Poses.lua`, e o glob antigo casava zero arquivos. Uma suíte que verifica
+    # nada e imprime OK é pior do que não existir — por isso o padrão pegou
+    # todos os `Poses*.lua` e a contagem zero passou a ser falha.
+    caminhos = sorted(glob.glob(os.path.join(RAIZ, "Tools", "*", "Poses*.lua")))
 
     print("")
     print("VERIFICAÇÃO DAS TABELAS DE POSE")
     print(CINZA % "Juntas do R6CFrameAnimator V2, sequências vivas, formato V2")
     print("")
+
+    if not caminhos:
+        print(VERMELHO % "NENHUMA TABELA DE POSE ENCONTRADA")
+        print(CINZA % "Tools/*/Poses*.lua não casou nada — o verificador estaria cego")
+        print("")
+        return 1
 
     total = 0
     for caminho in caminhos:

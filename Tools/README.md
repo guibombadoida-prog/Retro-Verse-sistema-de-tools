@@ -1,6 +1,35 @@
 # Tools
 
-**7 Tools, clonadas da `DANILO_TOOLS_ESCUDOS_V4.rbxmx`.**
+**12 Tools, em dois conjuntos.**
+
+## Conjunto ASTRAL — 5 Tools, de `astral_peria.rbxmx`
+
+A primeira leva as habilidades **originais** do modelo; as outras quatro são
+clones com **duas habilidades novas** cada, no mesmo tema.
+
+| Tool | M1 | Tecla | Entrega |
+|---|---|---|---|
+| `Astral Periastron` | Golpe / investida que semeia orbes | **Q** redireciona · **E** detona · **X** Pulsar | [`.rbxmx`](Astral%20Periastron/Astral%20Periastron.rbxmx) |
+| `Astral Nova` | Nova Estelar (cone, empurra) | **X** Colapso Anão | [`.rbxmx`](Astral%20Nova/Astral%20Nova.rbxmx) |
+| `Astral Cometa` | Cometa (projétil com cauda) | **X** Chuva Sideral | [`.rbxmx`](Astral%20Cometa/Astral%20Cometa.rbxmx) |
+| `Astral Singularidade` | Horizonte de Eventos (retarda e drena) | **X** Espaguetificação (cutscene) | [`.rbxmx`](Astral%20Singularidade/Astral%20Singularidade.rbxmx) |
+| `Astral Constelacao` | Traço Sideral (marca o alvo) | **X** Sentença da Constelação | [`.rbxmx`](Astral%20Constelacao/Astral%20Constelacao.rbxmx) |
+
+As 5 juntas: [`Astral_5_Tools.rbxmx`](Astral_5_Tools.rbxmx)
+
+Números do original preservados: golpe **27**, orbe **25** em raio **20**,
+redirecionar CD **1 s** a **100** de velocidade, Pulsar CD **60 s** por **30 s**
+em alcance **200** a **15** por pulso, ferindo o portador em **34**.
+
+**Nenhuma das 4826 linhas do modelo entrou.** O código é autoral; o que veio
+foram os números e a cadência. Ver
+[`ACERVO_RETROVERSE/Astral_Peria/FICHA.md`](../ACERVO_RETROVERSE/Astral_Peria/FICHA.md)
+para o passe §12.12.2 completo, o que foi resgatado de dentro dos scripts e o
+que foi removido.
+
+---
+
+## Conjunto ESCUDOS — 7 Tools, da `DANILO_TOOLS_ESCUDOS_V4.rbxmx`
 
 | Tool | Entrega |
 |---|---|

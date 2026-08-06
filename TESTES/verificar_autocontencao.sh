@@ -201,11 +201,36 @@ checar "aoAplicarDano recebe só a função"        '_G\.Combate\.aoAplicarDano\
 # detectarHumanoides(posicao, raio, ignorar, jogador, humanoideDono, limite):
 # seis argumentos, cinco vírgulas. Com menos, `jogador` fica nil e o filtro de
 # time do podeCausarDano é PULADO — aliado vira alvo válido.
-CURTA=$(printf '%s\n' "$PURO" | grep -E '_G\.Combate\.detectarHumanoides\(' | awk -F: '
+#
+# A chamada pode estar quebrada em linhas — é a forma legível quando os seis
+# argumentos não cabem em 80 colunas. Contar vírgulas só da primeira linha
+# acusava justamente a chamada correta, então a chamada é JUNTADA até fechar
+# o parêntese antes de contar.
+CURTA=$(printf '%s\n' "$PURO" | awk '
 	{
-		corpo = substr($0, index($0, $3))
-		n = gsub(/,/, ",", corpo)
-		if (n < 5) { print $1 ":" $2 ":" corpo }
+		corpo = $0
+		sub(/^[^:]*:[0-9]+:/, "", corpo)
+
+		if (juntando) {
+			acumulado = acumulado " " corpo
+			abertos = abertos + gsub(/\(/, "(", corpo) - gsub(/\)/, ")", corpo)
+			if (abertos <= 0) {
+				juntando = 0
+				n = gsub(/,/, ",", acumulado)
+				if (n < 5) { print marca ":" acumulado }
+			}
+			next
+		}
+
+		if (corpo ~ /_G\.Combate\.detectarHumanoides\(/) {
+			marca = $0
+			sub(/:[^:]*$/, "", marca)
+			acumulado = corpo
+			abertos = gsub(/\(/, "(", corpo) - gsub(/\)/, ")", corpo)
+			if (abertos > 0) { juntando = 1; next }
+			n = gsub(/,/, ",", acumulado)
+			if (n < 5) { print marca ":" acumulado }
+		}
 	}
 ')
 if [ -n "$CURTA" ]; then

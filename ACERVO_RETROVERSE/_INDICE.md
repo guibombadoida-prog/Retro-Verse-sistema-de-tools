@@ -1,7 +1,7 @@
 # _INDICE — Acervo Retro-Verse
 
-> **7 Tools no repositório**, todas clonadas de `Danilo_Escudos_V4`. Ver
-> `Tools/README.md`.
+> **12 Tools no repositório**: 7 clonadas de `Danilo_Escudos_V4` e 5 do
+> `Astral_Peria`. Ver `Tools/README.md`.
 >
 > A única entrada do Acervo que elas consomem é o **`Stella_VFX_Addon`**, cujos
 > 10 efeitos conformados são **copiados para dentro** de cada Tool na montagem
@@ -164,6 +164,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `VFX_Library_V2/` | **CRU** | [FICHA.md](VFX_Library_V2/FICHA.md) |
 | `Saitama_Animacoes_Referencia/` | **CRU** | [FICHA.md](Saitama_Animacoes_Referencia/FICHA.md) |
 | `Danilo_Escudos_V4/` | **APROVADO** — base das 7 Tools | [FICHA.md](Danilo_Escudos_V4/FICHA.md) |
+| `Astral_Peria/` | **LIMPO** — base das 5 Tools astrais | [FICHA.md](Astral_Peria/FICHA.md) |
 | `Stella_VFX_Addon/` | **LIMPO** — 10 efeitos conformados, copiados para dentro das Tools | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |

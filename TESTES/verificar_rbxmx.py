@@ -252,16 +252,20 @@ def verificar(nome):
         erros.append("AcaoRemote presente sem habilidade Extra que o use")
 
     # 8. todo SFX citado existe dentro da Tool
-    pasta_sfx = achar(tool, "Folder", "SFX")
+    # O Sound pode morar numa pasta SFX (Tool autoral) ou pendurado no Handle
+    # (Tool que chegou pronta, como a Astral). O que a regra cobra é que ele
+    # esteja DENTRO da Tool — onde exatamente é decisão de quem montou.
     nomes_sfx = set()
-    if pasta_sfx is not None:
-        for s in filhos(pasta_sfx):
-            if s.get("class") == "Sound":
-                nomes_sfx.add(texto(s, "Name"))
-                url = prop(s, "SoundId")
-                alvo = url.find("url") if url is not None else None
-                if alvo is None or not (alvo.text or "").startswith("rbxassetid://"):
-                    erros.append("Sound %r sem SoundId" % texto(s, "Name"))
+    def varrer_sons(no):
+        for filho in filhos(no):
+            if filho.get("class") == "Sound":
+                nomes_sfx.add(texto(filho, "Name"))
+                url = prop(filho, "SoundId")
+                destino = url.find("url") if url is not None else None
+                if destino is None or not (destino.text or "").startswith("rbxassetid://"):
+                    erros.append("Sound %r sem SoundId" % texto(filho, "Name"))
+            varrer_sons(filho)
+    varrer_sons(tool)
 
     citados = re.findall(r'SFX_\w+\s*=\s*"([^"]+)"', sem_comentario(servidor))
     for citado in citados:
@@ -348,6 +352,13 @@ def verificar(nome):
 
 # Um conjunto por MODELO de origem, não um arquivo com o repositório inteiro.
 CONJUNTOS = [
+    ("Astral_5_Tools.rbxmx", "Astral_Peria", [
+        "Astral Periastron",
+        "Astral Nova",
+        "Astral Cometa",
+        "Astral Singularidade",
+        "Astral Constelacao",
+    ]),
     ("Escudos_7_Tools.rbxmx", "Danilo_Escudos_V4", [
         "Salvador",
         "Proteção",
