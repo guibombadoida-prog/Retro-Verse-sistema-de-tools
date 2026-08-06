@@ -21,6 +21,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Crack"] = { e = false },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
@@ -37,7 +72,7 @@ return function(CF, Size, Lasting, Color)
 	local Attachment = Instance.new("Attachment")
 	Attachment.WorldCFrame = CF;
 	
-	local Crack = script.Crack:Clone()
+	local Crack = _rv_clone(script.Crack)
 	Crack.Color = ColorSequence.new(Color)
 	Crack.Size = NumberSequence.new(Size);
 	Crack.Lifetime = NumberRange.new(Lasting);

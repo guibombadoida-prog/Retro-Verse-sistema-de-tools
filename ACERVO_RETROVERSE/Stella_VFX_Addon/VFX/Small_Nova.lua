@@ -21,6 +21,42 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["ExplosionParticles"] = { e = false },
+	["Wave"] = { t = 0 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -32,7 +68,7 @@ end
 local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
 local Debris = game:FindService("Debris") or game:GetService("Debris")
 
-local Wave_Base = script.Wave:Clone()
+local Wave_Base = _rv_clone(script.Wave)
 
 return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 	--// Keeping this local for performance and stability
@@ -76,7 +112,7 @@ return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 		Attachment.Name = "Holder";
 		Attachment.Parent = ExplosionPart
 
-		local ExplosionParticles = script.ExplosionParticles:Clone()
+		local ExplosionParticles = _rv_clone(script.ExplosionParticles)
 		ExplosionParticles.Color = Sequence
 		ExplosionParticles.Lifetime = NumberRange.new(Duration - 0.5,Duration + 0.5)
 		ExplosionParticles.Speed = NumberRange.new(Size_B/2,Size_B * 2)
@@ -85,7 +121,7 @@ return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 
 		local LastTime = Duration + 3;
 
-		local Wave = Wave_Base:Clone()
+		local Wave = _rv_clone(Wave_Base)
 		
 		--print(Color_A)
 		

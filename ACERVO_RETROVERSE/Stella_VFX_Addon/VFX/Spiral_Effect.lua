@@ -21,6 +21,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["SpiralTrail"] = { e = true },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -63,7 +98,7 @@ return function(Position,Size,Color,Iterations,Radius,Distance)
 	A2.Position = Vector3.new(0,-Size/2,0)
 	A2.Parent = t;
 	
-	local Trail = script.SpiralTrail:Clone()
+	local Trail = _rv_clone(script.SpiralTrail)
 	Trail.Attachment0 = A1;
 	Trail.Attachment1 = A2;
 	Trail.Color = ColorSequence.new(Color)

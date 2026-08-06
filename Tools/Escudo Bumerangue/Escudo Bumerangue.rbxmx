@@ -3485,6 +3485,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Shockwave"] = { t = 0 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -3512,7 +3547,7 @@ return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, 
 	Color_B = Color_B or Color_A
 	Easing_Style = Easing_Style or Enum.EasingStyle.Linear
 	
-	local Shockwave = Shockwave:Clone()
+	local Shockwave = _rv_clone(Shockwave)
 	Shockwave.CFrame = StartCFrame;
 	Shockwave.Size = Vector_Size_A;
 	Shockwave.Color = Color_A;
@@ -3648,7 +3683,7 @@ end]]></ProtectedString>
 						<float name="TopParamB">0.5</float>
 						<token name="TopSurface">0</token>
 						<token name="TopSurfaceInput">0</token>
-						<float name="Transparency">0</float>
+						<float name="Transparency">1</float>
 						<Vector3 name="Velocity">
 							<X>0</X>
 							<Y>0</Y>
@@ -3694,6 +3729,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Shockwave"] = { t = 0 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -3721,7 +3791,7 @@ return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, 
 	Color_B = Color_B or Color_A
 	Easing_Style = Easing_Style or Enum.EasingStyle.Linear
 	
-	local Shockwave = Shockwave:Clone()
+	local Shockwave = _rv_clone(Shockwave)
 	Shockwave.CFrame = StartCFrame;
 	Shockwave.Size = Vector_Size_A;
 	Shockwave.Color = Color_A;
@@ -3857,7 +3927,7 @@ end]]></ProtectedString>
 						<float name="TopParamB">0.5</float>
 						<token name="TopSurface">0</token>
 						<token name="TopSurfaceInput">0</token>
-						<float name="Transparency">0</float>
+						<float name="Transparency">1</float>
 						<Vector3 name="Velocity">
 							<X>0</X>
 							<Y>0</Y>
@@ -3903,6 +3973,42 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["ExplosionParticles"] = { e = false },
+	["Wave"] = { t = 0 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -3914,7 +4020,7 @@ end
 local TweenService = game:FindService("TweenService") or game:GetService("TweenService")
 local Debris = game:FindService("Debris") or game:GetService("Debris")
 
-local Wave_Base = script.Wave:Clone()
+local Wave_Base = _rv_clone(script.Wave)
 
 return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 	--// Keeping this local for performance and stability
@@ -3958,7 +4064,7 @@ return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 		Attachment.Name = "Holder";
 		Attachment.Parent = ExplosionPart
 
-		local ExplosionParticles = script.ExplosionParticles:Clone()
+		local ExplosionParticles = _rv_clone(script.ExplosionParticles)
 		ExplosionParticles.Color = Sequence
 		ExplosionParticles.Lifetime = NumberRange.new(Duration - 0.5,Duration + 0.5)
 		ExplosionParticles.Speed = NumberRange.new(Size_B/2,Size_B * 2)
@@ -3967,7 +4073,7 @@ return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 
 		local LastTime = Duration + 3;
 
-		local Wave = Wave_Base:Clone()
+		local Wave = _rv_clone(Wave_Base)
 		
 		--print(Color_A)
 		
@@ -4173,7 +4279,7 @@ end]]></ProtectedString>
 						<float name="TopParamB">0.5</float>
 						<token name="TopSurface">0</token>
 						<token name="TopSurfaceInput">0</token>
-						<float name="Transparency">0</float>
+						<float name="Transparency">1</float>
 						<Vector3 name="Velocity">
 							<X>0</X>
 							<Y>0</Y>
@@ -4219,6 +4325,45 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["VFX/Smoke"] = { t = 0 },
+	["VFX/Core"] = { t = 0 },
+	["VFX/Sphere_2"] = { t = 0 },
+	["VFX/Sphere_1"] = { t = 0 },
+	["VFX/Shockwaves"] = { t = 0.850000024 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -4245,7 +4390,7 @@ return function(Position, Duration, Size, Color, Smoke_Color)
 	Color = Color or Color3.fromRGB(170, 85, 0);
 	Smoke_Color = Smoke_Color or Color3.fromRGB(99, 95, 98);
 	
-	local Explosion_Effect = Effect:Clone();
+	local Explosion_Effect = _rv_clone(Effect);
 	Explosion_Effect.Parent = workspace;
 	Explosion_Effect:SetPrimaryPartCFrame(CFrame.new(Position) * CFrame.Angles(math.rad(_rv_angulo()),math.rad(_rv_angulo()),math.rad(_rv_angulo())))
 	
@@ -4461,7 +4606,7 @@ end
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -4596,7 +4741,7 @@ end
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -4731,7 +4876,7 @@ end
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -4866,7 +5011,7 @@ end
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -5001,7 +5146,7 @@ end
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0.850000024</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -5048,6 +5193,42 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Explosion/Outer"] = { t = 0 },
+	["Explosion/Core"] = { t = 0 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 local Explosion = script.Explosion
 
 local TweenService = game:GetService("TweenService")
@@ -5062,7 +5243,7 @@ return function(Position, Duration, Size_A, Size_B, Color_A, Color_B)
 	Color_A = Color_A or Color3.fromRGB(0, 0, 0)
 	Color_B = Color_B or Color_A
 
-	local ExplosionModel = Explosion:Clone()
+	local ExplosionModel = _rv_clone(Explosion)
 	ExplosionModel.Parent = workspace
 	
 	ExplosionModel:PivotTo(CFrame.new(Position))
@@ -5223,7 +5404,7 @@ end]]></ProtectedString>
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -5322,7 +5503,7 @@ end]]></ProtectedString>
 							<float name="TopParamB">0.5</float>
 							<token name="TopSurface">0</token>
 							<token name="TopSurfaceInput">0</token>
-							<float name="Transparency">0</float>
+							<float name="Transparency">1</float>
 							<Vector3 name="Velocity">
 								<X>0</X>
 								<Y>0</Y>
@@ -5449,6 +5630,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Ring"] = { t = 0.5 },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -5472,7 +5688,7 @@ return function(CF, Lifetime, Size_Start, Size_End, Thickness_Start, Thickness_E
 	Color_A = Color_A or Color3.fromRGB(255, 176, 0);
 	Color_B = Color_B or Color_A;
 	
-	local Ring = script.Ring:Clone()
+	local Ring = _rv_clone(script.Ring)
 	Ring.CFrame = CF * CFrame.Angles(-math.pi/2,0,0);
 	Ring.Size = Vector3.new(Size_Start,Size_Start,Thickness_Start);
 	Ring.Color = Color_A;
@@ -5609,7 +5825,7 @@ end
 						<float name="TopParamB">0.5</float>
 						<token name="TopSurface">0</token>
 						<token name="TopSurfaceInput">0</token>
-						<float name="Transparency">0.5</float>
+						<float name="Transparency">1</float>
 						<Vector3 name="Velocity">
 							<X>0</X>
 							<Y>0</Y>
@@ -5655,6 +5871,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["Crack"] = { e = false },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
@@ -5671,7 +5922,7 @@ return function(CF, Size, Lasting, Color)
 	local Attachment = Instance.new("Attachment")
 	Attachment.WorldCFrame = CF;
 	
-	local Crack = script.Crack:Clone()
+	local Crack = _rv_clone(script.Crack)
 	Crack.Color = ColorSequence.new(Color)
 	Crack.Size = NumberSequence.new(Size);
 	Crack.Lifetime = NumberRange.new(Lasting);
@@ -5870,6 +6121,41 @@ local function _rv_jitter()
 	return math.sin(_rv_passo() * 2.399963)
 end
 
+
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+	["SpiralTrail"] = { e = true },
+}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
 --[[ 
 	
 	Made by Stellabotrus. (7/8/2022)
@@ -5912,7 +6198,7 @@ return function(Position,Size,Color,Iterations,Radius,Distance)
 	A2.Position = Vector3.new(0,-Size/2,0)
 	A2.Parent = t;
 	
-	local Trail = script.SpiralTrail:Clone()
+	local Trail = _rv_clone(script.SpiralTrail)
 	Trail.Attachment0 = A1;
 	Trail.Attachment1 = A2;
 	Trail.Color = ColorSequence.new(Color)
@@ -5963,7 +6249,7 @@ end]]></ProtectedString>
 						<Ref name="Attachment1">null</Ref>
 						<float name="Brightness">10</float>
 						<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
-						<bool name="Enabled">true</bool>
+						<bool name="Enabled">false</bool>
 						<bool name="FaceCamera">true</bool>
 						<float name="Lifetime">1</float>
 						<float name="LightEmission">1</float>

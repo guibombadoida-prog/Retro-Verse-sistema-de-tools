@@ -40,6 +40,69 @@ USADOS = [
     "Laser_Shot", "Spiral_Effect",
 ]
 
+# Classes cujo molde APARECE dentro da Tool se ficar como está.
+# Tool equipada vive em workspace: todo BasePart descendente dela renderiza.
+RENDERIZAM = ("Part", "MeshPart", "UnionOperation", "WedgePart", "TrussPart",
+              "CornerWedgePart", "Decal", "Texture")
+LIGAVEIS = ("ParticleEmitter", "Trail", "Beam")
+
+# Prelúdio de visibilidade: guarda o molde apagado e acende só o clone.
+#
+# O PROBLEMA
+#   Os moldes são filhos do ModuleScript, que é filho da Tool. Tool equipada
+#   está em workspace, e aí os 11 BaseParts do pack aparecem pendurados no
+#   personagem — antes de qualquer habilidade rodar.
+#
+# POR QUE NÃO BASTA DEIXAR O MOLDE TRANSPARENTE
+#   Todo módulo do pack faz tween de Transparency ATÉ 1 como fade-out, e
+#   nenhum define a transparência inicial do clone: ela vem do molde. Molde
+#   apagado sem mais nada = efeito apagado.
+#
+# POR QUE NÃO BASTA `Parent = nil` NO MÓDULO
+#   Isso roda no cliente do dono, no require. Os OUTROS jogadores não rodam
+#   LocalScript da minha Tool — para eles o molde continuaria à mostra.
+#
+# A SOLUÇÃO
+#   O molde fica guardado apagado (Transparency 1, emissor Enabled false), o
+#   que vale para todo mundo sem depender de script nenhum rodar; e todo
+#   `:Clone()` do pack passa a ir por `_rv_clone`, que restaura no CLONE os
+#   valores originais, tabelados aqui embaixo pelo caminho dentro do módulo.
+PREFACIO_VISIVEL = '''
+-- [RV] valores originais do molde, por caminho dentro deste ModuleScript
+local _RV_VISIVEL = {
+%s}
+
+local function _rv_caminho(inst)
+	local partes, no = {}, inst
+	while no and no ~= script do
+		table.insert(partes, 1, no.Name)
+		no = no.Parent
+	end
+	return table.concat(partes, "/")
+end
+
+local function _rv_acender(copia, caminho)
+	local dados = _RV_VISIVEL[caminho]
+	if dados then
+		if dados.t then copia.Transparency = dados.t end
+		if dados.e ~= nil then copia.Enabled = dados.e end
+	end
+	for _, filho in ipairs(copia:GetChildren()) do
+		local abaixo = filho.Name
+		if caminho ~= "" then abaixo = caminho .. "/" .. filho.Name end
+		_rv_acender(filho, abaixo)
+	end
+end
+
+-- [RV] clona e ACENDE: o molde fica apagado na Tool, o clone nasce visível
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))
+	return copia
+end
+
+'''
+
 # Cabeçalho determinístico: substitui math.random sem mudar a cara do efeito.
 # Ângulo áureo espalha sem repetir; jitter senoidal por contador varia a cada
 # chamada e é reprodutível — dois clientes veem o mesmo efeito.
@@ -87,8 +150,77 @@ def texto(item, nome):
     return u.text if u is not None else e.text
 
 
-def conformar(nome, fonte):
-    """Aplica o passe §12.12.2. Devolve (fonte_nova, [o que mudou])."""
+def definir(item, tag, nome, valor):
+    """Escreve (ou cria) uma propriedade no <Properties> do Item."""
+    props = item.find("Properties")
+    if props is None:
+        props = ET.SubElement(item, "Properties")
+    for e in props:
+        if e.get("name") == nome:
+            e.text = valor
+            return
+    ET.SubElement(props, tag, {"name": nome}).text = valor
+
+
+def apagar_moldes(modulo):
+    """
+    Guarda o molde APAGADO e devolve o que o clone tem de restaurar.
+
+    Devolve [(caminho, transparencia, enabled)] — caminho relativo ao
+    ModuleScript, que é o mesmo que `_rv_caminho` calcula em runtime.
+    """
+    registro = []
+
+    def andar(item, caminho):
+        for filho in item.findall("Item"):
+            nome = None
+            props = filho.find("Properties")
+            if props is not None:
+                for e in props:
+                    if e.get("name") == "Name":
+                        nome = e.text
+            nome = nome or filho.get("class")
+            abaixo = (caminho + "/" + nome) if caminho else nome
+            classe = filho.get("class")
+
+            if classe in RENDERIZAM:
+                atual = "0"
+                if props is not None:
+                    for e in props:
+                        if e.get("name") == "Transparency":
+                            atual = e.text or "0"
+                registro.append((abaixo, atual, None))
+                definir(filho, "float", "Transparency", "1")
+
+            elif classe in LIGAVEIS:
+                atual = "true"
+                if props is not None:
+                    for e in props:
+                        if e.get("name") == "Enabled":
+                            atual = e.text or "true"
+                registro.append((abaixo, None, atual))
+                definir(filho, "bool", "Enabled", "false")
+
+            andar(filho, abaixo)
+
+    andar(modulo, "")
+    return registro
+
+
+def tabela_visivel(registro):
+    linhas = []
+    for caminho, transp, ligado in registro:
+        campos = []
+        if transp is not None:
+            campos.append("t = %s" % transp)
+        if ligado is not None:
+            campos.append("e = %s" % ligado)
+        linhas.append('\t["%s"] = { %s },\n' % (caminho, ", ".join(campos)))
+    return "".join(linhas)
+
+
+def conformar(nome, fonte, registro):
+    """Aplica o passe §12.12.2. Devolve (fonte_nova, [o que mudou], [sobrou])."""
     mudancas = []
 
     def trocar(padrao, novo, rotulo, flags=0):
@@ -128,6 +260,11 @@ def conformar(nome, fonte):
 
     trocar(r"(?<![.\w])tick\s*\(\s*\)", "os.clock()", "tick() -> os.clock()")
 
+    # Todo clone de molde passa a acender no clone o que foi apagado no molde.
+    # `script.Clone` (alias de método, no Laser_Shot) não casa: não tem `:`.
+    trocar(r"([A-Za-z_][\w.]*)\s*:Clone\(\)", r"_rv_clone(\1)",
+           ":Clone() -> _rv_clone()")
+
     # `+=` e `continue` não existem em Lua 5.4 e são proibidos aqui
     trocar(r"(\b[\w.\[\]]+)\s*\+=\s*([^\n;]+)", r"\1 = \1 + \2", "+= expandido")
 
@@ -147,7 +284,12 @@ def conformar(nome, fonte):
         if n:
             sobrou.append("%s × %d" % (rotulo, n))
 
-    return PREFACIO + fonte, mudancas, sobrou
+    cabeca = PREFACIO
+    if registro:
+        cabeca = cabeca + (PREFACIO_VISIVEL % tabela_visivel(registro))
+        mudancas.append("%d molde(s) guardado(s) apagado(s)" % len(registro))
+
+    return cabeca + fonte, mudancas, sobrou
 
 
 def main():
@@ -185,8 +327,9 @@ def main():
     print("")
     for nome in USADOS:
         item = achados[nome]
+        registro = apagar_moldes(item)
         campo = prop(item, "Source")
-        novo, mudancas, sobrou = conformar(nome, campo.text or "")
+        novo, mudancas, sobrou = conformar(nome, campo.text or "", registro)
         campo.text = novo
 
         with open(os.path.join(DESTINO, "%s.lua" % nome), "w", encoding="utf-8") as f:

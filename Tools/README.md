@@ -80,6 +80,33 @@ outras camadas de propósito (duas camadas com a mesma duração leem como borr�
 
 Para desligar tudo e voltar ao VFX próprio: `PACK.LIGADO = false`, no topo da ponte.
 
+### O molde fica apagado; quem acende é o clone
+
+Tool equipada vive em `workspace`, e aí **todo `BasePart` descendente dela renderiza** — os
+11 moldes do pack apareceriam pendurados no personagem antes de qualquer habilidade rodar.
+
+Duas saídas que **não** servem, e por quê:
+
+| Tentativa | Por que falha |
+|---|---|
+| Deixar o molde transparente e pronto | todo módulo do pack faz tween de `Transparency` **até 1** como fade-out, e nenhum define a transparência inicial do clone — ela vem do molde. Molde apagado sem mais nada = efeito apagado |
+| `Parent = nil` no módulo | roda no cliente **do dono**, no `require`. Os outros jogadores não rodam `LocalScript` da minha Tool — para eles o molde continuaria à mostra |
+
+O que vale: o molde fica guardado **apagado** (`Transparency = 1`, emissor `Enabled = false`),
+o que independe de qualquer script rodar, e todo `:Clone()` do pack passa por `_rv_clone`,
+que restaura no **clone** os valores originais — tabelados por caminho dentro do módulo.
+
+```lua
+local function _rv_clone(molde)
+	local copia = molde:Clone()
+	_rv_acender(copia, _rv_caminho(molde))   -- devolve Transparency e Enabled
+	return copia
+end
+```
+
+`verificar_rbxmx.py` cobra isso: molde com `Transparency` diferente de 1 dentro de um
+ModuleScript é erro, e a checagem foi testada contra molde sabotado de propósito.
+
 ---
 
 ## Achados que NÃO foram corrigidos

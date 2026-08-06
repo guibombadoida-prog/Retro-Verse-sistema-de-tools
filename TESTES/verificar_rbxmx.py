@@ -300,6 +300,41 @@ def verificar(nome):
             erros.append("o Server transmite o VFX %r, que o VFXModule desta Tool "
                          "não implementa — o efeito não desenha e nada avisa" % citado)
 
+    # 9b. Molde guardado não pode renderizar
+    #
+    # Tool equipada vive em workspace, e aí TODO BasePart descendente dela
+    # aparece — inclusive os moldes de VFX, pendurados no personagem antes de
+    # qualquer habilidade rodar. O molde fica guardado apagado e quem acende é
+    # o clone, na execução (`_rv_clone`, ver FERRAMENTAS/conformar_pack_vfx.py).
+    #
+    # Apagar por propriedade, e não por script, é o que faz isso valer também
+    # para os OUTROS jogadores: eles não rodam LocalScript da minha Tool.
+    RENDERIZAM = ("Part", "MeshPart", "UnionOperation", "WedgePart",
+                  "TrussPart", "CornerWedgePart", "Decal", "Texture")
+    LIGAVEIS = ("ParticleEmitter", "Trail", "Beam")
+
+    def moldes(item, dentro_de_modulo, caminho):
+        for filho in filhos(item):
+            nome = texto(filho, "Name") or filho.get("class")
+            abaixo = (caminho + "/" + nome) if caminho else nome
+            classe = filho.get("class")
+            se_molde = dentro_de_modulo or classe == "ModuleScript"
+
+            if dentro_de_modulo and classe in RENDERIZAM:
+                if (texto(filho, "Transparency") or "0") != "1":
+                    erros.append("molde %s renderiza dentro da Tool "
+                                 "(Transparency %s) — apareceria pendurado no "
+                                 "personagem ao equipar"
+                                 % (abaixo, texto(filho, "Transparency") or "0"))
+            if dentro_de_modulo and classe in LIGAVEIS:
+                if (texto(filho, "Enabled") or "true") != "false":
+                    erros.append("molde %s está com Enabled ligado dentro da "
+                                 "Tool — emitiria sem habilidade nenhuma" % abaixo)
+
+            moldes(filho, se_molde, abaixo)
+
+    moldes(tool, False, "")
+
     # 10. Regra nº 1 — sem ressalva
     for nome_obj, codigo in fontes.items():
         limpo = sem_comentario(codigo)
