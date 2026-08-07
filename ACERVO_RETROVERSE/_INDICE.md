@@ -121,6 +121,8 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | toda Tool nova nasce nele |
 | `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
+| `Poses_Xester_Forma1_V1` | Xester_Forma1 (extraída) | 12 seq · guarda + ação | **CRU** | 7 Tools da Forma 1 |
+| `Poses_Xester_Forma2_V1` | Xester_Forma2 (extraída) | 8 seq · guarda de cajado | **CRU** | 7 Tools da Forma 2 |
 
 > ⚠️ **`R6CFrameAnimator_V2` é O animator do projeto. Não escreva outro.**
 > Ele cria `Weld`s próprios; escrever em `Motor6D.C0` briga com o script `Animate`
@@ -169,8 +171,20 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Stella_VFX_Addon/` | **LIMPO** — 10 efeitos conformados, copiados para dentro das Tools | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
+| `Xester_Forma1/` | **CRU** — licença pendente; base das 7 Tools da Forma 1 | [FICHA.md](Xester_Forma1/FICHA.md) |
+| `Xester_Forma2_O_Despertar/` | **CRU** — licença pendente; base das 7 Tools da Forma 2 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
+
+> ⚠️ **As duas pastas do Xester estão CRU por LICENÇA, não por conteúdo.** Autor,
+> origem e data estão preenchidos; a licença não, porque nenhum dos dois arquivos a
+> declara. As 14 Tools já foram construídas a partir deles, a pedido — isto está dito
+> aqui e no relatório em vez de ficar calado. Por §12.12.3 o status só sobe para LIMPO
+> quando alguém com a permissão preencher o campo.
+>
+> A triagem de segurança dos dois está registrada na ficha de cada um: são wrappers de
+> "FE bypass" de free model antigo, sem `loadstring`, sem `require(<id>)`, sem
+> `HttpService` e sem webhook. Nenhum script deles entrou nas Tools.
 
 > Três das quatro pastas novas são **fichas de registro**, não depósito: o material delas
 > vive em `ReplicatedStorage/` (Stella, malhas) ou ficou só em `MODELOS_ENTRADA/` (His Cube).
