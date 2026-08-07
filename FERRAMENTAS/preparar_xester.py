@@ -15,11 +15,20 @@ AS DUAS ORIGENS NÃO SE PARECEM EM NADA
     proxy de UserInputService e SetCore por 24 Remotes. Carta, máscara, orbe,
     onda — tudo nasce de `Instance.new` em tempo de execução.
 
-    Consequência honesta: **o Handle e os moldes da Forma 1 são AUTORAIS**. Não
-    havia o que reaproveitar. O que foi preservado do original são os números:
-    tamanho da carta (2.5 × 0.25 × 1.75), os quatro ases do `aces`, a malha de
-    onda 20329976, o anel 3270017, a tempestade 6512150+55364685 e a máscara
-    5158270+9543585. A geometria é a mesma; quem a instancia é que mudou.
+    Mas o Xester é UM personagem em duas formas, e a Forma 2 traz o baralho
+    dele montado: `cards` tem `card1`..`card4`, cada uma Part com dois `Decal`
+    e um `PointLight`. É de lá que sai o Handle da Forma 1 e os quatro moldes de
+    carta — mesmo personagem, mesmo baralho. **Nada da Forma 1 é desenhado
+    aqui.**
+
+    A carta do modelo mede 0.59 × 0.05; o script da Forma 1 usa 2.5 × 0.25 ×
+    1.75 (`cardtable`). O molde entra com a geometria e os decais do modelo e o
+    TAMANHO do script — fiel nos dois eixos.
+
+    O que continua vindo por id, porque não existe instância dele em origem
+    nenhuma: onda 20329976, anel 3270017, tempestade 6512150+55364685 e máscara
+    5158270+9543585. São `rbxassetid://` dentro de instância filha da Tool, que
+    a Regra nº 1 permite.
 
     Forma 2 — 402 instâncias, com `staff`, `cards`, `skully`, `energb`,
     `secondhead`, `enemy` e uma pasta `Effects` pronta. Aqui NADA é autoral:
@@ -298,7 +307,7 @@ def apagar(item):
 
 
 # ═══════════════════════════════════════════════════════════════
-# FORMA 1 — moldes autorais, porque a origem não tem BasePart
+# FORMA 1 — carta do próprio modelo, malha de efeito por id
 # ═══════════════════════════════════════════════════════════════
 
 # BrickColor no XML do Roblox é o NÚMERO da cor, não o nome. Escrever
@@ -350,23 +359,54 @@ def parte(pai, nome, referent, tamanho, cor="Really black", material="Neon"):
     return item
 
 
-def moldes_forma1(tool, marca):
-    """Cria `Moldes/` e `SFX/` da Forma 1 — geometria autoral, números do original."""
+TAMANHO_CARTA = (2.5, 0.25, 1.75)
+
+
+def definir_tamanho(item, tamanho):
+    """Reescreve o `size` mantendo o resto da peça como o modelo a entregou."""
+    props = item.find("Properties")
+    for e in list(props):
+        if e.get("name") == "size":
+            props.remove(e)
+    tam = ET.SubElement(props, "Vector3", {"name": "size"})
+    for eixo, valor in zip("XYZ", tamanho):
+        ET.SubElement(tam, eixo).text = str(valor)
+
+
+def cartas_do_modelo(fonte):
+    """As quatro cartas reais do Xester, do `cards` da Forma 2."""
+    baralho = achar(fonte, "cards")
+    if baralho is None:
+        return []
+    saida = []
+    for alvo in ("card1", "card2", "card3", "card4"):
+        peca = achar(baralho, alvo)
+        if peca is not None:
+            saida.append(peca)
+    return saida
+
+
+def moldes_forma1(tool, marca, fonte):
+    """
+    Cria `Moldes/` e `SFX/` da Forma 1.
+
+    As cartas vêm do baralho do PRÓPRIO Xester (`cards` da Forma 2) — é o mesmo
+    personagem, e é o único lugar onde a carta dele existe como instância. Só o
+    tamanho é reescrito, para o do `cardtable` do script da Forma 1.
+    """
     moldes, _ = novo_item(tool, "Folder", "Moldes", "RV_MOL_%s" % marca)
 
-    # as quatro cartas do baralho, com o tamanho exato do original
-    for indice, ace in enumerate(ASES):
-        carta = parte(moldes, "Carta%d" % (indice + 1),
-                      "RV_CT%d_%s" % (indice + 1, marca), (2.5, 0.25, 1.75))
-        for face in ("Top", "Bottom"):
-            _d, dp = novo_item(carta, "Decal", "Face%s" % face,
-                               "RV_CD%d%s_%s" % (indice + 1, face[0], marca))
-            ET.SubElement(dp, "Content", {"name": "Texture"}).append(
-                ET.Element("url"))
-            dp[-1][0].text = "rbxassetid://%s" % ace
-            ET.SubElement(dp, "token", {"name": "Face"}).text = (
-                "1" if face == "Top" else "4")
-            ET.SubElement(dp, "float", {"name": "Transparency"}).text = "1"
+    baralho = cartas_do_modelo(fonte)
+    if not baralho:
+        return None, None
+    for indice, peca in enumerate(baralho):
+        copia = ET.fromstring(ET.tostring(peca))
+        podar(copia, [])
+        definir(copia, "string", "Name", "Carta%d" % (indice + 1))
+        definir_tamanho(copia, TAMANHO_CARTA)
+        apagar(copia)
+        renomear_referentes(copia, "RV_CT%d_%s_" % (indice + 1, marca))
+        moldes.append(copia)
 
     # as malhas de efeito
     for nome, (malha, textura) in MALHAS.items():
@@ -403,30 +443,38 @@ def moldes_forma1(tool, marca):
     return len(ASES) + len(MALHAS) + 1, len(vistos)
 
 
-def handle_forma1(tool, marca):
+def handle_forma1(tool, marca, fonte):
     """
-    O Handle da Forma 1 é AUTORAL — a origem não tem uma única BasePart.
+    O Handle da Forma 1 é a carta do PRÓPRIO Xester.
 
-    É a carta do baralho, com o tamanho que o original usa em `cardtable`
-    (2.5 × 0.25 × 1.75) e o ás de espadas do `aces`. Fica declarado no
-    relatório: não foi extraído, foi desenhado a partir dos números do script.
+    A origem da Forma 1 não tem uma única BasePart — carta, máscara e orbe
+    nascem de `Instance.new` dentro do script. Mas a Forma 2 é o mesmo
+    personagem e traz o baralho montado, então o Handle sai de `cards/card1`,
+    com os decais e o `PointLight` que o modelo já lhe deu.
+
+    Do script vem só o tamanho (2.5 × 0.25 × 1.75, do `cardtable`), porque a
+    carta do modelo é miniatura de mão e o Handle precisa da escala de jogo.
     """
-    item, props = novo_item(tool, "Part", "Handle", "RV_HDL_%s" % marca)
-    tam = ET.SubElement(props, "Vector3", {"name": "size"})
-    for eixo, valor in zip("XYZ", (2.5, 0.25, 1.75)):
-        ET.SubElement(tam, eixo).text = str(valor)
-    ET.SubElement(props, "bool", {"name": "CanCollide"}).text = "false"
-    ET.SubElement(props, "bool", {"name": "Anchored"}).text = "false"
-    ET.SubElement(props, "token", {"name": "Material"}).text = "288"
-    ET.SubElement(props, "int", {"name": "BrickColor"}).text = str(
-        CORES["Really black"])
-    for face, token in (("Top", "1"), ("Bottom", "4")):
-        _d, dp = novo_item(item, "Decal", "Ace%s" % face,
-                           "RV_HD%s_%s" % (face[0], marca))
-        ET.SubElement(dp, "Content", {"name": "Texture"}).append(ET.Element("url"))
-        dp[-1][0].text = "rbxassetid://%s" % ASES[0]
-        ET.SubElement(dp, "token", {"name": "Face"}).text = token
-    return item
+    baralho = cartas_do_modelo(fonte)
+    if not baralho:
+        return None
+
+    copia = ET.fromstring(ET.tostring(baralho[0]))
+    podar(copia, [])
+    definir(copia, "string", "Name", "Handle")
+    definir_tamanho(copia, TAMANHO_CARTA)
+    definir(copia, "bool", "CanCollide", "false")
+    definir(copia, "bool", "Anchored", "false")
+    definir(copia, "float", "Transparency", "0")
+    for no in copia.iter("Item"):
+        if no.get("class") in ("Decal", "Texture"):
+            definir(no, "float", "Transparency", "0")
+        elif no.get("class") in ("PointLight", "SpotLight"):
+            definir(no, "bool", "Enabled", "true")
+    renomear_referentes(copia, "RV_HD_%s_" % marca)
+    copia.set("referent", "RV_HDL_%s" % marca)
+    tool.append(copia)
+    return copia
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -530,9 +578,14 @@ def montar(conjunto, fonte, forma, relatorio, compartilhadas):
         equipar(tool, dados, marca, extra)
 
         if forma == 1:
-            handle_forma1(tool, marca)
-            n_moldes, n_sons = moldes_forma1(tool, marca)
-            detalhe = "%d moldes autorais, %d sons" % (n_moldes, n_sons)
+            if handle_forma1(tool, marca, fonte) is None:
+                print("  PAREI: não achei `cards/card1` na origem para o Handle")
+                return False
+            n_moldes, n_sons = moldes_forma1(tool, marca, fonte)
+            if n_moldes is None:
+                print("  PAREI: não achei o baralho `cards` na origem")
+                return False
+            detalhe = "%d moldes (4 cartas do modelo), %d sons" % (n_moldes, n_sons)
         else:
             usa_machado = "Machado" in nome
             if handle_forma2(tool, fonte, marca, usa_machado) is None:
@@ -577,9 +630,9 @@ def main():
 
     print("PREPARAÇÃO DA BASE — Xester")
     print("")
-    print("  Forma 1 tem ZERO BaseParts na origem: Handle e moldes são")
-    print("  AUTORAIS, com os números do script (carta 2.5x0.25x1.75, ases")
-    print("  1880203893.., onda 20329976, anel 3270017, máscara 5158270).")
+    print("  A Forma 1 não tem uma única BasePart, mas o Xester é o mesmo")
+    print("  personagem nas duas: Handle e cartas saem do baralho `cards` da")
+    print("  Forma 2, com o tamanho do `cardtable` da Forma 1. Nada autoral.")
     print("")
 
     relatorio = []
@@ -589,7 +642,7 @@ def main():
         if e.get("md5"):
             compartilhadas[e.get("md5")] = e.text or ""
 
-    if not montar(FORMA1, None, 1, relatorio, compartilhadas):
+    if not montar(FORMA1, fonte2, 1, relatorio, compartilhadas):
         return 1
     if not montar(FORMA2, fonte2, 2, relatorio, compartilhadas):
         return 1

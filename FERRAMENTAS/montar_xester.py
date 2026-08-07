@@ -7,13 +7,19 @@ de cada uma das 14 Tools.
 
     python3 FERRAMENTAS/montar_xester.py
 
-POR QUE NÃO O `clonar_tool.py montar`
+O PACK DA STELLA ENTRA — É A REGRA DE REUSO
 
-    Aquele enxerta o pack de VFX da Stella dentro de todo `VFXModule`, que é o
-    que as Tools de escudo e as astrais usam. As do Xester não usam: elas já
-    trazem os próprios moldes — as cartas, a máscara e as ondas da Forma 1, e o
-    `staff`/`cards`/`Effects` da Forma 2. Enxertar o pack aqui só engordaria o
-    arquivo com efeito que ninguém chama.
+    O fluxo obrigatório manda ler o `_INDICE.md` antes de criar efeito e reusar
+    o que já existe. Existe: os 10 efeitos do `Stella_VFX_Addon`, conformados
+    pelo §12.12.2 e já em uso nas 18 Tools anteriores. Onda, nova, explosão,
+    corte, anel, rachadura, feixe e espiral do Xester saem de lá.
+
+    O pack é COPIADO para dentro de `VFXModule/Pack` de cada Tool na montagem.
+    Nenhuma Tool lê o Acervo em runtime — o Acervo é prateleira de edição, e a
+    Regra nº 1 não abre exceção nem para ele.
+
+    Este script existe separado do `clonar_tool.py montar` porque o Xester sai
+    em DOIS arquivos, um por forma, e aquele monta um conjunto só.
 
     O resto do procedimento é o mesmo, inclusive a parte que já quebrou uma
     vez: a tabela de `SharedStrings`. Ela é IRMÃ do `<Item>`, não descendente.
@@ -27,8 +33,9 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from clonar_tool import (RAIZ, TOOLS, escrever, nome_arquivo, nova_raiz,
-                         percorrer, prop, tabela_compartilhada)
+from clonar_tool import (PACK_VFX, RAIZ, TOOLS, enxertar_pack, escrever,
+                         nome_arquivo, nova_raiz, percorrer, prop,
+                         tabela_compartilhada)
 
 FORMA1 = [
     "Xester Ato de Desaparecer",
@@ -53,7 +60,7 @@ FORMA2 = [
 
 def montar(nomes, destino, rotulo):
     raiz = nova_raiz()
-    trocados, mantidos = 0, 0
+    trocados, mantidos, enxertados = 0, 0, 0
     penduradas = []
 
     fontes = [os.path.join(TOOLS, n, "_ORIGEM.rbxmx") for n in nomes]
@@ -65,7 +72,8 @@ def montar(nomes, destino, rotulo):
         print("  rode antes: python3 FERRAMENTAS/preparar_xester.py")
         return None
 
-    tabela = tabela_compartilhada(fontes)
+    # a tabela vem das DUAS fontes: o _ORIGEM de cada Tool e o pack do Acervo
+    tabela = tabela_compartilhada(fontes + [PACK_VFX])
 
     for nome in nomes:
         pasta = os.path.join(TOOLS, nome)
@@ -85,6 +93,8 @@ def montar(nomes, destino, rotulo):
             else:
                 mantidos = mantidos + 1
 
+        enxertados = enxertados + enxertar_pack(tool)
+
         # Uma Tool, um arquivo — é assim que ela chega no Studio.
         sozinha = nova_raiz()
         sozinha.append(tool)
@@ -100,6 +110,8 @@ def montar(nomes, destino, rotulo):
                                    os.path.getsize(destino)))
     print("    %d Tool(s), %d script(s) vindos do .lua, %d vazios"
           % (len(nomes), trocados, mantidos))
+    print("    %d efeito(s) do pack Stella copiados DENTRO das Tools (Regra nº 1)"
+          % enxertados)
     if penduradas:
         print("    ⚠️  %d SharedString PENDURADA: %s"
               % (len(set(penduradas)), ", ".join(sorted(set(penduradas)))))

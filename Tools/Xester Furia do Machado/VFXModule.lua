@@ -1,24 +1,97 @@
 -- VFXModule.lua
 -- ModuleScript — desenho de efeito, 100% cliente
 --
+-- QUEM DESENHA É O PACK DO ACERVO
+--   O fluxo obrigatório manda ler `ACERVO_RETROVERSE/_INDICE.md` ANTES de criar
+--   efeito, e reusar o que já existe. Existe: o `Stella_VFX_Addon`, dez efeitos
+--   já conformados pelo §12.12.2, os mesmos que as 18 Tools anteriores usam.
+--   Onda, nova, explosão, corte, anel, rachadura, feixe e espiral saem de lá.
+--
+--   O que sobrou de código próprio aqui é a CARTA — que o pack não tem, porque
+--   é a assinatura do Xester — e o fallback de cada efeito, para o caso do pack
+--   faltar. Pack ausente é Tool empobrecida, não Tool quebrada.
+--
 -- MOLDE APAGADO, CLONE ACESO
 --   Tool equipada mora no workspace, então TODO BasePart descendente dela
 --   renderiza. Por isso o molde entra com `Transparency = 1` e o emissor
 --   `Enabled = false` — propriedade, não script, então vale para todo cliente
---   sem nada rodando.
---
---   Quem acende é o `_rv_clone`: ele restaura, por CAMINHO dentro do molde, os
---   valores originais gravados em `ACESO`. Acender pela cópia (e não pelo
---   molde) é o que impede o molde de aparecer dentro da Tool guardada.
+--   sem nada rodando. Quem acende é a cópia, nunca o molde.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_xester.py.
 
 local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local M = {}
 
--- valores que o clone recupera, por classe
+--══════════════════════════════════════════════════════════════
+-- PALETA — Forma 2, O Despertar
+--══════════════════════════════════════════════════════════════
+
+local COR = {
+	CLARO = Color3.fromRGB(226, 60, 60),
+	ESCURO = Color3.fromRGB(20, 18, 22),
+	QUENTE = Color3.fromRGB(255, 92, 46),
+	FUMACA = Color3.fromRGB(100, 102, 115),
+}
+
+--══════════════════════════════════════════════════════════════
+-- PACK DE VFX — DENTRO DA TOOL (VFXModule/Pack)
+--
+-- Regra nº 1, sem exceção: os módulos são filhos deste ModuleScript. Nada é
+-- lido do Acervo em runtime — o pack é copiado para dentro na montagem.
+--══════════════════════════════════════════════════════════════
+
+local PACK = { LIGADO = true, PASTA = "Pack" }
+local raizPack, packProcurado, moduloDoPack = nil, false, {}
+
+local function deposito()
+	if packProcurado then return raizPack end
+	packProcurado = true
+	raizPack = script:FindFirstChild(PACK.PASTA)
+	return raizPack
+end
+
+local function efeitoDoPack(nome)
+	if not PACK.LIGADO then return nil end
+	local guardado = moduloDoPack[nome]
+	if guardado ~= nil then
+		if guardado == false then return nil end
+		return guardado
+	end
+	local raiz = deposito()
+	if not raiz then moduloDoPack[nome] = false return nil end
+	local mod = raiz:FindFirstChild(nome)
+	if not mod or not mod:IsA("ModuleScript") then
+		moduloDoPack[nome] = false
+		return nil
+	end
+	local ok, fn = pcall(require, mod)
+	if not ok or type(fn) ~= "function" then
+		moduloDoPack[nome] = false
+		return nil
+	end
+	moduloDoPack[nome] = fn
+	return fn
+end
+
+--- Chama um efeito do pack. Devolve `false` se ele não estiver lá, e é isso
+--- que faz o fallback local entrar.
+local function pk(nome, ...)
+	local fn = efeitoDoPack(nome)
+	if not fn then return false end
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[Xester VFX] pack " .. tostring(nome) .. ": " .. tostring(err))
+	end
+	return ok
+end
+
+--══════════════════════════════════════════════════════════════
+-- MOLDE -> CÓPIA ACESA
+--══════════════════════════════════════════════════════════════
+
 local ACESO = {
 	BasePart = { Transparency = 0 },
 	Decal = { Transparency = 0 },
@@ -42,7 +115,6 @@ local function acender(instancia)
 	end
 end
 
---- Clona um molde JÁ ACESO. O molde continua invisível dentro da Tool.
 function M.clonar(molde, vida)
 	if not molde then return nil end
 	local copia = molde:Clone()
@@ -60,60 +132,172 @@ local function achar(moldes, nome)
 	return moldes and moldes:FindFirstChild(nome, true)
 end
 
---- Onda de choque: a malha 20329976 do original, crescendo por Tween.
---- Tween no cliente em vez de `Size + Vector3` por quadro no servidor.
-local function onda(moldes, posicao, escala, vida)
-	local base = achar(moldes, "Onda") or achar(moldes, "shockwave")
-	if not base then return end
-	local copia = M.clonar(base, vida or 2)
-	if not copia or not copia:IsA("BasePart") then return end
-	copia.Anchored = true
-	copia.CanCollide = false
-	copia.CFrame = CFrame.new(posicao)
-	local malha = copia:FindFirstChildOfClass("SpecialMesh")
-	local alvo = (malha and malha.Scale or Vector3.new(1, 1, 1))
-		+ Vector3.new(60, 3, 60) * (escala or 1)
-	if malha then
-		TweenService:Create(malha, TweenInfo.new(vida or 2,
-			Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-			{ Scale = alvo }):Play()
+--══════════════════════════════════════════════════════════════
+-- PRIMITIVAS — pack primeiro, fallback local depois
+--══════════════════════════════════════════════════════════════
+
+--- Anel de choque no chão. `Shockwave` do pack; sem ele, um disco em Tween.
+local function onda(posicao, escala, cor, vida)
+	local base = Vector3.new(10.775, 2.3, 10.505) * (escala or 1)
+	if pk("Shockwave", CFrame.new(posicao), CFrame.new(posicao), vida or 1.2,
+			base, base * 3, cor or COR.CLARO, cor or COR.ESCURO,
+			Enum.EasingStyle.Quint) then
+		return
 	end
-	TweenService:Create(copia, TweenInfo.new(vida or 2,
+	local disco = Instance.new("Part")
+	disco.Shape = Enum.PartType.Cylinder
+	disco.Size = Vector3.new(0.4, base.X, base.Z)
+	disco.CFrame = CFrame.new(posicao) * CFrame.Angles(0, 0, math.rad(90))
+	disco.Material = Enum.Material.Neon
+	disco.Color = cor or COR.CLARO
+	disco.Anchored, disco.CanCollide = true, false
+	disco.Parent = workspace
+	table.insert(vivos, disco)
+	Debris:AddItem(disco, (vida or 1.2) + 0.5)
+	TweenService:Create(disco, TweenInfo.new(vida or 1.2,
+		Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		{ Size = disco.Size * 3, Transparency = 1 }):Play()
+end
+
+--- Anel largo e lento — o segundo tempo de um impacto grande.
+local function ondaLarga(posicao, escala, cor, vida)
+	local base = Vector3.new(14, 1.4, 14) * (escala or 1)
+	if pk("Shockwave_2", CFrame.new(posicao), CFrame.new(posicao), vida or 1.8,
+			base, base * 3.4, cor or COR.CLARO, cor or COR.ESCURO,
+			Enum.EasingStyle.Quart) then
+		return
+	end
+	onda(posicao, (escala or 1) * 1.5, cor, vida)
+end
+
+--- Clarão pequeno. É o beat de "saiu da mão".
+local function nova(posicao, escala, cor, vida)
+	local a = Vector3.new(1, 1, 1) * (escala or 4)
+	if pk("Small_Nova", posicao, vida or 0.6, a, a * 4,
+			cor or COR.CLARO, cor or COR.ESCURO, Enum.EasingStyle.Quint) then
+		return
+	end
+	local bola = Instance.new("Part")
+	bola.Shape = Enum.PartType.Ball
+	bola.Size = a
+	bola.Material = Enum.Material.Neon
+	bola.Color = cor or COR.CLARO
+	bola.Anchored, bola.CanCollide = true, false
+	bola.CFrame = CFrame.new(posicao)
+	bola.Parent = workspace
+	table.insert(vivos, bola)
+	Debris:AddItem(bola, (vida or 0.6) + 0.4)
+	TweenService:Create(bola, TweenInfo.new(vida or 0.6,
+		Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		{ Size = a * 4, Transparency = 1 }):Play()
+end
+
+--- Estouro com anel. O golpe médio.
+local function estouro(posicao, escala, cor, vida)
+	local a = Vector3.new(1, 1, 1) * (escala or 6)
+	if pk("Shockwave_Explosion", posicao, vida or 0.9, a, a * 3.2,
+			cor or COR.CLARO, cor or COR.ESCURO) then
+		return
+	end
+	nova(posicao, escala, cor, vida)
+	onda(posicao, (escala or 6) / 8, cor, (vida or 0.9) + 0.4)
+end
+
+--- Estouro grande, com fumaça. Reservado para ultimate.
+local function estouroFumegante(posicao, escala, cor, fumaca)
+	if pk("Smoky_Explosion", posicao, 1.4, (escala or 8),
+			cor or COR.CLARO, fumaca or COR.FUMACA) then
+		return
+	end
+	estouro(posicao, (escala or 8) * 1.6, cor, 1.3)
+end
+
+--- Risco de corte.
+local function corte(cframe, escala, cor, vida)
+	if pk("Small_Slash", cframe, Vector3.new(1, 1, 1) * (escala or 6),
+			vida or 0.45, cor or COR.CLARO, cor or COR.ESCURO) then
+		return
+	end
+	nova(cframe.Position, (escala or 6) * 0.5, cor, vida or 0.45)
+end
+
+--- Anel fino que abre — conjuração, escudo subindo, portal nascendo.
+local function anelSonar(cframe, escala, cor, vida)
+	if pk("Sonar_Ring", cframe, vida or 1, (escala or 6), (escala or 6) * 4,
+			0.6, 0.05, cor or COR.CLARO, cor or COR.ESCURO) then
+		return
+	end
+	onda(cframe.Position, (escala or 6) / 10, cor, vida)
+end
+
+--- Rachadura no chão. É o que dá PESO ao impacto de carta grande.
+local function rachadura(posicao, escala, cor, vida)
+	if pk("Floor_Crack", CFrame.new(posicao),
+			Vector3.new(1, 1, 1) * (escala or 8), vida or 3, cor or COR.ESCURO) then
+		return
+	end
+	onda(posicao, (escala or 8) / 10, cor, 1.4)
+end
+
+--- Feixe reto. O pack desenha o cilindro; nós só damos as pontas.
+local function feixe(origem, destino, calibre, cor, vida)
+	if pk("Laser_Shot", origem, destino, (calibre or 3), (calibre or 3) * 0.2,
+			nil, cor or COR.CLARO, cor or COR.ESCURO,
+			Enum.PartType.Cylinder, vida or 2) then
+		return
+	end
+	local delta = destino - origem
+	local cilindro = Instance.new("Part")
+	cilindro.Shape = Enum.PartType.Cylinder
+	cilindro.Size = Vector3.new(delta.Magnitude, calibre or 3, calibre or 3)
+	cilindro.CFrame = CFrame.new(origem, destino)
+		* CFrame.new(0, 0, -delta.Magnitude / 2)
+		* CFrame.Angles(0, math.rad(90), 0)
+	cilindro.Material = Enum.Material.Neon
+	cilindro.Color = cor or COR.CLARO
+	cilindro.Anchored, cilindro.CanCollide = true, false
+	cilindro.Parent = workspace
+	table.insert(vivos, cilindro)
+	Debris:AddItem(cilindro, (vida or 2) + 0.5)
+	TweenService:Create(cilindro, TweenInfo.new(vida or 2,
 		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{ Transparency = 1 }):Play()
 end
 
-local function esfera(posicao, escala, cor, vida)
-	local bola = Instance.new("Part")
-	bola.Shape = Enum.PartType.Ball
-	bola.Size = Vector3.new(1, 1, 1)
-	bola.Material = Enum.Material.Neon
-	bola.BrickColor = BrickColor.new(cor or "White")
-	bola.Anchored = true
-	bola.CanCollide = false
-	bola.CFrame = CFrame.new(posicao)
-	bola.Parent = workspace
-	table.insert(vivos, bola)
-	Debris:AddItem(bola, vida or 1.2)
-	TweenService:Create(bola, TweenInfo.new(vida or 1.2,
-		Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-		Size = Vector3.new(1, 1, 1) * (escala or 6),
-		Transparency = 1,
-	}):Play()
-	return bola
+--- Espiral. É o efeito que faz sucção e tornado LEREM como sucção e tornado.
+local function espiral(posicao, escala, cor, voltas, raio, altura)
+	if pk("Spiral_Effect", posicao, Vector3.new(1, 1, 1) * (escala or 1.4),
+			cor or COR.CLARO, voltas or 26, raio or 8, altura or 14) then
+		return
+	end
+	local i = 1
+	while i <= (voltas or 26) do
+		local indice = i
+		task.delay(indice * 0.02, function()
+			local ang = math.rad(137.507764 * indice)
+			nova(posicao + Vector3.new(math.cos(ang) * (raio or 8),
+				indice * ((altura or 14) / (voltas or 26)),
+				math.sin(ang) * (raio or 8)), (escala or 1.4) * 1.5, cor, 0.5)
+		end)
+		i = i + 1
+	end
 end
 
---- Carta que sobe do chão e some. É a peça mais repetida do Xester.
+--══════════════════════════════════════════════════════════════
+-- A CARTA — o pack não tem, e é a assinatura do Xester
+--══════════════════════════════════════════════════════════════
+
 local function carta(moldes, cframe, tamanho, vida)
-	local base = achar(moldes, "Carta1") or achar(moldes, "cards")
-	if base and base:IsA("Model") then
-		base = base:FindFirstChildWhichIsA("BasePart")
+	local base = achar(moldes, "Carta1")
+	if not base then
+		local baralho = achar(moldes, "cards")
+		base = baralho and baralho:FindFirstChildWhichIsA("BasePart")
 	end
-	if not base then return end
+	if not base or not base:IsA("BasePart") then return nil end
+
 	local copia = M.clonar(base, vida or 2)
-	if not copia or not copia:IsA("BasePart") then return end
-	copia.Anchored = true
-	copia.CanCollide = false
+	if not copia then return nil end
+	copia.Anchored, copia.CanCollide = true, false
 	copia.Size = Vector3.new(0.1, 0.25, 0.1)
 	copia.CFrame = cframe
 	TweenService:Create(copia, TweenInfo.new((vida or 2) * 0.35,
@@ -135,27 +319,30 @@ end
 local VFX = {}
 
 function VFX.CARTA_CHAO(d, moldes)
-	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(0, math.rad(d.giro or 0), 0),
-		d.tamanho, 2.5)
+	carta(moldes, CFrame.new(d.posicao)
+		* CFrame.Angles(0, math.rad(d.giro or 0), 0), d.tamanho, 2.5)
+	rachadura(d.posicao, 10, COR.ESCURO, 3)
 end
 
-function VFX.ONDA_DUPLA(d, moldes)
-	onda(moldes, d.posicao, d.escala or 1, 1.6)
-	onda(moldes, d.posicao, (d.escala or 1) * 0.4, 2.2)
+function VFX.ONDA_DUPLA(d)
+	onda(d.posicao, d.escala or 1, COR.CLARO, 1.4)
+	ondaLarga(d.posicao, (d.escala or 1) * 0.6, COR.ESCURO, 2)
 end
 
-function VFX.ONDA_CHAO(d, moldes)
-	onda(moldes, d.posicao, 0.35, 1.1)
+function VFX.ONDA_CHAO(d)
+	onda(d.posicao, 0.35, COR.CLARO, 1)
 end
 
 function VFX.LEQUE_ABRE(d, moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
+	anelSonar(raiz.CFrame, 5, COR.CLARO, 0.8)
+	local total = d.cartas or 20
 	local i = 1
-	while i <= (d.cartas or 20) do
-		local ang = math.rad(360 / (d.cartas or 20) * i)
-		carta(moldes, raiz.CFrame * CFrame.new(
-			math.cos(ang) * (d.raio or 4), math.sin(ang) * (d.raio or 4), 0), nil, 8)
+	while i <= total do
+		local ang = math.rad(360 / total * i)
+		carta(moldes, raiz.CFrame * CFrame.new(math.cos(ang) * (d.raio or 4),
+			math.sin(ang) * (d.raio or 4), 0), nil, 8)
 		i = i + 1
 	end
 end
@@ -163,26 +350,28 @@ end
 function VFX.LEQUE_FECHA() end
 
 function VFX.LEQUE_ATIRA(d)
-	esfera(d.origem, 3, "White", 0.5)
+	nova(d.origem, 3, COR.CLARO, 0.5)
 end
 
 function VFX.CARTA_VOA(d, moldes)
 	carta(moldes, CFrame.new(d.destino), nil, 1.2)
-	esfera(d.destino, 4, "White", 0.6)
+	corte(CFrame.new(d.destino), 5, COR.CLARO, 0.4)
 end
 
+--- Cardnado: espiral é literalmente o efeito certo, e o pack já tem.
 function VFX.TEMPESTADE(d, moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
+	espiral(raiz.Position, 1.6, COR.CLARO, 30, d.raio and (d.raio / 3) or 7,
+		(d.altura or 3.2) * 5)
+
 	local base = achar(moldes, "Tempestade")
 	if not base then return end
 	local copia = M.clonar(base, d.duracao or 2)
 	if not copia or not copia:IsA("BasePart") then return end
-	copia.Anchored = true
-	copia.CanCollide = false
-	local conexao
-	local giro = 0
-	conexao = game:GetService("RunService").Heartbeat:Connect(function(dt)
+	copia.Anchored, copia.CanCollide = true, false
+	local giro, conexao = 0, nil
+	conexao = RunService.Heartbeat:Connect(function(dt)
 		if not (copia.Parent and raiz.Parent) then
 			conexao:Disconnect()
 			return
@@ -195,18 +384,18 @@ function VFX.TEMPESTADE(d, moldes, personagem)
 end
 
 function VFX.FANTASMA(d, _moldes, personagem)
+	nova(d.posicao, 4, COR.CLARO, 0.5)
 	if not personagem then return end
 	for _, parte in ipairs(personagem:GetChildren()) do
 		if parte:IsA("BasePart") then
 			local eco = Instance.new("Part")
-			eco.Size = parte.Size
-			eco.CFrame = parte.CFrame
+			eco.Size, eco.CFrame = parte.Size, parte.CFrame
 			eco.Material = Enum.Material.Neon
-			eco.BrickColor = BrickColor.new("White")
-			eco.Anchored = true
-			eco.CanCollide = false
+			eco.Color = COR.CLARO
+			eco.Anchored, eco.CanCollide = true, false
 			eco.Transparency = 0.4
 			eco.Parent = workspace
+			table.insert(vivos, eco)
 			Debris:AddItem(eco, 1)
 			TweenService:Create(eco, TweenInfo.new(1),
 				{ Transparency = 1 }):Play()
@@ -216,15 +405,17 @@ end
 
 function VFX.CARTA_ERGUE(d, moldes)
 	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.2)
+	anelSonar(CFrame.new(d.posicao), 8, COR.CLARO, 0.7)
 end
 
 function VFX.CARTA_DESABA(d, moldes)
 	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.4)
+	rachadura(d.posicao, 16, COR.ESCURO, 4)
 	local i = 1
 	while i <= (d.aneis or 4) do
 		local indice = i
 		task.delay(indice * 0.06, function()
-			onda(moldes, d.posicao, 0.8 + indice * 0.3, 1.6)
+			onda(d.posicao, 0.8 + indice * 0.3, COR.CLARO, 1.5)
 		end)
 		i = i + 1
 	end
@@ -233,42 +424,44 @@ end
 function VFX.PORTAL_ABRE(d, moldes)
 	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
 		d.tamanho, 3)
-	esfera(d.posicao, 10, "Really black", 1.5)
+	anelSonar(CFrame.new(d.posicao), 10, COR.ESCURO, 1.2)
+	espiral(d.posicao, 1.8, COR.ESCURO, 34, 10, 18)
 end
 
-function VFX.PORTAL_COLAPSA(d, moldes)
+function VFX.PORTAL_COLAPSA(d)
+	estouroFumegante(d.posicao, 12, COR.ESCURO, COR.FUMACA)
 	local i = 1
 	while i <= (d.estouros or 4) do
 		local indice = i
 		task.delay(indice * 0.05, function()
-			esfera(d.posicao, 14 + indice * 4, "White", 1)
+			estouro(d.posicao, 8 + indice * 3, COR.CLARO, 0.9)
 		end)
 		i = i + 1
 	end
 	local a = 1
 	while a <= (d.aneis or 2) do
-		onda(moldes, d.posicao, 1.4, 2)
+		ondaLarga(d.posicao, 1.6, COR.ESCURO, 2)
 		a = a + 1
 	end
 end
 
 function VFX.ESCUDO_SOBE(d)
-	esfera(d.posicao, 5, "White", 0.6)
+	anelSonar(CFrame.new(d.posicao), 6, COR.CLARO, 0.6)
 end
 
 function VFX.ESCUDO_REBATE(d)
-	esfera(d.posicao, 5, "White", 0.5)
+	nova(d.posicao, 4, COR.CLARO, 0.4)
 end
 
 function VFX.ESCUDO_ESTILHACA(d, moldes)
+	estouro(d.posicao, 7, COR.CLARO, 0.8)
 	local i = 1
 	while i <= (d.cacos or 12) do
 		local ang = math.rad(137.507764 * i)
-		carta(moldes, CFrame.new(d.posicao
-			+ Vector3.new(math.cos(ang) * 4, i * 0.3, math.sin(ang) * 4)), nil, 1.4)
+		carta(moldes, CFrame.new(d.posicao + Vector3.new(
+			math.cos(ang) * 4, i * 0.3, math.sin(ang) * 4)), nil, 1.4)
 		i = i + 1
 	end
-	onda(moldes, d.posicao, 0.6, 1.4)
 end
 
 function VFX.CEIFEIRA_VOA(d, moldes)
@@ -277,29 +470,30 @@ function VFX.CEIFEIRA_VOA(d, moldes)
 	TweenService:Create(peca, TweenInfo.new(d.voo or 0.35,
 		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{ CFrame = CFrame.new(d.destino) }):Play()
+	corte(CFrame.new(d.origem), 4, COR.ESCURO, 0.3)
 end
 
-function VFX.CEIFEIRA_ESTOURA(d, moldes)
-	esfera(d.posicao, 12, "Really black", 0.9)
-	onda(moldes, d.posicao, 0.7, 1.5)
+function VFX.CEIFEIRA_ESTOURA(d)
+	estouro(d.posicao, 9, COR.ESCURO, 0.9)
+	rachadura(d.posicao, 8, COR.ESCURO, 2.5)
 end
 
 function VFX.ESFERA_CARREGA(d, _moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
-	local bola = esfera(raiz.Position + raiz.CFrame.LookVector * 3, 8,
-		"Really black", d.duracao or 2.4)
-	if bola then bola.Transparency = 0.2 end
+	espiral(raiz.Position + raiz.CFrame.LookVector * 3, 1.5, COR.ESCURO,
+		30, 7, 12)
 end
 
-function VFX.ESFERA_DETONA(d, moldes)
-	esfera(d.posicao, 30 * (d.escala or 1), "Really black", 1.2)
-	onda(moldes, d.posicao, 1.6, 2)
+function VFX.ESFERA_DETONA(d)
+	estouroFumegante(d.posicao, 14 * (d.escala or 1), COR.ESCURO, COR.FUMACA)
+	ondaLarga(d.posicao, 2, COR.ESCURO, 2.2)
 end
 
 function VFX.BARALHO_CONJURA(d, moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
+	anelSonar(raiz.CFrame, 9, COR.ESCURO, d.duracao or 2.5)
 	local i = 1
 	while i <= (d.cartas or 12) do
 		local ang = math.rad(137.507764 * i)
@@ -310,31 +504,31 @@ function VFX.BARALHO_CONJURA(d, moldes, personagem)
 end
 
 function VFX.BARALHO_GOLPE(d)
-	esfera(d.posicao, 6, "White", 0.5)
+	corte(CFrame.new(d.posicao), 5, COR.ESCURO, 0.4)
 end
 
-function VFX.INVOCA(d, moldes)
-	esfera(d.posicao, 12, "Really black", 1)
-	onda(moldes, d.posicao, 0.5, 1.4)
+function VFX.INVOCA(d)
+	espiral(d.posicao, 1.6, COR.ESCURO, 28, 6, 12)
+	rachadura(d.posicao, 7, COR.ESCURO, 3)
 end
 
 function VFX.SERVO_GOLPE(d)
-	esfera(d.posicao, 4, "Really red", 0.4)
+	corte(CFrame.new(d.posicao), 3.5, COR.QUENTE, 0.3)
 end
 
 function VFX.MACHADO_SACA(d, _moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
+	anelSonar(raiz.CFrame, 7, COR.QUENTE, 0.8)
 	local luz = Instance.new("PointLight")
-	luz.Color = Color3.new(0.1, 0, 0)
-	luz.Range = 35
-	luz.Brightness = 3
+	luz.Color = COR.ESCURO
+	luz.Range, luz.Brightness = 35, 3
 	luz.Parent = raiz
 	Debris:AddItem(luz, d.duracao or 6)
 end
 
 function VFX.MACHADO_CORTA(d)
-	esfera(d.posicao, 7, "Really red", 0.4)
+	corte(CFrame.new(d.posicao), 7, COR.QUENTE, 0.4)
 end
 
 function VFX.MACHADO_GUARDA() end
@@ -348,6 +542,7 @@ function VFX.PROCISSAO(d, moldes)
 			carta(moldes, CFrame.new(onde - Vector3.new(0, 2, 0))
 				* CFrame.Angles(0, math.rad(137.507764 * indice), 0),
 				Vector3.new(7, 0.25, 5), 1.6)
+			rachadura(onde, 4, COR.ESCURO, 1.6)
 		end)
 		i = i + 1
 	end
@@ -356,85 +551,76 @@ end
 function VFX.PORTAL_CAJADO(d, moldes)
 	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
 		Vector3.new(9, 0.35, 9), (d.duracao or 4) + 1)
+	anelSonar(CFrame.new(d.posicao), 9, COR.ESCURO, 1.2)
+	espiral(d.posicao, 1.4, COR.ESCURO, 24, 6, 10)
 end
 
 function VFX.CORTE_PORTAL(d)
-	esfera(d.posicao, 8, "Really black", 0.5)
+	corte(CFrame.new(d.posicao), 6, COR.ESCURO, 0.4)
 end
 
 function VFX.GARGALHADA(d, moldes)
+	anelSonar(CFrame.new(d.posicao), 5, COR.CLARO, 0.9)
 	local i = 1
 	while i <= (d.cartas or 8) do
 		local indice = i
 		local ang = math.rad(137.507764 * indice)
-		local peca = carta(moldes, CFrame.new(d.posicao
-			+ Vector3.new(math.cos(ang) * 3, 2, math.sin(ang) * 3)), nil, 2)
+		local peca = carta(moldes, CFrame.new(d.posicao + Vector3.new(
+			math.cos(ang) * 3, 2, math.sin(ang) * 3)), nil, 2)
 		if peca then
 			TweenService:Create(peca, TweenInfo.new(2,
 				Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ CFrame = peca.CFrame * CFrame.new(0, 8, 0) }):Play()
 		end
-		i = i + 1
 	end
 end
 
 function VFX.FOGO_SAI(d)
-	esfera(d.origem, (d.calibre or 2) * 1.5, "Bright orange", 0.4)
+	nova(d.origem, (d.calibre or 2) * 1.2, COR.QUENTE, 0.4)
 end
 
-function VFX.FOGO_ESTOURA(d, moldes)
-	esfera(d.posicao, 10 * (d.escala or 1), "Bright orange", 0.9)
-	onda(moldes, d.posicao, 0.4, 1.2)
+function VFX.FOGO_ESTOURA(d)
+	estouro(d.posicao, 7 * (d.escala or 1), COR.QUENTE, 0.9)
 end
 
 function VFX.FOGO_CARREGA(d, _moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
-	esfera(raiz.Position + raiz.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0),
-		d.calibre or 9, "Really red", d.duracao or 1.8)
+	espiral(raiz.Position + raiz.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0),
+		1.4, COR.QUENTE, 26, 5, 9)
 end
 
-function VFX.FOGO_ESTOURA_GRANDE(d, moldes)
-	esfera(d.posicao, 26 * (d.escala or 1), "Really red", 1.3)
+function VFX.FOGO_ESTOURA_GRANDE(d)
+	estouroFumegante(d.posicao, 16 * (d.escala or 1), COR.QUENTE, COR.FUMACA)
 	local i = 1
 	while i <= (d.aneis or 2) do
-		onda(moldes, d.posicao, 1.2, 2)
+		ondaLarga(d.posicao, 1.4, COR.QUENTE, 2)
 		i = i + 1
 	end
 end
 
-function VFX.SOPRO(d, _moldes)
+function VFX.SOPRO(d)
 	local i = 1
 	while i <= (d.passos or 25) do
 		local indice = i
 		task.delay(indice * (d.intervalo or 0.06), function()
-			esfera(d.origem + d.direcao * (indice * 2.4),
-				6 + indice * 0.5, "Bright orange", 0.6)
+			local onde = d.origem + d.direcao * (indice * 2.4)
+			nova(onde, 4 + indice * 0.35, COR.QUENTE, 0.55)
+			if indice % 5 == 0 then
+				corte(CFrame.new(onde, onde + d.direcao), 6, COR.QUENTE, 0.35)
+			end
 		end)
 		i = i + 1
 	end
 end
 
---- O feixe é UM cilindro esticado de uma vez, no cliente. Esticar por quadro
---- no servidor é o caso que replica picotado.
+--- O feixe é do pack: uma peça esticada de uma vez, no cliente. Esticar por
+--- quadro no servidor é o caso que replica picotado.
 function VFX.RAIO(d)
-	local feixe = Instance.new("Part")
-	feixe.Shape = Enum.PartType.Cylinder
-	feixe.Material = Enum.Material.Neon
-	feixe.BrickColor = BrickColor.new("White")
-	feixe.Anchored = true
-	feixe.CanCollide = false
-	local calibre = d.calibre or 3
-	feixe.Size = Vector3.new(d.alcance or 60, calibre, calibre)
-	feixe.CFrame = CFrame.new(d.origem, d.origem + d.direcao)
-		* CFrame.new(0, 0, -(d.alcance or 60) / 2)
-		* CFrame.Angles(0, math.rad(90), 0)
-	feixe.Parent = workspace
-	table.insert(vivos, feixe)
-	Debris:AddItem(feixe, d.duracao or 2.2)
-	TweenService:Create(feixe, TweenInfo.new(d.duracao or 2.2,
-		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ Transparency = 1 }):Play()
+	feixe(d.origem, d.origem + d.direcao * (d.alcance or 60),
+		d.calibre or 3, COR.CLARO, d.duracao or 2.2)
+	nova(d.origem, 3, COR.CLARO, 0.4)
+	estouro(d.origem + d.direcao * (d.alcance or 60), 6, COR.CLARO, 0.8)
 end
 
 --══════════════════════════════════════════════════════════════
@@ -448,15 +634,15 @@ function M.desenhar(tipo, dados, moldes, personagem)
 	end
 end
 
---- Beat do animator. O gesto marca CARGA e GOLPE; aqui eles viram brilho na
---- mão, para o golpe ter peso antes do efeito grande chegar.
+--- Beat do animator. O gesto marca CARGA e GOLPE; aqui viram brilho na mão,
+--- para o golpe ter peso ANTES do efeito grande chegar.
 function M.beat(marca, personagem)
 	local braco = personagem and personagem:FindFirstChild("Right Arm")
 	if not braco then return end
 	if marca == "CARGA" then
-		esfera(braco.Position, 2.5, "White", 0.35)
+		nova(braco.Position, 2, COR.CLARO, 0.3)
 	elseif marca == "GOLPE" then
-		esfera(braco.Position, 5, "White", 0.4)
+		nova(braco.Position, 4, COR.CLARO, 0.35)
 	end
 end
 
