@@ -1,0 +1,3066 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RV_T_XesterFuriadoMachado"><Properties><string name="Name">Xester Furia do Machado</string><string name="ToolTip">Saca o machado e avanca. Extra: gargalhada.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterFuriadoMachado"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterFuriadoMachado"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterFuriadoMachado"><Properties><string name="Name">DamageClass</string><string name="Value">CEIFA</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterFuriadoMachado"><Properties><string name="Name">ChaveRecarga</string><string name="Value">XesterD_Machado</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterFuriadoMachado"><Properties><string name="Name">EnergyCost</string><float name="Value">16</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterFuriadoMachado"><Properties><string name="Name">RecargaGlobal</string><float name="Value">12</float></Properties></Item><Item class="StringValue" referent="RV_TeclaE_XesterFuriadoMachado"><Properties><string name="Name">TeclaExtra</string><string name="Value">Y</string></Properties></Item><Item class="Script" referent="RV_XesterFuriadoM_XesterFuriadoMachado"><Properties><string name="Name">XesterFuriadoMachado_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterFuriadoMachado_Server_V1.lua
+-- Script de servidor — Xester Furia do Machado
+--
+--   M1   Saca o machado e corre cortando; ativar de novo guarda.
+--   Y    Gargalhada (habilidade Extra)
+--
+-- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
+--   `ws = 120` no original (xesterv2.lua:1818) — reduzido a 42, ver nota
+--   PointLight preto de alcance 35 (xesterv2.lua:1826-1830)
+--   tema 187042245 a partir de 3 s (xesterv2.lua:1821-1825)
+--
+-- O QUE NÃO ATRAVESSOU A CONVERSÃO
+--   `death()` / `:Remove()` no alvo  — matar por deleção tira o abate do
+--                                      Núcleo e apaga o personagem do jogador
+--   `damagealll` próprio             — regra de combate tem uma porta só
+--   `math.random` no dano            — faixa determinística por contador
+--   `swait()` / `wait()`             — task.wait e beat do animator
+--   geometria movida por quadro NO SERVIDOR — replica a ~20 Hz picotado
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py. Editar aqui à mão faz as
+-- sete derivarem; edite o gerador.
+
+local Players = game:GetService("Players")
+local Debris  = game:GetService("Debris")
+
+local Tool      = script.Parent
+local Handle    = Tool:WaitForChild("Handle")
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local Moldes    = Tool:WaitForChild("Moldes")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+
+--══════════════════════════════════════════════════════════════
+-- CFG — número mágico espalhado pelo corpo é violação
+--══════════════════════════════════════════════════════════════
+
+local ARQUETIPO = "CEIFA"
+
+local CFG = {
+	RECARGA = 12,
+	RECARGA_EXTRA = 6,
+	ALCANCE = 60,
+	VELOCIDADE = 42,
+	DURACAO = 6,
+	INTERVALO = 0.35,
+	ALCANCE_GOLPE = 6,
+	RAIO = 8,
+	DANO_MIN = 18,
+	DANO_MAX = 30,
+	EMPURRAO = 50,
+	CARTAS_RISO = 8,
+	RAIO_RISO = 14,
+	SUSTO = 24,
+}
+
+--══════════════════════════════════════════════════════════════
+-- ESTADO
+--══════════════════════════════════════════════════════════════
+
+local jogador, personagem, humanoide, raiz
+local ultimoUso, ultimoExtra = 0, 0
+local ultimaMira = nil
+local ativos = {}
+local semente = 0
+
+local function proximo()
+	semente = semente + 1
+	if semente > 1000000 then semente = 1 end
+	return semente
+end
+
+--- Faixa determinística no lugar de `math.random(a, b)`.
+--- O original sorteava o dano a cada golpe; aqui a variedade vem de uma
+--- senoide sobre o contador — mesma dispersão, e reproduzível.
+local function naFaixa(minimo, maximo)
+	local onda = (math.sin(proximo() * 2.399963) + 1) * 0.5
+	return minimo + (maximo - minimo) * onda
+end
+
+--- Ângulo áureo: espalha N pontos sem repetir e sem sortear.
+local function anguloDe(indice)
+	return math.rad(137.507764 * indice)
+end
+
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+local function guardar(conexao)
+	table.insert(ativos, conexao)
+	return conexao
+end
+
+local function soltarTudo()
+	for _, conexao in ipairs(ativos) do
+		if conexao.Connected then conexao:Disconnect() end
+	end
+	ativos = {}
+end
+
+--══════════════════════════════════════════════════════════════
+-- DANO — a Tool declara, o Núcleo decide (§12.5 / §12.6)
+--
+-- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
+-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro.
+--══════════════════════════════════════════════════════════════
+
+local function creditar(alvoHum)
+	if _G.Combate and _G.Combate.registrarAtaque then
+		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
+	else
+		local marca = alvoHum:FindFirstChild("creator")
+		if marca then marca.Parent = nil end
+		marca = Instance.new("ObjectValue")
+		marca.Name = "creator"
+		marca.Value = jogador
+		marca.Parent = alvoHum
+		Debris:AddItem(marca, 3)
+	end
+end
+
+local function aplicarDano(alvoHum, bruto)
+	if not alvoHum or alvoHum.Health <= 0 then return 0 end
+	local final = (_G.Combate and _G.Combate.calcular
+		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+local function alvosEm(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarHumanoides then
+		return _G.Combate.detectarHumanoides(
+			posicao, raio, personagem, jogador, humanoide, limite or 14) or {}
+	end
+
+	local achados, vistos = {}, {}
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] then
+			vistos[hum] = true
+			table.insert(achados, hum)
+			if limite and #achados >= limite then break end
+		end
+	end
+	return achados
+end
+
+local function empurrar(alvoHum, direcao, forca, tempo)
+	local corpo = alvoHum.Parent
+	local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+	if not alvoRaiz or direcao.Magnitude < 0.01 then return end
+	local impulso = Instance.new("BodyVelocity")
+	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	impulso.Velocity = direcao.Unit * forca
+	impulso.Parent = alvoRaiz
+	Debris:AddItem(impulso, tempo or 0.2)
+end
+
+--- Golpe em área: dano + empurrão + o beat para o cliente desenhar.
+local function golpearArea(posicao, raio, minimo, maximo, forca, limite)
+	local atingidos = 0
+	for _, alvo in ipairs(alvosEm(posicao, raio, limite or 14)) do
+		aplicarDano(alvo, naFaixa(minimo, maximo))
+		atingidos = atingidos + 1
+		if forca and forca > 0 then
+			local corpo = alvo.Parent
+			local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+			if alvoRaiz then
+				empurrar(alvo, (alvoRaiz.Position - posicao)
+					+ Vector3.new(0, 0.3, 0), forca, 0.25)
+			end
+		end
+	end
+	return atingidos
+end
+
+--══════════════════════════════════════════════════════════════
+-- MOLDES — o asset vem de DENTRO da Tool (Regra nº 1)
+--══════════════════════════════════════════════════════════════
+
+--- Acha um molde por nome, em qualquer profundidade de `Moldes/`.
+local function molde(nome)
+	return Moldes:FindFirstChild(nome, true)
+end
+
+--- Clona um molde para o mundo. O molde mora apagado (Transparency = 1);
+--- quem acende é o cliente, ao desenhar. O que o servidor põe no mundo é
+--- SÓ o que precisa de física ou de colisão.
+local function porNoMundo(nome, cframe, vida)
+	local base = molde(nome)
+	if not base then return nil end
+	local copia = base:Clone()
+	copia.Parent = workspace
+	if copia:IsA("BasePart") then
+		copia.CFrame = cframe
+	elseif copia:IsA("Model") and copia.PrimaryPart then
+		copia:PivotTo(cframe)
+	end
+	Debris:AddItem(copia, vida or 8)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
+-- PORTA DE ENTRADA — recarga, energia, e o beat
+--══════════════════════════════════════════════════════════════
+
+local function podeUsar(quando, recarga)
+	if not (personagem and humanoide and humanoide.Health > 0 and raiz) then
+		return false
+	end
+	if os.clock() - quando < recarga then return false end
+	return true
+end
+
+--- Mira: o cliente manda para onde aponta. O servidor CONFERE o alcance em
+--- vez de confiar — payload de cliente é entrada, não verdade.
+local function mirar(pedido)
+	if typeof(pedido) ~= "Vector3" then
+		return raiz.Position + raiz.CFrame.LookVector * CFG.ALCANCE
+	end
+	local delta = pedido - raiz.Position
+	if delta.Magnitude > CFG.ALCANCE then
+		return raiz.Position + delta.Unit * CFG.ALCANCE
+	end
+	return pedido
+end
+
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — Fúria do Machado
+--
+-- O original põe `ws = 120` e sai correndo. 120 de WalkSpeed atravessa
+-- colisão em servidor com replicação normal, então aqui a corrida é rápida
+-- mas dentro do que o motor sustenta, e VOLTA sozinha — o original deixava a
+-- velocidade alterada até a próxima troca de estado.
+--══════════════════════════════════════════════════════════════
+
+local correndo = false
+local velocidadeAntes
+
+local function pararCorrida()
+	if not correndo then return end
+	correndo = false
+	if humanoide and humanoide.Parent and velocidadeAntes then
+		humanoide.WalkSpeed = velocidadeAntes
+	end
+	velocidadeAntes = nil
+	vfx("MACHADO_GUARDA", {})
+end
+
+local function primaria()
+	if correndo then
+		pararCorrida()
+		return
+	end
+
+	correndo = true
+	velocidadeAntes = humanoide.WalkSpeed
+	humanoide.WalkSpeed = CFG.VELOCIDADE
+	vfx("MACHADO_SACA", { duracao = CFG.DURACAO })
+
+	local pulsos = math.floor(CFG.DURACAO / CFG.INTERVALO)
+	local i = 1
+	while i <= pulsos do
+		task.delay(i * CFG.INTERVALO, function()
+			if not (correndo and personagem and raiz) then return end
+			local frente = raiz.Position + raiz.CFrame.LookVector * CFG.ALCANCE_GOLPE
+			if golpearArea(frente, CFG.RAIO, CFG.DANO_MIN, CFG.DANO_MAX,
+					CFG.EMPURRAO, 6) > 0 then
+				vfx("MACHADO_CORTA", { posicao = frente })
+			end
+		end)
+		i = i + 1
+	end
+
+	task.delay(CFG.DURACAO, pararCorrida)
+end
+
+--══════════════════════════════════════════════════════════════
+-- EXTRA — Gargalhada
+--
+-- Provocação. O original desenhava "HaHaHaHaHa" num `BillboardGui`; GUI dentro
+-- de Tool é proibido por diretriz, então a risada é som e cartas subindo em
+-- volta da cabeça — efeito no mundo 3D, que é onde ele pode existir.
+--══════════════════════════════════════════════════════════════
+
+local function extra()
+	vfx("GARGALHADA", { posicao = raiz.Position, cartas = CFG.CARTAS_RISO })
+	-- provocação empurra sem ferir: quem está perto leva o susto, não o dano
+	for _, alvo in ipairs(alvosEm(raiz.Position, CFG.RAIO_RISO, 8)) do
+		local corpo = alvo.Parent
+		local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+		if alvoRaiz then
+			empurrar(alvo, alvoRaiz.Position - raiz.Position, CFG.SUSTO, 0.2)
+		end
+	end
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA
+--══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	personagem = Tool.Parent
+	jogador = Players:GetPlayerFromCharacter(personagem)
+	humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+end)
+
+Tool.Unequipped:Connect(function()
+	soltarTudo()
+	pararCorrida()
+end)
+
+Tool.Activated:Connect(function()
+	if not podeUsar(ultimoUso, CFG.RECARGA) then return end
+	ultimoUso = os.clock()
+	primaria()
+end)
+
+AcaoRemote.OnServerEvent:Connect(function(quem, mira)
+	-- O Remote é a porta de fora: confere QUEM chamou antes de qualquer coisa.
+	if quem ~= jogador then return end
+	if not podeUsar(ultimoExtra, CFG.RECARGA_EXTRA) then return end
+	ultimoExtra = os.clock()
+	extra(mirar(mira))
+end)
+
+--- `Destroying`, não `AncestryChanged`: a Tool pode trocar de pai a cada
+--- equipar sem estar sendo destruída.
+Tool.Destroying:Connect(function()
+	soltarTudo()
+	pararCorrida()
+end)
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RV_Client_XesterFuriadoMachado"><Properties><string name="Name">Client</string><ProtectedString name="Source"><![CDATA[-- Client.lua
+-- LocalScript — Xester Furia do Machado
+--
+-- Três trabalhos, e nenhum deles é regra de combate:
+--   1. mandar a mira (o mouse só existe aqui)
+--   2. tocar a sequência de pose no animator canônico
+--   3. DESENHAR o VFX que o servidor anuncia por beat nomeado
+--
+-- POR QUE O VFX É DAQUI
+--   Parte ancorada movida por script de servidor replica a ~20 Hz, sem
+--   interpolação — é o "não está fluido". Aqui o desenho roda a 60 Hz no
+--   Heartbeat de cada cliente, e o servidor só diz O QUE e ONDE.
+--
+-- MOBILE
+--   `ContextActionService:BindAction(nome, fn, true, tecla)` — o `true` é o
+--   `createTouchButton`: o Roblox desenha o botão sozinho no celular. Não é
+--   ScreenGui, e ContextActionService é serviço, não depósito de asset.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
+local Debris = game:GetService("Debris")
+
+local jogador = Players.LocalPlayer
+local rato = jogador:GetMouse()
+
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local VFX       = require(Tool:WaitForChild("VFXModule"))
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local MiraRemote = nil
+
+local SEQUENCIA = "FURIA_DO_MACHADO"
+local SEQUENCIA_EXTRA = "GARGALHADA"
+
+local ALCANCE_MIRA = 60
+local RITMO_MIRA = 0.1
+
+local rig, personagem
+local equipada = false
+local conexoes = {}
+
+local function guardar(conexao)
+	table.insert(conexoes, conexao)
+	return conexao
+end
+
+local function soltarTudo()
+	for _, conexao in ipairs(conexoes) do
+		if conexao.Connected then conexao:Disconnect() end
+	end
+	conexoes = {}
+end
+
+--- Ponto mirado, cortado pelo alcance. O servidor CONFERE de novo — este
+--- corte é para o traçado do efeito, não é a autoridade.
+local function pontoMirado()
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return nil end
+	local alvo = rato.Hit and rato.Hit.Position
+	if not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
+	local delta = alvo - raiz.Position
+	if delta.Magnitude > ALCANCE_MIRA then
+		return raiz.Position + delta.Unit * ALCANCE_MIRA
+	end
+	return alvo
+end
+
+--══════════════════════════════════════════════════════════════
+-- ANIMAÇÃO
+--══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "XesterFuriadoMachado", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+--- Toca a sequência e devolve o beat ao VFX. `marca` é o que o keyframe
+--- carrega: "CARGA" quando o gesto começa, "GOLPE" quando ele solta.
+local function tocar(nome)
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence(nome, function(passo)
+		if passo.marca then
+			VFX.beat(passo.marca, personagem)
+		end
+	end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- VFX — o servidor anuncia, este cliente desenha
+--══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	VFX.desenhar(tipo, dados or {}, Moldes, personagem)
+end)
+
+--══════════════════════════════════════════════════════════════
+-- ENTRADA
+--══════════════════════════════════════════════════════════════
+
+local function aoEquipar()
+	personagem = Tool.Parent
+	equipada = true
+	montarRig()
+
+	-- o `true` no terceiro argumento é o botão de mobile
+	ContextActionService:BindAction("Xester_XesterFuriadoMachado", function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipada then return end
+		AcaoRemote:FireServer(pontoMirado())
+		tocar(SEQUENCIA_EXTRA)
+	end, true, Enum.KeyCode.Y)
+	ContextActionService:SetTitle("Xester_XesterFuriadoMachado", "Gargalhada")
+
+	-- a mira vai a 10 Hz, não por quadro: o servidor só precisa do PARA ONDE,
+	-- e 60 pacotes por segundo por jogador é tráfego jogado fora
+	if MiraRemote then
+		task.spawn(function()
+			while equipada do
+				local ponto = pontoMirado()
+				if ponto then MiraRemote:FireServer(ponto) end
+				task.wait(RITMO_MIRA)
+			end
+		end)
+	end
+end
+
+local function aoGuardar()
+	equipada = false
+	soltarTudo()
+	ContextActionService:UnbindAction("Xester_XesterFuriadoMachado")
+
+	if rig then
+		rig:CancelSequence()
+		rig:ReleaseLegs()
+	end
+	VFX.limpar()
+end
+
+Tool.Equipped:Connect(aoEquipar)
+Tool.Unequipped:Connect(aoGuardar)
+
+Tool.Activated:Connect(function()
+	if not equipada then return end
+	tocar(SEQUENCIA)
+end)
+
+--- `Destroying`, não `AncestryChanged`: guardar a Tool na mochila troca o pai
+--- sem destruir nada, e o cleanup não pode disparar aí.
+Tool.Destroying:Connect(function()
+	aoGuardar()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_Poses_XesterFuriadoMachado"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
+-- ModuleScript "Poses" — Xester Furia do Machado
+--
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
+--   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
+--   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+--
+-- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+--
+-- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
+-- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+--
+-- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
+-- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
+-- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
+-- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
+-- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--
+-- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
+-- tronco e pernas enquanto o golpe move só o braço.
+
+local P = {}
+
+
+P.GUARDA_1 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
+	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
+	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
+	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
+	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
+	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+}
+
+P.FURIA_DO_MACHADO_1 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4)),
+	Head = CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532)),
+	LeftArm = CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21)),
+	LeftLeg = CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864)),
+	RightArm = CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972)),
+	RightLeg = CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869)),
+}
+
+P.FURIA_DO_MACHADO_2 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.488), math.rad(-40.75), math.rad(-28.28)),
+	Head = CFrame.new(0.068, 2.006, 0.101) * CFrame.Angles(math.rad(4.565), math.rad(41.56), math.rad(3.095)),
+	LeftArm = CFrame.new(-2.192, 0.097, -0.593) * CFrame.Angles(math.rad(47.976), math.rad(-17.098), math.rad(-35.404)),
+	LeftLeg = CFrame.new(-1.432, -2.014, -0.959) * CFrame.Angles(math.rad(45.645), math.rad(31.864), math.rad(-26.936)),
+	RightArm = CFrame.new(2.155, 1.397, -0.617) * CFrame.Angles(math.rad(138.257), math.rad(44.804), math.rad(-1.525)),
+	RightLeg = CFrame.new(1.196, -1.809, -0.93) * CFrame.Angles(math.rad(-18.901), math.rad(-20.973), math.rad(11.332)),
+}
+
+P.FURIA_DO_MACHADO_3 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.599), math.rad(-40.7), math.rad(16.148)),
+	Head = CFrame.new(0.095, 2.003, 0.14) * CFrame.Angles(math.rad(5.462), math.rad(28.49), math.rad(2.63)),
+	LeftArm = CFrame.new(-2.258, 0.137, 0.575) * CFrame.Angles(math.rad(-13.597), math.rad(26.857), math.rad(-28.932)),
+	LeftLeg = CFrame.new(-1.452, -2.001, -0.99) * CFrame.Angles(math.rad(-11.455), math.rad(39.857), math.rad(8.627)),
+	RightArm = CFrame.new(0.932, 1.322, -1.309) * CFrame.Angles(math.rad(142.845), math.rad(10.33), math.rad(-53.078)),
+	RightLeg = CFrame.new(1.199, -1.808, -0.934) * CFrame.Angles(math.rad(-18.847), math.rad(-20.97), math.rad(11.536)),
+}
+
+P.GARGALHADA_1 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4)),
+	Head = CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532)),
+	LeftArm = CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21)),
+	LeftLeg = CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864)),
+	RightArm = CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972)),
+	RightLeg = CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869)),
+}
+
+P.SEQUENCIAS = {
+
+	FURIA_DO_MACHADO = {
+		{ pose = "FURIA_DO_MACHADO_2", time = 0.150, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "FURIA_DO_MACHADO_3", time = 0.150, style = "Exponential", dir = "Out", marca = "GOLPE" },
+		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+	GARGALHADA = {
+		{ pose = "GARGALHADA_1", time = 0.12, style = "Quad", dir = "Out", marca = "GOLPE" },
+		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+}
+
+return P
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_R6CFrameAnimat_XesterFuriadoMachado"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
+-- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
+-- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V2  (§10.11.7)
+═══════════════════════════════════════════════════════════════
+Compatível com a API do V1 (PlayPose / SetJoint / StartIdleBob /
+StopIdleBob / Destroy) e adiciona:
+
+- Juntas RightLeg / LeftLeg — criadas SOB DEMANDA (só quando uma
+  pose as usa) e liberadas ao fim da sequência, para não travar a
+  caminhada fora de cutscene.
+- rig:PlaySequence(seqName, onBeat, onDone) — timeline encadeada
+  por Tween.Completed (nunca task.wait(duração)).
+- rig:CancelSequence() — cancela timeline + tremor e volta ao IDLE.
+- rig:LockCharacter(bool) — WalkSpeed/JumpPower = 0, AutoRotate
+  off; guarda e restaura os valores originais.
+- rig:StartTremor(joint, amp, freq) / rig:StopTremor() — vibração
+  aditiva por acumulador dt com envelope de fade-in (sem math.random,
+  sem tick(): senoide multi-frequência determinística).
+- rig:PlayTrack(trackName, onEvent, onDone) — reproduz uma TRACK
+  (animação remasterizada do pack): dezenas de keyframes amostrados por
+  acumulador dt em Heartbeat, com easing por segmento via
+  TweenService:GetValue. Timing EXATO: não encadeia tweens, portanto
+  não acumula o ~1 frame de atraso por keyframe que o chaining teria.
+
+Regras do projeto respeitadas: sem wait()/spawn()/delay(), sem
+tick(), sem +=/continue, sem math.random, Welds removidos por
+reparent, Destroy cancela sequência + tremor + lock.
+
+USO:
+  local Animator = require(Tool:WaitForChild("R6CFrameAnimator"))
+  local rig = Animator.new(character, "SeriousMode", POSES, SEQUENCES)
+  rig:PlaySequence("TRANSFORM", onBeat, onDone)
+═══════════════════════════════════════════════════════════════
+--]==]
+
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+
+local Animator = {}
+Animator.__index = Animator
+
+local LEG_BASE = {
+	RightLeg = CFrame.new(0.5, -2, 0),
+	LeftLeg  = CFrame.new(-0.5, -2, 0),
+}
+
+local function resolveStyle(name)
+	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+end
+local function resolveDir(name)
+	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+end
+
+--[[
+	Animator.new(character, weldSuffix, poses, sequences)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses { NOME = { Junta = CFrame, ... } }
+	- sequences:  tabela de timelines { NOME = { {pose,time,style,dir,tremor,cam,sfx}, ... } }
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses, sequences, tracks)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
+
+	local self = setmetatable({}, Animator)
+	self.Character   = character
+	self.Suffix      = weldSuffix or "Rig"
+	self.Poses       = poses or {}
+	self.Sequences   = sequences or {}
+	self.Tracks      = tracks or {}
+	self.Welds       = {}
+	self.IdleConn    = nil
+	self.TremorConn  = nil
+	self.SeqToken    = 0          -- token de cancelamento da timeline
+	self.SeqActive   = false
+	self.SeqTweens   = {}
+	self.TrackConn   = nil
+	self.Locked      = false
+	self.SavedWalk   = nil
+	self.SavedJump   = nil
+	self.SavedRotate = nil
+	self.Destroyed   = false
+
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+	self._makeWeld = makeWeld
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
+	end
+
+	return self
+end
+
+-- Cria os Welds das pernas sob demanda (a pose pediu RightLeg/LeftLeg)
+function Animator:_ensureLeg(joint)
+	if self.Destroyed then return nil end
+	if self.Welds[joint] and self.Welds[joint].Parent then return self.Welds[joint] end
+	local torso = self.Character and self.Character:FindFirstChild("Torso")
+	if not torso then return nil end
+	local partName = (joint == "RightLeg") and "Right Leg" or "Left Leg"
+	local leg = self.Character:FindFirstChild(partName)
+	if not leg then return nil end
+	self.Welds[joint] = self._makeWeld(joint .. "Weld", torso, leg, LEG_BASE[joint])
+	return self.Welds[joint]
+end
+
+-- Libera as pernas (reparent) para devolver a caminhada ao Humanoid
+function Animator:ReleaseLegs()
+	for _, joint in ipairs({ "RightLeg", "LeftLeg" }) do
+		local w = self.Welds[joint]
+		if w then
+			if w.Parent then w.Parent = nil end
+			self.Welds[joint] = nil
+		end
+	end
+end
+
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if not w and LEG_BASE[joint] then
+			w = self:_ensureLeg(joint)
+		end
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
+		end
+	end
+end
+
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+	if w and w.Parent then w.C0 = c0 end
+end
+
+--[[
+	rig:PlaySequence(seqName, onBeat, onDone)
+	Timeline de keyframes { pose, time, style, dir, tremor, ... }.
+	Encadeada por Tween.Completed — o próximo beat só dispara quando o
+	tween do anterior conclui. onBeat(kf, índice) roda no INÍCIO de cada
+	beat (ponto de disparo de cam/sfx/VFX). onDone() roda ao final.
+]]
+function Animator:PlaySequence(seqName, onBeat, onDone)
+	if self.Destroyed then return false end
+	local seq = self.Sequences[seqName]
+	if not seq or #seq == 0 then return false end
+
+	self:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	local token = self.SeqToken
+	self.SeqActive = true
+
+	local index = 0
+
+	local function step()
+		if self.Destroyed or token ~= self.SeqToken then return end
+		index = index + 1
+		local kf = seq[index]
+		if not kf then
+			self.SeqActive = false
+			self:StopTremor()
+			self:ReleaseLegs()
+			if onDone then onDone() end
+			return
+		end
+
+		if kf.tremor and kf.tremor > 0 then
+			self:StartTremor("HRP", kf.tremor, kf.freq or 22)
+		else
+			self:StopTremor()
+		end
+		if onBeat then onBeat(kf, index) end
+
+		local pose = self.Poses[kf.pose]
+		if not pose then
+			step()
+			return
+		end
+		local ti = TweenInfo.new(kf.time or 0.3, resolveStyle(kf.style), resolveDir(kf.dir))
+		local chained = nil
+		for joint, c0 in pairs(pose) do
+			local w = self.Welds[joint]
+			if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+			if w and w.Parent then
+				local tw = TweenService:Create(w, ti, { C0 = c0 })
+				table.insert(self.SeqTweens, tw)
+				if not chained then chained = tw end
+				tw:Play()
+			end
+		end
+		if chained then
+			chained.Completed:Once(function()
+				if token == self.SeqToken then step() end
+			end)
+		else
+			-- pose sem junta válida: pular para o próximo beat imediatamente
+			step()
+		end
+	end
+
+	step()
+	return true
+end
+
+--[[
+	rig:PlayTrack(trackName, onEvent, onDone)
+	Reproduz uma track remasterizada: lista de keyframes
+	{ t, style, dir, event, cam, tremor, <Junta> = CFrame, ... }
+	Amostragem por acumulador dt a partir de zero; entre dois keyframes o
+	C0 de cada junta é interpolado com o easing do segmento de destino.
+	onEvent(kf, índice) dispara UMA vez ao cruzar cada keyframe marcado.
+]]
+function Animator:PlayTrack(trackName, onEvent, onDone)
+	if self.Destroyed then return false end
+	local track = self.Tracks[trackName]
+	if not track or #track < 2 then return false end
+
+	self:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	local token = self.SeqToken
+	self.SeqActive = true
+
+	-- garante os Welds de perna se a track os usa
+	local first = track[1]
+	for joint in pairs(first) do
+		if LEG_BASE[joint] then self:_ensureLeg(joint) end
+	end
+
+	local duration = track[#track].t
+	local elapsed  = 0
+	local index    = 1
+	local fired    = 0
+
+	self.TrackConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed or token ~= self.SeqToken then return end
+		elapsed = elapsed + dt
+
+		-- avança o índice do segmento e dispara os eventos cruzados
+		while index < #track and elapsed >= track[index + 1].t do
+			index = index + 1
+			local kf = track[index]
+			if fired < index then
+				fired = index
+				if kf.tremor and kf.tremor > 0 then
+					self:StartTremor("HRP", kf.tremor, kf.freq or 20)
+				elseif kf.tremor == nil and self.TremorConn then
+					self:StopTremor()
+				end
+				if onEvent and (kf.event or kf.cam or kf.sfx) then
+					onEvent(kf, index)
+				end
+			end
+		end
+
+		local a = track[index]
+		local b = track[index + 1]
+		if not b then
+			-- fim da track
+			for joint, c0 in pairs(a) do
+				local w = self.Welds[joint]
+				if w and w.Parent then w.C0 = c0 end
+			end
+			self:StopTrack()
+			self.SeqActive = false
+			self:StopTremor()
+			self:ReleaseLegs()
+			if onDone then onDone() end
+			return
+		end
+
+		local span = b.t - a.t
+		local alpha = (span > 0) and math.clamp((elapsed - a.t) / span, 0, 1) or 1
+		local eased = TweenService:GetValue(alpha, resolveStyle(b.style), resolveDir(b.dir))
+
+		for joint, c0 in pairs(a) do
+			if typeof(c0) == "CFrame" then
+				local target = b[joint]
+				local w = self.Welds[joint]
+				if w and w.Parent and typeof(target) == "CFrame" then
+					w.C0 = c0:Lerp(target, eased)
+				end
+			end
+		end
+	end)
+
+	return true, duration
+end
+
+function Animator:StopTrack()
+	if self.TrackConn then
+		self.TrackConn:Disconnect()
+		self.TrackConn = nil
+	end
+end
+
+-- Cancela a timeline em andamento, para o tremor e libera as pernas.
+function Animator:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	self.SeqActive = false
+	self:StopTrack()
+	for _, tw in ipairs(self.SeqTweens) do
+		tw:Cancel()
+	end
+	table.clear(self.SeqTweens)
+	self:StopTremor()
+	self:ReleaseLegs()
+end
+
+-- Trava/destrava o personagem, guardando e restaurando os valores originais.
+function Animator:LockCharacter(lock)
+	if self.Destroyed and lock then return end
+	local hum = self.Character and self.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	if lock and not self.Locked then
+		self.Locked      = true
+		self.SavedWalk   = hum.WalkSpeed
+		self.SavedJump   = hum.JumpPower
+		self.SavedRotate = hum.AutoRotate
+		hum.WalkSpeed  = 0
+		hum.JumpPower  = 0
+		hum.AutoRotate = false
+	elseif (not lock) and self.Locked then
+		self.Locked = false
+		hum.WalkSpeed  = self.SavedWalk or 16
+		hum.JumpPower  = self.SavedJump or 50
+		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
+	end
+end
+
+--[[
+	rig:StartTremor(joint, amp, freq)
+	Vibração aditiva determinística sobre o C0 corrente da junta:
+	senoide multi-frequência (freq e freq*1.73) com envelope de
+	fade-in de 0.35 s, por acumulador dt a partir de zero.
+]]
+function Animator:StartTremor(joint, amp, freq)
+	if self.Destroyed then return end
+	self:StopTremor()
+	local w = self.Welds[joint]
+	if not w then return end
+	amp  = amp or 0.03
+	freq = freq or 22
+
+	local t = 0
+	self.TremorConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		local weld = self.Welds[joint]
+		if not (weld and weld.Parent) then return end
+		t = t + dt
+		local envelope = math.min(t / 0.35, 1)
+		local a = amp * envelope
+		local ox = math.sin(t * freq) * a
+		local oy = math.sin(t * freq * 1.73 + 1.1) * a * 0.6
+		local oz = math.sin(t * freq * 0.61 + 2.3) * a * 0.4
+		weld.C0 = weld.C0 * CFrame.new(ox, oy, oz)
+	end)
+end
+
+function Animator:StopTremor()
+	if self.TremorConn then
+		self.TremorConn:Disconnect()
+		self.TremorConn = nil
+	end
+end
+
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
+
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		t = t + dt
+		local run = (shouldRun == nil) or shouldRun()
+		if run and not self.SeqActive then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
+			end
+		end
+	end)
+end
+
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
+end
+
+-- Remove todos os Welds (reparent), cancela sequência/tremor e destrava.
+function Animator:Destroy()
+	self:CancelSequence()
+	self:StopIdleBob()
+	self:LockCharacter(false)
+	self.Destroyed = true
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
+	end
+	table.clear(self.Welds)
+end
+
+return Animator
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_VFXModule_XesterFuriadoMachado"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source"><![CDATA[-- VFXModule.lua
+-- ModuleScript — desenho de efeito, 100% cliente
+--
+-- MOLDE APAGADO, CLONE ACESO
+--   Tool equipada mora no workspace, então TODO BasePart descendente dela
+--   renderiza. Por isso o molde entra com `Transparency = 1` e o emissor
+--   `Enabled = false` — propriedade, não script, então vale para todo cliente
+--   sem nada rodando.
+--
+--   Quem acende é o `_rv_clone`: ele restaura, por CAMINHO dentro do molde, os
+--   valores originais gravados em `ACESO`. Acender pela cópia (e não pelo
+--   molde) é o que impede o molde de aparecer dentro da Tool guardada.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py.
+
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+
+local M = {}
+
+-- valores que o clone recupera, por classe
+local ACESO = {
+	BasePart = { Transparency = 0 },
+	Decal = { Transparency = 0 },
+	Texture = { Transparency = 0 },
+	ParticleEmitter = { Enabled = true },
+	Trail = { Enabled = true },
+	Beam = { Enabled = true },
+	PointLight = { Enabled = true },
+	SpotLight = { Enabled = true },
+}
+
+local vivos = {}
+
+local function acender(instancia)
+	for classe, campos in pairs(ACESO) do
+		if instancia:IsA(classe) then
+			for campo, valor in pairs(campos) do
+				pcall(function() instancia[campo] = valor end)
+			end
+		end
+	end
+end
+
+--- Clona um molde JÁ ACESO. O molde continua invisível dentro da Tool.
+function M.clonar(molde, vida)
+	if not molde then return nil end
+	local copia = molde:Clone()
+	acender(copia)
+	for _, filho in ipairs(copia:GetDescendants()) do
+		acender(filho)
+	end
+	copia.Parent = workspace
+	table.insert(vivos, copia)
+	Debris:AddItem(copia, vida or 4)
+	return copia
+end
+
+local function achar(moldes, nome)
+	return moldes and moldes:FindFirstChild(nome, true)
+end
+
+--- Onda de choque: a malha 20329976 do original, crescendo por Tween.
+--- Tween no cliente em vez de `Size + Vector3` por quadro no servidor.
+local function onda(moldes, posicao, escala, vida)
+	local base = achar(moldes, "Onda") or achar(moldes, "shockwave")
+	if not base then return end
+	local copia = M.clonar(base, vida or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	copia.CFrame = CFrame.new(posicao)
+	local malha = copia:FindFirstChildOfClass("SpecialMesh")
+	local alvo = (malha and malha.Scale or Vector3.new(1, 1, 1))
+		+ Vector3.new(60, 3, 60) * (escala or 1)
+	if malha then
+		TweenService:Create(malha, TweenInfo.new(vida or 2,
+			Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{ Scale = alvo }):Play()
+	end
+	TweenService:Create(copia, TweenInfo.new(vida or 2,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Transparency = 1 }):Play()
+end
+
+local function esfera(posicao, escala, cor, vida)
+	local bola = Instance.new("Part")
+	bola.Shape = Enum.PartType.Ball
+	bola.Size = Vector3.new(1, 1, 1)
+	bola.Material = Enum.Material.Neon
+	bola.BrickColor = BrickColor.new(cor or "White")
+	bola.Anchored = true
+	bola.CanCollide = false
+	bola.CFrame = CFrame.new(posicao)
+	bola.Parent = workspace
+	table.insert(vivos, bola)
+	Debris:AddItem(bola, vida or 1.2)
+	TweenService:Create(bola, TweenInfo.new(vida or 1.2,
+		Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = Vector3.new(1, 1, 1) * (escala or 6),
+		Transparency = 1,
+	}):Play()
+	return bola
+end
+
+--- Carta que sobe do chão e some. É a peça mais repetida do Xester.
+local function carta(moldes, cframe, tamanho, vida)
+	local base = achar(moldes, "Carta1") or achar(moldes, "cards")
+	if base and base:IsA("Model") then
+		base = base:FindFirstChildWhichIsA("BasePart")
+	end
+	if not base then return end
+	local copia = M.clonar(base, vida or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	copia.Size = Vector3.new(0.1, 0.25, 0.1)
+	copia.CFrame = cframe
+	TweenService:Create(copia, TweenInfo.new((vida or 2) * 0.35,
+		Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = tamanho or Vector3.new(2.5, 0.25, 1.75) }):Play()
+	task.delay((vida or 2) * 0.6, function()
+		if copia.Parent then
+			TweenService:Create(copia, TweenInfo.new((vida or 2) * 0.4),
+				{ Transparency = 1 }):Play()
+		end
+	end)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
+-- O CATÁLOGO — um beat nomeado por efeito
+--══════════════════════════════════════════════════════════════
+
+local VFX = {}
+
+function VFX.CARTA_CHAO(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(0, math.rad(d.giro or 0), 0),
+		d.tamanho, 2.5)
+end
+
+function VFX.ONDA_DUPLA(d, moldes)
+	onda(moldes, d.posicao, d.escala or 1, 1.6)
+	onda(moldes, d.posicao, (d.escala or 1) * 0.4, 2.2)
+end
+
+function VFX.ONDA_CHAO(d, moldes)
+	onda(moldes, d.posicao, 0.35, 1.1)
+end
+
+function VFX.LEQUE_ABRE(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local i = 1
+	while i <= (d.cartas or 20) do
+		local ang = math.rad(360 / (d.cartas or 20) * i)
+		carta(moldes, raiz.CFrame * CFrame.new(
+			math.cos(ang) * (d.raio or 4), math.sin(ang) * (d.raio or 4), 0), nil, 8)
+		i = i + 1
+	end
+end
+
+function VFX.LEQUE_FECHA() end
+
+function VFX.LEQUE_ATIRA(d)
+	esfera(d.origem, 3, "White", 0.5)
+end
+
+function VFX.CARTA_VOA(d, moldes)
+	carta(moldes, CFrame.new(d.destino), nil, 1.2)
+	esfera(d.destino, 4, "White", 0.6)
+end
+
+function VFX.TEMPESTADE(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local base = achar(moldes, "Tempestade")
+	if not base then return end
+	local copia = M.clonar(base, d.duracao or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	local conexao
+	local giro = 0
+	conexao = game:GetService("RunService").Heartbeat:Connect(function(dt)
+		if not (copia.Parent and raiz.Parent) then
+			conexao:Disconnect()
+			return
+		end
+		giro = giro + dt * 6
+		copia.CFrame = raiz.CFrame * CFrame.new(0, d.altura or 3.2, 0)
+			* CFrame.Angles(0, giro, 0)
+	end)
+	task.delay(d.duracao or 2, function() conexao:Disconnect() end)
+end
+
+function VFX.FANTASMA(d, _moldes, personagem)
+	if not personagem then return end
+	for _, parte in ipairs(personagem:GetChildren()) do
+		if parte:IsA("BasePart") then
+			local eco = Instance.new("Part")
+			eco.Size = parte.Size
+			eco.CFrame = parte.CFrame
+			eco.Material = Enum.Material.Neon
+			eco.BrickColor = BrickColor.new("White")
+			eco.Anchored = true
+			eco.CanCollide = false
+			eco.Transparency = 0.4
+			eco.Parent = workspace
+			Debris:AddItem(eco, 1)
+			TweenService:Create(eco, TweenInfo.new(1),
+				{ Transparency = 1 }):Play()
+		end
+	end
+end
+
+function VFX.CARTA_ERGUE(d, moldes)
+	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.2)
+end
+
+function VFX.CARTA_DESABA(d, moldes)
+	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.4)
+	local i = 1
+	while i <= (d.aneis or 4) do
+		local indice = i
+		task.delay(indice * 0.06, function()
+			onda(moldes, d.posicao, 0.8 + indice * 0.3, 1.6)
+		end)
+		i = i + 1
+	end
+end
+
+function VFX.PORTAL_ABRE(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
+		d.tamanho, 3)
+	esfera(d.posicao, 10, "Really black", 1.5)
+end
+
+function VFX.PORTAL_COLAPSA(d, moldes)
+	local i = 1
+	while i <= (d.estouros or 4) do
+		local indice = i
+		task.delay(indice * 0.05, function()
+			esfera(d.posicao, 14 + indice * 4, "White", 1)
+		end)
+		i = i + 1
+	end
+	local a = 1
+	while a <= (d.aneis or 2) do
+		onda(moldes, d.posicao, 1.4, 2)
+		a = a + 1
+	end
+end
+
+function VFX.ESCUDO_SOBE(d)
+	esfera(d.posicao, 5, "White", 0.6)
+end
+
+function VFX.ESCUDO_REBATE(d)
+	esfera(d.posicao, 5, "White", 0.5)
+end
+
+function VFX.ESCUDO_ESTILHACA(d, moldes)
+	local i = 1
+	while i <= (d.cacos or 12) do
+		local ang = math.rad(137.507764 * i)
+		carta(moldes, CFrame.new(d.posicao
+			+ Vector3.new(math.cos(ang) * 4, i * 0.3, math.sin(ang) * 4)), nil, 1.4)
+		i = i + 1
+	end
+	onda(moldes, d.posicao, 0.6, 1.4)
+end
+
+function VFX.CEIFEIRA_VOA(d, moldes)
+	local peca = carta(moldes, CFrame.new(d.origem), nil, (d.voo or 0.35) + 0.4)
+	if not peca then return end
+	TweenService:Create(peca, TweenInfo.new(d.voo or 0.35,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ CFrame = CFrame.new(d.destino) }):Play()
+end
+
+function VFX.CEIFEIRA_ESTOURA(d, moldes)
+	esfera(d.posicao, 12, "Really black", 0.9)
+	onda(moldes, d.posicao, 0.7, 1.5)
+end
+
+function VFX.ESFERA_CARREGA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local bola = esfera(raiz.Position + raiz.CFrame.LookVector * 3, 8,
+		"Really black", d.duracao or 2.4)
+	if bola then bola.Transparency = 0.2 end
+end
+
+function VFX.ESFERA_DETONA(d, moldes)
+	esfera(d.posicao, 30 * (d.escala or 1), "Really black", 1.2)
+	onda(moldes, d.posicao, 1.6, 2)
+end
+
+function VFX.BARALHO_CONJURA(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local i = 1
+	while i <= (d.cartas or 12) do
+		local ang = math.rad(137.507764 * i)
+		carta(moldes, raiz.CFrame * CFrame.new(math.cos(ang) * 8, 2,
+			math.sin(ang) * 8), nil, (d.duracao or 2.5) + 3)
+		i = i + 1
+	end
+end
+
+function VFX.BARALHO_GOLPE(d)
+	esfera(d.posicao, 6, "White", 0.5)
+end
+
+function VFX.INVOCA(d, moldes)
+	esfera(d.posicao, 12, "Really black", 1)
+	onda(moldes, d.posicao, 0.5, 1.4)
+end
+
+function VFX.SERVO_GOLPE(d)
+	esfera(d.posicao, 4, "Really red", 0.4)
+end
+
+function VFX.MACHADO_SACA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local luz = Instance.new("PointLight")
+	luz.Color = Color3.new(0.1, 0, 0)
+	luz.Range = 35
+	luz.Brightness = 3
+	luz.Parent = raiz
+	Debris:AddItem(luz, d.duracao or 6)
+end
+
+function VFX.MACHADO_CORTA(d)
+	esfera(d.posicao, 7, "Really red", 0.4)
+end
+
+function VFX.MACHADO_GUARDA() end
+
+function VFX.PROCISSAO(d, moldes)
+	local i = 1
+	while i <= (d.passos or 24) do
+		local indice = i
+		task.delay(indice * (d.intervalo or 0.04), function()
+			local onde = d.origem + d.direcao * (indice * (d.espaco or 3.5))
+			carta(moldes, CFrame.new(onde - Vector3.new(0, 2, 0))
+				* CFrame.Angles(0, math.rad(137.507764 * indice), 0),
+				Vector3.new(7, 0.25, 5), 1.6)
+		end)
+		i = i + 1
+	end
+end
+
+function VFX.PORTAL_CAJADO(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
+		Vector3.new(9, 0.35, 9), (d.duracao or 4) + 1)
+end
+
+function VFX.CORTE_PORTAL(d)
+	esfera(d.posicao, 8, "Really black", 0.5)
+end
+
+function VFX.GARGALHADA(d, moldes)
+	local i = 1
+	while i <= (d.cartas or 8) do
+		local indice = i
+		local ang = math.rad(137.507764 * indice)
+		local peca = carta(moldes, CFrame.new(d.posicao
+			+ Vector3.new(math.cos(ang) * 3, 2, math.sin(ang) * 3)), nil, 2)
+		if peca then
+			TweenService:Create(peca, TweenInfo.new(2,
+				Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ CFrame = peca.CFrame * CFrame.new(0, 8, 0) }):Play()
+		end
+		i = i + 1
+	end
+end
+
+function VFX.FOGO_SAI(d)
+	esfera(d.origem, (d.calibre or 2) * 1.5, "Bright orange", 0.4)
+end
+
+function VFX.FOGO_ESTOURA(d, moldes)
+	esfera(d.posicao, 10 * (d.escala or 1), "Bright orange", 0.9)
+	onda(moldes, d.posicao, 0.4, 1.2)
+end
+
+function VFX.FOGO_CARREGA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	esfera(raiz.Position + raiz.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0),
+		d.calibre or 9, "Really red", d.duracao or 1.8)
+end
+
+function VFX.FOGO_ESTOURA_GRANDE(d, moldes)
+	esfera(d.posicao, 26 * (d.escala or 1), "Really red", 1.3)
+	local i = 1
+	while i <= (d.aneis or 2) do
+		onda(moldes, d.posicao, 1.2, 2)
+		i = i + 1
+	end
+end
+
+function VFX.SOPRO(d, _moldes)
+	local i = 1
+	while i <= (d.passos or 25) do
+		local indice = i
+		task.delay(indice * (d.intervalo or 0.06), function()
+			esfera(d.origem + d.direcao * (indice * 2.4),
+				6 + indice * 0.5, "Bright orange", 0.6)
+		end)
+		i = i + 1
+	end
+end
+
+--- O feixe é UM cilindro esticado de uma vez, no cliente. Esticar por quadro
+--- no servidor é o caso que replica picotado.
+function VFX.RAIO(d)
+	local feixe = Instance.new("Part")
+	feixe.Shape = Enum.PartType.Cylinder
+	feixe.Material = Enum.Material.Neon
+	feixe.BrickColor = BrickColor.new("White")
+	feixe.Anchored = true
+	feixe.CanCollide = false
+	local calibre = d.calibre or 3
+	feixe.Size = Vector3.new(d.alcance or 60, calibre, calibre)
+	feixe.CFrame = CFrame.new(d.origem, d.origem + d.direcao)
+		* CFrame.new(0, 0, -(d.alcance or 60) / 2)
+		* CFrame.Angles(0, math.rad(90), 0)
+	feixe.Parent = workspace
+	table.insert(vivos, feixe)
+	Debris:AddItem(feixe, d.duracao or 2.2)
+	TweenService:Create(feixe, TweenInfo.new(d.duracao or 2.2,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Transparency = 1 }):Play()
+end
+
+--══════════════════════════════════════════════════════════════
+
+function M.desenhar(tipo, dados, moldes, personagem)
+	local fn = VFX[tipo]
+	if not fn then return end
+	local ok, erro = pcall(fn, dados, moldes, personagem)
+	if not ok then
+		warn("[Xester VFX] " .. tostring(tipo) .. ": " .. tostring(erro))
+	end
+end
+
+--- Beat do animator. O gesto marca CARGA e GOLPE; aqui eles viram brilho na
+--- mão, para o golpe ter peso antes do efeito grande chegar.
+function M.beat(marca, personagem)
+	local braco = personagem and personagem:FindFirstChild("Right Arm")
+	if not braco then return end
+	if marca == "CARGA" then
+		esfera(braco.Position, 2.5, "White", 0.35)
+	elseif marca == "GOLPE" then
+		esfera(braco.Position, 5, "White", 0.4)
+	end
+end
+
+function M.limpar()
+	for _, peca in ipairs(vivos) do
+		if peca and peca.Parent then peca.Parent = nil end
+	end
+	vivos = {}
+end
+
+return M
+]]></ProtectedString></Properties></Item><Item class="UnionOperation" referent="RV_HDL_XesterFuriadoMachado">
+				<Properties>
+					<Content name="AssetId"><url>http://www.roblox.com//asset/?id=211978909</url></Content>
+					<BinaryString name="ChildData" />
+					<SharedString name="ChildData2">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					<int name="ComponentIndex">-1</int>
+					<token name="FormFactor">0</token>
+					<Vector3 name="InitialSize">
+						<X>2.59999847</X>
+						<Y>0.200000286</Y>
+						<Z>2.59999847</Z>
+					</Vector3>
+					<BinaryString name="MeshData" />
+					<SharedString name="MeshData2">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					<bool name="OffCentered">false</bool>
+					<BinaryString name="PhysicsData" />
+					<token name="RenderFidelity">1</token>
+					<float name="SmoothingAngle">0</float>
+					<NetAssetRef name="SolidMeshHolder">yuZpQdnvvUBOTYh1jqZ2cA==</NetAssetRef>
+					<int name="TriangleCount">0</int>
+					<bool name="UsePartColor">false</bool>
+					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					<token name="FluidFidelityInternal">0</token>
+					<bool name="InertiaMigrated">true</bool>
+					<SharedString name="PhysicalConfigData">UYp4TMh7QPr1neNFEp5iAw==</SharedString>
+					<Vector3 name="UnscaledCofm">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="UnscaledVolInertiaDiags">
+						<X>0.875494599</X>
+						<Y>1.72635269</Y>
+						<Z>0.875494599</Z>
+					</Vector3>
+					<Vector3 name="UnscaledVolInertiaOffDiags">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<float name="UnscaledVolume">1.35200036</float>
+					<bool name="Anchored">false</bool>
+					<bool name="AudioCanCollide">true</bool>
+					<float name="BackParamA">-0.5</float>
+					<float name="BackParamB">0.5</float>
+					<token name="BackSurface">0</token>
+					<token name="BackSurfaceInput">0</token>
+					<float name="BottomParamA">-0.5</float>
+					<float name="BottomParamB">0.5</float>
+					<token name="BottomSurface">0</token>
+					<token name="BottomSurfaceInput">0</token>
+					<CoordinateFrame name="CFrame">
+						<X>-148.95311</X>
+						<Y>-992.38916</Y>
+						<Z>-118.276848</Z>
+						<R00>-0.497761518</R00>
+						<R01>0.76836586</R01>
+						<R02>0.402302772</R02>
+						<R10>0.571072817</R10>
+						<R11>-0.0587546304</R11>
+						<R12>0.818794131</R12>
+						<R20>0.652770579</R20>
+						<R21>0.6373083</R21>
+						<R22>-0.409547061</R22>
+					</CoordinateFrame>
+					<bool name="CanCollide">false</bool>
+					<bool name="CanQuery">true</bool>
+					<bool name="CanTouch">true</bool>
+					<bool name="CastShadow">true</bool>
+					<string name="CollisionGroup">Default</string>
+					<int name="CollisionGroupId">0</int>
+					<Color3uint8 name="Color3uint8">4285087784</Color3uint8>
+					<PhysicalProperties name="CustomPhysicalProperties">
+						<CustomPhysics>false</CustomPhysics>
+					</PhysicalProperties>
+					<bool name="EnableFluidForces">true</bool>
+					<float name="FrontParamA">-0.5</float>
+					<float name="FrontParamB">0.5</float>
+					<token name="FrontSurface">0</token>
+					<token name="FrontSurfaceInput">0</token>
+					<float name="LeftParamA">-0.5</float>
+					<float name="LeftParamB">0.5</float>
+					<token name="LeftSurface">0</token>
+					<token name="LeftSurfaceInput">0</token>
+					<bool name="Locked">false</bool>
+					<bool name="Massless">true</bool>
+					<token name="Material">256</token>
+					<string name="MaterialVariantSerialized" />
+					<CoordinateFrame name="PivotOffset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+						<R00>1</R00>
+						<R01>0</R01>
+						<R02>0</R02>
+						<R10>0</R10>
+						<R11>1</R11>
+						<R12>0</R12>
+						<R20>0</R20>
+						<R21>0</R21>
+						<R22>1</R22>
+					</CoordinateFrame>
+					<float name="Reflectance">0</float>
+					<float name="RightParamA">-0.5</float>
+					<float name="RightParamB">0.5</float>
+					<token name="RightSurface">0</token>
+					<token name="RightSurfaceInput">0</token>
+					<int name="RootPriority">0</int>
+					<Vector3 name="RotVelocity">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<float name="TopParamA">-0.5</float>
+					<float name="TopParamB">0.5</float>
+					<token name="TopSurface">0</token>
+					<token name="TopSurfaceInput">0</token>
+					<float name="Transparency">0</float>
+					<Vector3 name="Velocity">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="size">
+						<X>4.00999403</X>
+						<Y>0.308461785</Y>
+						<Z>4.00999403</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
+					<bool name="DefinesCapabilities">true</bool>
+					<string name="Name">Handle</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item><Item class="Folder" referent="RV_MOL_XesterFuriadoMachado"><Properties><string name="Name">Moldes</string></Properties><Item class="Folder" referent="RV_Eff_XesterFuriadoMachado_0">
+				<Properties>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Effects</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="MeshPart" referent="RV_Eff_XesterFuriadoMachado_1">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>1.86636996</X>
+							<Y>1.42067003</Y>
+							<Z>2.15498495</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://20329976</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">jLliaGj0aIySNhQKbJmN3A==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>-0.000749948143</X>
+							<Y>-0.0693022907</Y>
+							<Z>0.114525132</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>0.132071167</X>
+							<Y>0.199244767</Y>
+							<Z>0.142720163</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>-2.28846329e-05</X>
+							<Y>0.00018119649</Y>
+							<Z>-0.00051815901</Z>
+						</Vector3>
+						<float name="UnscaledVolume">0.383295566</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>-244.434784</X>
+							<Y>-987.622559</Y>
+							<Z>-97.2045288</Z>
+							<R00>0.754146039</R00>
+							<R01>0</R01>
+							<R02>-0.65670675</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0.65670675</R20>
+							<R21>0</R21>
+							<R22>0.754146039</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">true</bool>
+						<bool name="CanTouch">true</bool>
+						<bool name="CastShadow">true</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">272</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">1</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>1.86636996</X>
+							<Y>1.42067003</Y>
+							<Z>2.15498495</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">shockwave</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+				<Item class="MeshPart" referent="RV_Eff_XesterFuriadoMachado_2">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>4.75016499</X>
+							<Y>4.73160982</Y>
+							<Z>4.77751017</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://9982590</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">XTVjMZ7rOzLUTMrE2GqABg==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>-0.00874693226</X>
+							<Y>-0.0173616838</Y>
+							<Z>-9.44368821e-06</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>88.0485458</X>
+							<Y>89.1148071</Y>
+							<Z>90.1448822</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>-0.000581920147</X>
+							<Y>-0.947020471</Y>
+							<Z>-0.000578641891</Z>
+						</Vector3>
+						<float name="UnscaledVolume">42.5211525</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>-118.722824</X>
+							<Y>-993.750977</Y>
+							<Z>34.8770218</Z>
+							<R00>0.754146039</R00>
+							<R01>0</R01>
+							<R02>-0.65670675</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0.65670675</R20>
+							<R21>0</R21>
+							<R22>0.754146039</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">true</bool>
+						<bool name="CanTouch">true</bool>
+						<bool name="CastShadow">true</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">272</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">1</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>4.75016499</X>
+							<Y>4.73160982</Y>
+							<Z>4.77751017</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">spikeball</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+				<Item class="Part" referent="RV_Eff_XesterFuriadoMachado_3">
+					<Properties>
+						<token name="shape">0</token>
+						<token name="formFactorRaw">1</token>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>-86.2211151</X>
+							<Y>-984.107666</Y>
+							<Z>-150.77832</Z>
+							<R00>0.754146039</R00>
+							<R01>0</R01>
+							<R02>-0.65670675</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0.65670675</R20>
+							<R21>0</R21>
+							<R22>0.754146039</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">true</bool>
+						<bool name="CanTouch">true</bool>
+						<bool name="CastShadow">true</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294901760</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">1</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>2.71000075</X>
+							<Y>2.71000075</Y>
+							<Z>2.71000075</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">ball</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+					<Item class="Attachment" referent="RV_Eff_XesterFuriadoMachado_4">
+						<Properties>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="Visible">false</bool>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Attachment</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_5">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">5 10 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">true</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">1</float>
+								<NumberRange name="RotSpeed">2 10 </NumberRange>
+								<NumberRange name="Rotation">0 0 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 10 0 1 10 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>0</X>
+									<Y>0</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://1084975295</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 1 0 0.500574 0.475 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">ParticleEmitter</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_6">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">5 10 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">true</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">1</float>
+								<NumberRange name="RotSpeed">2 10 </NumberRange>
+								<NumberRange name="Rotation">0 0 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 15 0 1 15 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>0</X>
+									<Y>0</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://1084975295</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 1 0 0.500574 0.75 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">ParticleEmitter</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_7">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">5 10 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">true</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">20</float>
+								<NumberRange name="RotSpeed">-15 15 </NumberRange>
+								<NumberRange name="Rotation">0 0 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 7 0 1 7 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>0</X>
+									<Y>0</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://1084976679</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 1 0 0.500574 0.675 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">ParticleEmitter</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_8">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">5 10 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">true</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">20</float>
+								<NumberRange name="RotSpeed">30 30 </NumberRange>
+								<NumberRange name="Rotation">50 50 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 5 0 1 5 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>0</X>
+									<Y>0</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://42103869</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 1 0 0.498278 1 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">ParticleEmitter</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_9">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">1 2 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">true</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">3</float>
+								<NumberRange name="RotSpeed">-180 180 </NumberRange>
+								<NumberRange name="Rotation">-180 180 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 12 0 1 12 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>0</X>
+									<Y>0</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://436714124</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 1 0 0.301952 0.925 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">f</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+					</Item>
+				</Item>
+				<Item class="Part" referent="RV_Eff_XesterFuriadoMachado_10">
+					<Properties>
+						<token name="shape">0</token>
+						<token name="formFactorRaw">1</token>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>264.334991</X>
+							<Y>-1024.33081</Y>
+							<Z>4.70172882</Z>
+							<R00>0.754146039</R00>
+							<R01>0</R01>
+							<R02>-0.65670675</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0.65670675</R20>
+							<R21>0</R21>
+							<R22>0.754146039</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">true</bool>
+						<bool name="CanTouch">true</bool>
+						<bool name="CastShadow">false</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4288914085</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">true</bool>
+						<token name="Material">256</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">1</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>1</X>
+							<Y>1</Y>
+							<Z>1</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">exploseball</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+					<Item class="Attachment" referent="RV_Eff_XesterFuriadoMachado_11">
+						<Properties>
+							<CoordinateFrame name="CFrame">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+								<R00>1</R00>
+								<R01>0</R01>
+								<R02>0</R02>
+								<R10>0</R10>
+								<R11>1</R11>
+								<R12>0</R12>
+								<R20>0</R20>
+								<R21>0</R21>
+								<R22>1</R22>
+							</CoordinateFrame>
+							<bool name="Visible">false</bool>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Attachment</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+						<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_12">
+							<Properties>
+								<Vector3 name="Acceleration">
+									<X>0</X>
+									<Y>0</Y>
+									<Z>0</Z>
+								</Vector3>
+								<float name="Brightness">1</float>
+								<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+								<float name="Drag">0</float>
+								<token name="EmissionDirection">1</token>
+								<bool name="Enabled">false</bool>
+								<bool name="FlipbookBlendFrames">true</bool>
+								<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+								<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+								<token name="FlipbookLayout">0</token>
+								<token name="FlipbookMode">0</token>
+								<int name="FlipbookSizeX">1</int>
+								<int name="FlipbookSizeY">1</int>
+								<bool name="FlipbookStartRandom">false</bool>
+								<NumberRange name="Lifetime">1 2 </NumberRange>
+								<float name="LightEmission">1</float>
+								<float name="LightInfluence">1</float>
+								<bool name="LockedToPart">false</bool>
+								<token name="Orientation">0</token>
+								<float name="Rate">400</float>
+								<NumberRange name="RotSpeed">20 60 </NumberRange>
+								<NumberRange name="Rotation">0 0 </NumberRange>
+								<token name="Shape">0</token>
+								<token name="ShapeInOut">0</token>
+								<float name="ShapePartial">1</float>
+								<token name="ShapeStyle">0</token>
+								<NumberSequence name="Size">0 1.1875 0 1 0 0 </NumberSequence>
+								<NumberRange name="Speed">0 0 </NumberRange>
+								<Vector2 name="SpreadAngle">
+									<X>50</X>
+									<Y>50</Y>
+								</Vector2>
+								<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+								<Content name="Texture"><url>rbxassetid://241650934</url></Content>
+								<float name="TimeScale">1</float>
+								<NumberSequence name="Transparency">0 0 0 0.499426 0.49375 0 1 1 0 </NumberSequence>
+								<float name="VelocityInheritance">0</float>
+								<bool name="WindAffectsDrag">false</bool>
+								<float name="ZOffset">0</float>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">ParticleEmitter</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+					</Item>
+					<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_13">
+						<Properties>
+							<Vector3 name="Acceleration">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="Brightness">1</float>
+							<ColorSequence name="Color">0 1 0 0 0 1 1 0 0 0 </ColorSequence>
+							<float name="Drag">0</float>
+							<token name="EmissionDirection">1</token>
+							<bool name="Enabled">false</bool>
+							<bool name="FlipbookBlendFrames">true</bool>
+							<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+							<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+							<token name="FlipbookLayout">0</token>
+							<token name="FlipbookMode">0</token>
+							<int name="FlipbookSizeX">1</int>
+							<int name="FlipbookSizeY">1</int>
+							<bool name="FlipbookStartRandom">false</bool>
+							<NumberRange name="Lifetime">2 4 </NumberRange>
+							<float name="LightEmission">0.959999979</float>
+							<float name="LightInfluence">1</float>
+							<bool name="LockedToPart">false</bool>
+							<token name="Orientation">0</token>
+							<float name="Rate">400</float>
+							<NumberRange name="RotSpeed">20 60 </NumberRange>
+							<NumberRange name="Rotation">0 0 </NumberRange>
+							<token name="Shape">0</token>
+							<token name="ShapeInOut">0</token>
+							<float name="ShapePartial">1</float>
+							<token name="ShapeStyle">0</token>
+							<NumberSequence name="Size">0 1.1875 0 1 0 0 </NumberSequence>
+							<NumberRange name="Speed">0 0 </NumberRange>
+							<Vector2 name="SpreadAngle">
+								<X>50</X>
+								<Y>50</Y>
+							</Vector2>
+							<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+							<Content name="Texture"><url>rbxassetid://463021019</url></Content>
+							<float name="TimeScale">1</float>
+							<NumberSequence name="Transparency">0 1 0 0.500574 0 0 1 1 0 </NumberSequence>
+							<float name="VelocityInheritance">0</float>
+							<bool name="WindAffectsDrag">false</bool>
+							<float name="ZOffset">0</float>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">ParticleEmitter</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="ParticleEmitter" referent="RV_Eff_XesterFuriadoMachado_14">
+						<Properties>
+							<Vector3 name="Acceleration">
+								<X>0</X>
+								<Y>0</Y>
+								<Z>0</Z>
+							</Vector3>
+							<float name="Brightness">1</float>
+							<ColorSequence name="Color">0 1 1 1 0 1 1 1 1 0 </ColorSequence>
+							<float name="Drag">0</float>
+							<token name="EmissionDirection">1</token>
+							<bool name="Enabled">false</bool>
+							<bool name="FlipbookBlendFrames">true</bool>
+							<NumberRange name="FlipbookFramerate">1 1 </NumberRange>
+							<string name="FlipbookIncompatible">Particle texture must be 1024 by 1024 to use flipbooks.</string>
+							<token name="FlipbookLayout">0</token>
+							<token name="FlipbookMode">0</token>
+							<int name="FlipbookSizeX">1</int>
+							<int name="FlipbookSizeY">1</int>
+							<bool name="FlipbookStartRandom">false</bool>
+							<NumberRange name="Lifetime">3 6 </NumberRange>
+							<float name="LightEmission">1</float>
+							<float name="LightInfluence">1</float>
+							<bool name="LockedToPart">false</bool>
+							<token name="Orientation">0</token>
+							<float name="Rate">400</float>
+							<NumberRange name="RotSpeed">-100 100 </NumberRange>
+							<NumberRange name="Rotation">0 0 </NumberRange>
+							<token name="Shape">0</token>
+							<token name="ShapeInOut">0</token>
+							<float name="ShapePartial">1</float>
+							<token name="ShapeStyle">0</token>
+							<NumberSequence name="Size">0 2.5 0 1 2.5 0 </NumberSequence>
+							<NumberRange name="Speed">0 0 </NumberRange>
+							<Vector2 name="SpreadAngle">
+								<X>0</X>
+								<Y>0</Y>
+							</Vector2>
+							<NumberSequence name="Squash">0 0 0 1 0 0 </NumberSequence>
+							<Content name="Texture"><url>rbxassetid://1084976679</url></Content>
+							<float name="TimeScale">1</float>
+							<NumberSequence name="Transparency">0 1 0 0.500574 0.9 0 1 1 0 </NumberSequence>
+							<float name="VelocityInheritance">0</float>
+							<bool name="WindAffectsDrag">false</bool>
+							<float name="ZOffset">0</float>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">ParticleEmitter</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+				</Item>
+				<Item class="MeshPart" referent="RV_Eff_XesterFuriadoMachado_15">
+					<Properties>
+						<bool name="DoubleSided">false</bool>
+						<bool name="HasJointOffset">false</bool>
+						<bool name="HasSkinnedMesh">false</bool>
+						<Vector3 name="InitialSize">
+							<X>3.6096499</X>
+							<Y>1.05878997</Y>
+							<Z>4.20594978</Z>
+						</Vector3>
+						<Vector3 name="JointOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Content name="MeshId"><url>rbxassetid://168892343</url></Content>
+						<BinaryString name="PhysicsData" />
+						<token name="RenderFidelity">1</token>
+						<Content name="TextureID"><null /></Content>
+						<int name="VertexCount">0</int>
+						<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<token name="FluidFidelityInternal">0</token>
+						<bool name="InertiaMigrated">true</bool>
+						<SharedString name="PhysicalConfigData">k5XP/yl/WAIUjJn/gociJg==</SharedString>
+						<Vector3 name="UnscaledCofm">
+							<X>0.408038884</X>
+							<Y>-0.0537676327</Y>
+							<Z>-1.10509706</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaDiags">
+							<X>0.456115544</X>
+							<Y>0.912607193</Y>
+							<Z>0.499970675</Z>
+						</Vector3>
+						<Vector3 name="UnscaledVolInertiaOffDiags">
+							<X>-0.0555088222</X>
+							<Y>-0.32808733</Y>
+							<Z>-0.0714285225</Z>
+						</Vector3>
+						<float name="UnscaledVolume">0.397054523</float>
+						<bool name="Anchored">true</bool>
+						<bool name="AudioCanCollide">true</bool>
+						<float name="BackParamA">-0.5</float>
+						<float name="BackParamB">0.5</float>
+						<token name="BackSurface">0</token>
+						<token name="BackSurfaceInput">0</token>
+						<float name="BottomParamA">-0.5</float>
+						<float name="BottomParamB">0.5</float>
+						<token name="BottomSurface">0</token>
+						<token name="BottomSurfaceInput">0</token>
+						<CoordinateFrame name="CFrame">
+							<X>196.610931</X>
+							<Y>-1020.9646</Y>
+							<Z>114.250801</Z>
+							<R00>0.659054995</R00>
+							<R01>0</R01>
+							<R02>0.752094865</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>-0.752094865</R20>
+							<R21>0</R21>
+							<R22>0.659054995</R22>
+						</CoordinateFrame>
+						<bool name="CanCollide">false</bool>
+						<bool name="CanQuery">true</bool>
+						<bool name="CanTouch">true</bool>
+						<bool name="CastShadow">true</bool>
+						<string name="CollisionGroup">Default</string>
+						<int name="CollisionGroupId">0</int>
+						<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+						<PhysicalProperties name="CustomPhysicalProperties">
+							<CustomPhysics>false</CustomPhysics>
+						</PhysicalProperties>
+						<bool name="EnableFluidForces">true</bool>
+						<float name="FrontParamA">-0.5</float>
+						<float name="FrontParamB">0.5</float>
+						<token name="FrontSurface">0</token>
+						<token name="FrontSurfaceInput">0</token>
+						<float name="LeftParamA">-0.5</float>
+						<float name="LeftParamB">0.5</float>
+						<token name="LeftSurface">0</token>
+						<token name="LeftSurfaceInput">0</token>
+						<bool name="Locked">false</bool>
+						<bool name="Massless">false</bool>
+						<token name="Material">288</token>
+						<string name="MaterialVariantSerialized" />
+						<CoordinateFrame name="PivotOffset">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+							<R00>1</R00>
+							<R01>0</R01>
+							<R02>0</R02>
+							<R10>0</R10>
+							<R11>1</R11>
+							<R12>0</R12>
+							<R20>0</R20>
+							<R21>0</R21>
+							<R22>1</R22>
+						</CoordinateFrame>
+						<float name="Reflectance">0</float>
+						<float name="RightParamA">-0.5</float>
+						<float name="RightParamB">0.5</float>
+						<token name="RightSurface">0</token>
+						<token name="RightSurfaceInput">0</token>
+						<int name="RootPriority">0</int>
+						<Vector3 name="RotVelocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<float name="TopParamA">-0.5</float>
+						<float name="TopParamB">0.5</float>
+						<token name="TopSurface">0</token>
+						<token name="TopSurfaceInput">0</token>
+						<float name="Transparency">1</float>
+						<Vector3 name="Velocity">
+							<X>0</X>
+							<Y>0</Y>
+							<Z>0</Z>
+						</Vector3>
+						<Vector3 name="size">
+							<X>3.6096499</X>
+							<Y>1.05878997</Y>
+							<Z>4.20594978</Z>
+						</Vector3>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">woosh</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item></Item></Item><SharedStrings><SharedString md5="UYp4TMh7QPr1neNFEp5iAw==">Q1NHUEhTCAAAAAIAKLUv/WAIDu0kADQXIQAAADIBAADgDBSfAwAAdFgOAACAZqa/0czMvUA/
+0s7MPYAqXq0qrFL81ORSuOvJpXD7fXLh9rtnFcV31aWU7jqrFNw+uRS4fXIp8LM+KeInV7lS
+yk+tLoW73JYLt0/cdSnuSrnLpXLx8llnKeWuJxfFy51VitefXAp3yYULblIu/PTXpbjr4qdW
+cVrFT61vuZSf78mlCjBmBj/PIACAPwAzMz/QwMyMPz3U0oBmZiBmJj/M4MwMvwCamb4AAL+B
+UJl5P85QZoa//zICmZk+v6D/vz7OZea+ANLfZqa+Pp9mJr/+z8w9/8Eysz4D//8+AM/T4c0M
+0dDMvb2/v7/P0L/A0///zdMAAIC2081MP+DSAaDVhtCZeb8AzEzN0Ew90TYBAZmZvgKAfgDU
+y0y+z0zTANPL//99PcrS/mVmP9TgZab+/v8+/svMvdT/ZWa/QWbmvr89zwDTT78AQH/BzIy/
+MzM/oZDOwoCA0c7MPUAzMz+CKKhydkIllWl/A+KpBAWR1knsDtLQGYJgQ8xTybAZS8ijTS3b
+xt3bhXzf8VkvNKTARGj2VXvaP+rWO5Ce2x3LHRdBX3T4hJFX/1TWS8/dBXaO4nJcOnhNXPb2
+RCPbAbcm2EFkXIS0AmQu1MR3smpTEfwBPKr95CN7VJzpd/BD7aGuGu/kJf28sDtMeN6xOXGu
+Yt46rLlLzRl4tz9Dk4e85MEa7bqjofAXu8OkLlBfnMNQDOj7mdDtqZO65dwjLfGztMx62MLP
+EWoZw55DP59aKH9CPgXK9r7AO+ergwmce36caaO4T1hpv6HRj+XSKPwyTfu9A5817aULe5bX
+3T3T7+vsdqig6BPIi9egHif5899HLqYE8j63C2zf0P/FHIftbM7iL6xcDbS9/APSAmFzTz/h
+WAFvDNMMtiR88sHLxafZ9a7vI/xzUXcSvHQuPrF7fLFbTtNsyMURRD2O34+fOzKL5TXGni2e
+V2zrChhrzh97YTmx4T95+7ldfXQ+JZqjT3z/R6gjiLLB8mNPvCUcRWNP4NveUxf9F82aI2aU
+yoJ3rq+GTsF/7vRZlPcdXG/koQ4/TGH7gv6wU16ceBb6zR3yF8m94mx/690X3zl04qln/vW/
+aVH87lByuFm9+J2/yOXQYNt57i9igvgimrv0zbmawXPzlgLdS9+g71VdXcy360uRdflODd/0
+90sgRou1KuCr3PnM8YrddDh59YubcL6QeiV7w6D6f4I5PgXxE0bykyN5o//Dk+l96u4rGqsX
+nni5+4O3+TdG19+/pOaBGw7QPE4OxSMOAkf5/0+/SkiopO9H0ATHyuY71819D7xvEIDv+NZ9
+wP+Y64Lu4f9vJgTwXBMRD3oNQ4y8PUa+yu4E42w3ftJbmtfUb78oYmRfJ3TPZC/3R/lJduJt
+fqTBc/4uW3hZrHrzsXohMMuv5zMu9jn9aL7jVUbHb46La++75RW0+vpM+hA9Spz8cKU1/PiF
+xxXKGNmT3lNEW78IP2B2VBeAxoF2n0QmfwVLO/snCzU4m3n/t3Se+26a+4f53cH3ZPfHIX+M
+W4h4PJ5Hu1OVoztXRcgh</SharedString><SharedString md5="XTVjMZ7rOzLUTMrE2GqABg==">Q1NHUEhTCAAAAAIAKLUv/WAYULWTAVp0YpU2EBCMawx4dnhuC4wcom4V9tpJeonRBG2KCJFv
+fSUDGcvcwpmThIv28XaSEk07uW6CxRLMjWsHYgkjCU0JR6CeJ8bg/eYGfa9s6vEOufwgrqPP
+0OHjYkhTtzqD+BaW5kxUGz6Y2sGXOJ+Buj+72/BcLk/dbwTjpgssbshrE2SHHBtlEaULchK9
+lRHaZ8WCUGn7CWrUodK+iwp6LmmkrhmhyftUEH1XMi4/K6b9+Am5SZG5R3NRYMgTzWejS2TO
+tn0emS1fPfd7ZVLjst7nOyONIWbhxZOOthAaZ29NC+ZoXW/DVBtEN7ls9pZAfjgXCPQ9zvLi
+CyeH/BRTQx0krMO/EZy8RheyVoIkySNCcF+h4sWWUDAytUbFtnzFUPhJs/xMaTD+IgZw688B
+bp83AInWMhVU55iyfLaasXP06aha+JsFCc9YKulFt15f+wWGw3iQ8T+UDNFUusA+4QQSYFYh
+8aMmIVHz9Mj+eNWp5gxz+RhsBJR3k4i3vAi9hYQBhTyVf+bHBcetLZ8z52NQ08KN6unkiBHU
+PMxyudiyBgbmrBeWDRgF++Cheka+rYesk2LJMtughRfR4XKE9oTn2RTB8ZPRA0eXkR7T4oTB
+fehC3lYz517MoNyUnWenM2HhW0AmcUYldp7FbOqRVuB47Zc7z0yt8jSat/4jic09M8rECZFi
++CCRrL0hyWjVnyiG3UQ9sj5ufQ3XEJB7exapegw2Rp+8JQV7JX2LduH8lkfpo9C4rRMN72GG
+XxGi/CeOA0Tlk1l9/ErJxuaHRiUvNjH1lFoBfLFJkkdVUsAraydf87XPT/S+s2JVeL0xQ2fa
+gRiGYbFEgXbGYzfwcPoTNVGaNFFUiDf39QXrI2ozqifuJj3w8V9H0o+aJszNA3+YX5CvrEYR
+gSpMU1T6pXtsor4qRMI1YXsda4aEA0edE6v5ywlTXm3eMUGRl/bh1X1tet8KBsIF81BrFEJn
+84APma43ButMiUfmmD9JJ7d68KsMDDahvLiX4dHr2ag+sqJUNctJbRmAnA6lrZomDgmIQtCn
+NrbWFK64vSxc2QjGy2u54oEEW+O15CwmjcD52jHaJVgQ/RwyZNCkiHoO+KVEvffgfkHXQa/D
+GfIIMnYv+Dr4PkMt7H1VgCU3H9hx8vjPA/3CPIyn7J0LzsfsY7wXP++M4H9n3dp0TdlIpwGr
+52wxzp6MleMlay68P1oFuSYVHM81YPGjBFKCwPx7PQhdYdC/7yyicxz+5yrWn6jIFzSyhOHQ
+9iU9w8I2QbbQeFzy0i6oG4dk1bcievEulq43raWKd6Sz4U1uSEpyEuBNGitQfvh6qQ07yRtl
+IRQx/+3Lzku4JTyZDR0nG2neTT4AKYRlu+0/2jsrig1DEao3k+TcES6c8gbCMOnPXq0uUBkC
+0xfLVIFy3RR+sCoLvFQtyLe4kPhkvgZhAveRMggo4cf7PHvEDbQUpFj+ZxmU2wnIzFsqftqo
+TTZPmnyxeTujSjWQ2ZFNX0RKFdw1D/z2TqduWjou9WWYjMGTT7zxtPwy3rv3gjOkc+/V6Pmz
+BAKOSvOornwQ7YfXdJX8XL0qNwBCbM/+bBLBYwJxupWRVFO/88tI9GOM8OLnIrH3wcGo00vF
+F4JD/S7oyTEBwHvDb1tZaYBXxHvid0RIXqrX9kysyDoDtncvNq0/eZpTiwM9/VNFlREkF0/U
+qRnTo/JDtU0xKbROYCMHa4yRB2fmZU07T5p4oVM9mVxzStrn2tBSEzBvuaXiBBrTGThiE9Pb
+/WQNVCWWSOkPLStitVTDGK1Hh73wFcnvnUrVsGND/5TAxIhVzc8LXv2Qh7ATyYvnkNlKjEyA
+gsVOGJQVf6oAIy+OQE3lez+nDtCyUkuhR27QRp5IHdHBgnqBBSBu2ZbodBWy0JhJmLwLZwKP
+JCJZi5cQeWkWlZeakb3BeIiXCZg6ohrmZauOp98pORgDwvCyNrJrShHiuDfgmsB5A5IgZ7Qe
+GOyFUsDcSYkxOvW8+6VaWV56RvgQdOle81WF49Yw3QA88uTBhd61jeJPqqu7Bkc3lHSITUvA
+D4mlCjvy5uvEKsnmBSyPAUn8mRWtv2QVc8IlPGWbLI644vQMpOqHCc5dMhk9ErTu3gO98ZYs
+0GxUQ91HDAq7kRSIndLBF0r5erIz3n8OnW8n0KjvVCr0HDH2xzgB+4lkV6c7uvIpYEdvDFOx
+kCdEoTG1lpsFg6blpG3um8g2uGUTh8UFGLTizRSm35sEdpOaX3xoWzQhjYlz9ZHBpnkk15WH
+80fC6ZVLFmxkJzcfHh7IRSVrm7Y4ddLprNo9pjkoI8XXirymVUL3BsqaJpQ+LShpaaODBcBA
+CcLggGL67WE7zzI50gaZloNNk+ZrQkoqPeQOZ200abPu0WwKlQmRuV+rGUUihF28PuhmnVPr
+VN/xq6S7OQL3Ks0JUYopjyBGY/qynqgeuvC5YsIUElLzio9k1+KalDCNjrYhYC2SDl0vxT6z
+49ZBPtYBYmTUTml4HCzDtcXFCY44UpCYaUh0jS69bLIqK+0o5s2iBKsfo+8Ui7hdVrvFEl5p
+OUxQwTFJtss6MevTSgXSi/JLM2PlW1nTjHaQKfJZ/SQNfuEcokYzpK9ygtylnSfUEBpNJ6OW
+UcyuRiaYLAqJcpOnKogmmJKKFaXte4NFpdNEUwBJSY7fLq86KHFRFjGRwHxYpboIsZh+FVOZ
+4HpJQV5+jb6K0uK0tEbmirGYYDplAmQSORzFrRJVCRmFSPEwMSg+SuvD4sJad3mFvAblhBzG
+YgqTNbmJdJnjzuxF44NOCjO6+Vr0YswNU9zDVZJDbUgWcWKME5K11q+Em7aUU7NRV4lnQpYt
+hrM9UEs2QGJCQoKl4A3LPmrdnZGYkh3sTYQh9FQTg0RiSiIxMeuQvIboVqQJK4soyGO1tjhl
+94FIa44jkmWYxVPcx5g3VU0htd+frJt286sriIbR1YjYs8NZGBNUMcliq8M+spbqZlYW2hoI
+QhmstNc5Bs5bXaZm7Q+NlpOuxRhJoi6BWLDwGHFlmZy78ZHMEUcIIxMNSonqF7PVGddpnGUv
+zxEVE6m1uW5WPmlInBTF8HllaVJBFMxKS9K1G0ODzHpmxZyQNQEHbaMUEFiHtT43RyYe54ZU
+YTFa7BwBKenFicPmpcUat0sz+LZHyLNIAqfT7LIVcpMAZdv3CgSsLUfeFFyMUaQ7leMNa7p6
+DSLRdLUqSlKFZF2jIeDJFg77iEII/7w1MCuQAmZWYEM2KwAk/H6rVr9fmZ9dLKTvN2fB9zvA
+7vv9MgU+xOztrzA4mtizH4PYxlIDkBmB5IracUTMR1ghgOTsqtLjlyhMZzNMbV+9I4x0Mk2C
+VQ+t3d17UwLsv1jxhqNM/+XlzYYV8BZq5TMriAI3detsiTUTKJsh+Bqt2zdTSVt6UPmfRVRu
+pyZbnyhJlcLKJBmRsXcyEycBlHQLnhaAXYt5Jt0UTVuJtaonjtcJ9KJnmHlG8wAyNbEJVHIU
+4SZ7K+I7toybYaP+FT6iEOaUGwlI6W0GiVtCjTiI3WGC4xdamalrH7kKqSi5hixG27Rtizt6
+6FHzqsHWtZkqtAApwVoajPnbDKo6QZA/XRByRCHNesEFJ7eMG9OYno5upqLmgOn2z6EDtdEV
+FX7rAcl1RGM0sRGsO5wGGWam0Tx/ujIZwmCvpCAb1qh6J7fQcFSBb9W9oDclgPoAWXhq1Uw6
+JwAUImzq0hMf6ZwugqujQOP0FBt2PIYVXNNA8YHWBSDWJ9OI6Fm0pR5avXQovRpjZbKuwuWz
+rjPOJdnotykYPey1C4yUCDWQsDKMbYt6Rxpq7ZhlwB3MnpllJfc+xczq3xRyid5G7WH6zsXb
+qRCI+W24SJg/wlia+VFgzr3YMsmTSRj82hLLPWRpewrH3EjzvSEpzjbQU/ayBPA+snJzRA2t
+C3I4fRMmQq03xgfGCOeUIfIHIDBaI5CyeutuAjl+Ef8MgQHeCwIu2HYL0C0V7WhMOVL/RBvw
+dpJ+tVForyfmmL1d56KP0Wi8DYAJBgBi6CIE+En5iKp/YGwAoWUF/huSWLa5BTq75e6QuuO3
+fVw+wc0feCv0GyZwm3i0ygcus1oWRkCpdVumEHMHVhqEYVhJ3JNrEmz7RnyZz1j2MfPD9mII
++FrdMb1JdGDu2F5AYOUWiPQXs7teSGXJTv2OOZiGLYd0DLwPfHgA6+MGckZ2z0CNrYe8Yt1I
+JsmPlik5CgO0n8XEAo8RrK15MOTQqHBiMBcmQXQBGQo9Ac6jM5i64Ia3d94YAKfTNQjXaEdB
+j1sGElaBxNvyrS7R4PlXQjPPTXxGBpc1kID4EMvUQoj4jjbBL+3zI5MY+ybkDS45c8IrqVB9
+DlChtxPU8JeSZ19zgMcfyeL3KfBGbLFdeqQYaQ86CvmPgh/eTs30L4V8/DWH3tUUBc74IOwe
+jPD10hpFkn003uTxfsoOMo5rl3BbgPd+Ua+3C55DVaLTm4iBGmOX0vvADKMouJv/o/ewKV58
+kOiMzTu0P0w6f5APkc+D/GlDtnD9HWVmG2pux237IG+oNqM+DDr27oewu5DCC+6gNMjuYxxW
+7n6kDtyPfFH4blyiexVwl7DjpfGFzwssncbuoPugofhjFRMPAjbqsxuWeJUmU9+0RIJJo4iJ
+n1kYBkucL1ZZeg+tLZ80O/Q7paACNauv14TmYCYAiPzL1iEnFH1RRUsrpkvc99AKgA5NnDTr
+Qc8OMplhWndrIGiZtypCeNgUo/OCIH6oc1MKKMEjo3b/L6fnvdiEeRmilccrHfosJqDUcIi1
+X3byNdeOXXqv1whmhsEiV+9QW+2UMzQ1gkHTk0v5AY5YRtMACFj8KH4Zx80RywKwed8zdz4S
+Wuk9A1mMDz3P/WgKWzCWbX4rdOcnwr3vd2LhkfgB8620OKyXqrz4sa5sPZlk1lCnHiJY5Xsx
+/b4QtsvX8Fr85Q4dfy7CtM1rhWHFssHg4PUYQb+Lpu3nJdlfuqX4NkIBv7wEhdlAU8dlzEMy
+ns0wtEg64dbetIjr13Lhe7MNnUddIvOhn6iv6Zr3SOrzXxp+Pblv6H/UXXk9JtKPUUK2ke/1
+Nc9NnhZu5xlLVXzvJIi3IrfFa3PH7r8XBfhdgjJsYwHxthTL4XgqvHinHA8mfAOcsbTATWQQ
+he8OAOqoStC+CVSviHfBHH9aretjWlm31SN/Gc8KGCi89+QK2TDMlRY3ELPVOyYL4GKJmjIE
+DmbHzOuCzPryKk+gnKiIPsv05Y1w0oN8QbrmlND3A0HoR76bXtpVP2UIS/fDw+LnI/L7WIKz
+nSLjxUq49Z5QuxEVpUA+Wt0Hysp0WPbaXpJswhhY3rcechIceHIaXb5PFoCi+6hhv76FkKU/
+UtWO2cDmd+gy8U6wxi/ckKJcYewVxUx+hyRXgynFx7mReUU/Pe11DBijNC8+Hbn2ub6hljaL
+Jzl2BCYvFei9kAYlPp3q/Dy158bjV9/2jZS86dGO/yBhxB+uhyXqQYjYfMmVJO4TRMGNsD1x
+VTwez6LChkvigfqZ6ofPNhLw/Bq62tnuJmugr/XRlANuZ2HidsciRv4kEdcPCzAJ18TauRyT
+0KCRv0oonTVMqF8ZzalmjWIqqeSkzk1C5vjEtq32occgrXzwaIvT+OSGZ7as+BoYmccsKgnP
+yLmSe034mgA+SBTrczmm+Cdt53xfAv9dxbD/S+JgHy6z8yF5cR9TU4n9nzXs/XBUS+VLBine
+Tkz2/aQGv5AMyn7aVyb/lKAp/hOnav+2Of/pKHX/WShR4Abc2t4Ijqe3dpDheB9QPOcXnSvR
+IMXFxIVtHWBdhXNwPJt62eKr5VwMWszD1fPrVOOAQmZDBQNnnoUrW4XmZlFBoY6cb4cDKFGn
+DxYN0matuAdNYuazPpJ+S62XS+JxcMEZDl5Vwu2HB3acxRTVk6FWXQxEgSBIPtQ4FlD4QrIo
+/VWX+IWTpky14e9PFmHSGMAz0xQ2eY1SqZnABFSXe9r1mMMwM03mkq9lvT1fjfSZVlI8lRZv
+FJvwMcJ4vD35iXOCkffppYY7tUb9RFZ8CCrvNwkd+9U6P5/efCyb+4XefyODiI+XyrbgwjND
+a28IDDo/XdIHSZvoILBYkzsn6HbBeg+ESWdlpXsiCFB93OTGKx98InmeAA386gpwtiZITqIM
+jiYXd/eQ1oZXDkAZvanHtlOotjB2BbLozVamSXNmEw3Or3/SWl/D6QEd1+LrW5S4PKeM7Wd1
+na6FypX/k7nhjOckfpZ6/EdDL241YtNVCWyJH1m0gCx1PrUxHzz68DMM3dyngpEHlWKAfk6y
+oy9EoaAml890URj5+Enkn8qYPY/Lnj/kMPg6fJb42R2HtzGjFJRu8X5UnbSQM6cdCrV6nMUO
+VQtXbVj7CmXUydHgVNw+S86mgfE5A1Z3bA28v8HE9UqDhcYRaDeWCy5+IFXetpmAH1oX7FZJ
+m0mnwXKmzNjlz22LcYh+huD8Mh+lmHcLCT2erKfg9zgDvyz09O49Z/5UFOrvuAvxWaik38eD
+9yr8j/yFehdB/r8DRr9DRs69AA3KEqQ6j8nNk+KoPiou0nMVoDHvoP14+lHUXCA21EXI4Pxe
+CEicRDfudWXpKWMcv89CzfsY6umDavK4MVTrx7Kn6TUWInwGD3VmmVkoN4YbMy9p5IUXYv35
+qo/Ld1qg4Nn7l01H7jFX+HNce8B4y2JHhzPij1SbVEEx8HEIqpwOceLzqGrIyJFpRzG6IhVF
+muvzA0B7BI6gmRwfdhpW+JYjUWYeAGLSnVoAibqDU6CPyWH3grA2Vl8wFuvR4MqGuAZw5zEZ
+YGSJ2z3OQncqpO02rI2SOgj2ImRofiADPv9CZcaNATDWyX44Xnjl5p8wCka+vLKA3nCoFtfc
+wuHZNADxzCsO3usK2YhHinL5vqQsP5QVAoUl5LQk0O6+Kz7XEuLsuQb4CBuYGntaUYCwzqjf
+ZwDzhGNIZ2gkiL5Tix+7sAnwR+0GKlIcg/F8TioHGG+278CGjg5HxB81YauCovNxN7JPh7j6
+vKhVGYEzNGQQ9ggG4hupCIiNJCM8k4Nop50wf40FCLfcitIwj6GL+/zAz5ayqfTAxrK92mPs
+qSAwccIhXVtDroL/ibu9D0CZ2lAwzuwUXXPP4YnQc2BV8RFsVlnAkc9uxQ8eaCrcpQtObBzc
+4/z0ZYn59jTi8EFDTnsA2PLhTtC51DQa7oM+7g3qrc4enrUrzEI5V7Ty1k2EY5Et5Oz4Ykgm
+/tYERGhECl7VLKUdRNhxDGAtFOstxyCAkCgSxtzBn1Lj94bulZ2JwqvDEXyBgj3DcQZPr98D
+QBazDtQTBzeZ2nD/Nesg8XhbrysZzalE0KbC3Tl9qzQ7BOMWcXtwD7M5ARVkOQkF25tcLlOR
+BdBMwKhAzdlh667RkbV5D+PsXS070ifoY4iAfSUjV+4sHKVmYLNfEdSiViy0Y4eU3aKKo1RC
+MYcTnoDdge/6m9fDkrpFz46ew4grfXRLGexVELG3IhUAX0PuvlQLN/sr6nuXjt29T4UiTwOk
+x0xDWP7cGhNcKxzpelhTZhvDy/oHYPonZUcaVbLSY4gg4INg7ZTSSbQei0oipxVo2bfxEygw
+dCruFh8iQp3GZseTo7YmjUCsOtHhIHSllC55UOsA26liAIE7Kc2YaTCXzAjMjhzmKItzGFFr
+LnD6xJWM1JpvqBips3CgmoHRuoSCfEXQHLj2bKaJJLB9xno36ov+igpaKyHoIoCQciLylIg0
+sz3J6PD9QkpB2kdnBjq1zMPxPBzWToJiOI0CUl+7gnRBPD/XAuM5jSQRrZcilpZtUqONuKjH
+UOFHZOO1afLVDcA9qW1jgIxZmIAhFgKLV2tH7TmFxF2MwAKqCna5DTboGxZm3OyEiloryQec
+YrXEhi3a/EGviABGViYK+PiHKDwXAfakOQV56DFCN18DK3sDcE7CCG6c7i62DSm2+cPcXaol
+eCt6+Hw9OntwHuhHnS+Qe91igMgIz8j10SgYDc9w/Qji9TmujdR3lXUezwOPcA2Xh7v1weI3
+TUqJQabpk7dZL7fBz8bs1X2zE2W3VlKBcgoo4j60IXuV7Nspt/OdKkvZY4RWYiFMsDBh545F
+PByyxv0NUaoTLQg2b6caEs4qOxLDamjpn02rw/l5VeKukYG8R6W0vIwEmHcxgtaOfbJTtLvi
+tWRtdvAKFoqYDTR1Otgxh6L5C4Dsjq8NcwlHN58DLxHp1cNrKTCDBEGGz6HTCjSBgE8lV8kt
+fNm32muKdtQohLiYe4Z8Kh1W/i2WjFp8gelzm25pcw+pn9h9Yd5BE9d5T3BIdRrU4ypEqF78
+akMoTFL9BqDKn5Mo1KtY1bztC0t3U/tQaQu2J0ZOcY+02LnUZbro0EA/ls44OuDbzxqJwRXw
+pqIZPEsiLCbQFev1mvmUMkSuF/nzPoZqoChXf/LGiiTBkAcusXmnOlpaDPRluuTQCwAIi3V0
+volOaiXEIMeSgPZGkjEFbzLeZ5wb8G0Rc43UA+ixGtqKcBX4bY/QjKCPJzIodaEC7GhSVAVP
+xwhLk6KwK3uAggnIBM+aCAcRIMj+RHP1pyMzbtbLMK/pdumpOx9/yrqe45kfVhnjFA1/a3GH
+Cr6FN8LXFOkYC/P0CHsfAHa9QtOGcIEGHJBer9zWdDdJytGvQNDwdTOuLmGpznGMGH26HRk+
+ZCRCFesKZ+uy54GNeO9lpUtk6Ik774mNEVIa97hKhNNOXNvcU3YsmdiwASreBzsK+h/hD+fN
+DT8a3YYhrXW3YWxu6iCBZ/Mb2k4tW6LuQz4tLUyE2L6IXUiTlihe0vp8hErDOLIFfDhWBn03
+pCCcA/P5cD4uUYl4fhTohlcJkw/G40wyBeJWhJqtyZhU95zpCRdxZ34T8r35OpEgqfMGYjaR
+78IDblPGpx09cDQMXlKx4c5wR62xE5NKfEkBpW71gc5VDaROenb4KSHj1a0wTVVesjHc6NZa
+FQbNsp7YVoTeT3QnnUGPRhI3XtRKuCDSm4Nih4rddSJ0Q/7EJBJfslv6Vh8GcNUcFncRdMM5
+XzNvM7p5H6EkYRwrQBzMZjpAS1idY5AAtBIwhNRyhTd3oGK9OBEXRJOfSlDPaP5BSu81CYMz
+6dwkofJax9fMTcaMCvuEPtUqaFe8iLs7fGCos9zHIfGbyC/CA94HY52jR4FGthWgtRIaD8+g
+x6KUA55bCRdDe3PQjfPHXET4NMP3+6U5+bZsqvIO+LQ16NaqYMMsq8kHJ2A+keCo8+ZYYK7H
+Fs5c607SmYq0nMOrDlqortLEDEWvkANTuwV20Vww48CLdpXvZq4FgdT9O5WQr5C7lO7I1wDC
+8j7FxS/BIXgNG8DAWG5iswOV3e9ca29mt6Ka+zosQv2upSNKBMePb9C6wqZRi717EL6GcSB3
+3DWGmCSxjT3Y8OvBYB/sNB+rU5vTEDObMrmN37SiSblLG2Dpd7Dy+FihQU4mKgBLlVVtFxvS
+n+8RryjDEFcWsMrfxetFDA4gw/cHx4y9oGsODAXCrdNhwZPdMLpjgCHXLjjjA9FBnS1/7VHi
+ykgWFBet3wLZiGjA5LjmudvtpsePILjrynMLdtqY2OnYCBDsUPh6QGth36Plwc4qCgJ/ydaW
+KMJW9BClo5TpzsGwgRderd3sC5y2dZacGXgFoVGSDQOCnFDFAnCi2E7xuMPhSJPnkWXxexvX
+UzRkECRzcbqqt2qKEDqcqTGYTyErn5MdqM/M6J536hqJgE3mC8L+vTDRWDagZIbLUbWj8BjH
+6bDdll+rZkMM3okugV345jpDgISdxvk9L4C0pb5BN1IEKTspgT1Cx0oGDiJjrvPnmJrS5Vj+
+ESqKKla/j9ORfXrE0+dJ9dxTKogD24R87vWG5nRLtKvSrMCnTk8oIWbV1PUJyahkCSTSQqCl
+HF6ffsQKbiAjLh7YOATEEB9OY7XQMXD50A7wgj5PrI+vqYXdlxKItFwjT6hShJWiMspZeoUE
+ZozVB3Z6ecC4+daLH3oTxJgPYHulXmrlcxmYvDSVaD74OmCsN/YyNcs9El8v4RTlWoC9YC1+
+rjdMWNGguraeW6Q1rx2Ni7ng0raBSx6rj2v2FBNpGSaVtZVCjNTRJYpyfmjOOVa9esmI4o9v
+DZGY/wuXgM0ENv8irUxDCfk6HtiO+9j+rHWL710Z/YnIvdhQ3XuUDsss3S92FwNXScT1xHWd
+O6R4oFKC+5aogQeyCbr4yPVIv7SC8PDxDsM9Mw8XA60MfLvgV5tJHvAFmRPcC5pAgvAtpOta
+glR2BzK3l1tSkRlk9UqId40bR30o9IbswYpBaRNvJFO5DcJwbwcz6eMbNhoIg9XNmKXzN0PF
+AysxLUMWrpUkvUGEiVfBQL1ZFeGtFULKaewBESyEsIFGFR+M8MBeDaHrgwTUTgOEv9jCwMHA
+F+qfszDw3xsYy6PrU2SK7w1TXUH67HRmTg6Xg3ciC8MNqfPCCzuMeRlTpZfood3VOqqfRyFo
+rQKPy9FI961GlfAJ44X5fMUt6p3XYw9MK955Ib3D56Zo0pxsbi42A9HbONzdjBvOntjAt+0n
+6O+4i/o/F2VButVGCgKkO1P8G06G/kpyaEjlBfHn2f64Jq8cwQGeCVutByBeDJsyzSP8eFx8
+kBATv55dlx3rZPt8XKBQkrv+hmRUOen+G5itd2ze5N9QouZQUf5PBzWrSdv3HUDby3TwZZ8+
+NRLtD4PrCUzbey3N2N9RJ+NGyNHriEB0W0X5fd5dYm6U64svlVKReDyKzN0ptfB9VGIrhIav
+bSDra6cQm2/dRVcvCF22u1XeooAM3oWHxNjy9+P+xjYl5NKb1R/uLBtqZh/u47KxV8FbnXGl
+X7svGS9GIxIuiJTfhKA/oTehsLH3YyJT5J2x/ZmlC0DnY0udEWgmw0QjMRqXmTSFa60nRrOr
+2BuiUwIrW7iHmusLENH8GbZ3LaXmVTA00E/OlaaircRAIegpEvRLh1bHVCKSjrJXOEfjrLYs
+K6/4MVWfEZxncICcWvwFRhoZb0nRHYCqciXhtIgBb/cVtFfrdmPc2Oli/gHG9Weubm16wcAL
+uhLWFHC3vODqklvKzpXAva2nw/n6UBIfVVCEnG1XkB5x6GPPNBnZsDoKjhVIBXbBnLWJ4CtD
+ZjHOAp+D0WVXgdmeIpltJGE74AExYprTLfL5VozFuBr9vDEKztd082OsXK85wqNhabHu+prw
+TnRN9NgI80xNKL2Awfd8nxncAGcRDd+WY2AzoR07yl0ZN6MEhxM0QFSVsk6LcOeKGDkOh1Sm
+iZ0GXuStdSLR7MTbDSJNTtXLVsd+dk2FA+k3DGWg/lR1ILaOO+JI79qIu47BiRdwudNMJ8CG
+yCLfKQ+cvj7znj1NpTOoRqNhNLuVld+72xfWV6LJufNq8cAfnu+uJvPg1SJj4KwOYbMDfRma
+fQbaDzDtuR7gE+wYkqh5IOIXj3FZxTGoWdFaimB7EWxIGVSPhUzdEUS45nU733YYdJ1TFoaY
+U2ieuMomM+G6w6qaZxCzKndBTdw7e7nrrgQ6KS7OLIJHL3Igy5ECsviPJDv3zCeeEyr1aigg
+MbDDjU3EVnlD8oDdAyeuY8094CGmYbu2Wxo74dH1GRFGUClXDxnX3+C0RNjGQtpjjYI9y5UO
+v+H29XGnMI74wPbQavQcCIix/x4sIaBhZnNAc71FtxQwlSCHbSqfaDDSuY4JUDVNGZJqF4/a
+UoCa17tHfcTMcBPq1L0Oq8irHPxqw6g/keD9GbZ2HSekwAuulnogJgR6t8aVwMo4X3B55B/4
+5fiXKKquhlbrm7A87lmDeRk+kIMiDEM36JuXA7xKkwGfxUDrQb7I/EfnEvcB5vFHqidfEzRT
+zpB5F9jnGIka98ENH4zgwHmQgmvPKR965JCRe0m9cpUnrGMgEXNG7WIVof/hFQD4Qinw7WYP
+9IAWZQBSHhDdx11uGbDWnYC0H1aB4lu6lDoWHhQ1I1fYC6ukDPUgNbyPISKTfnd7TgkjjqC6
+cR/UQKQZ+y4wT8keTq+GdkXIUJFfE7yDgOB5QHGME9zYN1Cu1a82R/dAd1wMNFKLMsvHO3ZI
+eejheFCu3se5rkfadcsg1QPZAu9OwCYPtMDqeuI5H9+oOUwMSvET3uduMF8CfT/Dqj4nJoPk
+OJ7kvhdoZq0G1F/24GEBAOuT94gcTET4f7wIVSJ/f5FLI175//B6b0YuMA10ofR38GWolRon
+/O3VVb2n461+Jcw0IzDKdXBqDqRJTQRPG/ejTqy3vBU6Ik+CN+LvxJLlz+40DOFSQ2wuUGE3
+Ac8DE+HXBE10H0+173HicAm0u39gy5aa0cnwD4bWItWiY/JB8CpORT7LVBmGGUBKeKf31g4F
+UvjGQKN7MRV7EK8H/jil5FmoSdxFSMbW4CtHoFBTUo7+jccIdGzde+6kNxddH0KCGS/sENYk
+t+QqjLwI42yREf5Jo0CLPQfUeJkPJpZ2jq7Cbzh+cvmVBgyLOeIaywUYiVhEa9ss6wNoBN0q
+qYDMK0lXyY7lCcJ6IYghp7Vy4YdVeMCZMoleqerEtUQlFrmv4PqYETT4Dq9Z5phBrldhpM6s
+c+DH/FhqfF+FnvcRYbdD6uPSsGHfRX3vHDPUzAr0gLzd2acZR+kBDlzw8/Zo+DfCmL8stOE0
+Evi0LJ7ckCbi3kqdquYniMY9G2RX3/8xV/Q1gEh9WItxYNrYa3Vq+T8XYkYnQlstaUBfG94M
+2SrZ8OuJtexYGcDn68KFkjL0b1QKKUco+hucAYiZqFTLwQEnqTHAriRQyAARzdAGBVM1C3AY
+iDNdEjs+lKGerNFNdQAIeqAX7zeaauMqPGs7e0oJ93128esO/nDlBiKTJuMn13/5/MtDUMYX
+S6Tvr1hjpXlGCobbjpUtuNdSfzaxd+ror5bsqBTxcli9O8rXB/2YCjvYh55Mz2LLPIDiKvY0
+6koEx+V5usLf2q0LPD99gUfo6HDLUhxIDuGHCdb19qFN9wHorOr7aq/SX3KKx2t7d0gh+G82
+2DPfq/yjJRqtdmcHyp00AksPL0D6V/PH37d96CoMn47C6ucLnvyv/d5Znq4lKtcVNgti4Sk7
+CzwB8sY5OZ99Hex3LoZydbdXD3xp+yT1rYGDc7PFNv5eVXOcv7ly3xvlyHNXe0cmt1qeLn/1
+jV9ytzz9jGfAOC6CrmQvgtkONzMsvWCHBdedxt+45YWl/pFi3ZZ/bjSbuNcPo/0xygPj3Y79
+jN4tF2qXDT7kvUdsLspJwv4O3MKRfzyQi2bmmCj4D89vxHepb8h/2q/jrcxN1ybOZAaGv/i6
+8YfDGOi9Zvl+GflppWuc7mINBhmxJ97fAU+ePA0+t2zXmf8zo4be8xM7D8Tk3+jke9GT/tMk
+3yyXv76kcHU5lpN04vhzxzmy4bBcuZpgScf+FOpreXM9rDrwoffeaENf933OFfRwn58d7LW8
+ttoKVT4ju2NKlfTNBEvnFzli4CCrha7a21Hp0eS1y88N8X9rbXNt9FqHRTTLQBQAvdwvhV7J
+TCR2uhEgEJ324wox40EJxgZNHPdYzjF4MjzEkvPbXb25ndWwvNWGDDxp2VtpXYzpjVs7qytt
+qhUHOdMtN2lIHeKow0sMCPrZEhiCS/K7u0Dl4otx8si51QvoRxZ4n57Ns2Ay+MTuPii0F3kl
+uAdXQXYy4yxE7bqptm2BC93Qm6rv7Sk59GjqLsb2b4gQ/d1LafS3w3dqnD3u8y8E4/cXS6lz
+u8ZLphfFnirjMUqY7TEDt4te3QK0a/h9PG2LILrB1ijzK6FPcv4R039RLDp2+1mtDX/mSDOf
+xY8Jn9mdb/BeneMQWc+KSp3g3CHoXyMsYJq/OGdN0X3xH+SVxvRDfF/u2wXe68o9F3WEmh6F
+LLzZPjZnqRvL3bix2sGPvbLdna9xu/Cx4CByC5pIh7HH+BqQTcOquO0BO0Qvd0zjgCLujn3d
+wW6fTuy7yLUdQnfnZbBA74tXQf9nxJ0kdsKMSr+4yPjtdg4Cpb+jKXzEx5fLvF5gPwb448xv
+v7jyOrsez3wYmic4qko8tUwGwjYEQ3UTkC3VZs4L8knyC6ZdzF+cKm6bj9/JhX49OXN43oSJ
+pNM6ZMqvVa0qtCfvgEtj/5+pPhp5uzWkHgeZZMxk9kt1emgtwc8d+Ac/gPFnF40/DJRP+9Jb
+fvz5CdGfdMDt/gedZUGqHAY4uNRBnoMP8dBea7ZZX5nA+Hv2hcHjB4FuBrKWcXDp90JSr5vV
+h1ucVq3rOt4DcZ9EKDf8nh9kWzIHUB7s0n3+cvZ+j9vOGFa/8xeZTg72b0Q9uphfXcgRadR/
+gPvhhXpbgC9LJXUf19keKb2d74+emz5aws8AG66SxJ6rZj5L8D+AVwU6h1fq8I/lnhSHy5Ds
+4WWPFpi8fT8xpTfUAa8Db8bX6Gf+L9J6Kdomkv94hil+j4c7OB+R4Es0uOiD/2/an4Rbs/MD
+L2F8XS9nnrubFWtIku7sKQGPdCrGd3PScvbW960hrke4/6fovvvp8+YqlSxcyzdRr3NgQjng
+Rd3hEB/C3ml5Pa5DsI8QFlZ+2fCQ8+tu/oy29l4C1elw81iwm1GHX2TPcTKdl3mXZ/H63yTZ
+/197BL5vVsebyD8hh+onHAjYhaeCniqKvj2T/tftxhvd+LL81p04RnKHk/rAPXZyQs6bzcms
+/+Vzopv3u02uczHWx8kxMjiL+vH8aldiZm3NFbj9viMO0qk6Ig6Jay95ePEb+Y/gOTD8CHiU
+qDW5fxeq/+/Ly1KV+E24+6HxREFmre7Od6BCDYa1PXk/W/+cb6bjTWep1IH0lYt7e6CZhfcy
+XECAe2bXoPG0nx2kFLlcPgNfQO9xzmXbGRi1jCyJC6SV5r79nKjTrq5PyOMuHyq9GxnusK9R
+eWwxK7RJSNyp0xT89vAxn/OX/t4XuQGZiWPMQo5ySrF6Ve0Z/undVgxH6E8P3fI46B6bR3oT
++Z+76zxvdv9DsP5J+I5bHKP1Q+amA7pw6KU70Bfw8wx+X/ulKi0vEeVGH2zz3vZkdv/gXtOZ
+r9B2NpQYOemy8FVpoJ114uzr/SkgxLHzux8P+2KragfpPYsTa+w3+ENBebP5roJjl1/yRAcL
+NXhBnd3LZZQCbLzkpsPcjdDRGnubO7gHvl1Eww3W17YMWxAt0catzQRZg6QMW7TX7zNfcC67
+KEJoEYQLc0JRzrXje3X/hV7HwnWwZ0W6o+zrBP5PNk+q/x1KrjdR5yS+5C3v34kfMimZ00O6
+L8h99jcIcOG+87jcbbMy7DwLMPLZpcysd2/1a1kBNx1xk9lWa4P8nJ/90SLck8wBwtun2uH3
+1i4khzc7wAWmn18TLajkyu8hMUjflPhfrxxoaoDb20jOHS4EBfWiXg32pvxTqtS+/1Q9tcpy
+MsgWJ8wyyHexWe+kMRbG05l2crpV86wquoYOf9M5BzOgJkwBswpdMUTraxx94jxuRO9DYVjh
+Y0x3B/Kx/lKvPsWvFoqw3LxFymaX38JrOhr8zC+8/B6jA8V6lXoXWXkrSMU3zdXfPyy4fIz/
+rMdXOxz2mum2fdUI+K5i/W+8f4LG1K6cFZL61MPJTIfZn46g1Pg/WHa4dmeQqw8Icbse7x0W
+9uYRLq6OQ3DzqZrHGKdptAz8bocee3gCcULLR8/tg8iS5SushKWtXTsnI6I0O5eg7g4p8yrQ
+wDj1UCixSv7J6UP7f9pNwKx9M9Dx2uql8vSH8wTMA6Md9sC9kIALyOxmnL/qrRGjbhg2d5CT
+r9N9zf/0wGf0t6HbBE/uIzSFs+8gk4OL+uYinFtCfTUGZhrOx/rCTqY+f6qxnEI1xAs6w/Hr
+DZaLX20Kl4vMX67hyp8vb3HD+CV8YNVZHBDE71IuO3/bCIzX97jmwFaUi4oxnBounrH4cDfb
+BXxG8ifNQepNkvjnCDzvbLUV2fjywVypz4jTX0Y64/ss/yRaiV78p++H3Fqo/WqGDZmjd49P
+FO8eoJq0WRiXNUbvhTudI+CF3ZlgMMne77zse6QZWNuvZYu5PSnvUE/O70Bf+F2zmvl35Mvx
+dCj/Jod9fO/QXEI6SHRh8KifeWSzxn2Z/b6jx3ManeTEXkcedovvlg/XHxH4FFY0PvKfFPDf
+t/Cp5dV2vZ8ZRB8EZfPfS9vIRwD6r4x6u8+em0zP3DiH/NRzzVSvZT7L7sfND+8a2OPc63EU
+l5vJZYsprEu1CdC+oth16Q+m4edS3K+d5PfqmdDb6YvsfZLxZgujcb9lN3MWBLE2R7yFxMRy
++y0q1C8h8OLbSQ6clAAP36VcDEekRw1/9SdL/RURuuvI8wt/dET3F2NjVfm8HrmUl8zMKn1z
+fQZVteYevSWa34alu5+HXD/iH/g2Pui94Uc7CWIT5Uhkyjhn+UZ75GZRm0LzS8EteFhY7i0j
+lp7Rz8GXqaGjl/WqDee9xTS+wcrgyM5ZpS3MnDjVEb/3Itcn8YS2t9OjJm+Mk/8OHWLUF468
+gYew5e4L+yV7SKEf0DkfCDln6Zbt/YAHyF7BO2Bu9p4V78o3+n6nyArbzH+7QX008P3EbzXE
+EgKwgzA+gfPyjLNAvdIL/F5lkkx9lFh4FYT2nFZejCVctCAKxtr5I/1lzMDIzbt5Hm64Uzs1
+qBzk6oV+68c2YcpgovmNAN4O8R3BHM9R6fn1oNvhgLywvXnzMv9P6uG52Bq278T6EEXDkwZU
+usxLO9GN1z5NefEwaMBPS8o3/BEkd4v31ZddO+0F53ZzYkJtePPENXuudMH+ytMfj7+cuG/J
+7nvPO2EruEbE8ezURUY+mGmYOaxE78eVQ6/Yxu/9i0hfEc71viiGpTgQ//kCZekCg/gI1s6b
+30NYzZhXnMrvWc7lYwfgKFkQm3+iLnAH42CgBN5xs/dDTRtBm3vtI1VSigM9nKFzgcpuQlkP
+pj6w/JM0bzjgMx/RYUbSZ7hD+YD0+ZCgN9Fiwh0MYxF84TTUeVd4gXuvO/nnhYvhX9um5cpX
+O68nb76ex8/fLg7vhWdzcf971zm6tagdm1Lf72LuSw08GPLj2K9mG28pcYfIX/x6dB++xO/+
+HD5WUWFyUOZ1oemXXpJ/t2l/wD3wYVD4sYfHcwHeuWrzCERGAe+EDcDC/1vtrcr4cwBeUswb
+mXtjAn/thgQVCJG/KdUG+G5wXzeE7/UHHdzyNDravEn0S2f30D8LVufI8erXZIL0P/XxmW1l
+Nl70PiGCo9zRdaIjZgU0WlYA/3Y5IP9fc0ii4Tzjkwz0EQ==</SharedString><SharedString md5="jLliaGj0aIySNhQKbJmN3A==">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</SharedString><SharedString md5="k5XP/yl/WAIUjJn/gociJg==">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
+Ny/2rsz8jJ8vf9D+QtRVgFx87tcM42g5A/oW</SharedString><SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA==" /></SharedStrings></roblox>

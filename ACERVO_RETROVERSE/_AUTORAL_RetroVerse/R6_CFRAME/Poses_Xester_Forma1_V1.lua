@@ -131,6 +131,15 @@ P.TELEPORTE_1 = {
 	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
 }
 
+P.GARGALHADA_1 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
 P.CARTA_COLOSSAL_1 = {
 	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
 	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
@@ -371,6 +380,11 @@ P.SEQUENCIAS = {
 
 	TELEPORTE = {
 		{ pose = "TELEPORTE_1", time = 0.12, style = "Quad", dir = "Out", marca = "GOLPE" },
+		{ pose = "GUARDA_1", time = 0.2, style = "Quad", dir = "Out" },
+	},
+
+	GARGALHADA = {
+		{ pose = "GARGALHADA_1", time = 0.12, style = "Quad", dir = "Out", marca = "GOLPE" },
 		{ pose = "GUARDA_1", time = 0.2, style = "Quad", dir = "Out" },
 	},
 

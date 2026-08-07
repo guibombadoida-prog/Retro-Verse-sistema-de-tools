@@ -617,7 +617,10 @@ RAMOS_F1 = [
     ("q", 1577, 1748, "ATO_DE_DESAPARECER", ("Idle", None)),
     ("e", 749, 946, "FULL_HOUSE", ("Idle", None)),
     ("r", 619, 749, "CARDNADO", ("Idle", None)),
-    ("t", 1493, 1577, "TELEPORTE", ("Idle", None)),
+    # o ramo `t` se divide: com `levitate` é a gargalhada da segunda forma,
+    # sem ele é o teleporte. Duas habilidades, uma tecla, ranges separados.
+    ("t", 1550, 1577, "TELEPORTE", ("Idle", None)),
+    ("t", 1493, 1550, "GARGALHADA", ("Idle2", None)),
     ("y", 946, 1165, "CARTA_COLOSSAL", ("Idle", None)),
     ("u", 1165, 1493, "BURACO_NEGRO", ("Idle", None)),
     ("p", 1748, 2057, "ESCUDO_DE_CARTAS", ("Idle", None)),

@@ -56,6 +56,16 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(RAIZ, "Tools")
 ENTRADA = os.path.join(RAIZ, "MODELOS_ENTRADA", "Xester")
 
+# Tools cuja habilidade primária precisa saber PARA ONDE o jogador aponta.
+# As outras miram pela frente do portador e não precisam do canal.
+PRECISA_MIRA = (
+    "Xester Teleporte",
+    "Xester Buraco Negro",
+    "Xester Carta Ceifeira",
+    "Xester Invocacao",
+    "Xester Procissao de Cartas",
+)
+
 CLASSES_SCRIPT = ("Script", "LocalScript", "ModuleScript")
 PROIBIDAS = ("ScreenGui", "Animation", "BillboardGui", "SurfaceGui",
              "ColorCorrectionEffect", "Sky")
@@ -199,11 +209,58 @@ def achar(no, alvo):
     return None
 
 
+def renomear_referentes(copia, prefixo):
+    """
+    Renumera os `referent` de uma subárvore E reescreve todo `<Ref>` que
+    apontava para eles.
+
+    Renomear o referent sem mexer no `<Ref>` deixa o ponteiro pendurado —
+    `Model.PrimaryPart` e `Motor6D.Part0` param de achar a peça, e o Studio
+    recusa o arquivo. Já custou um "arquivo corrompido" neste repositório.
+    """
+    renomeado = {}
+    for indice, no in enumerate(copia.iter("Item")):
+        antigo = no.get("referent")
+        novo = "%s%d" % (prefixo, indice)
+        if antigo:
+            renomeado[antigo] = novo
+        no.set("referent", novo)
+
+    for no in copia.iter("Item"):
+        props = no.find("Properties")
+        if props is None:
+            continue
+        for e in props:
+            if e.tag != "Ref":
+                continue
+            alvo = (e.text or "").strip()
+            if alvo in renomeado:
+                e.text = renomeado[alvo]
+            elif alvo and alvo != "null":
+                # aponta para fora da subárvore: some com a peça de origem
+                e.text = "null"
+    return renomeado
+
+
 def podar(item, removidos):
-    """Tira script e classe proibida, em profundidade."""
+    """
+    Tira script, classe proibida e Sound morto, em profundidade.
+
+    O `enemy` traz o conjunto padrão de sons de personagem — `Died`, `Jumping`,
+    `GettingUp` —, todos apontando para `rbxasset://sounds/...`. Quem os dispara
+    é o script `Sound`/`LocalSound` do modelo, e esse script sai daqui: rodar
+    script de terceiro com vida própria dentro de uma Tool é o oposto de
+    autocontenção. Sem o disparador, o que fica é um Sound que nunca toca, com
+    um `CharacterSoundEvent` pendurado — peça morta viajando dentro da Tool.
+    """
     for filho in list(item.findall("Item")):
         classe = filho.get("class")
         if classe in CLASSES_SCRIPT or classe in PROIBIDAS:
+            removidos.append((classe, texto(filho, "Name") or classe))
+            item.remove(filho)
+            continue
+        som = (texto(filho, "SoundId") or "").strip()
+        if classe == "Sound" and (not som or som.startswith("rbxasset://sounds/")):
             removidos.append((classe, texto(filho, "Name") or classe))
             item.remove(filho)
             continue
@@ -244,6 +301,16 @@ def apagar(item):
 # FORMA 1 — moldes autorais, porque a origem não tem BasePart
 # ═══════════════════════════════════════════════════════════════
 
+# BrickColor no XML do Roblox é o NÚMERO da cor, não o nome. Escrever
+# `<string name="BrickColor">Really black</string>` passa no Studio mas quebra
+# a conversão para .rbxm binário, que exige o tipo certo.
+CORES = {
+    "White": 1,
+    "Really black": 1003,
+    "Really red": 1004,
+    "Bright orange": 106,
+}
+
 # Os quatro ases que o original sorteia em `aces`
 ASES = ["1880203893", "1881287656", "1881287420", "1881288034"]
 
@@ -279,7 +346,7 @@ def parte(pai, nome, referent, tamanho, cor="Really black", material="Neon"):
     ET.SubElement(props, "float", {"name": "Transparency"}).text = "1"
     ET.SubElement(props, "token", {"name": "Material"}).text = (
         "288" if material == "Neon" else "256")
-    ET.SubElement(props, "string", {"name": "BrickColor"}).text = cor
+    ET.SubElement(props, "int", {"name": "BrickColor"}).text = str(CORES[cor])
     return item
 
 
@@ -351,7 +418,8 @@ def handle_forma1(tool, marca):
     ET.SubElement(props, "bool", {"name": "CanCollide"}).text = "false"
     ET.SubElement(props, "bool", {"name": "Anchored"}).text = "false"
     ET.SubElement(props, "token", {"name": "Material"}).text = "288"
-    ET.SubElement(props, "string", {"name": "BrickColor"}).text = "Really black"
+    ET.SubElement(props, "int", {"name": "BrickColor"}).text = str(
+        CORES["Really black"])
     for face, token in (("Top", "1"), ("Bottom", "4")):
         _d, dp = novo_item(item, "Decal", "Ace%s" % face,
                            "RV_HD%s_%s" % (face[0], marca))
@@ -384,10 +452,8 @@ def handle_forma2(tool, fonte, marca, usa_machado):
     definir(copia, "bool", "CanCollide", "false")
     definir(copia, "bool", "Anchored", "false")
     definir(copia, "float", "Transparency", "0")
+    renomear_referentes(copia, "RV_HD_%s_" % marca)
     copia.set("referent", "RV_HDL_%s" % marca)
-    for indice, no in enumerate(copia.iter("Item")):
-        if no is not copia:
-            no.set("referent", "RV_HD%d_%s" % (indice, marca))
     tool.append(copia)
     return copia
 
@@ -402,8 +468,7 @@ def moldes_forma2(tool, fonte, marca, quais):
         copia = ET.fromstring(ET.tostring(origem))
         podar(copia, [])
         apagados = apagados + apagar(copia)
-        for indice, no in enumerate(copia.iter("Item")):
-            no.set("referent", "RV_%s%d_%s" % (alvo[:3], indice, marca))
+        renomear_referentes(copia, "RV_%s_%s_" % (alvo[:3], marca))
         moldes.append(copia)
         trazidos.append(alvo)
     return apagados, trazidos
@@ -423,6 +488,11 @@ def equipar(tool, dados, marca, extra):
     novo_item(tool, "RemoteEvent", "VFXRemote", "RV_VFX_%s" % marca)
     if extra:
         novo_item(tool, "RemoteEvent", "AcaoRemote", "RV_ACA_%s" % marca)
+    if nome in PRECISA_MIRA:
+        # A primária continua em `Tool.Activated` (§9). O MiraRemote carrega só
+        # o PARA ONDE, porque o mouse existe no cliente e em lugar nenhum mais.
+        # O servidor confere o alcance antes de usar o ponto.
+        novo_item(tool, "RemoteEvent", "MiraRemote", "RV_MIR_%s" % marca)
 
     valores = [
         ("StringValue", "string", "DamageClass", classe_dano),
@@ -449,7 +519,7 @@ def equipar(tool, dados, marca, extra):
         ET.SubElement(props, "ProtectedString", {"name": "Source"}).text = ""
 
 
-def montar(conjunto, fonte, forma, relatorio):
+def montar(conjunto, fonte, forma, relatorio, compartilhadas):
     for dados in conjunto:
         nome = dados[0]
         marca = nome.replace(" ", "")
@@ -475,6 +545,23 @@ def montar(conjunto, fonte, forma, relatorio):
         os.makedirs(pasta, exist_ok=True)
         raiz = nova_raiz()
         raiz.append(tool)
+
+        # A tabela de SharedStrings é IRMÃ do <Item>, não descendente. As peças
+        # da Forma 2 (UnionOperation, MeshPart) citam md5 que só existe nela;
+        # sair sem a tabela deixa o md5 pendurado, e o Studio responde
+        # "arquivo corrompido" sem dizer por quê. Já aconteceu neste repositório.
+        citadas = sorted({(e.text or "").strip() for e in raiz.iter("SharedString")
+                          if e.get("name")})
+        citadas = [c for c in citadas if c]
+        if citadas:
+            bloco = ET.SubElement(raiz, "SharedStrings")
+            for md5 in citadas:
+                if md5 not in compartilhadas:
+                    print("  PAREI: md5 %s citado e ausente da origem" % md5)
+                    return False
+                ET.SubElement(bloco, "SharedString",
+                              {"md5": md5}).text = compartilhadas[md5]
+
         ET.ElementTree(raiz).write(os.path.join(pasta, "_ORIGEM.rbxmx"),
                                    encoding="utf-8", xml_declaration=False)
         relatorio.append((nome, "Extra" if extra else "—", detalhe))
@@ -496,9 +583,15 @@ def main():
     print("")
 
     relatorio = []
-    if not montar(FORMA1, None, 1, relatorio):
+    # a tabela de SharedStrings da origem, para reemitir só o que for citado
+    compartilhadas = {}
+    for e in fonte2.iter("SharedString"):
+        if e.get("md5"):
+            compartilhadas[e.get("md5")] = e.text or ""
+
+    if not montar(FORMA1, None, 1, relatorio, compartilhadas):
         return 1
-    if not montar(FORMA2, fonte2, 2, relatorio):
+    if not montar(FORMA2, fonte2, 2, relatorio, compartilhadas):
         return 1
 
     for nome, extra, detalhe in relatorio:

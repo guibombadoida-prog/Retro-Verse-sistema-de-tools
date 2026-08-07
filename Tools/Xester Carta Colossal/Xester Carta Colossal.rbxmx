@@ -1,0 +1,1563 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RV_T_XesterCartaColossal"><Properties><string name="Name">Xester Carta Colossal</string><string name="ToolTip">Ergue uma carta de 24 studs e derruba. Extra: bola de fogo imensa.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterCartaColossal"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterCartaColossal"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterCartaColossal"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterCartaColossal"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_CartaColossal</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterCartaColossal"><Properties><string name="Name">EnergyCost</string><float name="Value">30</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterCartaColossal"><Properties><string name="Name">RecargaGlobal</string><float name="Value">28</float></Properties></Item><Item class="StringValue" referent="RV_TeclaE_XesterCartaColossal"><Properties><string name="Name">TeclaExtra</string><string name="Value">Y</string></Properties></Item><Item class="Script" referent="RV_XesterCartaCol_XesterCartaColossal"><Properties><string name="Name">XesterCartaColossal_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterCartaColossal_Server_V1.lua
+-- Script de servidor — Xester Carta Colossal
+--
+--   M1   Ergue uma carta de 24 studs e derruba a 21 de distancia.
+--   Y    Bola De Fogo Imensa (habilidade Extra)
+--
+-- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
+--   carta 15.65 x 23.84 x 0.3, 18 acima (un.lua:1016-1017)
+--   impacto a (0, -3, -21) do portador (un.lua:1068)
+--   raio 20, dano 55..85, empurrao 110 (un.lua:1113-1119)
+--   quatro aneis 20329976 (un.lua:1078-1111)
+--   Extra: 220 quadros de carga antes de sair (un.lua:2592)
+--
+-- O QUE NÃO ATRAVESSOU A CONVERSÃO
+--   `death()` / `:Remove()` no alvo  — matar por deleção tira o abate do
+--                                      Núcleo e apaga o personagem do jogador
+--   `damagealll` próprio             — regra de combate tem uma porta só
+--   `math.random` no dano            — faixa determinística por contador
+--   `swait()` / `wait()`             — task.wait e beat do animator
+--   geometria movida por quadro NO SERVIDOR — replica a ~20 Hz picotado
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py. Editar aqui à mão faz as
+-- sete derivarem; edite o gerador.
+
+local Players = game:GetService("Players")
+local Debris  = game:GetService("Debris")
+
+local Tool      = script.Parent
+local Handle    = Tool:WaitForChild("Handle")
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local Moldes    = Tool:WaitForChild("Moldes")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+
+--══════════════════════════════════════════════════════════════
+-- CFG — número mágico espalhado pelo corpo é violação
+--══════════════════════════════════════════════════════════════
+
+local ARQUETIPO = "ARCANO"
+
+local CFG = {
+	RECARGA = 28,
+	RECARGA_EXTRA = 12,
+	ALCANCE = 60,
+	CARTA = Vector3.new(15.65, 23.84, 0.3),
+	SUBIDA = 18,
+	AVANCO = 21,
+	FUNDO = 3,
+	CARGA = 0.55,
+	ANEIS = 4,
+	RAIO = 20,
+	DANO_MIN = 55,
+	DANO_MAX = 85,
+	EMPURRAO = 110,
+	CARGA_TIRO = 1.8,
+	CALIBRE = 9,
+	VELOCIDADE_TIRO = 90,
+	VIDA_TIRO = 8,
+	RAIO_TIRO = 26,
+	DANO_TIRO_MIN = 48,
+	DANO_TIRO_MAX = 76,
+	EMPURRAO_TIRO = 90,
+	ESCALA_TIRO = 5,
+	ANEIS_TIRO = 2,
+}
+
+--══════════════════════════════════════════════════════════════
+-- ESTADO
+--══════════════════════════════════════════════════════════════
+
+local jogador, personagem, humanoide, raiz
+local ultimoUso, ultimoExtra = 0, 0
+local ultimaMira = nil
+local ativos = {}
+local semente = 0
+
+local function proximo()
+	semente = semente + 1
+	if semente > 1000000 then semente = 1 end
+	return semente
+end
+
+--- Faixa determinística no lugar de `math.random(a, b)`.
+--- O original sorteava o dano a cada golpe; aqui a variedade vem de uma
+--- senoide sobre o contador — mesma dispersão, e reproduzível.
+local function naFaixa(minimo, maximo)
+	local onda = (math.sin(proximo() * 2.399963) + 1) * 0.5
+	return minimo + (maximo - minimo) * onda
+end
+
+--- Ângulo áureo: espalha N pontos sem repetir e sem sortear.
+local function anguloDe(indice)
+	return math.rad(137.507764 * indice)
+end
+
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+local function guardar(conexao)
+	table.insert(ativos, conexao)
+	return conexao
+end
+
+local function soltarTudo()
+	for _, conexao in ipairs(ativos) do
+		if conexao.Connected then conexao:Disconnect() end
+	end
+	ativos = {}
+end
+
+--══════════════════════════════════════════════════════════════
+-- DANO — a Tool declara, o Núcleo decide (§12.5 / §12.6)
+--
+-- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
+-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro.
+--══════════════════════════════════════════════════════════════
+
+local function creditar(alvoHum)
+	if _G.Combate and _G.Combate.registrarAtaque then
+		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
+	else
+		local marca = alvoHum:FindFirstChild("creator")
+		if marca then marca.Parent = nil end
+		marca = Instance.new("ObjectValue")
+		marca.Name = "creator"
+		marca.Value = jogador
+		marca.Parent = alvoHum
+		Debris:AddItem(marca, 3)
+	end
+end
+
+local function aplicarDano(alvoHum, bruto)
+	if not alvoHum or alvoHum.Health <= 0 then return 0 end
+	local final = (_G.Combate and _G.Combate.calcular
+		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+local function alvosEm(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarHumanoides then
+		return _G.Combate.detectarHumanoides(
+			posicao, raio, personagem, jogador, humanoide, limite or 14) or {}
+	end
+
+	local achados, vistos = {}, {}
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] then
+			vistos[hum] = true
+			table.insert(achados, hum)
+			if limite and #achados >= limite then break end
+		end
+	end
+	return achados
+end
+
+local function empurrar(alvoHum, direcao, forca, tempo)
+	local corpo = alvoHum.Parent
+	local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+	if not alvoRaiz or direcao.Magnitude < 0.01 then return end
+	local impulso = Instance.new("BodyVelocity")
+	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	impulso.Velocity = direcao.Unit * forca
+	impulso.Parent = alvoRaiz
+	Debris:AddItem(impulso, tempo or 0.2)
+end
+
+--- Golpe em área: dano + empurrão + o beat para o cliente desenhar.
+local function golpearArea(posicao, raio, minimo, maximo, forca, limite)
+	local atingidos = 0
+	for _, alvo in ipairs(alvosEm(posicao, raio, limite or 14)) do
+		aplicarDano(alvo, naFaixa(minimo, maximo))
+		atingidos = atingidos + 1
+		if forca and forca > 0 then
+			local corpo = alvo.Parent
+			local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+			if alvoRaiz then
+				empurrar(alvo, (alvoRaiz.Position - posicao)
+					+ Vector3.new(0, 0.3, 0), forca, 0.25)
+			end
+		end
+	end
+	return atingidos
+end
+
+--══════════════════════════════════════════════════════════════
+-- MOLDES — o asset vem de DENTRO da Tool (Regra nº 1)
+--══════════════════════════════════════════════════════════════
+
+--- Acha um molde por nome, em qualquer profundidade de `Moldes/`.
+local function molde(nome)
+	return Moldes:FindFirstChild(nome, true)
+end
+
+--- Clona um molde para o mundo. O molde mora apagado (Transparency = 1);
+--- quem acende é o cliente, ao desenhar. O que o servidor põe no mundo é
+--- SÓ o que precisa de física ou de colisão.
+local function porNoMundo(nome, cframe, vida)
+	local base = molde(nome)
+	if not base then return nil end
+	local copia = base:Clone()
+	copia.Parent = workspace
+	if copia:IsA("BasePart") then
+		copia.CFrame = cframe
+	elseif copia:IsA("Model") and copia.PrimaryPart then
+		copia:PivotTo(cframe)
+	end
+	Debris:AddItem(copia, vida or 8)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
+-- PORTA DE ENTRADA — recarga, energia, e o beat
+--══════════════════════════════════════════════════════════════
+
+local function podeUsar(quando, recarga)
+	if not (personagem and humanoide and humanoide.Health > 0 and raiz) then
+		return false
+	end
+	if os.clock() - quando < recarga then return false end
+	return true
+end
+
+--- Mira: o cliente manda para onde aponta. O servidor CONFERE o alcance em
+--- vez de confiar — payload de cliente é entrada, não verdade.
+local function mirar(pedido)
+	if typeof(pedido) ~= "Vector3" then
+		return raiz.Position + raiz.CFrame.LookVector * CFG.ALCANCE
+	end
+	local delta = pedido - raiz.Position
+	if delta.Magnitude > CFG.ALCANCE then
+		return raiz.Position + delta.Unit * CFG.ALCANCE
+	end
+	return pedido
+end
+
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — Carta Colossal
+--
+-- Carta de 15.65 x 23.84 sobe sobre a cabeça e desce à frente. O impacto é
+-- um ponto só, 21 studs à frente, como no original (`locationpart`).
+--══════════════════════════════════════════════════════════════
+
+local function primaria()
+	local alvoPonto = raiz.Position + raiz.CFrame.LookVector * CFG.AVANCO
+		- Vector3.new(0, CFG.FUNDO, 0)
+
+	vfx("CARTA_ERGUE", { posicao = raiz.Position + Vector3.new(0, CFG.SUBIDA, 0),
+		tamanho = CFG.CARTA })
+
+	task.delay(CFG.CARGA, function()
+		if not (personagem and raiz and humanoide and humanoide.Health > 0) then
+			return
+		end
+		vfx("CARTA_DESABA", { posicao = alvoPonto, tamanho = CFG.CARTA,
+			aneis = CFG.ANEIS })
+		golpearArea(alvoPonto, CFG.RAIO, CFG.DANO_MIN, CFG.DANO_MAX,
+			CFG.EMPURRAO, 16)
+	end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- EXTRA — Bola de Fogo Imensa
+--
+-- A mesma bola, carregada: 220 quadros de crescimento no original antes de
+-- sair. Aqui a carga é um prazo, e o cliente é quem infla a esfera.
+--══════════════════════════════════════════════════════════════
+
+local function extra(mira)
+	vfx("FOGO_CARREGA", { duracao = CFG.CARGA_TIRO, calibre = CFG.CALIBRE })
+
+	task.delay(CFG.CARGA_TIRO, function()
+		if not (personagem and raiz and humanoide and humanoide.Health > 0) then
+			return
+		end
+		local origem = raiz.Position + raiz.CFrame.LookVector * 3
+			+ Vector3.new(0, 1.5, 0)
+		local direcao = (mira - origem)
+		if direcao.Magnitude < 0.1 then direcao = raiz.CFrame.LookVector end
+		direcao = direcao.Unit
+
+		local bola = Instance.new("Part")
+		bola.Shape = Enum.PartType.Ball
+		bola.Size = Vector3.new(CFG.CALIBRE, CFG.CALIBRE, CFG.CALIBRE)
+		bola.Material = Enum.Material.Neon
+		bola.BrickColor = BrickColor.new("Really red")
+		bola.CanCollide = false
+		bola.Massless = true
+		bola.CFrame = CFrame.new(origem, origem + direcao)
+		bola.Parent = workspace
+		Debris:AddItem(bola, CFG.VIDA_TIRO)
+
+		local impulso = Instance.new("BodyVelocity")
+		impulso.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+		impulso.Velocity = direcao * CFG.VELOCIDADE_TIRO
+		impulso.Parent = bola
+
+		vfx("FOGO_SAI", { origem = origem, direcao = direcao,
+			calibre = CFG.CALIBRE })
+
+		local gasto = false
+		local ligacao
+		ligacao = bola.Touched:Connect(function(parte)
+			if gasto then return end
+			local modelo = parte:FindFirstAncestorOfClass("Model")
+			if modelo == personagem then return end
+			gasto = true
+			if ligacao.Connected then ligacao:Disconnect() end
+			local onde = bola.Position
+			bola.Parent = nil
+			vfx("FOGO_ESTOURA_GRANDE", { posicao = onde,
+				escala = CFG.ESCALA_TIRO, aneis = CFG.ANEIS_TIRO })
+			golpearArea(onde, CFG.RAIO_TIRO, CFG.DANO_TIRO_MIN,
+				CFG.DANO_TIRO_MAX, CFG.EMPURRAO_TIRO, 14)
+		end)
+		guardar(ligacao)
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA
+--══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	personagem = Tool.Parent
+	jogador = Players:GetPlayerFromCharacter(personagem)
+	humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+end)
+
+Tool.Unequipped:Connect(function()
+	soltarTudo()
+end)
+
+Tool.Activated:Connect(function()
+	if not podeUsar(ultimoUso, CFG.RECARGA) then return end
+	ultimoUso = os.clock()
+	primaria()
+end)
+
+AcaoRemote.OnServerEvent:Connect(function(quem, mira)
+	-- O Remote é a porta de fora: confere QUEM chamou antes de qualquer coisa.
+	if quem ~= jogador then return end
+	if not podeUsar(ultimoExtra, CFG.RECARGA_EXTRA) then return end
+	ultimoExtra = os.clock()
+	extra(mirar(mira))
+end)
+
+--- `Destroying`, não `AncestryChanged`: a Tool pode trocar de pai a cada
+--- equipar sem estar sendo destruída.
+Tool.Destroying:Connect(function()
+	soltarTudo()
+end)
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RV_Client_XesterCartaColossal"><Properties><string name="Name">Client</string><ProtectedString name="Source"><![CDATA[-- Client.lua
+-- LocalScript — Xester Carta Colossal
+--
+-- Três trabalhos, e nenhum deles é regra de combate:
+--   1. mandar a mira (o mouse só existe aqui)
+--   2. tocar a sequência de pose no animator canônico
+--   3. DESENHAR o VFX que o servidor anuncia por beat nomeado
+--
+-- POR QUE O VFX É DAQUI
+--   Parte ancorada movida por script de servidor replica a ~20 Hz, sem
+--   interpolação — é o "não está fluido". Aqui o desenho roda a 60 Hz no
+--   Heartbeat de cada cliente, e o servidor só diz O QUE e ONDE.
+--
+-- MOBILE
+--   `ContextActionService:BindAction(nome, fn, true, tecla)` — o `true` é o
+--   `createTouchButton`: o Roblox desenha o botão sozinho no celular. Não é
+--   ScreenGui, e ContextActionService é serviço, não depósito de asset.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
+local Debris = game:GetService("Debris")
+
+local jogador = Players.LocalPlayer
+local rato = jogador:GetMouse()
+
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local VFX       = require(Tool:WaitForChild("VFXModule"))
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local MiraRemote = nil
+
+local SEQUENCIA = "CARTA_COLOSSAL"
+local SEQUENCIA_EXTRA = "BOLA_DE_FOGO_IMENSA"
+
+local ALCANCE_MIRA = 60
+local RITMO_MIRA = 0.1
+
+local rig, personagem
+local equipada = false
+local conexoes = {}
+
+local function guardar(conexao)
+	table.insert(conexoes, conexao)
+	return conexao
+end
+
+local function soltarTudo()
+	for _, conexao in ipairs(conexoes) do
+		if conexao.Connected then conexao:Disconnect() end
+	end
+	conexoes = {}
+end
+
+--- Ponto mirado, cortado pelo alcance. O servidor CONFERE de novo — este
+--- corte é para o traçado do efeito, não é a autoridade.
+local function pontoMirado()
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return nil end
+	local alvo = rato.Hit and rato.Hit.Position
+	if not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
+	local delta = alvo - raiz.Position
+	if delta.Magnitude > ALCANCE_MIRA then
+		return raiz.Position + delta.Unit * ALCANCE_MIRA
+	end
+	return alvo
+end
+
+--══════════════════════════════════════════════════════════════
+-- ANIMAÇÃO
+--══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "XesterCartaColossal", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+--- Toca a sequência e devolve o beat ao VFX. `marca` é o que o keyframe
+--- carrega: "CARGA" quando o gesto começa, "GOLPE" quando ele solta.
+local function tocar(nome)
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence(nome, function(passo)
+		if passo.marca then
+			VFX.beat(passo.marca, personagem)
+		end
+	end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- VFX — o servidor anuncia, este cliente desenha
+--══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	VFX.desenhar(tipo, dados or {}, Moldes, personagem)
+end)
+
+--══════════════════════════════════════════════════════════════
+-- ENTRADA
+--══════════════════════════════════════════════════════════════
+
+local function aoEquipar()
+	personagem = Tool.Parent
+	equipada = true
+	montarRig()
+
+	-- o `true` no terceiro argumento é o botão de mobile
+	ContextActionService:BindAction("Xester_XesterCartaColossal", function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipada then return end
+		AcaoRemote:FireServer(pontoMirado())
+		tocar(SEQUENCIA_EXTRA)
+	end, true, Enum.KeyCode.Y)
+	ContextActionService:SetTitle("Xester_XesterCartaColossal", "Bola De Fogo")
+
+	-- a mira vai a 10 Hz, não por quadro: o servidor só precisa do PARA ONDE,
+	-- e 60 pacotes por segundo por jogador é tráfego jogado fora
+	if MiraRemote then
+		task.spawn(function()
+			while equipada do
+				local ponto = pontoMirado()
+				if ponto then MiraRemote:FireServer(ponto) end
+				task.wait(RITMO_MIRA)
+			end
+		end)
+	end
+end
+
+local function aoGuardar()
+	equipada = false
+	soltarTudo()
+	ContextActionService:UnbindAction("Xester_XesterCartaColossal")
+
+	if rig then
+		rig:CancelSequence()
+		rig:ReleaseLegs()
+	end
+	VFX.limpar()
+end
+
+Tool.Equipped:Connect(aoEquipar)
+Tool.Unequipped:Connect(aoGuardar)
+
+Tool.Activated:Connect(function()
+	if not equipada then return end
+	tocar(SEQUENCIA)
+end)
+
+--- `Destroying`, não `AncestryChanged`: guardar a Tool na mochila troca o pai
+--- sem destruir nada, e o cleanup não pode disparar aí.
+Tool.Destroying:Connect(function()
+	aoGuardar()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_Poses_XesterCartaColossal"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
+-- ModuleScript "Poses" — Xester Carta Colossal
+--
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
+--   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
+--   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+--
+-- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+--
+-- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
+-- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+--
+-- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
+-- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
+-- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
+-- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
+-- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--
+-- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
+-- tronco e pernas enquanto o golpe move só o braço.
+
+local P = {}
+
+
+P.GUARDA_1 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.CARTA_COLOSSAL_1 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.CARTA_COLOSSAL_2 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.455, 1.243, 0.16) * CFrame.Angles(math.rad(178.242), math.rad(9.846), math.rad(10.151)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.CARTA_COLOSSAL_3 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.411, 1.183, 0.344) * CFrame.Angles(math.rad(-161.762), math.rad(12.693), math.rad(6.204)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.CARTA_COLOSSAL_4 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.472, 0.213, -0.667) * CFrame.Angles(math.rad(75.387), math.rad(-7.713), math.rad(13.5)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.BOLA_DE_FOGO_IMENSA_1 = {
+	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.BOLA_DE_FOGO_IMENSA_2 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(49.98), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.551, 1.298, -0.133) * CFrame.Angles(math.rad(-179.797), math.rad(-50), math.rad(0.094)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.BOLA_DE_FOGO_IMENSA_3 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-14.998), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(1.933, 0.318, 0.634) * CFrame.Angles(math.rad(19.521), math.rad(-14.41), math.rad(90.241)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.BOLA_DE_FOGO_IMENSA_4 = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(9.999), math.rad(14.999), math.rad(0)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
+	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
+	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
+	RightArm = CFrame.new(0.665, 0.5, -1.413) * CFrame.Angles(math.rad(89.998), math.rad(0.002), math.rad(-24.997)),
+	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+}
+
+P.SEQUENCIAS = {
+
+	CARTA_COLOSSAL = {
+		{ pose = "CARTA_COLOSSAL_2", time = 0.500, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "CARTA_COLOSSAL_3", time = 0.217, style = "Exponential", dir = "Out" },
+		{ pose = "CARTA_COLOSSAL_4", time = 0.400, style = "Exponential", dir = "Out", marca = "GOLPE" },
+		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+	BOLA_DE_FOGO_IMENSA = {
+		{ pose = "BOLA_DE_FOGO_IMENSA_2", time = 0.333, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "BOLA_DE_FOGO_IMENSA_3", time = 0.250, style = "Exponential", dir = "Out" },
+		{ pose = "BOLA_DE_FOGO_IMENSA_4", time = 0.250, style = "Exponential", dir = "Out", marca = "GOLPE" },
+		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+}
+
+return P
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_R6CFrameAnimat_XesterCartaColossal"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
+-- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
+-- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
+--[==[
+═══════════════════════════════════════════════════════════════
+        R6 CFRAME ANIMATOR V2  (§10.11.7)
+═══════════════════════════════════════════════════════════════
+Compatível com a API do V1 (PlayPose / SetJoint / StartIdleBob /
+StopIdleBob / Destroy) e adiciona:
+
+- Juntas RightLeg / LeftLeg — criadas SOB DEMANDA (só quando uma
+  pose as usa) e liberadas ao fim da sequência, para não travar a
+  caminhada fora de cutscene.
+- rig:PlaySequence(seqName, onBeat, onDone) — timeline encadeada
+  por Tween.Completed (nunca task.wait(duração)).
+- rig:CancelSequence() — cancela timeline + tremor e volta ao IDLE.
+- rig:LockCharacter(bool) — WalkSpeed/JumpPower = 0, AutoRotate
+  off; guarda e restaura os valores originais.
+- rig:StartTremor(joint, amp, freq) / rig:StopTremor() — vibração
+  aditiva por acumulador dt com envelope de fade-in (sem math.random,
+  sem tick(): senoide multi-frequência determinística).
+- rig:PlayTrack(trackName, onEvent, onDone) — reproduz uma TRACK
+  (animação remasterizada do pack): dezenas de keyframes amostrados por
+  acumulador dt em Heartbeat, com easing por segmento via
+  TweenService:GetValue. Timing EXATO: não encadeia tweens, portanto
+  não acumula o ~1 frame de atraso por keyframe que o chaining teria.
+
+Regras do projeto respeitadas: sem wait()/spawn()/delay(), sem
+tick(), sem +=/continue, sem math.random, Welds removidos por
+reparent, Destroy cancela sequência + tremor + lock.
+
+USO:
+  local Animator = require(Tool:WaitForChild("R6CFrameAnimator"))
+  local rig = Animator.new(character, "SeriousMode", POSES, SEQUENCES)
+  rig:PlaySequence("TRANSFORM", onBeat, onDone)
+═══════════════════════════════════════════════════════════════
+--]==]
+
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+
+local Animator = {}
+Animator.__index = Animator
+
+local LEG_BASE = {
+	RightLeg = CFrame.new(0.5, -2, 0),
+	LeftLeg  = CFrame.new(-0.5, -2, 0),
+}
+
+local function resolveStyle(name)
+	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+end
+local function resolveDir(name)
+	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+end
+
+--[[
+	Animator.new(character, weldSuffix, poses, sequences)
+	- character:  Model R6 do portador
+	- weldSuffix: string única por Tool (evita colisão de nomes de Weld)
+	- poses:      tabela de poses { NOME = { Junta = CFrame, ... } }
+	- sequences:  tabela de timelines { NOME = { {pose,time,style,dir,tremor,cam,sfx}, ... } }
+	Retorna o rig, ou nil se o R6 não estiver montado.
+]]
+function Animator.new(character, weldSuffix, poses, sequences, tracks)
+	if not character then return nil end
+	local torso = character:FindFirstChild("Torso")
+	local rArm  = character:FindFirstChild("Right Arm")
+	local lArm  = character:FindFirstChild("Left Arm")
+	local head  = character:FindFirstChild("Head")
+	local root  = character:FindFirstChild("HumanoidRootPart")
+	if not (torso and rArm and head and root) then return nil end
+
+	local self = setmetatable({}, Animator)
+	self.Character   = character
+	self.Suffix      = weldSuffix or "Rig"
+	self.Poses       = poses or {}
+	self.Sequences   = sequences or {}
+	self.Tracks      = tracks or {}
+	self.Welds       = {}
+	self.IdleConn    = nil
+	self.TremorConn  = nil
+	self.SeqToken    = 0          -- token de cancelamento da timeline
+	self.SeqActive   = false
+	self.SeqTweens   = {}
+	self.TrackConn   = nil
+	self.Locked      = false
+	self.SavedWalk   = nil
+	self.SavedJump   = nil
+	self.SavedRotate = nil
+	self.Destroyed   = false
+
+	local rg = rArm:FindFirstChild("RightGrip")
+	if rg then rg.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0) end
+
+	local function makeWeld(name, p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Name  = name .. self.Suffix
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0    = c0
+		w.Parent = p0
+		return w
+	end
+	self._makeWeld = makeWeld
+
+	self.Welds.RightArm = makeWeld("RightArmWeld", torso, rArm, CFrame.new(1.5, 0, 0))
+	self.Welds.Head     = makeWeld("HeadWeld",     torso, head, CFrame.new(0, 1.5, 0))
+	self.Welds.HRP      = makeWeld("HRPWeld",      root,  torso, CFrame.new())
+	if lArm then
+		self.Welds.LeftArm = makeWeld("LeftArmWeld", torso, lArm, CFrame.new(-1.5, 0, 0))
+	end
+
+	return self
+end
+
+-- Cria os Welds das pernas sob demanda (a pose pediu RightLeg/LeftLeg)
+function Animator:_ensureLeg(joint)
+	if self.Destroyed then return nil end
+	if self.Welds[joint] and self.Welds[joint].Parent then return self.Welds[joint] end
+	local torso = self.Character and self.Character:FindFirstChild("Torso")
+	if not torso then return nil end
+	local partName = (joint == "RightLeg") and "Right Leg" or "Left Leg"
+	local leg = self.Character:FindFirstChild(partName)
+	if not leg then return nil end
+	self.Welds[joint] = self._makeWeld(joint .. "Weld", torso, leg, LEG_BASE[joint])
+	return self.Welds[joint]
+end
+
+-- Libera as pernas (reparent) para devolver a caminhada ao Humanoid
+function Animator:ReleaseLegs()
+	for _, joint in ipairs({ "RightLeg", "LeftLeg" }) do
+		local w = self.Welds[joint]
+		if w then
+			if w.Parent then w.Parent = nil end
+			self.Welds[joint] = nil
+		end
+	end
+end
+
+-- Aplica uma pose (tween do C0 de cada junta presente na pose)
+function Animator:PlayPose(poseName, duration, easingStyle, easingDir)
+	if self.Destroyed then return end
+	local pose = self.Poses[poseName]
+	if not pose then return end
+	local ti = TweenInfo.new(
+		duration or 0.2,
+		easingStyle or Enum.EasingStyle.Quad,
+		easingDir or Enum.EasingDirection.Out
+	)
+	for joint, c0 in pairs(pose) do
+		local w = self.Welds[joint]
+		if not w and LEG_BASE[joint] then
+			w = self:_ensureLeg(joint)
+		end
+		if w and w.Parent then
+			TweenService:Create(w, ti, { C0 = c0 }):Play()
+		end
+	end
+end
+
+-- Define o C0 de uma junta instantaneamente (sem tween)
+function Animator:SetJoint(joint, c0)
+	if self.Destroyed then return end
+	local w = self.Welds[joint]
+	if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+	if w and w.Parent then w.C0 = c0 end
+end
+
+--[[
+	rig:PlaySequence(seqName, onBeat, onDone)
+	Timeline de keyframes { pose, time, style, dir, tremor, ... }.
+	Encadeada por Tween.Completed — o próximo beat só dispara quando o
+	tween do anterior conclui. onBeat(kf, índice) roda no INÍCIO de cada
+	beat (ponto de disparo de cam/sfx/VFX). onDone() roda ao final.
+]]
+function Animator:PlaySequence(seqName, onBeat, onDone)
+	if self.Destroyed then return false end
+	local seq = self.Sequences[seqName]
+	if not seq or #seq == 0 then return false end
+
+	self:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	local token = self.SeqToken
+	self.SeqActive = true
+
+	local index = 0
+
+	local function step()
+		if self.Destroyed or token ~= self.SeqToken then return end
+		index = index + 1
+		local kf = seq[index]
+		if not kf then
+			self.SeqActive = false
+			self:StopTremor()
+			self:ReleaseLegs()
+			if onDone then onDone() end
+			return
+		end
+
+		if kf.tremor and kf.tremor > 0 then
+			self:StartTremor("HRP", kf.tremor, kf.freq or 22)
+		else
+			self:StopTremor()
+		end
+		if onBeat then onBeat(kf, index) end
+
+		local pose = self.Poses[kf.pose]
+		if not pose then
+			step()
+			return
+		end
+		local ti = TweenInfo.new(kf.time or 0.3, resolveStyle(kf.style), resolveDir(kf.dir))
+		local chained = nil
+		for joint, c0 in pairs(pose) do
+			local w = self.Welds[joint]
+			if not w and LEG_BASE[joint] then w = self:_ensureLeg(joint) end
+			if w and w.Parent then
+				local tw = TweenService:Create(w, ti, { C0 = c0 })
+				table.insert(self.SeqTweens, tw)
+				if not chained then chained = tw end
+				tw:Play()
+			end
+		end
+		if chained then
+			chained.Completed:Once(function()
+				if token == self.SeqToken then step() end
+			end)
+		else
+			-- pose sem junta válida: pular para o próximo beat imediatamente
+			step()
+		end
+	end
+
+	step()
+	return true
+end
+
+--[[
+	rig:PlayTrack(trackName, onEvent, onDone)
+	Reproduz uma track remasterizada: lista de keyframes
+	{ t, style, dir, event, cam, tremor, <Junta> = CFrame, ... }
+	Amostragem por acumulador dt a partir de zero; entre dois keyframes o
+	C0 de cada junta é interpolado com o easing do segmento de destino.
+	onEvent(kf, índice) dispara UMA vez ao cruzar cada keyframe marcado.
+]]
+function Animator:PlayTrack(trackName, onEvent, onDone)
+	if self.Destroyed then return false end
+	local track = self.Tracks[trackName]
+	if not track or #track < 2 then return false end
+
+	self:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	local token = self.SeqToken
+	self.SeqActive = true
+
+	-- garante os Welds de perna se a track os usa
+	local first = track[1]
+	for joint in pairs(first) do
+		if LEG_BASE[joint] then self:_ensureLeg(joint) end
+	end
+
+	local duration = track[#track].t
+	local elapsed  = 0
+	local index    = 1
+	local fired    = 0
+
+	self.TrackConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed or token ~= self.SeqToken then return end
+		elapsed = elapsed + dt
+
+		-- avança o índice do segmento e dispara os eventos cruzados
+		while index < #track and elapsed >= track[index + 1].t do
+			index = index + 1
+			local kf = track[index]
+			if fired < index then
+				fired = index
+				if kf.tremor and kf.tremor > 0 then
+					self:StartTremor("HRP", kf.tremor, kf.freq or 20)
+				elseif kf.tremor == nil and self.TremorConn then
+					self:StopTremor()
+				end
+				if onEvent and (kf.event or kf.cam or kf.sfx) then
+					onEvent(kf, index)
+				end
+			end
+		end
+
+		local a = track[index]
+		local b = track[index + 1]
+		if not b then
+			-- fim da track
+			for joint, c0 in pairs(a) do
+				local w = self.Welds[joint]
+				if w and w.Parent then w.C0 = c0 end
+			end
+			self:StopTrack()
+			self.SeqActive = false
+			self:StopTremor()
+			self:ReleaseLegs()
+			if onDone then onDone() end
+			return
+		end
+
+		local span = b.t - a.t
+		local alpha = (span > 0) and math.clamp((elapsed - a.t) / span, 0, 1) or 1
+		local eased = TweenService:GetValue(alpha, resolveStyle(b.style), resolveDir(b.dir))
+
+		for joint, c0 in pairs(a) do
+			if typeof(c0) == "CFrame" then
+				local target = b[joint]
+				local w = self.Welds[joint]
+				if w and w.Parent and typeof(target) == "CFrame" then
+					w.C0 = c0:Lerp(target, eased)
+				end
+			end
+		end
+	end)
+
+	return true, duration
+end
+
+function Animator:StopTrack()
+	if self.TrackConn then
+		self.TrackConn:Disconnect()
+		self.TrackConn = nil
+	end
+end
+
+-- Cancela a timeline em andamento, para o tremor e libera as pernas.
+function Animator:CancelSequence()
+	self.SeqToken = self.SeqToken + 1
+	self.SeqActive = false
+	self:StopTrack()
+	for _, tw in ipairs(self.SeqTweens) do
+		tw:Cancel()
+	end
+	table.clear(self.SeqTweens)
+	self:StopTremor()
+	self:ReleaseLegs()
+end
+
+-- Trava/destrava o personagem, guardando e restaurando os valores originais.
+function Animator:LockCharacter(lock)
+	if self.Destroyed and lock then return end
+	local hum = self.Character and self.Character:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	if lock and not self.Locked then
+		self.Locked      = true
+		self.SavedWalk   = hum.WalkSpeed
+		self.SavedJump   = hum.JumpPower
+		self.SavedRotate = hum.AutoRotate
+		hum.WalkSpeed  = 0
+		hum.JumpPower  = 0
+		hum.AutoRotate = false
+	elseif (not lock) and self.Locked then
+		self.Locked = false
+		hum.WalkSpeed  = self.SavedWalk or 16
+		hum.JumpPower  = self.SavedJump or 50
+		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
+	end
+end
+
+--[[
+	rig:StartTremor(joint, amp, freq)
+	Vibração aditiva determinística sobre o C0 corrente da junta:
+	senoide multi-frequência (freq e freq*1.73) com envelope de
+	fade-in de 0.35 s, por acumulador dt a partir de zero.
+]]
+function Animator:StartTremor(joint, amp, freq)
+	if self.Destroyed then return end
+	self:StopTremor()
+	local w = self.Welds[joint]
+	if not w then return end
+	amp  = amp or 0.03
+	freq = freq or 22
+
+	local t = 0
+	self.TremorConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		local weld = self.Welds[joint]
+		if not (weld and weld.Parent) then return end
+		t = t + dt
+		local envelope = math.min(t / 0.35, 1)
+		local a = amp * envelope
+		local ox = math.sin(t * freq) * a
+		local oy = math.sin(t * freq * 1.73 + 1.1) * a * 0.6
+		local oz = math.sin(t * freq * 0.61 + 2.3) * a * 0.4
+		weld.C0 = weld.C0 * CFrame.new(ox, oy, oz)
+	end)
+end
+
+function Animator:StopTremor()
+	if self.TremorConn then
+		self.TremorConn:Disconnect()
+		self.TremorConn = nil
+	end
+end
+
+-- Loop de respiração/idle: pequeno bob senoidal via acumulador dt.
+function Animator:StartIdleBob(poseName, joint, amplitude, speed, shouldRun)
+	if self.Destroyed then return end
+	self:StopIdleBob()
+	local pose = self.Poses[poseName]
+	if not pose or not pose[joint] then return end
+	local baseC0 = pose[joint]
+	amplitude = amplitude or 0.02
+	speed     = speed or 2
+
+	local t = 0
+	self.IdleConn = RunService.Heartbeat:Connect(function(dt)
+		if self.Destroyed then return end
+		t = t + dt
+		local run = (shouldRun == nil) or shouldRun()
+		if run and not self.SeqActive then
+			local b = math.sin(t * speed) * amplitude
+			local w = self.Welds[joint]
+			if w and w.Parent then
+				w.C0 = w.C0:Lerp(baseC0 * CFrame.new(0, b, 0), 0.05)
+			end
+		end
+	end)
+end
+
+function Animator:StopIdleBob()
+	if self.IdleConn then
+		self.IdleConn:Disconnect()
+		self.IdleConn = nil
+	end
+end
+
+-- Remove todos os Welds (reparent), cancela sequência/tremor e destrava.
+function Animator:Destroy()
+	self:CancelSequence()
+	self:StopIdleBob()
+	self:LockCharacter(false)
+	self.Destroyed = true
+	for _, w in pairs(self.Welds) do
+		if w and w.Parent then w.Parent = nil end
+	end
+	table.clear(self.Welds)
+end
+
+return Animator
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_VFXModule_XesterCartaColossal"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source"><![CDATA[-- VFXModule.lua
+-- ModuleScript — desenho de efeito, 100% cliente
+--
+-- MOLDE APAGADO, CLONE ACESO
+--   Tool equipada mora no workspace, então TODO BasePart descendente dela
+--   renderiza. Por isso o molde entra com `Transparency = 1` e o emissor
+--   `Enabled = false` — propriedade, não script, então vale para todo cliente
+--   sem nada rodando.
+--
+--   Quem acende é o `_rv_clone`: ele restaura, por CAMINHO dentro do molde, os
+--   valores originais gravados em `ACESO`. Acender pela cópia (e não pelo
+--   molde) é o que impede o molde de aparecer dentro da Tool guardada.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester.py.
+
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+
+local M = {}
+
+-- valores que o clone recupera, por classe
+local ACESO = {
+	BasePart = { Transparency = 0 },
+	Decal = { Transparency = 0 },
+	Texture = { Transparency = 0 },
+	ParticleEmitter = { Enabled = true },
+	Trail = { Enabled = true },
+	Beam = { Enabled = true },
+	PointLight = { Enabled = true },
+	SpotLight = { Enabled = true },
+}
+
+local vivos = {}
+
+local function acender(instancia)
+	for classe, campos in pairs(ACESO) do
+		if instancia:IsA(classe) then
+			for campo, valor in pairs(campos) do
+				pcall(function() instancia[campo] = valor end)
+			end
+		end
+	end
+end
+
+--- Clona um molde JÁ ACESO. O molde continua invisível dentro da Tool.
+function M.clonar(molde, vida)
+	if not molde then return nil end
+	local copia = molde:Clone()
+	acender(copia)
+	for _, filho in ipairs(copia:GetDescendants()) do
+		acender(filho)
+	end
+	copia.Parent = workspace
+	table.insert(vivos, copia)
+	Debris:AddItem(copia, vida or 4)
+	return copia
+end
+
+local function achar(moldes, nome)
+	return moldes and moldes:FindFirstChild(nome, true)
+end
+
+--- Onda de choque: a malha 20329976 do original, crescendo por Tween.
+--- Tween no cliente em vez de `Size + Vector3` por quadro no servidor.
+local function onda(moldes, posicao, escala, vida)
+	local base = achar(moldes, "Onda") or achar(moldes, "shockwave")
+	if not base then return end
+	local copia = M.clonar(base, vida or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	copia.CFrame = CFrame.new(posicao)
+	local malha = copia:FindFirstChildOfClass("SpecialMesh")
+	local alvo = (malha and malha.Scale or Vector3.new(1, 1, 1))
+		+ Vector3.new(60, 3, 60) * (escala or 1)
+	if malha then
+		TweenService:Create(malha, TweenInfo.new(vida or 2,
+			Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{ Scale = alvo }):Play()
+	end
+	TweenService:Create(copia, TweenInfo.new(vida or 2,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Transparency = 1 }):Play()
+end
+
+local function esfera(posicao, escala, cor, vida)
+	local bola = Instance.new("Part")
+	bola.Shape = Enum.PartType.Ball
+	bola.Size = Vector3.new(1, 1, 1)
+	bola.Material = Enum.Material.Neon
+	bola.BrickColor = BrickColor.new(cor or "White")
+	bola.Anchored = true
+	bola.CanCollide = false
+	bola.CFrame = CFrame.new(posicao)
+	bola.Parent = workspace
+	table.insert(vivos, bola)
+	Debris:AddItem(bola, vida or 1.2)
+	TweenService:Create(bola, TweenInfo.new(vida or 1.2,
+		Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		Size = Vector3.new(1, 1, 1) * (escala or 6),
+		Transparency = 1,
+	}):Play()
+	return bola
+end
+
+--- Carta que sobe do chão e some. É a peça mais repetida do Xester.
+local function carta(moldes, cframe, tamanho, vida)
+	local base = achar(moldes, "Carta1") or achar(moldes, "cards")
+	if base and base:IsA("Model") then
+		base = base:FindFirstChildWhichIsA("BasePart")
+	end
+	if not base then return end
+	local copia = M.clonar(base, vida or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	copia.Size = Vector3.new(0.1, 0.25, 0.1)
+	copia.CFrame = cframe
+	TweenService:Create(copia, TweenInfo.new((vida or 2) * 0.35,
+		Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = tamanho or Vector3.new(2.5, 0.25, 1.75) }):Play()
+	task.delay((vida or 2) * 0.6, function()
+		if copia.Parent then
+			TweenService:Create(copia, TweenInfo.new((vida or 2) * 0.4),
+				{ Transparency = 1 }):Play()
+		end
+	end)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
+-- O CATÁLOGO — um beat nomeado por efeito
+--══════════════════════════════════════════════════════════════
+
+local VFX = {}
+
+function VFX.CARTA_CHAO(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(0, math.rad(d.giro or 0), 0),
+		d.tamanho, 2.5)
+end
+
+function VFX.ONDA_DUPLA(d, moldes)
+	onda(moldes, d.posicao, d.escala or 1, 1.6)
+	onda(moldes, d.posicao, (d.escala or 1) * 0.4, 2.2)
+end
+
+function VFX.ONDA_CHAO(d, moldes)
+	onda(moldes, d.posicao, 0.35, 1.1)
+end
+
+function VFX.LEQUE_ABRE(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local i = 1
+	while i <= (d.cartas or 20) do
+		local ang = math.rad(360 / (d.cartas or 20) * i)
+		carta(moldes, raiz.CFrame * CFrame.new(
+			math.cos(ang) * (d.raio or 4), math.sin(ang) * (d.raio or 4), 0), nil, 8)
+		i = i + 1
+	end
+end
+
+function VFX.LEQUE_FECHA() end
+
+function VFX.LEQUE_ATIRA(d)
+	esfera(d.origem, 3, "White", 0.5)
+end
+
+function VFX.CARTA_VOA(d, moldes)
+	carta(moldes, CFrame.new(d.destino), nil, 1.2)
+	esfera(d.destino, 4, "White", 0.6)
+end
+
+function VFX.TEMPESTADE(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local base = achar(moldes, "Tempestade")
+	if not base then return end
+	local copia = M.clonar(base, d.duracao or 2)
+	if not copia or not copia:IsA("BasePart") then return end
+	copia.Anchored = true
+	copia.CanCollide = false
+	local conexao
+	local giro = 0
+	conexao = game:GetService("RunService").Heartbeat:Connect(function(dt)
+		if not (copia.Parent and raiz.Parent) then
+			conexao:Disconnect()
+			return
+		end
+		giro = giro + dt * 6
+		copia.CFrame = raiz.CFrame * CFrame.new(0, d.altura or 3.2, 0)
+			* CFrame.Angles(0, giro, 0)
+	end)
+	task.delay(d.duracao or 2, function() conexao:Disconnect() end)
+end
+
+function VFX.FANTASMA(d, _moldes, personagem)
+	if not personagem then return end
+	for _, parte in ipairs(personagem:GetChildren()) do
+		if parte:IsA("BasePart") then
+			local eco = Instance.new("Part")
+			eco.Size = parte.Size
+			eco.CFrame = parte.CFrame
+			eco.Material = Enum.Material.Neon
+			eco.BrickColor = BrickColor.new("White")
+			eco.Anchored = true
+			eco.CanCollide = false
+			eco.Transparency = 0.4
+			eco.Parent = workspace
+			Debris:AddItem(eco, 1)
+			TweenService:Create(eco, TweenInfo.new(1),
+				{ Transparency = 1 }):Play()
+		end
+	end
+end
+
+function VFX.CARTA_ERGUE(d, moldes)
+	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.2)
+end
+
+function VFX.CARTA_DESABA(d, moldes)
+	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.4)
+	local i = 1
+	while i <= (d.aneis or 4) do
+		local indice = i
+		task.delay(indice * 0.06, function()
+			onda(moldes, d.posicao, 0.8 + indice * 0.3, 1.6)
+		end)
+		i = i + 1
+	end
+end
+
+function VFX.PORTAL_ABRE(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
+		d.tamanho, 3)
+	esfera(d.posicao, 10, "Really black", 1.5)
+end
+
+function VFX.PORTAL_COLAPSA(d, moldes)
+	local i = 1
+	while i <= (d.estouros or 4) do
+		local indice = i
+		task.delay(indice * 0.05, function()
+			esfera(d.posicao, 14 + indice * 4, "White", 1)
+		end)
+		i = i + 1
+	end
+	local a = 1
+	while a <= (d.aneis or 2) do
+		onda(moldes, d.posicao, 1.4, 2)
+		a = a + 1
+	end
+end
+
+function VFX.ESCUDO_SOBE(d)
+	esfera(d.posicao, 5, "White", 0.6)
+end
+
+function VFX.ESCUDO_REBATE(d)
+	esfera(d.posicao, 5, "White", 0.5)
+end
+
+function VFX.ESCUDO_ESTILHACA(d, moldes)
+	local i = 1
+	while i <= (d.cacos or 12) do
+		local ang = math.rad(137.507764 * i)
+		carta(moldes, CFrame.new(d.posicao
+			+ Vector3.new(math.cos(ang) * 4, i * 0.3, math.sin(ang) * 4)), nil, 1.4)
+		i = i + 1
+	end
+	onda(moldes, d.posicao, 0.6, 1.4)
+end
+
+function VFX.CEIFEIRA_VOA(d, moldes)
+	local peca = carta(moldes, CFrame.new(d.origem), nil, (d.voo or 0.35) + 0.4)
+	if not peca then return end
+	TweenService:Create(peca, TweenInfo.new(d.voo or 0.35,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ CFrame = CFrame.new(d.destino) }):Play()
+end
+
+function VFX.CEIFEIRA_ESTOURA(d, moldes)
+	esfera(d.posicao, 12, "Really black", 0.9)
+	onda(moldes, d.posicao, 0.7, 1.5)
+end
+
+function VFX.ESFERA_CARREGA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local bola = esfera(raiz.Position + raiz.CFrame.LookVector * 3, 8,
+		"Really black", d.duracao or 2.4)
+	if bola then bola.Transparency = 0.2 end
+end
+
+function VFX.ESFERA_DETONA(d, moldes)
+	esfera(d.posicao, 30 * (d.escala or 1), "Really black", 1.2)
+	onda(moldes, d.posicao, 1.6, 2)
+end
+
+function VFX.BARALHO_CONJURA(d, moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local i = 1
+	while i <= (d.cartas or 12) do
+		local ang = math.rad(137.507764 * i)
+		carta(moldes, raiz.CFrame * CFrame.new(math.cos(ang) * 8, 2,
+			math.sin(ang) * 8), nil, (d.duracao or 2.5) + 3)
+		i = i + 1
+	end
+end
+
+function VFX.BARALHO_GOLPE(d)
+	esfera(d.posicao, 6, "White", 0.5)
+end
+
+function VFX.INVOCA(d, moldes)
+	esfera(d.posicao, 12, "Really black", 1)
+	onda(moldes, d.posicao, 0.5, 1.4)
+end
+
+function VFX.SERVO_GOLPE(d)
+	esfera(d.posicao, 4, "Really red", 0.4)
+end
+
+function VFX.MACHADO_SACA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	local luz = Instance.new("PointLight")
+	luz.Color = Color3.new(0.1, 0, 0)
+	luz.Range = 35
+	luz.Brightness = 3
+	luz.Parent = raiz
+	Debris:AddItem(luz, d.duracao or 6)
+end
+
+function VFX.MACHADO_CORTA(d)
+	esfera(d.posicao, 7, "Really red", 0.4)
+end
+
+function VFX.MACHADO_GUARDA() end
+
+function VFX.PROCISSAO(d, moldes)
+	local i = 1
+	while i <= (d.passos or 24) do
+		local indice = i
+		task.delay(indice * (d.intervalo or 0.04), function()
+			local onde = d.origem + d.direcao * (indice * (d.espaco or 3.5))
+			carta(moldes, CFrame.new(onde - Vector3.new(0, 2, 0))
+				* CFrame.Angles(0, math.rad(137.507764 * indice), 0),
+				Vector3.new(7, 0.25, 5), 1.6)
+		end)
+		i = i + 1
+	end
+end
+
+function VFX.PORTAL_CAJADO(d, moldes)
+	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
+		Vector3.new(9, 0.35, 9), (d.duracao or 4) + 1)
+end
+
+function VFX.CORTE_PORTAL(d)
+	esfera(d.posicao, 8, "Really black", 0.5)
+end
+
+function VFX.GARGALHADA(d, moldes)
+	local i = 1
+	while i <= (d.cartas or 8) do
+		local indice = i
+		local ang = math.rad(137.507764 * indice)
+		local peca = carta(moldes, CFrame.new(d.posicao
+			+ Vector3.new(math.cos(ang) * 3, 2, math.sin(ang) * 3)), nil, 2)
+		if peca then
+			TweenService:Create(peca, TweenInfo.new(2,
+				Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ CFrame = peca.CFrame * CFrame.new(0, 8, 0) }):Play()
+		end
+		i = i + 1
+	end
+end
+
+function VFX.FOGO_SAI(d)
+	esfera(d.origem, (d.calibre or 2) * 1.5, "Bright orange", 0.4)
+end
+
+function VFX.FOGO_ESTOURA(d, moldes)
+	esfera(d.posicao, 10 * (d.escala or 1), "Bright orange", 0.9)
+	onda(moldes, d.posicao, 0.4, 1.2)
+end
+
+function VFX.FOGO_CARREGA(d, _moldes, personagem)
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then return end
+	esfera(raiz.Position + raiz.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0),
+		d.calibre or 9, "Really red", d.duracao or 1.8)
+end
+
+function VFX.FOGO_ESTOURA_GRANDE(d, moldes)
+	esfera(d.posicao, 26 * (d.escala or 1), "Really red", 1.3)
+	local i = 1
+	while i <= (d.aneis or 2) do
+		onda(moldes, d.posicao, 1.2, 2)
+		i = i + 1
+	end
+end
+
+function VFX.SOPRO(d, _moldes)
+	local i = 1
+	while i <= (d.passos or 25) do
+		local indice = i
+		task.delay(indice * (d.intervalo or 0.06), function()
+			esfera(d.origem + d.direcao * (indice * 2.4),
+				6 + indice * 0.5, "Bright orange", 0.6)
+		end)
+		i = i + 1
+	end
+end
+
+--- O feixe é UM cilindro esticado de uma vez, no cliente. Esticar por quadro
+--- no servidor é o caso que replica picotado.
+function VFX.RAIO(d)
+	local feixe = Instance.new("Part")
+	feixe.Shape = Enum.PartType.Cylinder
+	feixe.Material = Enum.Material.Neon
+	feixe.BrickColor = BrickColor.new("White")
+	feixe.Anchored = true
+	feixe.CanCollide = false
+	local calibre = d.calibre or 3
+	feixe.Size = Vector3.new(d.alcance or 60, calibre, calibre)
+	feixe.CFrame = CFrame.new(d.origem, d.origem + d.direcao)
+		* CFrame.new(0, 0, -(d.alcance or 60) / 2)
+		* CFrame.Angles(0, math.rad(90), 0)
+	feixe.Parent = workspace
+	table.insert(vivos, feixe)
+	Debris:AddItem(feixe, d.duracao or 2.2)
+	TweenService:Create(feixe, TweenInfo.new(d.duracao or 2.2,
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Transparency = 1 }):Play()
+end
+
+--══════════════════════════════════════════════════════════════
+
+function M.desenhar(tipo, dados, moldes, personagem)
+	local fn = VFX[tipo]
+	if not fn then return end
+	local ok, erro = pcall(fn, dados, moldes, personagem)
+	if not ok then
+		warn("[Xester VFX] " .. tostring(tipo) .. ": " .. tostring(erro))
+	end
+end
+
+--- Beat do animator. O gesto marca CARGA e GOLPE; aqui eles viram brilho na
+--- mão, para o golpe ter peso antes do efeito grande chegar.
+function M.beat(marca, personagem)
+	local braco = personagem and personagem:FindFirstChild("Right Arm")
+	if not braco then return end
+	if marca == "CARGA" then
+		esfera(braco.Position, 2.5, "White", 0.35)
+	elseif marca == "GOLPE" then
+		esfera(braco.Position, 5, "White", 0.4)
+	end
+end
+
+function M.limpar()
+	for _, peca in ipairs(vivos) do
+		if peca and peca.Parent then peca.Parent = nil end
+	end
+	vivos = {}
+end
+
+return M
+]]></ProtectedString></Properties></Item><Item class="Part" referent="RV_HDL_XesterCartaColossal"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>2.5</X><Y>0.25</Y><Z>1.75</Z></Vector3><bool name="CanCollide">false</bool><bool name="Anchored">false</bool><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="Decal" referent="RV_HDT_XesterCartaColossal"><Properties><string name="Name">AceTop</string><Content name="Texture"><url>rbxassetid://1880203893</url></Content><token name="Face">1</token></Properties></Item><Item class="Decal" referent="RV_HDB_XesterCartaColossal"><Properties><string name="Name">AceBottom</string><Content name="Texture"><url>rbxassetid://1880203893</url></Content><token name="Face">4</token></Properties></Item></Item><Item class="Folder" referent="RV_MOL_XesterCartaColossal"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_CT1_XesterCartaColossal"><Properties><string name="Name">Carta1</string><Vector3 name="size"><X>2.5</X><Y>0.25</Y><Z>1.75</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="Decal" referent="RV_CD1T_XesterCartaColossal"><Properties><string name="Name">FaceTop</string><Content name="Texture"><url>rbxassetid://1880203893</url></Content><token name="Face">1</token><float name="Transparency">1</float></Properties></Item><Item class="Decal" referent="RV_CD1B_XesterCartaColossal"><Properties><string name="Name">FaceBottom</string><Content name="Texture"><url>rbxassetid://1880203893</url></Content><token name="Face">4</token><float name="Transparency">1</float></Properties></Item></Item><Item class="Part" referent="RV_CT2_XesterCartaColossal"><Properties><string name="Name">Carta2</string><Vector3 name="size"><X>2.5</X><Y>0.25</Y><Z>1.75</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="Decal" referent="RV_CD2T_XesterCartaColossal"><Properties><string name="Name">FaceTop</string><Content name="Texture"><url>rbxassetid://1881287656</url></Content><token name="Face">1</token><float name="Transparency">1</float></Properties></Item><Item class="Decal" referent="RV_CD2B_XesterCartaColossal"><Properties><string name="Name">FaceBottom</string><Content name="Texture"><url>rbxassetid://1881287656</url></Content><token name="Face">4</token><float name="Transparency">1</float></Properties></Item></Item><Item class="Part" referent="RV_CT3_XesterCartaColossal"><Properties><string name="Name">Carta3</string><Vector3 name="size"><X>2.5</X><Y>0.25</Y><Z>1.75</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="Decal" referent="RV_CD3T_XesterCartaColossal"><Properties><string name="Name">FaceTop</string><Content name="Texture"><url>rbxassetid://1881287420</url></Content><token name="Face">1</token><float name="Transparency">1</float></Properties></Item><Item class="Decal" referent="RV_CD3B_XesterCartaColossal"><Properties><string name="Name">FaceBottom</string><Content name="Texture"><url>rbxassetid://1881287420</url></Content><token name="Face">4</token><float name="Transparency">1</float></Properties></Item></Item><Item class="Part" referent="RV_CT4_XesterCartaColossal"><Properties><string name="Name">Carta4</string><Vector3 name="size"><X>2.5</X><Y>0.25</Y><Z>1.75</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="Decal" referent="RV_CD4T_XesterCartaColossal"><Properties><string name="Name">FaceTop</string><Content name="Texture"><url>rbxassetid://1881288034</url></Content><token name="Face">1</token><float name="Transparency">1</float></Properties></Item><Item class="Decal" referent="RV_CD4B_XesterCartaColossal"><Properties><string name="Name">FaceBottom</string><Content name="Texture"><url>rbxassetid://1881288034</url></Content><token name="Face">4</token><float name="Transparency">1</float></Properties></Item></Item><Item class="Part" referent="RV_MOnd_XesterCartaColossal"><Properties><string name="Name">Onda</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1</int></Properties><Item class="SpecialMesh" referent="RV_MMOnd_XesterCartaColossal"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://20329976</url></Content></Properties></Item></Item><Item class="Part" referent="RV_MAne_XesterCartaColossal"><Properties><string name="Name">Anel</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1</int></Properties><Item class="SpecialMesh" referent="RV_MMAne_XesterCartaColossal"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://3270017</url></Content></Properties></Item></Item><Item class="Part" referent="RV_MTem_XesterCartaColossal"><Properties><string name="Name">Tempestade</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1</int></Properties><Item class="SpecialMesh" referent="RV_MMTem_XesterCartaColossal"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://6512150</url></Content><Content name="TextureId"><url>rbxassetid://55364685</url></Content></Properties></Item></Item><Item class="Part" referent="RV_MMas_XesterCartaColossal"><Properties><string name="Name">Mascara</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1</int></Properties><Item class="SpecialMesh" referent="RV_MMMas_XesterCartaColossal"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://5158270</url></Content><Content name="TextureId"><url>rbxassetid://9543585</url></Content></Properties></Item></Item><Item class="Part" referent="RV_MOR_XesterCartaColossal"><Properties><string name="Name">Orbe</string><Vector3 name="size"><X>2</X><Y>2</Y><Z>2</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1</int><token name="shape">0</token></Properties></Item></Item><Item class="Folder" referent="RV_SFX_XesterCartaColossal"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SN342337569_XesterCartaColossal"><Properties><string name="Name">S342337569</string><Content name="SoundId"><url>rbxassetid://342337569</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1072606965_XesterCartaColossal"><Properties><string name="Name">S1072606965</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1882057730_XesterCartaColossal"><Properties><string name="Name">S1882057730</string><Content name="SoundId"><url>rbxassetid://1882057730</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1499747506_XesterCartaColossal"><Properties><string name="Name">S1499747506</string><Content name="SoundId"><url>rbxassetid://1499747506</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN236989198_XesterCartaColossal"><Properties><string name="Name">S236989198</string><Content name="SoundId"><url>rbxassetid://236989198</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN765590102_XesterCartaColossal"><Properties><string name="Name">S765590102</string><Content name="SoundId"><url>rbxassetid://765590102</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1888686669_XesterCartaColossal"><Properties><string name="Name">S1888686669</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN472579737_XesterCartaColossal"><Properties><string name="Name">S472579737</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1894958339_XesterCartaColossal"><Properties><string name="Name">S1894958339</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1898092341_XesterCartaColossal"><Properties><string name="Name">S1898092341</string><Content name="SoundId"><url>rbxassetid://1898092341</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN472214107_XesterCartaColossal"><Properties><string name="Name">S472214107</string><Content name="SoundId"><url>rbxassetid://472214107</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN54111471_XesterCartaColossal"><Properties><string name="Name">S54111471</string><Content name="SoundId"><url>rbxassetid://54111471</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN288641686_XesterCartaColossal"><Properties><string name="Name">S288641686</string><Content name="SoundId"><url>rbxassetid://288641686</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN413682983_XesterCartaColossal"><Properties><string name="Name">S413682983</string><Content name="SoundId"><url>rbxassetid://413682983</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN842332424_XesterCartaColossal"><Properties><string name="Name">S842332424</string><Content name="SoundId"><url>rbxassetid://842332424</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1982011510_XesterCartaColossal"><Properties><string name="Name">S1982011510</string><Content name="SoundId"><url>rbxassetid://1982011510</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN2014087015_XesterCartaColossal"><Properties><string name="Name">S2014087015</string><Content name="SoundId"><url>rbxassetid://2014087015</url></Content><float name="Volume">3</float></Properties></Item><Item class="Sound" referent="RV_SN1910988873_XesterCartaColossal"><Properties><string name="Name">S1910988873</string><Content name="SoundId"><url>rbxassetid://1910988873</url></Content><float name="Volume">3</float></Properties></Item></Item></Item></roblox>

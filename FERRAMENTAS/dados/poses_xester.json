@@ -153,6 +153,19 @@
     }
    }
   ],
+  "GARGALHADA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
   "CARTA_COLOSSAL": [
    {
     "t": 0.0,
