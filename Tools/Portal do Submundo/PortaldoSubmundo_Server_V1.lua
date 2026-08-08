@@ -20,6 +20,8 @@ local Tool      = script.Parent
 local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local MiraRemote = Tool:WaitForChild("MiraRemote")
 
 --══════════════════════════════════════════════════════════════
@@ -46,7 +48,7 @@ local CFG = {
 -- ESTADO
 --══════════════════════════════════════════════════════════════
 
-local jogador, personagem, humanoide, raiz
+local jogador, personagem, humanoide, raiz, rig
 local ultimoUso = 0
 local ultimaMira = nil
 local ativos = {}
@@ -342,6 +344,39 @@ MiraRemote.OnServerEvent:Connect(function(quem, ponto)
 end)
 
 --══════════════════════════════════════════════════════════════
+-- ANIMAÇÃO — o rig é DO SERVIDOR, e é por isso que ele existe aqui
+--
+-- `Instance.new("Weld")` criado num LocalScript é instância LOCAL: não replica.
+-- Enquanto o rig morou no cliente, os outros jogadores viam o portador
+-- executando a habilidade PARADO. Weld criado no servidor replica, e a mudança
+-- de `C0` replica junto — então a pose aparece para a sala inteira.
+--
+-- O beat volta para os clientes por VFXRemote: quem desenha o brilho na mão
+-- continua sendo cada cliente, a 60 Hz.
+--══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "PortaldoSubmundo", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+local function animar()
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence("ABRIR", function(passo)
+		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+	end)
+end
+
+local function desmontarRig()
+	if not rig then return end
+	rig:CancelSequence()
+	rig:ReleaseLegs()
+end
+
+--══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA
 --══════════════════════════════════════════════════════════════
 
@@ -371,4 +406,10 @@ end)
 
 --- `Destroying`, não `AncestryChanged`: guardar na mochila troca o pai sem
 --- destruir nada, e o cleanup não pode disparar aí.
-Tool.Destroying:Connect(limpar)
+Tool.Destroying:Connect(function()
+	limpar()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end)

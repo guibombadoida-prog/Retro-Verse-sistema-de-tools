@@ -174,14 +174,27 @@ def equipar(tool, dados, marca):
 
     for classe, alvo in (
         ("Script", "%s_Server_V1" % nome.replace(" ", "")),
-        ("LocalScript", "Client"),
+        ("Script", "Client"),
         ("ModuleScript", "Poses"),
         ("ModuleScript", "R6CFrameAnimator"),
         ("ModuleScript", "VFXModule"),
     ):
-        _i, props = novo_item(tool, classe, alvo,
-                              "RV_%s_%s" % (alvo.replace(" ", "")[:14], marca))
+        item, props = novo_item(tool, classe, alvo,
+                                "RV_%s_%s" % (alvo.replace(" ", "")[:14], marca))
         ET.SubElement(props, "ProtectedString", {"name": "Source"}).text = ""
+        if alvo == "Client":
+            # RunContext = Client (2), NÃO LocalScript.
+            #
+            # LocalScript dentro de Tool só roda para o jogador cujo Character
+            # a contém. O servidor manda o beat com `FireAllClients` e ele
+            # CHEGA em todo mundo — mas o único ouvinte que existe é o de quem
+            # está segurando a Tool. Resultado: o VFX aparecia só para o dono.
+            #
+            # `Script` com RunContext = Client roda em TODO cliente, onde quer
+            # que esteja na árvore, inclusive dentro da Tool de outro jogador.
+            # É o que faz o efeito aparecer para a sala inteira sem tirar nada
+            # de dentro da Tool (Regra nº 1 intacta).
+            ET.SubElement(props, "token", {"name": "RunContext"}).text = "2"
 
 
 def main():

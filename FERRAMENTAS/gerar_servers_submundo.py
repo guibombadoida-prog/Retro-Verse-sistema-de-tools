@@ -239,6 +239,8 @@ local Tool      = script.Parent
 local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 %(mira_remote)s
 --%(regua)s
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -253,7 +255,7 @@ local CFG = {
 -- ESTADO
 --%(regua)s
 
-local jogador, personagem, humanoide, raiz
+local jogador, personagem, humanoide, raiz, rig
 local ultimoUso = 0
 local ultimaMira = nil
 local ativos = {}
@@ -472,6 +474,39 @@ end
 %(corpo)s
 %(escuta_mira)s
 --%(regua)s
+-- ANIMAÇÃO — o rig é DO SERVIDOR, e é por isso que ele existe aqui
+--
+-- `Instance.new("Weld")` criado num LocalScript é instância LOCAL: não replica.
+-- Enquanto o rig morou no cliente, os outros jogadores viam o portador
+-- executando a habilidade PARADO. Weld criado no servidor replica, e a mudança
+-- de `C0` replica junto — então a pose aparece para a sala inteira.
+--
+-- O beat volta para os clientes por VFXRemote: quem desenha o brilho na mão
+-- continua sendo cada cliente, a 60 Hz.
+--%(regua)s
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+local function animar()
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence("%(seq)s", function(passo)
+		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+	end)
+end
+
+local function desmontarRig()
+	if not rig then return end
+	rig:CancelSequence()
+	rig:ReleaseLegs()
+end
+
+--%(regua)s
 -- CICLO DE VIDA
 --%(regua)s
 
@@ -500,7 +535,13 @@ end)
 
 --- `Destroying`, não `AncestryChanged`: guardar na mochila troca o pai sem
 --- destruir nada, e o cleanup não pode disparar aí.
-Tool.Destroying:Connect(limpar)
+Tool.Destroying:Connect(function()
+	limpar()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end)
 '''
 
 ESCUTA_MIRA = '''
@@ -1118,6 +1159,8 @@ def gerar_server(nome, dados):
                         if dados["mira"] else ""),
         "passa_mira": "mirar(ultimaMira)" if dados["mira"] else "",
         "ao_guardar": dados["ao_guardar"],
+        "sufixo": nome.replace(" ", ""),
+        "seq": dados["seq"],
     }
 
 
@@ -1126,37 +1169,84 @@ def gerar_server(nome, dados):
 # ═══════════════════════════════════════════════════════════════
 
 CLIENTE = '''-- Client.lua
--- LocalScript — %(titulo)s (conjunto SUBMUNDO)
+-- Script com RunContext = Client — %(titulo)s (conjunto SUBMUNDO)
 --
--- Três trabalhos, e nenhum é regra de combate:
---   1. mandar a mira (o mouse só existe aqui)
---   2. tocar a sequência de pose no animator canônico
---   3. DESENHAR o que o servidor anuncia por beat nomeado
+-- POR QUE NÃO É LocalScript, E POR QUE ISSO IMPORTA
+--
+--   LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+--   contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
+--   mundo — mas o único ouvinte que existe é o de quem está segurando. Foi por
+--   isso que, dos Escudos até aqui, o efeito aparecia só para o portador.
+--
+--   `Script` com `RunContext = Client` roda em TODO cliente, onde quer que
+--   esteja na árvore, inclusive dentro da Tool de outro jogador. Cada cliente
+--   desenha o mesmo efeito, a 60 Hz, com custo de rede zero — e nada saiu de
+--   dentro da Tool, então a Regra nº 1 continua de pé.
+--
+-- O QUE É DE TODO MUNDO, E O QUE É SÓ DO DONO
+--
+--   De todo mundo: desenhar o VFX. É o ponto.
+--   Só do dono:    mandar a mira. Sem esta trava, os cinco clientes da sala
+--                  mandariam a mira DELES para a Tool alheia.
+--
+--   A animação NÃO está aqui: o rig é do servidor, porque Weld criado no
+--   cliente não replica e os outros jogadores viam o portador parado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_submundo.py.
 
 local Players = game:GetService("Players")
 
 local jogador = Players.LocalPlayer
-local rato = jogador:GetMouse()
 
 local Tool      = script.Parent
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
-local Poses     = require(Tool:WaitForChild("Poses"))
-local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local VFX       = require(Tool:WaitForChild("VFXModule"))
 %(mira_remote)s
-local SEQUENCIA = "%(seq)s"
 local ALCANCE_MIRA = %(alcance)s
 local RITMO_MIRA = 0.1
 
-local rig, personagem
-local equipada = false
+local portador = nil
+local mandandoMira = false
+
+--- Quem está com a Tool na mão. É `Tool.Parent` quando equipada, e nil quando
+--- ela está na mochila.
+local function donoDaTool()
+\tlocal pai = Tool.Parent
+\tif not pai then return nil end
+\tlocal humano = pai:FindFirstChildOfClass("Humanoid")
+\tif not humano then return nil end
+\treturn pai
+end
+
+local function souODono()
+\tlocal corpo = donoDaTool()
+\tif not corpo then return false end
+\treturn Players:GetPlayerFromCharacter(corpo) == jogador
+end
+
+--%(regua)s
+-- DESENHO — este trecho roda em TODOS os clientes
+--%(regua)s
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+\tif tipo == "BEAT" then
+\t\tVFX.beat(dados and dados.marca, portador or donoDaTool())
+\t\treturn
+\tend
+\tVFX.desenhar(tipo, dados or {}, Moldes, portador or donoDaTool())
+end)
+
+--%(regua)s
+-- MIRA — só o dono manda
+--%(regua)s
+
+local rato = nil
 
 local function pontoMirado()
-\tlocal raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
-\tif not raiz then return nil end
+\tlocal corpo = portador
+\tlocal raiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+\tif not (raiz and rato) then return nil end
 \tlocal alvo = rato.Hit and rato.Hit.Position
 \tif not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
 \tlocal delta = alvo - raiz.Position
@@ -1166,64 +1256,48 @@ local function pontoMirado()
 \treturn alvo
 end
 
-local function montarRig()
-\tif rig then return rig end
-\tif not personagem then return nil end
-\trig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
-\treturn rig
+local function comecarMira()
+\tif mandandoMira or not MiraRemote then return end
+\tmandandoMira = true
+\trato = rato or (jogador and jogador:GetMouse())
+\ttask.spawn(function()
+\t\twhile mandandoMira do
+\t\t\tlocal ponto = pontoMirado()
+\t\t\tif ponto then MiraRemote:FireServer(ponto) end
+\t\t\ttask.wait(RITMO_MIRA)
+\t\tend
+\tend)
 end
 
-VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-\tVFX.desenhar(tipo, dados or {}, Moldes, personagem)
-end)
+--%(regua)s
+-- CICLO
+--%(regua)s
 
 local function aoEquipar()
-\tpersonagem = Tool.Parent
-\tequipada = true
-\tmontarRig()
-\tif MiraRemote then
-\t\t-- 10 Hz, não por quadro: o servidor só precisa do PARA ONDE, e 60
-\t\t-- pacotes por segundo por jogador é tráfego jogado fora
-\t\ttask.spawn(function()
-\t\t\twhile equipada do
-\t\t\t\tlocal ponto = pontoMirado()
-\t\t\t\tif ponto then MiraRemote:FireServer(ponto) end
-\t\t\t\ttask.wait(RITMO_MIRA)
-\t\t\tend
-\t\tend)
-\tend
+\tportador = donoDaTool()
+\tif souODono() then comecarMira() end
 end
 
 local function aoGuardar()
-\tequipada = false
-\tif rig then
-\t\trig:CancelSequence()
-\t\trig:ReleaseLegs()
-\tend
+\tmandandoMira = false
+\tportador = nil
 \tVFX.limpar()
 end
 
 Tool.Equipped:Connect(aoEquipar)
 Tool.Unequipped:Connect(aoGuardar)
 
-Tool.Activated:Connect(function()
-\tif not equipada then return end
-\tlocal atual = montarRig()
-\tif not atual then return end
-\tatual:PlaySequence(SEQUENCIA, function(passo)
-\t\tif passo.marca then VFX.beat(passo.marca, personagem) end
-\tend)
+-- `Tool.Equipped` não dispara nos clientes que NÃO são o dono: para eles a
+-- Tool simplesmente aparece dentro de um Character já montado. Por isso o
+-- portador também é resolvido na entrada, e a cada troca de pai.
+portador = donoDaTool()
+Tool.AncestryChanged:Connect(function()
+\tportador = donoDaTool()
+\tif portador and souODono() then comecarMira() end
 end)
 
-Tool.Destroying:Connect(function()
-\taoGuardar()
-\tif rig then
-\t\trig:Destroy()
-\t\trig = nil
-\tend
-end)
+Tool.Destroying:Connect(aoGuardar)
 '''
-
 
 # ═══════════════════════════════════════════════════════════════
 # VFXModule — desenho, 100%% cliente, sobre o pack da Stella
@@ -1785,9 +1859,8 @@ def gerar_cliente(nome, dados):
             alcance = valor
     return CLIENTE % {
         "titulo": nome,
-        "seq": dados["seq"],
+        "regua": REGUA,
         "alcance": alcance,
-        "sufixo": nome.replace(" ", ""),
         "mira_remote": ('local MiraRemote = Tool:WaitForChild("MiraRemote")\n'
                         if dados["mira"] else "local MiraRemote = nil\n"),
     }
