@@ -1336,8 +1336,12 @@ local function ondaLarga(posicao, escala, cor, vida)
 end
 
 local function nova(posicao, escala, cor, vida)
-	local a = Vector3.new(1, 1, 1) * (escala or 4)
-	if pk("Small_Nova", posicao, vida or 0.6, a, a * 4,
+	-- Small_Nova recebe Size_A/Size_B como NÚMERO, não Vector3: o corpo do
+	-- módulo faz a conta com eles. Mandar Vector3 derruba em
+	-- "invalid argument #1 to 'new'", e o pcall engole o erro em silêncio.
+	local raio = escala or 4
+	local a = Vector3.new(1, 1, 1) * raio
+	if pk("Small_Nova", posicao, vida or 0.6, raio, raio * 4,
 			cor or COR.OSSO, cor or COR.SOMBRA, Enum.EasingStyle.Quint) then
 		return
 	end
@@ -1355,8 +1359,9 @@ local function nova(posicao, escala, cor, vida)
 end
 
 local function estouro(posicao, escala, cor, vida)
-	local a = Vector3.new(1, 1, 1) * (escala or 6)
-	if pk("Shockwave_Explosion", posicao, vida or 0.9, a, a * 3.2,
+	local raio = escala or 6
+	local a = Vector3.new(1, 1, 1) * raio
+	if pk("Shockwave_Explosion", posicao, vida or 0.9, raio, raio * 3.2,
 			cor or COR.OSSO, cor or COR.SOMBRA) then
 		return
 	end
@@ -1373,7 +1378,7 @@ local function estouroFumegante(posicao, escala, cor)
 end
 
 local function corte(cframe, escala, cor, vida)
-	if pk("Small_Slash", cframe, Vector3.new(1, 1, 1) * (escala or 6),
+	if pk("Small_Slash", cframe, (escala or 6),
 			vida or 0.45, cor or COR.OSSO, cor or COR.SOMBRA) then
 		return
 	end
@@ -1389,8 +1394,8 @@ local function anelSonar(cframe, escala, cor, vida)
 end
 
 local function rachadura(posicao, escala, cor, vida)
-	if pk("Floor_Crack", CFrame.new(posicao),
-			Vector3.new(1, 1, 1) * (escala or 8), vida or 3, cor or COR.SOMBRA) then
+	if pk("Floor_Crack", CFrame.new(posicao), (escala or 8),
+			vida or 3, cor or COR.SOMBRA) then
 		return
 	end
 	onda(posicao, (escala or 8) / 10, cor, 1.4)
@@ -1417,7 +1422,7 @@ local function feixe(origem, destino, calibre, cor, vida)
 end
 
 local function espiral(posicao, escala, cor, voltas, raio, altura)
-	if pk("Spiral_Effect", posicao, Vector3.new(1, 1, 1) * (escala or 1.4),
+	if pk("Spiral_Effect", posicao, (escala or 1.4),
 			cor or COR.ALMA, voltas or 26, raio or 8, altura or 14) then
 		return
 	end

@@ -1490,8 +1490,12 @@ local function ondaLarga(posicao, escala, cor, vida)
 end
 
 local function nova(posicao, escala, cor, vida)
-\tlocal a = Vector3.new(1, 1, 1) * (escala or 4)
-\tif pk("Small_Nova", posicao, vida or 0.6, a, a * 4,
+\t-- Small_Nova recebe Size_A/Size_B como NÚMERO, não Vector3: o corpo do
+\t-- módulo faz a conta com eles. Mandar Vector3 derruba em
+\t-- "invalid argument #1 to 'new'", e o pcall engole o erro em silêncio.
+\tlocal raio = escala or 4
+\tlocal a = Vector3.new(1, 1, 1) * raio
+\tif pk("Small_Nova", posicao, vida or 0.6, raio, raio * 4,
 \t\t\tcor or COR.OSSO, cor or COR.SOMBRA, Enum.EasingStyle.Quint) then
 \t\treturn
 \tend
@@ -1509,8 +1513,9 @@ local function nova(posicao, escala, cor, vida)
 end
 
 local function estouro(posicao, escala, cor, vida)
-\tlocal a = Vector3.new(1, 1, 1) * (escala or 6)
-\tif pk("Shockwave_Explosion", posicao, vida or 0.9, a, a * 3.2,
+\tlocal raio = escala or 6
+\tlocal a = Vector3.new(1, 1, 1) * raio
+\tif pk("Shockwave_Explosion", posicao, vida or 0.9, raio, raio * 3.2,
 \t\t\tcor or COR.OSSO, cor or COR.SOMBRA) then
 \t\treturn
 \tend
@@ -1527,7 +1532,7 @@ local function estouroFumegante(posicao, escala, cor)
 end
 
 local function corte(cframe, escala, cor, vida)
-\tif pk("Small_Slash", cframe, Vector3.new(1, 1, 1) * (escala or 6),
+\tif pk("Small_Slash", cframe, (escala or 6),
 \t\t\tvida or 0.45, cor or COR.OSSO, cor or COR.SOMBRA) then
 \t\treturn
 \tend
@@ -1543,8 +1548,8 @@ local function anelSonar(cframe, escala, cor, vida)
 end
 
 local function rachadura(posicao, escala, cor, vida)
-\tif pk("Floor_Crack", CFrame.new(posicao),
-\t\t\tVector3.new(1, 1, 1) * (escala or 8), vida or 3, cor or COR.SOMBRA) then
+\tif pk("Floor_Crack", CFrame.new(posicao), (escala or 8),
+\t\t\tvida or 3, cor or COR.SOMBRA) then
 \t\treturn
 \tend
 \tonda(posicao, (escala or 8) / 10, cor, 1.4)
@@ -1571,7 +1576,7 @@ local function feixe(origem, destino, calibre, cor, vida)
 end
 
 local function espiral(posicao, escala, cor, voltas, raio, altura)
-\tif pk("Spiral_Effect", posicao, Vector3.new(1, 1, 1) * (escala or 1.4),
+\tif pk("Spiral_Effect", posicao, (escala or 1.4),
 \t\t\tcor or COR.ALMA, voltas or 26, raio or 8, altura or 14) then
 \t\treturn
 \tend
