@@ -2955,7 +2955,7 @@
 					</Properties>
 				</Item>
 			</Item>
-		</Item></Item></Item><SharedStrings><SharedString md5="/9vqjh3KlBTIn9+cicxsUw==">Q1NHUEhTCAAAAAEAKLUv/WCMC904APpkQBU5MOTKcDDGr8LlsUqrgXnBlE5BCGRsNnethKKy
+		</Item></Item><Item class="Folder" referent="RV_SFX_AtrasoMortal"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNNASCE_AtrasoMortal"><Properties><string name="Name">NASCE</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item></Item><SharedStrings><SharedString md5="/9vqjh3KlBTIn9+cicxsUw==">Q1NHUEhTCAAAAAEAKLUv/WCMC904APpkQBU5MOTKcDDGr8LlsUqrgXnBlE5BCGRsNnethKKy
 YSTLB+QDu8KxUB7Q3BdDnSQExrZRrBMWL7UScA8JcgFmAVwBaHBod2UNZW6Mh0Vs3RcAMiwa
 2XRNQh2j5bpsDK1jNHEfYDKnbRxq6LkYNZjPEWW7GdnTSZRAOQPxtNpphaSlU19WjhNZMNKW
 /XNpyIGNil7BSd4aSvmxiSDV7aHW2EZ7tKmJj1YrMG12EsRWEx6i4Me1xebdvXXTz6Edm2ib

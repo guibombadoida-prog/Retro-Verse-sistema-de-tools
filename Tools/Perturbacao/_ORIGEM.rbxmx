@@ -1352,7 +1352,7 @@
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item></Item><SharedStrings><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+				</Item></Item><Item class="Folder" referent="RV_SFX_Perturbacao"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNDESFAZ_Perturbacao"><Properties><string name="Name">DESFAZ</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNDEVOLVE_Perturbacao"><Properties><string name="Name">DEVOLVE</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item></Item><SharedStrings><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

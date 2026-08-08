@@ -1389,6 +1389,73 @@ local function guardarPeca(peca, vida)
 end
 
 --%(regua)s
+-- SOM
+--
+-- Toca aqui, e não no servidor, pelo mesmo motivo do VFX: este script roda em
+-- TODO cliente (RunContext = Client), então cada um cria o seu Sound local na
+-- posição certa. Todo mundo ouve, posicionado, com custo de rede zero.
+--
+-- O molde vem de `Tool/SFX/` — o som é filho da Tool, como o resto.
+--%(regua)s
+
+local SFX = script.Parent:FindFirstChild("SFX")
+
+local function som(rotulo, posicao, pitch)
+	local base = SFX and SFX:FindFirstChild(rotulo)
+	if not base then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored, ancora.CanCollide = true, false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local copia = base:Clone()
+	if pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+	copia.Parent = ancora
+	copia:Play()
+
+	table.insert(vivos, ancora)
+	local duracao = (copia.TimeLength > 0 and copia.TimeLength or 5) + 1
+	Debris:AddItem(ancora, duracao)
+	return copia
+end
+
+--%(regua)s
+-- SOM
+--
+-- Toca aqui, e nao no servidor, pelo mesmo motivo do VFX: este script roda em
+-- TODO cliente (RunContext = Client), entao cada um cria o seu Sound local na
+-- posicao certa. Todo mundo ouve, posicionado, com custo de rede zero.
+--
+-- O molde vem de `Tool/SFX/` — o som e filho da Tool, como o resto.
+--%(regua)s
+
+local SFX = script.Parent:FindFirstChild("SFX")
+
+local function som(rotulo, posicao, pitch)
+\tlocal base = SFX and SFX:FindFirstChild(rotulo)
+\tif not base then return nil end
+
+\tlocal ancora = Instance.new("Part")
+\tancora.Size = Vector3.new(0.2, 0.2, 0.2)
+\tancora.Transparency = 1
+\tancora.Anchored, ancora.CanCollide = true, false
+\tancora.CFrame = CFrame.new(posicao or Vector3.new())
+\tancora.Parent = workspace
+
+\tlocal copia = base:Clone()
+\tif pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+\tcopia.Parent = ancora
+\tcopia:Play()
+
+\ttable.insert(vivos, ancora)
+\tDebris:AddItem(ancora, (copia.TimeLength > 0 and copia.TimeLength or 5) + 1)
+\treturn copia
+end
+
+--%(regua)s
 -- PRIMITIVAS — pack primeiro, fallback local depois
 --%(regua)s
 
@@ -1657,6 +1724,7 @@ end
 local VFX = {}
 
 function VFX.PILAR_ERGUE(d)
+\tsom("ERGUE", d.posicao)
 \tespiral(d.posicao, 2, COR.ALMA, 34, (d.grossura or 6) * 1.6,
 \t\t(d.altura or 40) * 0.8)
 \trachadura(d.posicao, 14, COR.SOMBRA, (d.duracao or 8) + 1)
@@ -1664,22 +1732,30 @@ function VFX.PILAR_ERGUE(d)
 end
 
 function VFX.PILAR_GRITO(d)
+\t-- o grito sobe de altura a cada pulso, ate o fim
+\tsom("GRITO", d.posicao, 0.9 + (d.passo or 1) * 0.02)
 \tonda(d.posicao, 1.4, COR.ALMA, 1.1)
 \tnova(d.posicao + Vector3.new(0, 6, 0), 5, COR.ALMA, 0.7)
 end
 
 function VFX.PILAR_CAI(d)
+\tsom("CAI", d.posicao)
 \testouroFumegante(d.posicao, 10, COR.SOMBRA)
 \tondaLarga(d.posicao, 1.6, COR.ALMA, 2)
 end
 
 function VFX.SELO_POE(d)
+\tlocal cab = d.alvo and d.alvo:FindFirstChild("Head")
+\tsom("SELA", cab and cab.Position or nil)
 \tporSelos(d.alvo, d.selos or 20, d.altura or 4, d.raio or 2.2)
 \tlocal cabeca = d.alvo and d.alvo:FindFirstChild("Head")
 \tif cabeca then anelSonar(cabeca.CFrame, 4, COR.SENTENCA, 0.9) end
 end
 
 function VFX.SELO_TIQUE(d)
+\t-- o tique fica mais agudo quanto menos selo resta
+\tlocal cab = d.alvo and d.alvo:FindFirstChild("Head")
+\tsom("TIQUE", cab and cab.Position or nil, 1 + (20 - (d.restam or 0)) * 0.03)
 \tlocal restam = d.restam or 0
 \t-- apaga de trás para a frente: some o último selo aceso
 \tfor indice = #selos, 1, -1 do
@@ -1695,6 +1771,9 @@ function VFX.SELO_TIQUE(d)
 end
 
 function VFX.SELO_EXECUTA(d)
+\tlocal cab = d.alvo and (d.alvo:FindFirstChild("Head")
+\t\tor d.alvo:FindFirstChild("HumanoidRootPart"))
+\tsom("EXECUTA", cab and cab.Position or nil)
 \ttirarSelos()
 \tlocal cabeca = d.alvo and (d.alvo:FindFirstChild("Head")
 \t\tor d.alvo:FindFirstChild("HumanoidRootPart"))
@@ -1710,6 +1789,7 @@ function VFX.SELO_TIRA()
 end
 
 function VFX.CAVEIRA_NASCE(d)
+\tsom("NASCE", d.posicao)
 \tespiral(d.posicao, 1.4, COR.ALMA, 22, 5, 8)
 \tnova(d.posicao, 6, COR.OSSO, 0.7)
 end
@@ -1726,6 +1806,7 @@ end
 function VFX.PERTURBA_DESFAZ(d, _moldes, personagem)
 \tlocal raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 \tif not raiz then return end
+\tsom("DESFAZ", raiz.Position)
 \tanelSonar(raiz.CFrame, 6, COR.ALMA, 0.9)
 \tespiral(raiz.Position, 1.2, COR.ALMA, 20, 4, 7)
 
@@ -1760,25 +1841,30 @@ end
 function VFX.PERTURBA_VOLTA() end
 
 function VFX.PERTURBA_DEVOLVE(d)
+\tsom("DEVOLVE", d.posicao, 0.9 + (d.escala or 0.5) * 0.3)
 \testouroFumegante(d.posicao, 10 * (0.5 + (d.escala or 0.5)), COR.ALMA)
 \tondaLarga(d.posicao, 1.8, COR.ALMA, 2)
 end
 
 function VFX.PORTAL_ABRE(d)
+\tsom("ABRE", d.posicao)
 \tanelSonar(CFrame.new(d.posicao), d.raio or 14, COR.SOMBRA, 1.4)
 \tespiral(d.posicao, 1.6, COR.ALMA, 30, (d.raio or 14) * 0.6, 10)
 \trachadura(d.posicao, (d.raio or 14), COR.SOMBRA, (d.duracao or 10) + 1)
 end
 
 function VFX.CORRENTE_PRENDE(d, moldes)
+\tsom("CORRENTE", d.ancora)
 \tcorrente(moldes, d.alvo, d.ancora, d.elos)
 end
 
 function VFX.PORTAL_FECHA(d)
+\tsom("FECHA", d.posicao)
 \testouro(d.posicao, 8, COR.SOMBRA, 0.9)
 end
 
 function VFX.OLHO_ABRE(d)
+\tsom("ABRE", d.posicao)
 \tanelSonar(CFrame.new(d.posicao), (d.tamanho or 12), COR.OSSO, 1.2)
 \tnova(d.posicao, (d.tamanho or 12) * 0.6, COR.OSSO, 0.8)
 
@@ -1806,10 +1892,12 @@ function VFX.OLHO_ABRE(d)
 end
 
 function VFX.OLHO_VARRE(d)
+\tsom("VARRE", d.posicao, 1 + (d.passo or 1) * 0.01)
 \tanelSonar(CFrame.new(d.posicao), 8, COR.OSSO, 0.8)
 end
 
 function VFX.OLHO_FECHA(d)
+\tsom("FECHA", d.posicao)
 \tnova(d.posicao, 8, COR.OSSO, 0.6)
 \tlimparRealces()
 end

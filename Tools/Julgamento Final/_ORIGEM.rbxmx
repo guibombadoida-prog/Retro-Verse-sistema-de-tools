@@ -1352,7 +1352,7 @@
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item></Item><SharedStrings><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+				</Item></Item><Item class="Folder" referent="RV_SFX_JulgamentoFinal"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNSELA_JulgamentoFinal"><Properties><string name="Name">SELA</string><Content name="SoundId"><url>rbxassetid://1898092341</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNTIQUE_JulgamentoFinal"><Properties><string name="Name">TIQUE</string><Content name="SoundId"><url>rbxassetid://472214107</url></Content><float name="Volume">1.5</float><float name="PlaybackSpeed">1.6</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNEXECUTA_JulgamentoFinal"><Properties><string name="Name">EXECUTA</string><Content name="SoundId"><url>rbxassetid://1910988873</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item></Item><SharedStrings><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

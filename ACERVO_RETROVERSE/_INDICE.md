@@ -107,6 +107,17 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 
 Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
+> ⚠️ **Esta tabela e as fichas se contradizem.** Aqui os SFX de Jupiter e de
+> Cosmic Entity aparecem como **LIMPO**; o `SFX/ids.md` de cada um diz **CRU**
+> no cabeçalho. Enquanto os dois não concordarem, nenhuma Tool puxa som de lá —
+> o conjunto SUBMUNDO usa os ids do `Xester_Forma1`, cuja ficha está fechada
+> nos quatro campos de §12.12.3.
+
+> ⚠️ **`Explode` do `bomba_v4` aponta para `rbxassetid://200`.** Não é id
+> válido de som — vem assim da origem, não da conversão. As 6 Tools de bomba e
+> o `Atraso Mortal` carregam esse Sound mudo. Trocar o id resolve; está aqui
+> para não se perder.
+
 ## MALHAS E TEXTURAS
 
 | Origem | Itens | Status |

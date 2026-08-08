@@ -84,6 +84,73 @@ local function guardarPeca(peca, vida)
 end
 
 --══════════════════════════════════════════════════════════════
+-- SOM
+--
+-- Toca aqui, e não no servidor, pelo mesmo motivo do VFX: este script roda em
+-- TODO cliente (RunContext = Client), então cada um cria o seu Sound local na
+-- posição certa. Todo mundo ouve, posicionado, com custo de rede zero.
+--
+-- O molde vem de `Tool/SFX/` — o som é filho da Tool, como o resto.
+--══════════════════════════════════════════════════════════════
+
+local SFX = script.Parent:FindFirstChild("SFX")
+
+local function som(rotulo, posicao, pitch)
+	local base = SFX and SFX:FindFirstChild(rotulo)
+	if not base then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored, ancora.CanCollide = true, false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local copia = base:Clone()
+	if pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+	copia.Parent = ancora
+	copia:Play()
+
+	table.insert(vivos, ancora)
+	local duracao = (copia.TimeLength > 0 and copia.TimeLength or 5) + 1
+	Debris:AddItem(ancora, duracao)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
+-- SOM
+--
+-- Toca aqui, e nao no servidor, pelo mesmo motivo do VFX: este script roda em
+-- TODO cliente (RunContext = Client), entao cada um cria o seu Sound local na
+-- posicao certa. Todo mundo ouve, posicionado, com custo de rede zero.
+--
+-- O molde vem de `Tool/SFX/` — o som e filho da Tool, como o resto.
+--══════════════════════════════════════════════════════════════
+
+local SFX = script.Parent:FindFirstChild("SFX")
+
+local function som(rotulo, posicao, pitch)
+	local base = SFX and SFX:FindFirstChild(rotulo)
+	if not base then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored, ancora.CanCollide = true, false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local copia = base:Clone()
+	if pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+	copia.Parent = ancora
+	copia:Play()
+
+	table.insert(vivos, ancora)
+	Debris:AddItem(ancora, (copia.TimeLength > 0 and copia.TimeLength or 5) + 1)
+	return copia
+end
+
+--══════════════════════════════════════════════════════════════
 -- PRIMITIVAS — pack primeiro, fallback local depois
 --══════════════════════════════════════════════════════════════
 
@@ -352,6 +419,7 @@ end
 local VFX = {}
 
 function VFX.PILAR_ERGUE(d)
+	som("ERGUE", d.posicao)
 	espiral(d.posicao, 2, COR.ALMA, 34, (d.grossura or 6) * 1.6,
 		(d.altura or 40) * 0.8)
 	rachadura(d.posicao, 14, COR.SOMBRA, (d.duracao or 8) + 1)
@@ -359,22 +427,30 @@ function VFX.PILAR_ERGUE(d)
 end
 
 function VFX.PILAR_GRITO(d)
+	-- o grito sobe de altura a cada pulso, ate o fim
+	som("GRITO", d.posicao, 0.9 + (d.passo or 1) * 0.02)
 	onda(d.posicao, 1.4, COR.ALMA, 1.1)
 	nova(d.posicao + Vector3.new(0, 6, 0), 5, COR.ALMA, 0.7)
 end
 
 function VFX.PILAR_CAI(d)
+	som("CAI", d.posicao)
 	estouroFumegante(d.posicao, 10, COR.SOMBRA)
 	ondaLarga(d.posicao, 1.6, COR.ALMA, 2)
 end
 
 function VFX.SELO_POE(d)
+	local cab = d.alvo and d.alvo:FindFirstChild("Head")
+	som("SELA", cab and cab.Position or nil)
 	porSelos(d.alvo, d.selos or 20, d.altura or 4, d.raio or 2.2)
 	local cabeca = d.alvo and d.alvo:FindFirstChild("Head")
 	if cabeca then anelSonar(cabeca.CFrame, 4, COR.SENTENCA, 0.9) end
 end
 
 function VFX.SELO_TIQUE(d)
+	-- o tique fica mais agudo quanto menos selo resta
+	local cab = d.alvo and d.alvo:FindFirstChild("Head")
+	som("TIQUE", cab and cab.Position or nil, 1 + (20 - (d.restam or 0)) * 0.03)
 	local restam = d.restam or 0
 	-- apaga de trás para a frente: some o último selo aceso
 	for indice = #selos, 1, -1 do
@@ -390,6 +466,9 @@ function VFX.SELO_TIQUE(d)
 end
 
 function VFX.SELO_EXECUTA(d)
+	local cab = d.alvo and (d.alvo:FindFirstChild("Head")
+		or d.alvo:FindFirstChild("HumanoidRootPart"))
+	som("EXECUTA", cab and cab.Position or nil)
 	tirarSelos()
 	local cabeca = d.alvo and (d.alvo:FindFirstChild("Head")
 		or d.alvo:FindFirstChild("HumanoidRootPart"))
@@ -405,6 +484,7 @@ function VFX.SELO_TIRA()
 end
 
 function VFX.CAVEIRA_NASCE(d)
+	som("NASCE", d.posicao)
 	espiral(d.posicao, 1.4, COR.ALMA, 22, 5, 8)
 	nova(d.posicao, 6, COR.OSSO, 0.7)
 end
@@ -421,6 +501,7 @@ end
 function VFX.PERTURBA_DESFAZ(d, _moldes, personagem)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
+	som("DESFAZ", raiz.Position)
 	anelSonar(raiz.CFrame, 6, COR.ALMA, 0.9)
 	espiral(raiz.Position, 1.2, COR.ALMA, 20, 4, 7)
 
@@ -455,25 +536,30 @@ end
 function VFX.PERTURBA_VOLTA() end
 
 function VFX.PERTURBA_DEVOLVE(d)
+	som("DEVOLVE", d.posicao, 0.9 + (d.escala or 0.5) * 0.3)
 	estouroFumegante(d.posicao, 10 * (0.5 + (d.escala or 0.5)), COR.ALMA)
 	ondaLarga(d.posicao, 1.8, COR.ALMA, 2)
 end
 
 function VFX.PORTAL_ABRE(d)
+	som("ABRE", d.posicao)
 	anelSonar(CFrame.new(d.posicao), d.raio or 14, COR.SOMBRA, 1.4)
 	espiral(d.posicao, 1.6, COR.ALMA, 30, (d.raio or 14) * 0.6, 10)
 	rachadura(d.posicao, (d.raio or 14), COR.SOMBRA, (d.duracao or 10) + 1)
 end
 
 function VFX.CORRENTE_PRENDE(d, moldes)
+	som("CORRENTE", d.ancora)
 	corrente(moldes, d.alvo, d.ancora, d.elos)
 end
 
 function VFX.PORTAL_FECHA(d)
+	som("FECHA", d.posicao)
 	estouro(d.posicao, 8, COR.SOMBRA, 0.9)
 end
 
 function VFX.OLHO_ABRE(d)
+	som("ABRE", d.posicao)
 	anelSonar(CFrame.new(d.posicao), (d.tamanho or 12), COR.OSSO, 1.2)
 	nova(d.posicao, (d.tamanho or 12) * 0.6, COR.OSSO, 0.8)
 
@@ -501,10 +587,12 @@ function VFX.OLHO_ABRE(d)
 end
 
 function VFX.OLHO_VARRE(d)
+	som("VARRE", d.posicao, 1 + (d.passo or 1) * 0.01)
 	anelSonar(CFrame.new(d.posicao), 8, COR.OSSO, 0.8)
 end
 
 function VFX.OLHO_FECHA(d)
+	som("FECHA", d.posicao)
 	nova(d.posicao, 8, COR.OSSO, 0.6)
 	limparRealces()
 end

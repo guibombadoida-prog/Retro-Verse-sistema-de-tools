@@ -57,6 +57,85 @@ BOMBA = os.path.join(RAIZ, "MODELOS_ENTRADA", "Bomba_V4", "bomba_v4.rbxmx")
 MALHA_ANEL = "3270017"
 
 # ═══════════════════════════════════════════════════════════════
+# SFX — do catálogo do Xester Forma 1, que está LIMPO
+# ═══════════════════════════════════════════════════════════════
+#
+# Cada id abaixo mantém, no Submundo, um PAPEL próximo do que tinha no script
+# de origem — não escolhi por nome bonito, escolhi pelo uso que o `un.lua` dava
+# a ele. Eu não posso ouvir os arquivos daqui, e é a única base honesta que
+# tenho para casar som com momento.
+#
+#   1888686669  portal/carta grande aparecendo     -> abertura, nascimento
+#   1072606965  rugido sustentado do Cardnado      -> o grito do pilar
+#   472579737   colapso do buraco negro            -> queda, devolução
+#   236989198   carta colossal surgindo (peso)     -> algo grande se ergue
+#   765590102   carta colossal batendo             -> impacto
+#   1898092341  selo/decal do ato de desaparecer   -> selar
+#   472214107   plataforma selando                 -> tique do contador
+#   1910988873  o raio                             -> a sentença descendo
+#   1894958339  teleporte                          -> desfazer o corpo
+#   1882057730  leque de cartas abrindo            -> o olho abrindo
+#   342337569   arranque do Cardnado               -> varredura
+#   54111471    fim do ato de desaparecer          -> fechamento
+#   413682983   escudo                             -> corrente prendendo
+#
+# ATENÇÃO, e isto é uma inconsistência do Acervo, não minha escolha:
+# `_INDICE.md` marca os SFX de Jupiter e Cosmic Entity como LIMPO, mas o
+# `SFX/ids.md` de cada um diz CRU no cabeçalho. Enquanto os dois não
+# concordarem, não puxo som de lá — os ids abaixo vêm do Xester Forma 1, cuja
+# ficha está fechada nos quatro campos.
+
+SONS = {
+    "Pilar das Lamentacoes": [
+        ("ERGUE", "236989198", 4, 0.85),
+        ("GRITO", "1072606965", 3, 1.0),
+        ("CAI", "472579737", 5, 0.8),
+    ],
+    "Julgamento Final": [
+        ("SELA", "1898092341", 4, 1.0),
+        ("TIQUE", "472214107", 1.5, 1.6),
+        ("EXECUTA", "1910988873", 6, 0.75),
+    ],
+    "Atraso Mortal": [
+        ("NASCE", "1888686669", 4, 1.15),
+    ],
+    "Perturbacao": [
+        ("DESFAZ", "1894958339", 4, 0.8),
+        ("DEVOLVE", "472579737", 5, 1.1),
+    ],
+    "Portal do Submundo": [
+        ("ABRE", "1888686669", 4, 0.7),
+        ("CORRENTE", "413682983", 3, 1.2),
+        ("FECHA", "54111471", 4, 0.9),
+    ],
+    "Olho do Vigia": [
+        ("ABRE", "1882057730", 4, 0.9),
+        ("VARRE", "342337569", 2.5, 1.3),
+        ("FECHA", "54111471", 3, 1.1),
+    ],
+}
+
+
+def pasta_de_sfx(tool, nome, marca):
+    """
+    `Tool/SFX/` com os moldes de som. O script CLONA daqui; nunca cria
+    `SoundId` solto — o som é filho da Tool, como todo o resto (Regra nº 1).
+    """
+    if nome not in SONS:
+        return 0
+    sfx, _ = novo_item(tool, "Folder", "SFX", "RV_SFX_%s" % marca)
+    for rotulo, ident, volume, pitch in SONS[nome]:
+        _s, props = novo_item(sfx, "Sound", rotulo,
+                              "RV_SN%s_%s" % (rotulo, marca))
+        ET.SubElement(props, "Content", {"name": "SoundId"}).append(
+            ET.Element("url"))
+        props[-1][0].text = "rbxassetid://%s" % ident
+        ET.SubElement(props, "float", {"name": "Volume"}).text = str(volume)
+        ET.SubElement(props, "float", {"name": "PlaybackSpeed"}).text = str(pitch)
+        ET.SubElement(props, "float", {"name": "RollOffMaxDistance"}).text = "220"
+    return len(SONS[nome])
+
+# ═══════════════════════════════════════════════════════════════
 # AS SEIS
 # ═══════════════════════════════════════════════════════════════
 #
@@ -261,6 +340,10 @@ def main():
         if nome == "Portal do Submundo":
             elo_de_corrente(moldes, marca)
             trazidos.append("Elo(autoral)")
+
+        quantos = pasta_de_sfx(tool, nome, marca)
+        if quantos:
+            trazidos.append("%d som(ns)" % quantos)
 
         pasta = os.path.join(TOOLS, nome)
         os.makedirs(pasta, exist_ok=True)
