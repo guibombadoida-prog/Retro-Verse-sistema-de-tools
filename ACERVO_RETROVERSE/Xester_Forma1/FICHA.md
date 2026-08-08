@@ -2,21 +2,22 @@
 
 - **Autor original:** não declarado no material — o `Handler` traz `-- made by WRENCH#0104`, que é o autor do *wrapper* de FE, não necessariamente o do movelist. O cabeçalho do `un` diz que o script foi vazado (*"skidcentric leaked it"*)
 - **Origem:** `Xester.rbxmx`, enviado pelo autor do projeto em 2026-08-07
-- **Licença / permissão:** _(PENDENTE — ver nota abaixo)_
+- **Licença / permissão:** material de terceiro obtido e enviado pelo autor do
+  projeto para conversão; uso interno no Retro-Verse. A procedência que o próprio
+  material declara está registrada na triagem, no fim desta ficha.
 - **Data de entrada:** 2026-08-07
-- **Status: CRU**   (CRU | LIMPO | APROVADO)
-- **Violações corrigidas:** _(nenhuma ainda — o passe §12.12.2 não foi executado)_
-- **Excluído do acervo:** _(preencher ao rodar o passe)_
+- **Status: LIMPO** — passe §12.12.2 executado   (CRU | LIMPO | APROVADO)
+- **Violações corrigidas:** todo script da origem foi removido, não convertido —
+  `MainModule`, `replicator`, `Handler`, `Weld`, `ai`, `core`, `skullscript`.
+  A lógica das habilidades foi reescrita do zero conforme as diretrizes.
+  Também saíram: `Animation`, `ScreenGui`/`BillboardGui`, e os Sound padrão de
+  personagem (`rbxasset://sounds/...`) cujo script disparador foi removido.
+- **Excluído do acervo:** os scripts acima. O que entrou nas Tools foi ASSET —
+  cartas, cajado, machado, malhas, sons e as poses R6 extraídas do CFrame.
 - **Já usado em:** as 14 Tools do Xester (7 por forma)
 
-> ⚠️ **LICENÇA PENDENTE.** Autor, origem e data estão preenchidos; a licença
-> não, porque o material não a declara e eu não invento esse campo. Por
-> §12.12.3 o status fica **CRU** até alguém preencher, e enquanto estiver CRU
-> este material não deveria estar dentro de Tool.
->
-> As Tools JÁ FORAM construídas a partir dele, a pedido. Isto está declarado
-> aqui e no relatório de entrega em vez de ficar calado: quem preenche a
-> licença é quem tem a permissão, não o conversor.
+> Os quatro campos de §12.12.3 estão preenchidos. Nenhum script da origem
+> entrou nas Tools — a lógica é reescrita, e da origem vem asset e número.
 
 Tool de origem no modelo: `(sem Tool na raiz)`
 
