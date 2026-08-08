@@ -1,35 +1,54 @@
--- Poses_Escudos_V1.lua
--- ModuleScript "Poses" — família ESCUDOS (Salvador, Proteção, Skate,
--- Bumerangue, Bloqueador, Cyclone, Partido)
+-- Poses.lua
+-- ModuleScript "Poses" — Escudo Partido
 --
--- ORIGEM DAS POSES (§12.12 / §12.16)
---   Material: SaitamaAnimacoes_Originais_V1 (pack de referência R6 CFrame).
---   Passe de conformidade: keyframes lidos como DADO, convertidos em poses
---   estáticas para R6CFrameAnimator. Zero LoadAnimation, zero Animation asset,
---   zero lógica de combate importada. Só silhueta e timing.
---
---   Mapa keyframe -> pose:
---     NORMAL_SHOVE        [12][23][30]  -> ARREMESSO_CARGA / SOLTA / RECUO
---     NORMAL_UPPERCUT     [27][34]      -> SACRIFICIO_CARGA / SACRIFICIO_ALTO
---     CONSECUTIVE_PUNCHES [8][24][31][44][57][70] -> CORTE_A..CORTE_F
---     SERIOUS_MODE        [20][35][60]  -> CICLONE_CARGA / ABERTO / GIRO
---     DEATH_COUNTER       [120][359]    -> GUARDA_FIRME / CONTRA_GOLPE
---     TABLE_FLIP          [207][365]    -> PUXAO_CARGA / PUXAO_SOLTA
---     SERIOUS_PUNCH       [85][180][260][298][349] -> EXEC_*
---     SERIOUS_PUNCH_CAMERA (amostrado)  -> CAMERA_EXECUCAO
---
--- Base de Weld idêntica à do R6CFrameAnimator (V1/V2):
---   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP identidade
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
+--   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
 --   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+--
+-- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+--
+-- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
+-- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+--
+-- ANIMAÇÃO PERSONALIZADA DESTA TOOL. Antes, os sete escudos dividiam o mesmo
+-- arquivo de 440 linhas — este traz só o que esta Tool usa.
+--
+-- As SILHUETAS são as da remasterização e não mudaram: é a mesma habilidade,
+-- do mesmo modelo. O que mudou foi o TEMPO, re-cronometrado pela gramática
+-- medida no pack de referência (ACERVO/_AUTORAL_RetroVerse/R6_CFRAME/
+-- GRAMATICA_R6.md).
+--
+-- O que a gramática impôs aqui:
+--   ARREMESSO_CARREGADO  golpe rápido carregado 1.10s · impacto 57% · 1 segurado(s)
+--   CORTE_COMBO          combo (35:65)          1.12s · impacto 41% · 1 segurado(s)
+--   EXECUCAO             ultimate (64–86%)      5.99s · impacto 88% · 2 segurado(s)
+--
+-- Gerado por FERRAMENTAS/gerar_poses_escudos.py.
 
 local P = {}
 
---═══════════════════════════════════════════════════════════════
--- 1. POSES BASE — comuns a toda a família
---═══════════════════════════════════════════════════════════════
 
--- IDLE original dos escudos (corpo virado ~10°, escudo à frente).
--- Valores preservados do ServerScript_EscudoBloqueador_V5.
+P.ARREMESSO_CARGA = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(75.6), math.rad(180)),
+	RightArm = CFrame.new(0.95, 0.482, -0.945) * CFrame.Angles(math.rad(90.19), math.rad(2.32), math.rad(-46.57)),
+	LeftArm = CFrame.new(-1.31, -0.135, 0.036) * CFrame.Angles(math.rad(-1.36), math.rad(3.89), math.rad(18.95)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-77.85), math.rad(0)),
+}
+
+P.ARREMESSO_SOLTA = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(69.16), math.rad(180)),
+	RightArm = CFrame.new(0.756, 0.649, -1.012) * CFrame.Angles(math.rad(98.73), math.rad(-5.51), math.rad(-65.76)),
+	LeftArm = CFrame.new(-1.323, -0.122, 0.092) * CFrame.Angles(math.rad(-3.39), math.rad(9.68), math.rad(17.38)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-82.49), math.rad(0)),
+}
+
+P.ARREMESSO_RECUO = {
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(78.95), math.rad(0)),
+	RightArm = CFrame.new(1.807, 0.563, -0.447) * CFrame.Angles(math.rad(96.02), math.rad(-0.36), math.rad(13.17)),
+	LeftArm = CFrame.new(-1.546, 0.051, -0.01) * CFrame.Angles(math.rad(-0.07), math.rad(-1.11), math.rad(-5.6)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-65.52), math.rad(0)),
+}
+
 P.IDLE = {
 	RightArm = CFrame.new(
 		1.40557981, 0.499999762, -0.579227924,
@@ -51,70 +70,6 @@ P.IDLE = {
 		-0.98480773, 0, 0.173648134
 	),
 }
-
--- Guarda firme — DEATH_COUNTER [120]: peso no tronco, escudo colado à frente.
-P.GUARDA_FIRME = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-18.28), math.rad(-39.56), math.rad(-11.01)),
-	RightArm = CFrame.new(1.564, 0.422, -0.017) * CFrame.Angles(math.rad(72.6), math.rad(4.68), math.rad(22.04)),
-	LeftArm = CFrame.new(-1.566, 0.077, -0.035) * CFrame.Angles(math.rad(3.89), math.rad(-0.68), math.rad(-8.11)),
-	Head = CFrame.new(0, 1.466, -0.182) * CFrame.Angles(math.rad(-21.4), math.rad(-0.85), math.rad(0.03)),
-}
-
--- Contra-golpe — DEATH_COUNTER [359]: rotação de tronco que vende a força.
-P.CONTRA_GOLPE = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-20.13), math.rad(37.64), math.rad(16.46)),
-	RightArm = CFrame.new(1.443, 0.234, 0.652) * CFrame.Angles(math.rad(99.58), math.rad(-2.93), math.rad(65.63)),
-	LeftArm = CFrame.new(-1.659, 0.316, 0.178) * CFrame.Angles(math.rad(12.43), math.rad(17.95), math.rad(-33.49)),
-	Head = CFrame.new(0.058, 1.496, -0.013) * CFrame.Angles(math.rad(-4.57), math.rad(-24.32), math.rad(-7.31)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 2. ARREMESSO — NORMAL_SHOVE (Bumerangue / Partido)
---═══════════════════════════════════════════════════════════════
-
-P.ARREMESSO_CARGA = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(75.6), math.rad(180)),
-	RightArm = CFrame.new(0.95, 0.482, -0.945) * CFrame.Angles(math.rad(90.19), math.rad(2.32), math.rad(-46.57)),
-	LeftArm = CFrame.new(-1.31, -0.135, 0.036) * CFrame.Angles(math.rad(-1.36), math.rad(3.89), math.rad(18.95)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-77.85), math.rad(0)),
-}
-
--- Frame de impacto do pack (índice 23). É aqui que o projétil sai.
-P.ARREMESSO_SOLTA = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-180), math.rad(69.16), math.rad(180)),
-	RightArm = CFrame.new(0.756, 0.649, -1.012) * CFrame.Angles(math.rad(98.73), math.rad(-5.51), math.rad(-65.76)),
-	LeftArm = CFrame.new(-1.323, -0.122, 0.092) * CFrame.Angles(math.rad(-3.39), math.rad(9.68), math.rad(17.38)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-82.49), math.rad(0)),
-}
-
-P.ARREMESSO_RECUO = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(78.95), math.rad(0)),
-	RightArm = CFrame.new(1.807, 0.563, -0.447) * CFrame.Angles(math.rad(96.02), math.rad(-0.36), math.rad(13.17)),
-	LeftArm = CFrame.new(-1.546, 0.051, -0.01) * CFrame.Angles(math.rad(-0.07), math.rad(-1.11), math.rad(-5.6)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(-65.52), math.rad(0)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 3. SACRIFÍCIO — NORMAL_UPPERCUT (Salvador)
---═══════════════════════════════════════════════════════════════
-
-P.SACRIFICIO_CARGA = {
-	HRP = CFrame.new(0.012, -0.038, 0.048) * CFrame.Angles(math.rad(-39.13), math.rad(-31.46), math.rad(-14.97)),
-	RightArm = CFrame.new(1.73, 0.007, -0.191) * CFrame.Angles(math.rad(20.45), math.rad(4.51), math.rad(31.9)),
-	LeftArm = CFrame.new(-1.52, -0.154, 0.317) * CFrame.Angles(math.rad(26.35), math.rad(12.04), math.rad(-8.3)),
-	Head = CFrame.new(0.036, 1.457, 0.199) * CFrame.Angles(math.rad(26.7), math.rad(38), math.rad(-5.2)),
-}
-
-P.SACRIFICIO_ALTO = {
-	HRP = CFrame.new(0.085, 0.336, -0.174) * CFrame.Angles(math.rad(102.99), math.rad(62.95), math.rad(-91.13)),
-	RightArm = CFrame.new(1.774, 1.715, -0.269) * CFrame.Angles(math.rad(-30.91), math.rad(-37.17), math.rad(164.04)),
-	LeftArm = CFrame.new(-1.648, 0.092, 0.41) * CFrame.Angles(math.rad(38.8), math.rad(10.33), math.rad(-33.88)),
-	Head = CFrame.new(0.097, 1.453, -0.188) * CFrame.Angles(math.rad(-60.03), math.rad(-72.08), math.rad(-38.9)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 4. CORTES — CONSECUTIVE_PUNCHES (Partido, melee)
---═══════════════════════════════════════════════════════════════
 
 P.CORTE_A = { -- [8] carga curta
 	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-6.97), math.rad(1.72), math.rad(2.47)),
@@ -157,54 +112,6 @@ P.CORTE_F = { -- [70] abertura reversa
 	LeftArm = CFrame.new(-1.729, 0.313, -0.144) * CFrame.Angles(math.rad(60.51), math.rad(-2.69), math.rad(-26.59)),
 	Head = CFrame.new(0.035, 1.493, 0.075) * CFrame.Angles(math.rad(5.82), math.rad(-34.64), math.rad(-4.93)),
 }
-
---═══════════════════════════════════════════════════════════════
--- 5. CICLONE — SERIOUS_MODE (Cyclone)
---═══════════════════════════════════════════════════════════════
-
-P.CICLONE_CARGA = { -- [20] braços fecham à frente
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(2.99), math.rad(0), math.rad(0)),
-	RightArm = CFrame.new(1.366, 0.175, -0.67) * CFrame.Angles(math.rad(80.4), math.rad(9.91), math.rad(-57.22)),
-	LeftArm = CFrame.new(-1.37, 0.281, -0.738) * CFrame.Angles(math.rad(75.31), math.rad(10.7), math.rad(12.82)),
-	Head = CFrame.new(0, 1.494, -0.075) * CFrame.Angles(math.rad(-8.61), math.rad(0), math.rad(0)),
-}
-
-P.CICLONE_ABERTO = { -- [35] pico de tensão
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-5.18), math.rad(0), math.rad(0)),
-	RightArm = CFrame.new(0.639, 0.342, -1.162) * CFrame.Angles(math.rad(99.07), math.rad(0.85), math.rad(-83.96)),
-	LeftArm = CFrame.new(-1.012, 0.238, -0.892) * CFrame.Angles(math.rad(86.66), math.rad(23.18), math.rad(45.14)),
-	Head = CFrame.new(0, 1.5, 0.002) * CFrame.Angles(math.rad(0.26), math.rad(0), math.rad(0)),
-}
-
-P.CICLONE_GIRO = { -- [60] sustentação (loop do ciclone)
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-4.86), math.rad(0), math.rad(0)),
-	RightArm = CFrame.new(0.613, 0.304, -1.164) * CFrame.Angles(math.rad(99.79), math.rad(-0.69), math.rad(-83.96)),
-	LeftArm = CFrame.new(-1.043, 0.189, -0.895) * CFrame.Angles(math.rad(85.87), math.rad(24.96), math.rad(45.01)),
-	Head = CFrame.new(0, 1.5, -0.016) * CFrame.Angles(math.rad(-1.79), math.rad(0), math.rad(0)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 6. PUXÃO — TABLE_FLIP (Cyclone, tração dos alvos)
---═══════════════════════════════════════════════════════════════
-
-P.PUXAO_CARGA = { -- [207]
-	HRP = CFrame.new(0.007, -0.11, -0.01) * CFrame.Angles(math.rad(6.62), math.rad(-20.01), math.rad(3.93)),
-	RightArm = CFrame.new(1.542, 0.802, 0.402) * CFrame.Angles(math.rad(60.62), math.rad(4.82), math.rad(29.31)),
-	LeftArm = CFrame.new(-1.56, 0.033, 0.23) * CFrame.Angles(math.rad(18.2), math.rad(20.13), math.rad(-18.43)),
-	Head = CFrame.new(-0.017, 1.462, -0.19) * CFrame.Angles(math.rad(-22.93), math.rad(16.71), math.rad(2.06)),
-}
-
-P.PUXAO_SOLTA = { -- [365]
-	HRP = CFrame.new(-0.188, -0.18, -0.261) * CFrame.Angles(math.rad(21.38), math.rad(-27.02), math.rad(10.08)),
-	RightArm = CFrame.new(1.385, 0.87, -0.542) * CFrame.Angles(math.rad(98.93), math.rad(0), math.rad(-11.97)),
-	LeftArm = CFrame.new(-1.553, 0.08, 0.475) * CFrame.Angles(math.rad(-6.87), math.rad(33.88), math.rad(-25.37)),
-	Head = CFrame.new(0, 1.473, -0.163) * CFrame.Angles(math.rad(-18.99), math.rad(11.95), math.rad(0)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 7. EXECUÇÃO — SERIOUS_PUNCH (Partido, cutscene)
---    Usa pernas: o Animator cria os Welds sob demanda e libera no fim.
---═══════════════════════════════════════════════════════════════
 
 P.EXEC_POSTURA = { -- [85] postura baixa, peso no pé de trás
 	HRP = CFrame.new(0.087, -0.246, 0.013) * CFrame.Angles(math.rad(-0.51), math.rad(-8.57), math.rad(-0.43)),
@@ -251,190 +158,63 @@ P.EXEC_FINAL = { -- [349] pose de saída, costas para o alvo
 	Head = CFrame.new(0.083, 1.493, 0) * CFrame.Angles(math.rad(-7.04), math.rad(-35.79), math.rad(-11.83)),
 }
 
---═══════════════════════════════════════════════════════════════
--- 8. POSES AUTORAIS DE APOIO
---═══════════════════════════════════════════════════════════════
-
-P.GUARDA = { -- barreira defensiva (Proteção)
-	RightArm = CFrame.new(1.4, 0.45, -0.75) * CFrame.Angles(math.rad(70), 0, math.rad(-12)),
-	LeftArm = CFrame.new(-1.45, 0.2, -0.4) * CFrame.Angles(math.rad(40), 0, math.rad(14)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-4), 0, 0),
-	HRP = CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(6), math.rad(8), 0),
-}
-
-P.SKATE = { -- corpo aerodinâmico, braço atrás (Skate)
-	RightArm = CFrame.new(1.5, 0.15, 0.55) * CFrame.Angles(math.rad(-28), 0, math.rad(10)),
-	LeftArm = CFrame.new(-1.55, 0.35, -0.5) * CFrame.Angles(math.rad(46), 0, math.rad(-18)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-14), 0, 0),
-	HRP = CFrame.new(0, -0.25, 0) * CFrame.Angles(math.rad(15), 0, 0),
-}
-
-P.INVOCAR = { -- braços abertos, chamada dos escudos (Cyclone)
-	RightArm = CFrame.new(1.55, 0.7, -0.2) * CFrame.Angles(math.rad(28), 0, math.rad(-48)),
-	LeftArm = CFrame.new(-1.55, 0.7, -0.2) * CFrame.Angles(math.rad(28), 0, math.rad(48)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-18), 0, 0),
-	HRP = CFrame.new(0, 0.1, 0) * CFrame.Angles(math.rad(-8), 0, 0),
-}
-
-
---═══════════════════════════════════════════════════════════════
--- 8.5 DOMÍNIO — importado de "Domain Expansion(Elemental)" (§12.12)
---
---   Origem: KeyframeSequences "domaint1" (8 kf) e "domaint2" (1 kf).
---   Passe: as Poses eram Motor6D-relativas; convertidas para Weld.C0 pela
---   fórmula C0 = Motor.C0 * Pose.CFrame * Motor.C1:Inverse(). O keyframe de
---   repouso sai exatamente em (1.5,0,0)/(-1.5,0,0)/(0,1.5,0)/(0.5,-2,0),
---   o que confirma a conversão contra a base do R6CFrameAnimator.
---   Descartado: a inversão de tronco de 178° do domaint2 (artefato de
---   autoria do pack — girava o personagem de costas no meio do gesto).
---   Zero Animation/AnimationTrack: só a tabela de CFrames entrou.
---═══════════════════════════════════════════════════════════════
-
-P.DOMINIO_CARGA = { -- domaint1 t=0.0333: braço direito sobe, pernas travam
-	HRP = CFrame.new(0, 0, 0),
-	RightArm = CFrame.new(1.500, 0.275, -0.447) * CFrame.Angles(math.rad(63.27), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.500, 0.132, -0.338) * CFrame.Angles(math.rad(42.60), math.rad(0), math.rad(0)),
-	RightLeg = CFrame.new(0.556, -2.026, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(3.14)),
-	LeftLeg = CFrame.new(-0.560, -2.028, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-3.41)),
-	Head = CFrame.new(0, 1.498, -0.044) * CFrame.Angles(math.rad(-5.08), math.rad(0), math.rad(0)),
-}
-
-P.DOMINIO_MEIO = { -- domaint1 t=0.2000: braços começam a abrir
-	HRP = CFrame.new(0, 0, 0),
-	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
-	LeftArm = CFrame.new(-1.236, 0.398, -0.659) * CFrame.Angles(math.rad(85.56), math.rad(-24.00), math.rad(14.68)),
-	Head = CFrame.new(0, 1.498, -0.044) * CFrame.Angles(math.rad(-5.08), math.rad(0), math.rad(0)),
-}
-
-P.DOMINIO_ABERTO = { -- domaint1 t=0.2667: abertura total, cabeça para cima
-	HRP = CFrame.new(0, 0, 0),
-	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
-	LeftArm = CFrame.new(-1.004, 0.367, -0.695) * CFrame.Angles(math.rad(75.69), math.rad(-41.93), math.rad(19.58)),
-	RightLeg = CFrame.new(0.585, -2.038, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(4.76)),
-	LeftLeg = CFrame.new(-0.590, -2.040, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-5.06)),
-	Head = CFrame.new(0, 1.492, -0.090) * CFrame.Angles(math.rad(-10.43), math.rad(0), math.rad(0)),
-}
-
-P.DOMINIO_SUSTENTA = { -- domaint2: pose de sustentação do domínio
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
-	RightArm = CFrame.new(0.978, 0.374, -0.695) * CFrame.Angles(math.rad(75.35), math.rad(44.15), math.rad(-19.69)),
-	LeftArm = CFrame.new(-1.004, 0.367, -0.695) * CFrame.Angles(math.rad(75.69), math.rad(-41.93), math.rad(19.58)),
-	RightLeg = CFrame.new(0.585, -2.038, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(4.76)),
-	Head = CFrame.new(0, 1.492, -0.090) * CFrame.Angles(math.rad(-10.43), math.rad(0), math.rad(0)),
-}
-
---═══════════════════════════════════════════════════════════════
--- 9. SEQUÊNCIAS (timelines para rig:PlaySequence)
---    { pose, time, style, dir, tremor, freq, marca }
---    'marca' é lida pelo onBeat do servidor para disparar VFX/SFX/dano.
---═══════════════════════════════════════════════════════════════
-
 P.SEQUENCIAS = {
 
-	-- Bumerangue / Partido: arremesso simples
-	ARREMESSO = {
-		{ pose = "ARREMESSO_CARGA",  time = 0.16, style = "Back",  dir = "In",  marca = "CARGA" },
-		{ pose = "ARREMESSO_SOLTA",  time = 0.10, style = "Quint", dir = "Out", marca = "SOLTA" },
-		{ pose = "ARREMESSO_RECUO",  time = 0.18, style = "Quad",  dir = "Out" },
-		{ pose = "IDLE",             time = 0.22, style = "Quad",  dir = "Out" },
-	},
-
-	-- Bumerangue: arremesso carregado (mesma silhueta, mais peso e tremor)
+	-- golpe rápido carregado · 1.10s · 5 passo(s), 1 segurado(s)
 	ARREMESSO_CARREGADO = {
-		{ pose = "ARREMESSO_CARGA",  time = 0.34, style = "Back",  dir = "In",  tremor = 0.035, freq = 26, marca = "CARGA" },
-		{ pose = "ARREMESSO_SOLTA",  time = 0.08, style = "Quint", dir = "Out", marca = "SOLTA" },
-		{ pose = "ARREMESSO_RECUO",  time = 0.22, style = "Quad",  dir = "Out" },
-		{ pose = "IDLE",             time = 0.26, style = "Quad",  dir = "Out" },
+		{ pose = "ARREMESSO_CARGA", time = 0.24, style = "Back", dir = "In", tremor = 0.035, freq = 26, marca = "CARGA" },
+		{ pose = "ARREMESSO_CARGA", time = 0.31, style = "Sine", dir = "InOut", tremor = 0.035, freq = 26 },
+		{ pose = "ARREMESSO_SOLTA", time = 0.08, style = "Quint", dir = "Out", marca = "SOLTA" },
+		{ pose = "ARREMESSO_RECUO", time = 0.2, style = "Quad", dir = "Out" },
+		{ pose = "IDLE", time = 0.27, style = "Quad", dir = "Out" },
 	},
 
-	-- Salvador: oferta do escudo ao aliado
-	SACRIFICIO = {
-		{ pose = "SACRIFICIO_CARGA", time = 0.22, style = "Back",  dir = "In",  marca = "CARGA" },
-		{ pose = "SACRIFICIO_ALTO",  time = 0.14, style = "Quint", dir = "Out", tremor = 0.03, freq = 20, marca = "VINCULO" },
-		{ pose = "GUARDA_FIRME",     time = 0.30, style = "Quad",  dir = "Out" },
-	},
-
-	-- Proteção: fechar a barreira
-	BARREIRA = {
-		{ pose = "GUARDA",           time = 0.18, style = "Back",  dir = "In",  marca = "CARGA" },
-		{ pose = "GUARDA_FIRME",     time = 0.12, style = "Quint", dir = "Out", marca = "ABRIR" },
-	},
-
-	-- Bloqueador: proteção de aliado (teleporte + contra-golpe)
-	PROTEGER = {
-		{ pose = "GUARDA_FIRME",     time = 0.14, style = "Back",  dir = "In",  marca = "SAIDA" },
-		{ pose = "CONTRA_GOLPE",     time = 0.12, style = "Quint", dir = "Out", tremor = 0.04, freq = 24, marca = "CHEGADA" },
-		{ pose = "CORTE_F",          time = 0.16, style = "Quint", dir = "Out", marca = "REPULSAO" },
-		{ pose = "IDLE",             time = 0.26, style = "Quad",  dir = "Out" },
-	},
-
-	-- Cyclone: invocação dos 5 escudos orbitais
-	CICLONE_INVOCA = {
-		{ pose = "CICLONE_CARGA",    time = 0.24, style = "Back",  dir = "In",  marca = "CARGA" },
-		{ pose = "INVOCAR",          time = 0.16, style = "Quint", dir = "Out", tremor = 0.045, freq = 28, marca = "INVOCAR" },
-		{ pose = "CICLONE_ABERTO",   time = 0.20, style = "Quad",  dir = "Out", marca = "ABRIR" },
-		{ pose = "CICLONE_GIRO",     time = 0.30, style = "Sine",  dir = "InOut" },
-	},
-
-	-- Cyclone: abertura do domínio (poses do Domain Expansion)
-	DOMINIO = {
-		{ pose = "DOMINIO_CARGA",    time = 0.30, style = "Back",  dir = "In",  tremor = 0.03, freq = 18, marca = "GONGO" },
-		{ pose = "DOMINIO_MEIO",     time = 0.22, style = "Quad",  dir = "Out" },
-		{ pose = "DOMINIO_ABERTO",   time = 0.16, style = "Quint", dir = "Out", marca = "EXPANDIR" },
-		{ pose = "DOMINIO_SUSTENTA", time = 0.40, style = "Sine",  dir = "InOut", marca = "SUSTENTAR" },
-	},
-
-	-- Cyclone: pulso de tração
-	CICLONE_PUXA = {
-		{ pose = "PUXAO_CARGA",      time = 0.14, style = "Back",  dir = "In" },
-		{ pose = "PUXAO_SOLTA",      time = 0.10, style = "Quint", dir = "Out", marca = "PUXAR" },
-		{ pose = "CICLONE_GIRO",     time = 0.20, style = "Quad",  dir = "Out" },
-	},
-
-	-- Partido: combo melee de cortes (3 golpes)
+	-- combo (35:65) · 1.12s · 8 passo(s), 1 segurado(s)
 	CORTE_COMBO = {
-		{ pose = "CORTE_A",          time = 0.10, style = "Back",  dir = "In" },
-		{ pose = "CORTE_B",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE1" },
-		{ pose = "CORTE_C",          time = 0.10, style = "Back",  dir = "In" },
-		{ pose = "CORTE_D",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE2" },
-		{ pose = "CORTE_E",          time = 0.10, style = "Back",  dir = "In" },
-		{ pose = "CORTE_F",          time = 0.09, style = "Quint", dir = "Out", marca = "CORTE3" },
-		{ pose = "IDLE",             time = 0.24, style = "Quad",  dir = "Out" },
+		{ pose = "CORTE_A", time = 0.16, style = "Back", dir = "In" },
+		{ pose = "CORTE_A", time = 0.22, style = "Sine", dir = "InOut" },
+		{ pose = "CORTE_B", time = 0.08, style = "Quint", dir = "Out", marca = "CORTE1" },
+		{ pose = "CORTE_C", time = 0.11, style = "Back", dir = "In" },
+		{ pose = "CORTE_D", time = 0.08, style = "Quint", dir = "Out", marca = "CORTE2" },
+		{ pose = "CORTE_E", time = 0.11, style = "Back", dir = "In" },
+		{ pose = "CORTE_F", time = 0.08, style = "Quint", dir = "Out", marca = "CORTE3" },
+		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out" },
 	},
 
-	-- Partido: cutscene de execução.
-	-- Coreografia herdada de "Judgement Cut End": postura -> tempo parado ->
-	-- grade de cortes suspensa -> rajada de cortes -> colapso + golpe mortal.
+	-- ultimate (64–86%) · 5.99s · 12 passo(s), 2 segurado(s)
 	EXECUCAO = {
-		{ pose = "EXEC_POSTURA",     time = 0.45, style = "Back",  dir = "In",  tremor = 0.02, freq = 18, marca = "POSTURA" },
-		{ pose = "EXEC_AVANCO",      time = 0.22, style = "Quint", dir = "Out", marca = "TEMPO" },
-		{ pose = "EXEC_CORTE1",      time = 0.16, style = "Quint", dir = "Out", tremor = 0.05, freq = 30, marca = "GRADE" },
-		{ pose = "EXEC_CORTE2",      time = 0.13, style = "Quint", dir = "Out", marca = "CORTE" },
-		{ pose = "EXEC_CORTE1",      time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
-		{ pose = "EXEC_CORTE2",      time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
-		{ pose = "EXEC_CORTE1",      time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
-		{ pose = "EXEC_CORTE2",      time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
-		{ pose = "EXEC_FINAL",       time = 0.30, style = "Back",  dir = "Out", marca = "MORTAL" },
-		{ pose = "IDLE",             time = 0.50, style = "Quad",  dir = "Out", marca = "FIM" },
+		{ pose = "EXEC_POSTURA", time = 0.6, style = "Back", dir = "In", tremor = 0.02, freq = 18, marca = "POSTURA" },
+		{ pose = "EXEC_POSTURA", time = 1.8, style = "Sine", dir = "InOut", tremor = 0.02, freq = 18 },
+		{ pose = "EXEC_AVANCO", time = 0.35, style = "Quint", dir = "Out", marca = "TEMPO" },
+		{ pose = "EXEC_AVANCO", time = 1.4, style = "Sine", dir = "InOut" },
+		{ pose = "EXEC_CORTE1", time = 0.2, style = "Quint", dir = "Out", tremor = 0.05, freq = 30, marca = "GRADE" },
+		{ pose = "EXEC_CORTE2", time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE1", time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE2", time = 0.11, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE1", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_CORTE2", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "EXEC_FINAL", time = 0.4, style = "Back", dir = "Out", marca = "MORTAL" },
+		{ pose = "IDLE", time = 0.7, style = "Quad", dir = "Out", marca = "FIM" },
 	},
+
 }
 
---═══════════════════════════════════════════════════════════════
--- 10. CÂMERA DA CUTSCENE — SERIOUS_PUNCH_CAMERA (amostrado)
---     CFrame RELATIVO ao HumanoidRootPart do portador.
---     Consumido pelo LocalScript: cam.CFrame = hrp.CFrame * cf
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
+-- CÂMERA DA CUTSCENE — reescalada por 2.70x junto com a
+-- sequência. Esticar a animação e deixar a câmera no tempo
+-- antigo dessincroniza os dois.
+--══════════════════════════════════════════════════════════════
 
 P.CAMERA_EXECUCAO = {
 	{ t = 0.00, cf = CFrame.new(1.042, 1.045, -2.163) * CFrame.Angles(math.rad(-153.67), math.rad(27.45), math.rad(169.74)) },
-	{ t = 0.45, cf = CFrame.new(2.081, 1.996, -3.803) * CFrame.Angles(math.rad(-151.14), math.rad(26.83), math.rad(163.80)) },
-	{ t = 0.70, cf = CFrame.new(2.792, 2.024, -3.831) * CFrame.Angles(math.rad(-137.97), math.rad(-6.23), math.rad(-159.19)) },
-	{ t = 0.95, cf = CFrame.new(-3.658, 3.454, -5.347) * CFrame.Angles(math.rad(-153.86), math.rad(-21.99), math.rad(-158.36)) },
-	{ t = 1.25, cf = CFrame.new(2.819, 0.310, -1.877) * CFrame.Angles(math.rad(-152.79), math.rad(27.46), math.rad(165.08)) },
-	{ t = 1.55, cf = CFrame.new(3.027, 0.019, -1.065) * CFrame.Angles(math.rad(-151.65), math.rad(40.88), math.rad(155.28)) },
-	{ t = 1.85, cf = CFrame.new(3.023, -0.245, 0.322) * CFrame.Angles(math.rad(-130.92), math.rad(67.71), math.rad(123.45)) },
-	{ t = 2.30, cf = CFrame.new(1.822, 1.700, 5.456) * CFrame.Angles(math.rad(-6.48), math.rad(2.20), math.rad(3.20)) },
-	{ t = 2.90, cf = CFrame.new(1.707, 1.764, 6.039) * CFrame.Angles(math.rad(-1.96), math.rad(2.44), math.rad(3.02)) },
+	{ t = 1.21, cf = CFrame.new(2.081, 1.996, -3.803) * CFrame.Angles(math.rad(-151.14), math.rad(26.83), math.rad(163.80)) },
+	{ t = 1.89, cf = CFrame.new(2.792, 2.024, -3.831) * CFrame.Angles(math.rad(-137.97), math.rad(-6.23), math.rad(-159.19)) },
+	{ t = 2.56, cf = CFrame.new(-3.658, 3.454, -5.347) * CFrame.Angles(math.rad(-153.86), math.rad(-21.99), math.rad(-158.36)) },
+	{ t = 3.37, cf = CFrame.new(2.819, 0.310, -1.877) * CFrame.Angles(math.rad(-152.79), math.rad(27.46), math.rad(165.08)) },
+	{ t = 4.18, cf = CFrame.new(3.027, 0.019, -1.065) * CFrame.Angles(math.rad(-151.65), math.rad(40.88), math.rad(155.28)) },
+	{ t = 4.99, cf = CFrame.new(3.023, -0.245, 0.322) * CFrame.Angles(math.rad(-130.92), math.rad(67.71), math.rad(123.45)) },
+	{ t = 6.21, cf = CFrame.new(1.822, 1.700, 5.456) * CFrame.Angles(math.rad(-6.48), math.rad(2.20), math.rad(3.20)) },
+	{ t = 7.82, cf = CFrame.new(1.707, 1.764, 6.039) * CFrame.Angles(math.rad(-1.96), math.rad(2.44), math.rad(3.02)) },
 }
 
 return P

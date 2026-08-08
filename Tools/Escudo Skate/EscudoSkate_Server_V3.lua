@@ -297,6 +297,13 @@ local ID_AURA    = "AURA_" .. RIG_SUFIXO
 --═══════════════════════════════════════════════════════════════
 
 local function ativarSkate()
+	-- O Skate tinha 440 linhas de pose e não tocava nenhuma. Skate é ESTADO,
+	-- não golpe: a gramática (regra 4) manda abrir imediato e sustentar, e é
+	-- assim que SKATE_IMPULSO está cronometrada — 7% de abertura, 93% deslizando.
+	if rig then
+		rig:PlaySequence("SKATE_IMPULSO")
+	end
+
 	if skateAtivo or not (rootpart and humanoid and humanoid.Health > 0) then return end
 
 	local pernaDireita = character:FindFirstChild("Right Leg")

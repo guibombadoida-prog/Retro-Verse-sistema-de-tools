@@ -371,6 +371,19 @@ local function arremessar(destino, modo)
 
 	if not (rootpart and rootpart.Parent) then return end
 
+	-- A animação existia no Poses e ninguém a chamava: o Bumerangue arremessava
+	-- parado. O rig é do SERVIDOR, então a pose replica para a sala inteira.
+	if rig then
+		local sequencia = (modo == "carregado") and "ARREMESSO_CARREGADO"
+			or "ARREMESSO"
+		rig:PlaySequence(sequencia, function(kf)
+			if kf.marca == "CARGA" then
+				vfx("LINHAS_VELOCIDADE", { posicao = rootpart.Position,
+					cor = corProjetil, escala = 0.8, quantidade = 8 })
+			end
+		end)
+	end
+
 	voando = voando + 1
 	Handle.Transparency = 1
 
