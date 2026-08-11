@@ -20,6 +20,12 @@ POR QUE NÃO ESCREVER O SERIALIZADOR AQUI
     `rbx_binary`. Se ele não estiver compilado, este script diz como compilar
     e sai — nunca inventa um arquivo binário por conta própria.
 
+O AJUSTE DO `Content` VAZIO
+
+    `<Content name="LinkedSource"></Content>` sem filho é aceito pelo Studio e
+    recusado pelo `rbx-dom`. O conversor fecha com `<null></null>` antes de
+    entregar. Foi o que impediu o conjunto dos Escudos de virar `.rbxm`.
+
 O AJUSTE DO `Tags`
 
     O Studio grava `Tags` como `SharedString`; o `rbx-dom` aceita `Tags` como
@@ -87,6 +93,19 @@ def preparar(entrada, temporario):
         for classe, md5, amostra in perigosas[:6]:
             print("  %-16s %s  %r" % (classe, md5, amostra))
         return None
+
+    # `<Content name="X"></Content>` SEM filho derruba o rbx_xml em
+    # UnexpectedXmlEvent(EndElement(Content)). O Studio aceita e grava assim —
+    # 35 `LinkedSource` vazios no conjunto dos Escudos — mas o formato pede
+    # `<null></null>` dentro. Sem isto o conjunto nunca converte para binário.
+    remendados = 0
+    for elemento in raiz.iter("Content"):
+        if len(elemento) == 0:
+            ET.SubElement(elemento, "null")
+            elemento.text = None
+            remendados = remendados + 1
+    if remendados:
+        print("   %d Content vazio(s) fechado(s) com <null/>" % remendados)
 
     trocadas = 0
     for item in raiz.iter("Item"):
