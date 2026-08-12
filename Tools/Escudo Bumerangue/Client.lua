@@ -185,18 +185,23 @@ ligarEntrada = function()
 	if conexaoDesce then conexaoDesce:Disconnect() end
 	if conexaoSobe then conexaoSobe:Disconnect() end
 
-	conexaoDesce = UserInputService.InputBegan:Connect(function(entrada, digitando)
-		if digitando or not equipado then return end
-		if entrada.UserInputType ~= Enum.UserInputType.MouseButton1
-			and entrada.UserInputType ~= Enum.UserInputType.Touch then return end
+	-- `Tool.Activated` / `Tool.Deactivated`, e NÃO `UserInputService`.
+	--
+	-- Antes esta Tool enganchava InputBegan/InputEnded em MouseButton1 e Touch.
+	-- Isso carrega o arremesso com QUALQUER clique na tela — inclusive clique
+	-- que não é na Tool — e fura a §9, que manda a primária vir de
+	-- `Tool.Activated`. Era a única das sete que não usava o clique da Tool.
+	--
+	-- O par Activated/Deactivated é exatamente segurar-e-soltar, já filtrado
+	-- pelo Roblox, e já funciona no celular sem código extra.
+	conexaoDesce = Tool.Activated:Connect(function()
+		if not equipado then return end
 		segurando   = true
 		inicioCarga = relogio
 	end)
 
-	conexaoSobe = UserInputService.InputEnded:Connect(function(entrada)
+	conexaoSobe = Tool.Deactivated:Connect(function()
 		if not (segurando and equipado) then return end
-		if entrada.UserInputType ~= Enum.UserInputType.MouseButton1
-			and entrada.UserInputType ~= Enum.UserInputType.Touch then return end
 		segurando = false
 
 		local carga = relogio - inicioCarga

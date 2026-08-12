@@ -157,7 +157,9 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Molde | Origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (nenhuma Tool no repositório) |
+| `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (referência) |
+| `YorrSlayer_CutsceneCam_V1` | YorrSlayer (conformado) | **enquadramento por espectador** + FOV | LIMPO | técnica aplicada no Escudo Partido |
+| `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido |
 
 Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
 `STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a
@@ -185,6 +187,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Stella_VFX_Addon/` | **LIMPO** — 10 efeitos conformados, dentro das 32 Tools | [FICHA.md](Stella_VFX_Addon/FICHA.md) |
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
+| `YorrSlayer/` | **CRU** — a câmera dele já conformada; ver GRAMATICA_CUTSCENE | [FICHA.md](YorrSlayer/FICHA.md) |
 | `Xester_Forma1/` | **LIMPO** — base das 7 Tools da Forma 1 | [FICHA.md](Xester_Forma1/FICHA.md) |
 | ↳ o baralho `cards` | serve **as duas** formas: Handle e moldes de carta da Forma 1 saem dele | — |
 | `Xester_Forma2_O_Despertar/` | **LIMPO** — base das 7 Tools da Forma 2 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |

@@ -143,7 +143,7 @@ def equipar(tool, nome, tooltip, classe_dano, energia, recarga, chave):
     criados = []
     for classe, alvo in (
         ("Script", "%s_Server_V1" % nome),
-        ("LocalScript", "Client"),
+        ("Script", "Client"),
         ("ModuleScript", "Poses"),
         ("ModuleScript", "R6CFrameAnimator"),
         ("ModuleScript", "VFXModule"),
@@ -151,6 +151,17 @@ def equipar(tool, nome, tooltip, classe_dano, energia, recarga, chave):
         item, props = novo_item(tool, classe, alvo,
                                 "RV_%s_%s" % (alvo.replace(" ", ""), marca))
         ET.SubElement(props, "ProtectedString", {"name": "Source"}).text = ""
+        if alvo == "Client":
+            # RunContext = Client (2), NÃO LocalScript.
+            #
+            # LocalScript dentro de Tool só roda para o jogador cujo Character a
+            # contém. O servidor manda o beat com FireAllClients e ele CHEGA em
+            # todo mundo — mas o único ouvinte era o de quem estava segurando.
+            # Resultado: o VFX das bombas aparecia só para o portador.
+            #
+            # `Tool.Activated` continua sendo do dono por natureza (o Roblox só
+            # o dispara no cliente que segura a Tool), então nada mais muda.
+            ET.SubElement(props, "token", {"name": "RunContext"}).text = "2"
         criados.append(alvo)
     return criados
 
@@ -175,12 +186,27 @@ def main():
     print("PREPARAÇÃO DA BASE — bomba_v4")
     print("")
 
+    # `Explode` vem da origem apontando para `rbxassetid://200`, que não é id
+    # válido de som: a explosão das 6 bombas sempre foi MUDA. Trocado pelo
+    # 472579737 (colapso do buraco negro, catálogo do Xester Forma 1, LIMPO).
+    # É o único valor da origem que este script reescreve — declarado aqui para
+    # ser fácil de reverter.
+    EXPLODE_BOM = "rbxassetid://472579737"
+
     for indice, dados in enumerate(CONJUNTO):
         nome, tooltip, classe_dano, energia, recarga, chave = dados
         copia = ET.fromstring(ET.tostring(base))
 
         removidos = []
         podar(copia, removidos)
+        for no in copia.iter("Item"):
+            if no.get("class") == "Sound" and texto(no, "Name") == "Explode":
+                definir(no, "Content", "SoundId", None)
+                campo = prop(no, "SoundId")
+                for filho in list(campo):
+                    campo.remove(filho)
+                campo.text = None
+                ET.SubElement(campo, "url").text = EXPLODE_BOM
         definir(copia, "string", "Name", nome)
         equipar(copia, nome, tooltip, classe_dano, energia, recarga, chave)
 
