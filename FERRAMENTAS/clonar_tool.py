@@ -35,6 +35,21 @@ TOOLS = os.path.join(RAIZ, "Tools")
 
 CLASSES_SCRIPT = ("Script", "LocalScript", "ModuleScript")
 
+# ToolTip por Tool. O modelo de origem veio com o campo vazio nas sete, e
+# ToolTip vazio é o texto que o jogador lê na mochila — some a legenda inteira.
+#
+# Só é escrito quando a origem NÃO trouxe um. Se o modelo declarar o seu, o dele
+# vence: aqui a origem continua sendo a verdade.
+TOOLTIPS = {
+    "Salvador":           "Ergue a barreira e devolve o golpe a quem o deu",
+    "Proteção":           "Três escudos em órbita, e nenhum flanco aberto",
+    "Escudo Skate":       "O escudo vira prancha — atropela quem estiver no caminho",
+    "Escudo Bumerangue":  "Arremessa e recolhe; segure para carregar o giro",
+    "Escudo Bloqueador":  "Fecha a guarda e absorve o que vier de frente",
+    "Escudo Cyclone":     "Gira até o vento levantar quem chegar perto",
+    "Escudo Partido":     "Quebra o escudo no impacto — cada caco é um golpe",
+}
+
 
 def prop(item, nome):
     p = item.find("Properties")
@@ -269,7 +284,7 @@ def montar(nomes, destino):
     para arrastar) e mais o conjunto com as Tools do modelo todo.
     """
     raiz = nova_raiz()
-    trocados, mantidos, enxertados = 0, 0, 0
+    trocados, mantidos, enxertados, legendadas = 0, 0, 0, 0
     penduradas = []
 
     # A tabela de SharedStrings vem das DUAS fontes: o _ORIGEM de cada Tool e o
@@ -286,6 +301,14 @@ def montar(nomes, destino):
 
         sub = ET.parse(base).getroot()
         tool = sub.find("Item")
+
+        if not (texto(tool, "ToolTip") or "").strip() and nome in TOOLTIPS:
+            campo = prop(tool, "ToolTip")
+            if campo is None:
+                campo = ET.SubElement(tool.find("Properties"), "string")
+                campo.set("name", "ToolTip")
+            campo.text = TOOLTIPS[nome]
+            legendadas = legendadas + 1
 
         for item, caminho in percorrer(tool):
             relativo = caminho.split("/", 1)[1] if "/" in caminho else caminho
@@ -319,6 +342,8 @@ def montar(nomes, destino):
           % (trocados, mantidos))
     print("   %d efeito(s) do pack enxertados DENTRO das Tools (Regra nº 1)"
           % enxertados)
+    print("   %d ToolTip preenchido(s) — a origem veio com o campo vazio"
+          % legendadas)
     print("   %d SharedString na tabela, 0 pendurada" % len(tabela)
           if not penduradas else
           "   ⚠️  %d SharedString PENDURADA: %s"

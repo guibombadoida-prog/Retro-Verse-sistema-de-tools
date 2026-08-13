@@ -18,7 +18,7 @@
 			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
-			<string name="ToolTip" />
+			<string name="ToolTip">Fecha a guarda e absorve o que vier de frente</string>
 			<Content name="TextureId"><null /></Content>
 			<token name="LevelOfDetail">0</token>
 			<CoordinateFrame name="ModelMeshCFrame">

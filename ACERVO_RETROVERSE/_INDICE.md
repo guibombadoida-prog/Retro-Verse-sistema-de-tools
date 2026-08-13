@@ -83,6 +83,25 @@ Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math
 > — execução de código remoto — além de 152 `BreakJoints` e 1113 `math.random`.
 > Ver a `FICHA.md`. O material **visual** é excelente; o código que vem junto, não.
 
+### `His_Cube_VFX_Pack` — o pack de emissores prontos, CRU
+
+| | |
+|---|---|
+| Origem | pasta `Vfx pack` da **segunda** entrega do His Cube (`his_cube.rbxmx`, 2026-08-13) |
+| Emissores | **281** `ParticleEmitter` · 21 `Beam` · 1 `Trail` |
+| Texturas | **34** nomeadas, com `rbxassetid` — flipbooks de fumaça, fogo e raio, anéis, glow |
+| Efeitos nomeados | 36 em `Anime`, 5 em `Big`, 3 em `Beams`, 5 em `Auras`, 6 em `Heads` |
+| Catálogo | [`VFX/CATALOGO.md`](His_Cube_VFX_Pack/VFX/CATALOGO.md) — emissor a emissor |
+| Status | **CRU** |
+
+A diferença entre as duas entregas do His Cube é **só** esta pasta: os 40 `ModuleScript` do
+pack Stella são idênticos byte a byte nas duas. O que V2 traz é o que faltava — emissor
+**montado à mão**, em vez de `ParticleEmitter` construído por script.
+
+> ⚠️ **Todo emissor do pack vem `Enabled = true`.** Entra desligado, ou o efeito aparece no
+> instante em que a Tool é equipada. E o grupo `Auras` vem com **5 dummies R6 inteiros**
+> (`Humanoid`, `Motor6D`, `HumanoidDescription`): rig não entra em Tool, só os emissores.
+
 ### O que sobrou CRU nos modelos de VFX
 
 | Origem | Total | Já aproveitado | Segue CRU |
@@ -195,6 +214,12 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Xester_Forma2_O_Despertar/` | **LIMPO** — base das 7 Tools da Forma 2 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
+| **lote de 2026-08-13** | | |
+| `His_Cube_VFX_Pack/` | **CRU** — 281 emissores + 34 texturas; a maior fonte de VFX do repositório | [FICHA.md](His_Cube_VFX_Pack/FICHA.md) |
+| `Trident/` | **CRU** — 214 poses R6 de arma de haste, 5 habilidades | [FICHA.md](Trident/FICHA.md) |
+| `Maria_Tools/` | **CRU** — 8 `Tool` prontas, uma habilidade cada | [FICHA.md](Maria_Tools/FICHA.md) |
+| `Canhao_Satelite/` | **CRU** — 21 `Sound` de impacto pesado, 1 habilidade só | [FICHA.md](Canhao_Satelite/FICHA.md) |
+| `NPC_For_Tools/` | **CRU** — **fora do escopo**: é bancada de teste, não vira Tool | [FICHA.md](NPC_For_Tools/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem

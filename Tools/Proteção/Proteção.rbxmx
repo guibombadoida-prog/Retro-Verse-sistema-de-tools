@@ -18,7 +18,7 @@
 			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
-			<string name="ToolTip" />
+			<string name="ToolTip">Três escudos em órbita, e nenhum flanco aberto</string>
 			<Content name="TextureId"><null /></Content>
 			<token name="LevelOfDetail">0</token>
 			<CoordinateFrame name="ModelMeshCFrame">
