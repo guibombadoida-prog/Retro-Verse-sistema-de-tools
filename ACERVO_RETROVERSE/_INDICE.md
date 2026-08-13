@@ -123,8 +123,28 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 | _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO | — (nenhuma Tool no repositório) |
 | _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | — (nenhuma Tool no repositório) |
 | _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO | — (nenhuma Tool no repositório) |
+| _(21 sons)_ | Canhao_Satelite | **Impacto pesado** — explosão, martelo, gavel | **CRU** | — |
+| _(16 sons)_ | Guest_Tools | **Porrada** — swoosh, hit, ouch, metal, beber | **CRU** | — |
+| _(5 sons)_ | Dano_Verdadeiro | Carga, alarme, estouro, rastro | **CRU** | — |
+| _(8 sons)_ | Trident | Golpe, terremoto, invocação, execução | **CRU** | — |
 
 Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
+
+> **`Dano_Verdadeiro` traz os primeiros `SoundEffect` do Acervo:** 3
+> `DistortionSoundEffect` e 2 `PitchShiftSoundEffect` empilhados. Nenhuma das 38 Tools do
+> repositório usa efeito de áudio — todas tocam `Sound` cru. São filhos do `Sound`, então
+> acompanham o `:Clone()` sem mudar nada do molde `Tool/SFX/`.
+
+> **`Guest_Tools` é a primeira entrada de som de PORRADA.** Todo impacto tem par
+> (`Hit`/`Hit2`, `Ouch`/`Ouch2`, `Swoosh`/`Swoosh2`, `MetalHit`/`MetalHit2`) — material
+> pronto para alternar golpe por **índice sequencial**, que é o que a regra manda usar no
+> lugar de `math.random`.
+
+> ⚠️ **`OpenSound` do `Abacate` (Guest_Tools) está com `SoundId` em branco**, e o
+> `Tool.Equipped` chama `:Play()` nele. Mesma família do `rbxassetid://200` abaixo.
+
+> ⚠️ **Os 17 sons do satélite estão em `Volume = 10`** — o teto do Roblox. Nenhum entra em
+> Tool com esse valor.
 
 > ⚠️ **Esta tabela e as fichas se contradizem.** Aqui os SFX de Jupiter e de
 > Cosmic Entity aparecem como **LIMPO**; o `SFX/ids.md` de cada um diz **CRU**
@@ -158,6 +178,20 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses_Xester_Forma1_V1` | Xester_Forma1 (extraída) | 12 seq · guarda + ação | **LIMPO** | 7 Tools da Forma 1 |
 | `Poses_Xester_Forma2_V1` | Xester_Forma2 (extraída) | 8 seq · guarda de cajado | **LIMPO** | 7 Tools da Forma 2 |
 | `GRAMATICA_R6.md` | **medida no Saitama** | as 7 regras de timing | **APROVADO** | Escudos, Bombas |
+| poses do `Cano De Rua` e do `Taco` | **Guest_Tools** | 78 escritas em `Weld.C0` | **CRU** | — |
+| poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
+
+> **`Guest_Tools` é a fonte de pose mais barata do Acervo.** Ela escreve em `Weld.C0` com
+> `RightArmWelde`/`LeftArmWelde`/`HeadWelde`/`HumanoidRootPartWelde` soldados a partir do
+> `Torso`, pivô do ombro em `C1`, criados no **servidor** — é a convenção do
+> `R6CFrameAnimator` V2, sem conversão nenhuma. O `Trident`, em comparação, escreve em
+> `Motor6D.C0` e precisa da conversão `(C0 * C1:Inverse()):Inverse()`.
+>
+> **Duas medições novas**, em `Guest_Tools/R6_CFRAME/NOTAS.md`: o combo do `Cano De Rua` sai
+> em **42 : 58**, que **confirma a regra 3** (combo bate cedo) vindo de autor que nunca viu a
+> nossa tabela — e sai em **0.317 s**, que **contraria a regra 1** (0.8–1.2 s). A leitura é
+> que a regra 1 mede golpe *encenado* de bake de anime, não golpe *responsivo* de jogo de
+> porrada. Delimita a regra, não a derruba.
 
 > ⚠️ **`R6CFrameAnimator_V2` é O animator do projeto. Não escreva outro.**
 > Ele cria `Weld`s próprios; escrever em `Motor6D.C0` briga com o script `Animate`
@@ -220,6 +254,8 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Maria_Tools/` | **CRU** — 8 `Tool` prontas, uma habilidade cada | [FICHA.md](Maria_Tools/FICHA.md) |
 | `Canhao_Satelite/` | **CRU** — 21 `Sound` de impacto pesado, 1 habilidade só | [FICHA.md](Canhao_Satelite/FICHA.md) |
 | `NPC_For_Tools/` | **CRU** — **fora do escopo**: é bancada de teste, não vira Tool | [FICHA.md](NPC_For_Tools/FICHA.md) |
+| `Guest_Tools/` | **CRU** — 5 `Tool` prontas; poses `Weld` **já na convenção do animator** | [FICHA.md](Guest_Tools/FICHA.md) |
+| `Dano_Verdadeiro/` | **CRU** — ⚠️ o payload apaga o servidor; a carga e os `SoundEffect` valem | [FICHA.md](Dano_Verdadeiro/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem
