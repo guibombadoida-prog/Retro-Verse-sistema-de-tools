@@ -393,6 +393,17 @@ CONJUNTOS = [
         "Escudo Cyclone",
         "Escudo Partido",
     ]),
+    # 7 Tools de gravidade telecinética a partir das 5 do `calebe_tools.rbxmx`:
+    # duas clonam o Handle de uma irmã. Ver FERRAMENTAS/preparar_gravidade.py.
+    ("Gravidade_7_Tools.rbxmx", "Calebe_Tools", [
+        "Tremores da Gravidade",
+        "Controlador da Gravidade",
+        "Telecinese Levitacao",
+        "Lancador de Objetos",
+        "Asas Telecineticas",
+        "Terremoto",
+        "Telecinese Gravitacional",
+    ]),
     # As 5 remasterizadas do `guest_tools.rbxmx` mais as 2 do
     # `guest_tools_2_more.rbxmx`, fundidas por FERRAMENTAS/fundir_guest.py.
     ("Guest_7_Tools.rbxmx", "Guest_Tools", [

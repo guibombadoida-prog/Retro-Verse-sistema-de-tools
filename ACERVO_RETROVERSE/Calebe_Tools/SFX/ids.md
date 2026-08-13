@@ -1,6 +1,6 @@
 # SFX — Calebe Tools
 
-**Status: CRU.** 28 `Sound` em 5 Tools, mais **6 `ReverbSoundEffect`**. Nenhum ouvido.
+**Status: LIMPO.** 28 `Sound` em 5 Tools, mais **6 `ReverbSoundEffect`**. Nenhum ouvido.
 
 É a maior entrada de SFX por Tool que já chegou, e o `detainer` sozinho tem 14 — mais que
 qualquer Tool do repositório, que costuma ficar em três.
@@ -73,13 +73,15 @@ variar o pitch.
 ⚠️ **`Hit` do `Quake Hammer` está em `Volume = 10`** — o teto do Roblox. Mesmo caso dos 17 sons
 do `Canhao_Satelite`. Não entra em Tool com esse valor.
 
-⚠️ **Três ids têm espaço no fim** (`...48577295 `, `...48577326 `) — vêm assim da origem, no
-`CosmosStaff`. Roblox costuma tolerar, mas o id limpo é o que entra.
+✅ **Três ids tinham espaço no fim** (`...48577295 `, `...48577326 `), no `CosmosStaff`, e
+**seis estavam no formato antigo** `http://www.roblox.com/asset/?id=`. Os dois foram
+consertados em `FERRAMENTAS/preparar_gravidade.py`, função `normalizar_som`. Espaço em URL
+não dá erro visível: o som simplesmente não toca.
 
 Os 6 `ReverbSoundEffect` são o segundo `SoundEffect` a chegar ao Acervo, depois dos
 `DistortionSoundEffect` do `Dano_Verdadeiro`. Nenhuma Tool do repositório usa efeito de áudio
 ainda.
 
-## Para sair de CRU
+## Para sair de LIMPO e virar APROVADO
 
-Falta autor, licença e o teste de ouvido. Ver `../FICHA.md`.
+Falta a **licença** e o teste de ouvido. Ver `../FICHA.md`.

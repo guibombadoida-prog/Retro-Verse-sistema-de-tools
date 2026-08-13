@@ -1,11 +1,11 @@
-# Modelo: Calebe Tools — 5 Tools de gravidade
+# Modelo: Calebe Tools — 5 Tools de gravidade → **7 Tools telecinéticas**
 
 - Autor original:            **a confirmar** ⚠️
 - Origem:                    `calebe_tools.rbxmx`, enviado no lote de 2026-08-13
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-13
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Calebe_Tools/` · sons em `SFX/ids.md`
+- Status:                    **LIMPO** — passe §12.12.2 executado; falta licença
+- Onde vive:                 `MODELOS_ENTRADA/Calebe_Tools/` · as **7 Tools** de gravidade em `Tools/`
 
 ---
 
@@ -29,7 +29,7 @@ Zero `KeyCode` nas cinco: tudo no clique.
 
 ---
 
-## ⚠️ O achado que muda a conversão: `workspace.Gravity`
+## ⚠️ O achado que mudou a conversão: `workspace.Gravity`
 
 Duas das cinco escrevem **`workspace.Gravity`** — que é propriedade **global do servidor**,
 não estado da Tool.
@@ -59,8 +59,9 @@ Para os sons, apaga o rótulo, e **não devolve a gravidade**. Não existe `Tool
 global tomado e não devolvido. A diferença é que câmera presa incomoda um jogador, e gravidade
 presa quebra o mapa para todo mundo.
 
-Na conversão isso vira o mesmo padrão dos escudos: o valor de origem é guardado no `Equipped`,
-e `desmontar()` — ligado em `Unequipped` **e** `Destroying` — devolve.
+Na conversão isso não virou "guardar e devolver": virou **não tocar**. Gravidade é propriedade
+global, e a resposta certa não é sequestrá-la com cuidado — é não sequestrar. Cada alvo ganha o
+seu `BodyPosition`/`BodyVelocity`, com prazo no `Debris`. Ver a seção do passe, no fim.
 
 O `GravityHammer` só **lê** `workspace.Gravity` para calcular o impulso, e reage a
 `GetPropertyChangedSignal("Gravity")`. Esse é o uso certo, e fica.
@@ -99,7 +100,7 @@ que já chegou — a maioria das Tools daqui tem três.
 
 ---
 
-## O resto do passe §12.12.2
+## O resto do que precisava mudar — e mudou
 
 | Achado | Quantos | Onde |
 |---|---|---|
@@ -123,4 +124,46 @@ O `IsTeamMate` é invariante do `CLAUDE.md`: regra de combate tem uma porta só,
 Zero `loadstring`, zero `require(<id numérico>)`, zero `HttpService`, zero webhook, zero
 `getfenv`/`setfenv`, zero `ReplicatedStorage`/`ServerStorage`. Limpo.
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+## Passe de conformidade §12.12.2 — EXECUTADO
+
+```bash
+python3 FERRAMENTAS/preparar_gravidade.py        # 5 Handles -> 7 Tools
+python3 FERRAMENTAS/gerar_poses_gravidade.py     # 7 Poses.lua
+python3 FERRAMENTAS/gerar_servers_gravidade.py   # Server · Client · VFXModule
+python3 FERRAMENTAS/clonar_tool.py montar ...    # os .rbxmx
+python3 FERRAMENTAS/converter_para_rbxm.py ...   # a entrega
+```
+
+O conjunto saiu com **7 Tools** — `Gravidade_7_Tools.rbxm`. Duas clonam o Handle
+de uma irmã (`Asas Telecineticas` ← CosmosStaff, `Terremoto` ← Quake Hammer): o
+que se clona é a **geometria**, e a habilidade de cada uma foi escrita do zero.
+
+### O que a origem manteve, intacto
+
+Handle, mesh, `Attachment`, `ParticleEmitter`, `Beam`, `Motor6D`, os constraints
+do `detainer` (`LineForce`, `AlignPosition`, `AlignOrientation`) e os 28 `Sound`.
+
+### O que foi corrigido de defeito da ORIGEM
+
+| Defeito | Conserto |
+|---|---|
+| `workspace.Gravity` trocada e **não devolvida** | força **por alvo**, com prazo no `Debris`; e o `desmontar()` está nas duas portas |
+| UI clonada no `PlayerGui` de todos — e o clone era **um só** | beat de VFX no mundo 3D |
+| 3 `SoundId` com **espaço no fim** (`...48577295 `) | `strip()` — espaço em URL não dá erro, o som só não toca |
+| 6 ids no formato antigo `http://www.roblox.com/asset/?id=` | normalizados para `rbxassetid://` |
+
+Os dois últimos são defeitos que só apareceriam em jogo, como som mudo. O
+verificador não os pegava porque cobrava `rbxassetid://` e eles **não existiam**
+nesse formato — foi o próprio passe que os expôs.
+
+### A regra nova que este conjunto trouxe
+
+`TESTES/verificar_autocontencao.sh` ganhou **`✓ sem escrever workspace.Gravity`**
+e `✓ sem escrever Lighting global`. A Regra nº 1 vale nos dois sentidos: a Tool
+não lê de fora, e não sequestra o que é de fora. **Ler** `workspace.Gravity`
+continua permitido — as Tools de gravidade fazem isso para calcular impulso.
+
+## Para sair de LIMPO e virar APROVADO
+
+Falta a **licença** e o teste em jogo. Nada aqui rodou no Studio — a verificação
+é toda estática.

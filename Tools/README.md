@@ -1,6 +1,6 @@
 # Tools
 
-**45 Tools, em seis conjuntos.**
+**52 Tools, em sete conjuntos.**
 
 ## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
 
@@ -154,6 +154,92 @@ vira coreografia. Ultimate e transformação seguem a tabela sem desconto.
 |---|---|---|
 | `A arma` | o `Handle` **subiu de nível**, de `model/Handle` para filho direto | Tool com `RequiresHandle = true` exige Handle como filho direto — é exigência do Roblox. `Weld` e `Motor6D` apontam por `referent`, não por caminho, então nada se desfez |
 | `Humilhador` | ganhou um `Handle` **invisível de 0.4 stud** | a origem não tem nenhum: é provocação pura, só um Script. Sem Handle a Tool não equipa. Não substitui mesh de ninguém — supre o que não existe |
+
+---
+
+## Conjunto GRAVIDADE — 7 Tools, de `calebe_tools.rbxmx`
+
+**Cinco Handles, sete Tools.** O modelo traz 5; duas nascem CLONANDO o Handle de
+uma irmã — o mesmo caminho do conjunto Astral. O que se clona é a **geometria**;
+a habilidade de cada uma é escrita aqui.
+
+| Tool | Handle vem de | M1 | Extra |
+|---|---|---|---|
+| `Tremores da Gravidade` | Quake Hammer | onda de tremor no chão (18, raio 22) | **R** Sustentar — 3 pulsos, tomba |
+| `Controlador da Gravidade` | Gravitron 1000 | campo de **gravidade invertida** no ponto (raio 16, 3.5 s) | **R** Esmagar — 38, força 140 para baixo |
+| `Telecinese Levitacao` | CosmosStaff | ergue **um** alvo e o deixa indefeso; a queda cobra +22 | **R** Levitar — você sobe 26 studs |
+| `Lancador de Objetos` | detainer | agarra destroço e arremessa (26) | **R** Rajada — 5 destroços em ângulo áureo |
+| `Asas Telecineticas` | CosmosStaff **(clone)** | bate as asas: sobe e empurra (12, raio 14) | **R** Mergulho — 42 em raio 17 |
+| `Terremoto` | Quake Hammer **(clone)** | rachadura que **corre** 6 passos à frente | **R** Colapso — ultimate, 78 em raio 44 |
+| `Telecinese Gravitacional` | GravityHammer | puxa todos **para** o ponto (raio 30) | **R** Singularidade — junta e estoura, 30+55 |
+
+As 7 juntas: [`Gravidade_7_Tools.rbxm`](Gravidade_7_Tools.rbxm) · XML
+[`Gravidade_7_Tools.rbxmx`](Gravidade_7_Tools.rbxmx)
+
+### A regra que manda neste conjunto: ninguém toca em `workspace.Gravity`
+
+O `Gravitron 1000` original ciclava `workspace.Gravity` entre 21.2, 471.2 e
+196.2. O `Unequipped` dele parava dois sons, apagava um rótulo — e **não
+devolvia a gravidade**. Não havia `Tool.Destroying`.
+
+**Equipar, clicar uma vez e guardar deixava o servidor inteiro em gravidade 21.2
+para sempre.** É a família de "câmera presa", e pior de escala: câmera presa
+incomoda um jogador, gravidade presa quebra o mapa para todos.
+
+Aqui o efeito é sempre **por alvo**: `BodyVelocity` e `BodyPosition` com prazo no
+`Debris`, num `HumanoidRootPart` por vez — e o `Debris` limpa mesmo se o script
+morrer no meio. Não existe estado global para vazar.
+
+`TESTES/verificar_autocontencao.sh` passou a cobrar isso por nome
+(`✓ sem escrever workspace.Gravity`). **Ler** continua permitido; o que ele barra
+é a atribuição.
+
+### O que mais saiu dos originais
+
+| Onde | O que era | O que ficou |
+|---|---|---|
+| `GravityHammer` | `IsTeamMate` decidindo aliado dentro da Tool | o Núcleo, sob guarda |
+| `Gravitron`, `Quake` | **5 `ScreenGui`** dentro das Tools | `ContextActionService`, que some no `Unbind` |
+| `Gravitron` | UI clonada no `PlayerGui` de **todos** — e o clone era **um só**, reparentado num laço, então só o último da lista recebia | beat de VFX no mundo 3D, que todos veem |
+| `Quake Hammer` | `workspace:GetDescendants()` para achar alvo | consulta espacial num raio |
+| `detainer` | agarrava geometria **do mapa** | destroço criado pela Tool — o mapa não fica com buraco |
+| `GravityHammer` | `BreakJoints` | destruição permanente não é dano |
+| todas | 6 `Animation` + 4 `LoadAnimation` | pose CFrame sob `R6CFrameAnimator` |
+| todas | 35 `wait()` · 18 `math.random` · 9 `:Destroy()` · 5 `spawn(` | trocados |
+| `CosmosStaff` | 3 `SoundId` com **espaço no fim** (`...48577295 `) | `strip()` no preparador — espaço em URL não dá erro, o som só não toca |
+| `CosmosStaff`, `GravityHammer` | 6 ids no formato antigo `http://www.roblox.com/asset/?id=` | normalizados para `rbxassetid://` |
+
+**A favor da origem:** as cinco já usavam `TakeDamage` (8 chamadas), nenhuma
+mexia em `Health` na mão. Isso ficou.
+
+### O tempo das poses segue a tabela, e aqui não há desconto
+
+Ao contrário do conjunto GUEST, aqui a `GRAMATICA_R6.md` vale quase inteira — e
+o motivo é o oposto: **telecinese não é golpe de troca.** Ninguém revida uma
+levitação em 0.3 s. É conjuração, que é o caso que a regra 1 mede bem.
+
+| Natureza | Duração | Onde |
+|---|---|---|
+| conjuração rápida | 0.90 s | Tremor, Inverte, Subir, Arremesso, Batida |
+| conjuração pesada | 1.20 s | Esmagar, Rajada, Mergulho, Rachadura, Puxão |
+| sustentada | 1.60 s | Sustento, Erguer, Singularidade |
+| **ultimate** | **7.20 s** | `Terremoto` / Colapso — 71% de preparação |
+
+O `COLAPSO` é a única sequência do conjunto com **beat de câmera**, e é a própria
+regra 5 que exige: ultimate longo sem enquadramento vira tempo morto. O beat
+viaja pelo `VFXRemote` como qualquer outro — servidor não toca em `Camera`.
+
+Seis das sete lideram por `RightArm` (telecinese é gesto de mão). As duas
+exceções são declaradas no gerador: `Terremoto` e `Asas Telecineticas` lideram
+por **HRP**, porque num caso o golpe é o corpo caindo e no outro quem bate asa é
+o tronco.
+
+### O vocabulário de pose é compartilhado, e isso é de propósito
+
+As sete dividem as mesmas poses de base — `ABRE_MAO`, `SUSTENTA`, `FECHA`,
+`PUXA`, `ESMAGA`, `ERGUE`, `BATE_CHAO`. Sete Tools do mesmo tema têm de **ler
+como o mesmo poder**; o que muda entre elas é o que vem depois do gesto, e o
+tempo de cada passo.
 
 ---
 

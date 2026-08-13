@@ -115,6 +115,22 @@ checar "sem ServerScriptService"        'ServerScriptService'
 checar "sem StarterGui / StarterPack"   'StarterGui|StarterPack|StarterPlayer'
 checar "sem Lighting"                   'GetService\("Lighting"\)|game\.Lighting'
 checar "sem SoundService como depósito" 'GetService\("SoundService"\)|game\.SoundService'
+
+# --- Estado GLOBAL do servidor -----------------------------------------------
+# A Regra nº 1 vale nos dois sentidos: a Tool não lê de fora, e não SEQUESTRA o
+# que é de fora. Escrever no mundo é saída legítima quando é uma peça nova; não
+# é quando é uma propriedade única que todo mundo divide.
+#
+# O caso real: o `Gravitron 1000` do `calebe_tools.rbxmx` ciclava
+# `workspace.Gravity` e o `Unequipped` dele NÃO devolvia — equipar, clicar e
+# guardar deixava o servidor inteiro em gravidade 21.2 para sempre. É a mesma
+# família de "câmera presa", e pior de escala: câmera presa incomoda um
+# jogador, gravidade presa quebra o mapa para todos.
+#
+# LER `workspace.Gravity` é permitido, e as Tools de gravidade fazem isso para
+# calcular impulso. O que a checagem barra é a ATRIBUIÇÃO.
+checar "sem escrever workspace.Gravity" '(workspace|[Ww]orkspace|game\.Workspace)\.Gravity[[:space:]]*='
+checar "sem escrever Lighting global"   '(game\.Lighting|Lighting)\.(Ambient|Brightness|ClockTime|FogEnd|TimeOfDay)[[:space:]]*='
 checar "sem InsertService"              'InsertService'
 checar "sem referência ao Acervo"       'ACERVO'
 
