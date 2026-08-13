@@ -117,7 +117,7 @@
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">256</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">
@@ -805,6 +805,18 @@ local function tocar(nome, pitch, corte)
 	return som
 end
 
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
+--- e o dano, o VFX e o som do beat simplesmente não acontecem.
+---
+--- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
@@ -944,7 +956,8 @@ end
 function primaria(_mira)
 	ocupado = true
 	tocar("Smack", 1 + jitter(0.6) * 0.12)
-	rig:PlaySequence("TAPA", function(marca)
+	rig:PlaySequence("TAPA", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "BATE" then return end
 		local ponto = frente(CFG.ALCANCE)
 		vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 0.5, -CFG.ALCANCE * 0.6),
@@ -989,7 +1002,8 @@ function extra(_mira)
 	local esteId = "PEDRA_" .. tostring(idPedra)
 
 	rig:LockCharacter(true)
-	rig:PlaySequence("PEDRA", function(marca)
+	rig:PlaySequence("PEDRA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "FECHA" then
 			tocarEm("Smack", raiz.Position, 0.55)
 			vfx("PEDRA", { posicao = raiz.Position, escala = 1,

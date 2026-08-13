@@ -172,6 +172,18 @@ local function tocar(nome, pitch, corte)
 	return som
 end
 
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
+--- e o dano, o VFX e o som do beat simplesmente não acontecem.
+---
+--- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
@@ -530,7 +542,8 @@ CONJUNTO["Tremores da Gravidade"] = dict(
 function primaria(_mira)
 	ocupado = true
 	tocar("Swing", 1 + jitter(0.4) * 0.08)
-	rig:PlaySequence("TREMOR", function(marca)
+	rig:PlaySequence("TREMOR", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "BATE" then return end
 		local chao = raiz.Position - Vector3.new(0, 2.6, 0)
 		vfx("ONDA", { posicao = chao, escala = 1.2 })
@@ -560,7 +573,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("SUSTENTO", function(marca)
+	rig:PlaySequence("SUSTENTO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ABRE" then
 			tocar("Press", 0.8)
 		elseif marca == "PULSO" then
@@ -613,7 +627,8 @@ CONJUNTO["Controlador da Gravidade"] = dict(
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("INVERTE", function(marca)
+	rig:PlaySequence("INVERTE", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "SOLTA" then return end
 		local id = novoId("CAMPO")
 		tocarEm("Shift", mira, 1.1)
@@ -642,7 +657,8 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("ESMAGAR", function(marca)
+	rig:PlaySequence("ESMAGAR", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ERGUE" then
 			tocar("Shift", 0.7)
 		elseif marca == "ESMAGA" then
@@ -703,7 +719,8 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("ERGUER", function(marca)
+	rig:PlaySequence("ERGUER", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ALCANCA" then
 			tocar("ScifiLiftSound", 1)
 			vfx("AGARRA", { origem = Handle.Position, destino = mira })
@@ -752,7 +769,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("SUBIR", function(marca)
+	rig:PlaySequence("SUBIR", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "SOBE" then
 			tocar("ScifiLiftSound", 1.25)
 			if presoProprio then presoProprio.Parent = nil end
@@ -873,7 +891,8 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("ARREMESSO", function(marca)
+	rig:PlaySequence("ARREMESSO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "AGARRA" then
 			tocar("ClawsClose", 1)
 			vfx("AGARRA", { origem = Handle.Position,
@@ -898,7 +917,8 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("RAJADA", function(marca)
+	rig:PlaySequence("RAJADA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "REUNE" then
 			tocar("Pull", 0.85)
 			vfx("CACOS", { posicao = raiz.Position + Vector3.new(0, 3, 0),
@@ -965,7 +985,8 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("BATIDA", function(marca)
+	rig:PlaySequence("BATIDA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ABRE" then
 			tocar("ScifiLiftSound", 1.2)
 		elseif marca == "BATE" then
@@ -998,7 +1019,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("MERGULHO", function(marca)
+	rig:PlaySequence("MERGULHO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ERGUE" then
 			tocar("ScifiLiftSound", 0.85)
 			impulsionar(Vector3.new(0, CFG.ALTURA_SUBIDA, 0), 1, 0.45)
@@ -1066,7 +1088,8 @@ CONJUNTO["Terremoto"] = dict(
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("RACHADURA", function(marca)
+	rig:PlaySequence("RACHADURA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ERGUE" then
 			tocar("Swing", 0.85)
 		elseif marca ~= "BATE" then
@@ -1110,7 +1133,8 @@ function extra(_mira)
 	rig:LockCharacter(true)
 	local id = novoId("COLAPSO")
 
-	rig:PlaySequence("COLAPSO", function(marca)
+	rig:PlaySequence("COLAPSO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "CAMERA" then
 			tocar("Swing", 0.55)
 			vfx("COLAPSO_CARGA", { posicao = raiz.Position, escala = 1.4,
@@ -1178,7 +1202,8 @@ CONJUNTO["Telecinese Gravitacional"] = dict(
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("PUXAO", function(marca)
+	rig:PlaySequence("PUXAO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ALCANCA" then
 			tocar("SendOut", 1.1)
 			vfx("AGARRA", { origem = Handle.Position, destino = mira })
@@ -1210,7 +1235,8 @@ function extra(mira)
 	ocupado = true
 	local id = novoId("SING")
 
-	rig:PlaySequence("SINGULARIDADE", function(marca)
+	rig:PlaySequence("SINGULARIDADE", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ABRE" then
 			tocar("SendOut", 0.8)
 

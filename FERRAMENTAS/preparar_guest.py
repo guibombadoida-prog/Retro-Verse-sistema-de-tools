@@ -43,6 +43,7 @@ DUAS EXCEÇÕES DE GEOMETRIA, DECLARADAS
                  ninguém — supre o que não existe.
 """
 
+import math
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -115,18 +116,21 @@ CLASSES_PROIBIDAS = ("Animation", "ScreenGui")
 #
 # DE ONDE VÊM OS IDS QUE NÃO SÃO NATIVOS
 #
-#   Do `Xester_Forma1`, que é a única entrada de SFX deste repositório com a
-#   ficha fechada nos quatro campos de §12.12.3 — é o mesmo critério que o
-#   `preparar_collector.py` já usa, e pelo mesmo motivo. O papel de cada id
-#   segue o uso que o script de origem dava a ele:
+#   **Do próprio `guest_tools.rbxmx`.** Uma primeira versão puxou três ids do
+#   `Xester_Forma1` e isso foi corrigido a pedido: o conjunto tem de soar como
+#   ele mesmo, e o modelo já traz 16 sons — não falta vocabulário, faltava só
+#   ligar o que existe.
 #
-#     1910988873  o raio, a sentença descendo   -> o tiro
-#     472214107   tique do contador             -> o tambor girando
-#     54111471    fechamento                    -> o tambor fechando
+#   O papel de cada um segue o uso que o modelo dava a ele:
 #
-#   São ESCOLHA POR PAPEL, não por audição: não dá para ouvir os arquivos
-#   daqui. Quando entrar um som de tiro com ficha fechada, troque estes três —
-#   está aqui para que a troca seja de uma linha.
+#     546410481  `MetalHit2` do Cano De Rua   -> o tiro (metal seco, curto)
+#     933780081  `MetalHit`  do Cano De Rua   -> o tambor girando
+#     769464514  `Equip` do Taco / `unequip`  -> o tambor fechando, o "clack"
+#     7995127481 o `Sound` que o Humilhador   -> a provocação (nativo dele)
+#                criava no próprio código
+#
+#   São escolha POR PAPEL, não por audição: não dá para ouvir os arquivos
+#   daqui. Mas agora todo id do conjunto vem do conjunto.
 #
 # nome -> (id, volume, pitch)
 SONS_QUE_FALTAM = {
@@ -134,10 +138,42 @@ SONS_QUE_FALTAM = {
         ("Provoca", "7995127481", "2", "1"),
     ],
     "A arma": [
-        ("Tiro", "1910988873", "1.6", "1.35"),
-        ("Tambor", "472214107", "0.8", "1.5"),
-        ("Fecha", "54111471", "0.9", "1.2"),
+        ("Tiro", "546410481", "1.4", "1.25"),
+        ("Tambor", "933780081", "0.7", "1.6"),
+        ("Fecha", "769464514", "0.8", "1.35"),
     ],
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# `A arma` — as duas correções de FÍSICA
+# ═══════════════════════════════════════════════════════════════
+#
+# 1. MASSA. O modelo tem **121 peças**, e nenhuma vinha `Massless`. Todas
+#    penduradas no braço direito por Motor6D: o `Humanoid` passa a carregar a
+#    massa das 121, e a caminhada, o pulo e o próprio equipar saem do lugar.
+#    Só o `Handle` continua com massa — é o que o `RightGrip` solda.
+#
+# 2. GRIP. O original tinha `RequiresHandle = false` e soldava o modelo à mão
+#    pelo próprio LocalScript, que saiu. Com `RequiresHandle = true` quem
+#    posiciona é `Tool.Grip`, e sem Grip o revólver é segurado pela origem local
+#    do Handle — atravessado na mão.
+#
+#    O ângulo abaixo é DERIVADO, não chutado. No espaço local do `Handle`, o
+#    `barrelend` está em (-1.679, 0.000, 1.607) — a 2.325 studs, e com y
+#    exatamente zero, o que quer dizer que o cano vive no plano XZ do Handle e
+#    um yaw puro basta para apontá-lo.
+#
+#        quero  Grip:Inverse() * v = (0, 0, -1)   [o "para frente" da mão]
+#        logo   v = Grip * (0, 0, -1) = (-sen θ, 0, -cos θ)
+#        de     v = (-0.722, 0, 0.691)  ->  sen θ = 0.722, cos θ = -0.691
+#        θ = 133.74°
+#
+#    ⚠️ Isso acerta a DIREÇÃO do cano. O rolamento e o encaixe fino na palma
+#    não dá para medir daqui — precisam de olho no Studio. A mecânica do tiro
+#    não depende disso: o Server calcula o disparo do `barrelend` ao vivo.
+GRIP_DERIVADO = {
+    "A arma": 133.74,
 }
 
 # Sound que existe mas está com o id vazio: nome -> (id, volume, pitch)
@@ -292,6 +328,49 @@ def sonorizar(tool, nome, marca):
     return relato
 
 
+def aliviar_massa(tool):
+    """`Massless = true` em toda peça que não é o Handle."""
+    n = 0
+    handle = achar(tool, nome="Handle")
+    for _pai, filho in varrer(tool):
+        if filho.get("class") not in ("Part", "MeshPart", "UnionOperation",
+                                      "WedgePart", "TrussPart"):
+            continue
+        if filho is handle:
+            continue
+        if texto(filho, "Massless") == "true":
+            continue
+        definir(filho, "bool", "Massless", "true")
+        n = n + 1
+    return n
+
+
+def definir_grip(tool, graus):
+    """`Tool.Grip` como yaw puro, em radianos, na forma CoordinateFrame."""
+    e = prop(tool, "Grip")
+    if e is not None:
+        props(tool).remove(e)
+    e = ET.SubElement(props(tool), "CoordinateFrame", {"name": "Grip"})
+    r = math.radians(graus)
+    c, s = math.cos(r), math.sin(r)
+    for tag, valor in (("X", 0.0), ("Y", 0.0), ("Z", 0.0),
+                       ("R00", c), ("R01", 0.0), ("R02", s),
+                       ("R10", 0.0), ("R11", 1.0), ("R12", 0.0),
+                       ("R20", -s), ("R21", 0.0), ("R22", c)):
+        ET.SubElement(e, tag).text = "%.6f" % valor
+    return graus
+
+
+def assentar_fisica(tool, nome):
+    relato = []
+    n = aliviar_massa(tool)
+    if n:
+        relato.append("%d peça(s) Massless" % n)
+    if nome in GRIP_DERIVADO:
+        relato.append("Grip yaw %.2f°" % definir_grip(tool, GRIP_DERIVADO[nome]))
+    return relato
+
+
 def preparar(dados, indice):
     (nome, tooltip, classe_dano, energia, recarga, chave,
      nome_servidor, extra) = dados
@@ -343,6 +422,9 @@ def preparar(dados, indice):
 
     # 3b. Tool muda não é entrega
     relato.extend(sonorizar(tool, nome, marca))
+
+    # 3c. física: massa e Grip
+    relato.extend(assentar_fisica(tool, nome))
 
     # 4. o Script de servidor ganha o nome da convenção
     objeto_servidor = "%s_Server_V1" % nome.replace(" ", "").replace(

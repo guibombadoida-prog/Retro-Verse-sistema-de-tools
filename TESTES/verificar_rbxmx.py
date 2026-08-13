@@ -17,6 +17,7 @@ O que confere:
   4. DamageClass declarado (§12.4) — sem ele, bônus por classe fica inerte
   5. Todo script exigido pelo §12.10 está presente, com o nome de objeto certo
   6. A fonte embutida é BYTE A BYTE igual ao .lua do repositório
+  6b. Nenhuma callback de beat compara o keyframe com string (o beat é `kf.marca`)
   7. VFXRemote presente; AcaoRemote só onde há habilidade Extra
   8. Todo Sound citado pelo Server Script existe dentro de Tool/SFX
   9. Todo VFX transmitido existe no VFXModule da própria Tool
@@ -229,6 +230,27 @@ def verificar(nome):
         if arquivo.endswith(".lua") and arquivo not in vistos:
             erros.append("%s existe no repositório mas não entrou no .rbxmx"
                          % arquivo)
+
+    # 6b. O BEAT VEM COMO KEYFRAME, NÃO COMO STRING
+    #
+    # `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)`: `kf` é a
+    # TABELA do passo, e a marca mora em `kf.marca`. Uma callback escrita como
+    # `function(marca) if marca == "BATE" then` compara a tabela com a string,
+    # nunca dá verdadeiro, e FALHA EM SILÊNCIO — a animação roda inteira e o
+    # dano, o VFX e o som do beat simplesmente não acontecem.
+    #
+    # Foi assim que os 14 Tools dos conjuntos GUEST e GRAVIDADE saíram sem dano
+    # nenhum, passando em todo verificador. Esta checagem existe por causa disso.
+    for nome_obj, fonte in fontes.items():
+        limpo = sem_comentario(fonte)
+        for m in re.finditer(r"PlaySequence\s*\([^)]*?function\s*\(\s*(\w+)\s*\)(.{0,400})",
+                             limpo, re.S):
+            parametro, corpo = m.group(1), m.group(2)
+            if re.search(r"\b%s\s*==\s*[\"']" % re.escape(parametro), corpo):
+                erros.append("%s compara o keyframe do beat com string "
+                             "(`%s == \"...\"`) — a marca está em `%s.marca`, "
+                             "e assim o beat NUNCA dispara"
+                             % (nome_obj, parametro, parametro))
 
     for obrigatorio in ("Client", "VFXModule", "Poses", "R6CFrameAnimator"):
         if obrigatorio not in fontes:

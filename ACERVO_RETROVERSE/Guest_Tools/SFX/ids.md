@@ -47,20 +47,23 @@ sequencial**, que é o que a regra manda usar no lugar de `math.random`.
 |---|---|---|---|
 | `Humilhador` | `Provoca` | `7995127481` | era criado no código; agora é instância dentro da Tool |
 
-## Os que a conversão acrescentou
+## Os que a conversão acrescentou — todos do PRÓPRIO Guest
 
-`A arma` chegou com **zero `Sound`** — revólver mudo não é entrega. Os três abaixo vêm do
-`Xester_Forma1`, que é a única entrada de SFX deste repositório com a ficha fechada nos
-quatro campos de §12.12.3. É o mesmo critério que o `preparar_collector.py` já usa.
+`A arma` chegou com **zero `Sound`** — revólver mudo não é entrega.
 
-| `Sound` | id | Papel no Xester | Papel aqui |
+> **Correção de rumo registrada.** A primeira versão puxou três ids do `Xester_Forma1`,
+> pelo argumento de que era a única entrada de SFX com a ficha fechada nos quatro campos.
+> Foi corrigido a pedido, e o pedido está certo: **o conjunto tem de soar como ele mesmo.**
+> O modelo já traz 16 sons — não faltava vocabulário, faltava ligar o que existe.
+
+| `Sound` | id | De onde vem, no próprio Guest | Papel aqui |
 |---|---|---|---|
-| `Tiro` | `1910988873` | o raio, a sentença descendo | o disparo |
-| `Tambor` | `472214107` | tique do contador | o tambor girando |
-| `Fecha` | `54111471` | fechamento | o tambor fechando |
+| `Tiro` | `546410481` | `MetalHit2` do `Cano De Rua` | o disparo — metal seco e curto |
+| `Tambor` | `933780081` | `MetalHit` do `Cano De Rua` | o tambor girando |
+| `Fecha` | `769464514` | `Equip` do `Taco` / `unequip` do `Cano` | o tambor fechando, o *clack* |
 
-> São **escolha por papel, não por audição**: não dá para ouvir os arquivos daqui. Quando
-> entrar um som de tiro com ficha fechada, a troca é de uma linha em
+> Segue sendo **escolha por papel, não por audição** — não dá para ouvir os arquivos daqui.
+> A diferença é que agora todo id do conjunto vem do conjunto. Trocar é uma linha em
 > `FERRAMENTAS/preparar_guest.py`, dicionário `SONS_QUE_FALTAM`.
 
 O truque do `PlayOnRemove` é legítimo e vale registrar: o `Sound` é criado, marcado, e

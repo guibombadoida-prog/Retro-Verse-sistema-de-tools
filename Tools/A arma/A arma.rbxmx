@@ -2,20 +2,6 @@
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
-			<CoordinateFrame name="Grip">
-				<X>0</X>
-				<Y>0</Y>
-				<Z>0</Z>
-				<R00>1</R00>
-				<R01>0</R01>
-				<R02>0</R02>
-				<R10>0</R10>
-				<R11>1</R11>
-				<R12>0</R12>
-				<R20>0</R20>
-				<R21>0</R21>
-				<R22>1</R22>
-			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
 			<string name="ToolTip">Revólver de seis tiros; a Extra recarrega o tambor</string>
@@ -68,7 +54,7 @@
 			<string name="Name">A arma</string>
 			<int64 name="SourceAssetId">8789561608</int64>
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-		</Properties>
+		<CoordinateFrame name="Grip"><X>0.000000</X><Y>0.000000</Y><Z>0.000000</Z><R00>-0.691387</R00><R01>0.000000</R01><R02>0.722485</R02><R10>0.000000</R10><R11>1.000000</R11><R12>0.000000</R12><R20>-0.722485</R20><R21>0.000000</R21><R22>-0.691387</R22></CoordinateFrame></Properties>
 		<Item class="Script" referent="V2_RBX81ACB617E7704861AD88DD44CE73C014">
 			<Properties>
 				<ProtectedString name="Source"><![CDATA[-- Aarma_Server_V1.lua
@@ -187,6 +173,18 @@ local function tocar(nome, pitch, corte)
 	som:Play()
 	Debris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
 	return som
+end
+
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
+--- e o dano, o VFX e o som do beat simplesmente não acontecem.
+---
+--- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -355,7 +353,8 @@ function primaria(mira)
 	ocupado = true
 	tambor = tambor - 1
 
-	rig:PlaySequence("TIRO", function(marca)
+	rig:PlaySequence("TIRO", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "DISPARA" then return end
 
 		local cano = bocaDoCano()
@@ -402,7 +401,8 @@ end
 function extra(_mira)
 	if tambor >= CFG.CAPACIDADE then return end
 	ocupado = true
-	rig:PlaySequence("RECARGA", function(marca)
+	rig:PlaySequence("RECARGA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ABRE" then
 			tocar("Tambor", 1.1)
 		elseif marca == "EJETA" then
@@ -609,7 +609,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -736,7 +736,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -863,7 +863,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -962,7 +962,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1061,7 +1061,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1160,7 +1160,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">256</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1259,7 +1259,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1358,7 +1358,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1457,7 +1457,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1556,7 +1556,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1655,7 +1655,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1754,7 +1754,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1853,7 +1853,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -1952,7 +1952,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2051,7 +2051,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2150,7 +2150,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2249,7 +2249,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2348,7 +2348,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2447,7 +2447,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2546,7 +2546,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2645,7 +2645,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2744,7 +2744,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2843,7 +2843,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -2942,7 +2942,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3041,7 +3041,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3140,7 +3140,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3239,7 +3239,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3338,7 +3338,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3437,7 +3437,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3536,7 +3536,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3635,7 +3635,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3734,7 +3734,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3833,7 +3833,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -3932,7 +3932,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4031,7 +4031,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4130,7 +4130,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4229,7 +4229,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4328,7 +4328,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4427,7 +4427,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">256</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4526,7 +4526,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4625,7 +4625,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4724,7 +4724,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4823,7 +4823,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -4922,7 +4922,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">256</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5021,7 +5021,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5120,7 +5120,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5219,7 +5219,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5318,7 +5318,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5417,7 +5417,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5516,7 +5516,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5615,7 +5615,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5714,7 +5714,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5813,7 +5813,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -5912,7 +5912,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6011,7 +6011,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6110,7 +6110,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">256</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6209,7 +6209,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6308,7 +6308,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6407,7 +6407,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6506,7 +6506,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6605,7 +6605,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6704,7 +6704,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6803,7 +6803,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -6902,7 +6902,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7001,7 +7001,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7100,7 +7100,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7199,7 +7199,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7298,7 +7298,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7397,7 +7397,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7496,7 +7496,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7595,7 +7595,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7694,7 +7694,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7793,7 +7793,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7892,7 +7892,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -7991,7 +7991,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8090,7 +8090,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8189,7 +8189,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8288,7 +8288,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8387,7 +8387,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8486,7 +8486,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8585,7 +8585,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8684,7 +8684,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8783,7 +8783,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8882,7 +8882,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -8981,7 +8981,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9080,7 +9080,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9179,7 +9179,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9278,7 +9278,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9377,7 +9377,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9476,7 +9476,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9575,7 +9575,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9674,7 +9674,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9773,7 +9773,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9872,7 +9872,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -9971,7 +9971,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -10070,7 +10070,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -10169,7 +10169,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -10268,7 +10268,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -10418,7 +10418,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11018,7 +11018,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11145,7 +11145,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11272,7 +11272,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11399,7 +11399,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11526,7 +11526,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11653,7 +11653,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11780,7 +11780,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -11907,7 +11907,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12034,7 +12034,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12161,7 +12161,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12288,7 +12288,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12467,7 +12467,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12566,7 +12566,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12665,7 +12665,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12764,7 +12764,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -12863,7 +12863,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">272</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -13135,7 +13135,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -13234,7 +13234,7 @@ Tool.Destroying:Connect(desmontar)
 					<token name="LeftSurface">0</token>
 					<token name="LeftSurfaceInput">0</token>
 					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
+					<bool name="Massless">true</bool>
 					<token name="Material">272</token>
 					<string name="MaterialVariantSerialized" />
 					<CoordinateFrame name="PivotOffset">
@@ -13384,7 +13384,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">1088</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -13483,7 +13483,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">288</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -13603,7 +13603,7 @@ Tool.Destroying:Connect(desmontar)
 						<token name="LeftSurface">0</token>
 						<token name="LeftSurfaceInput">0</token>
 						<bool name="Locked">false</bool>
-						<bool name="Massless">false</bool>
+						<bool name="Massless">true</bool>
 						<token name="Material">1088</token>
 						<string name="MaterialVariantSerialized" />
 						<CoordinateFrame name="PivotOffset">
@@ -18602,7 +18602,7 @@ Tool.Destroying:Connect(desmontar)
 						</Item>
 					</Item>
 				</Item>
-			<Item class="Sound" referent="GU_SFX_07_0"><Properties><string name="Name">Tiro</string><Content name="SoundId"><url>rbxassetid://1910988873</url></Content><float name="Volume">1.6</float><float name="PlaybackSpeed">1.35</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="GU_SFX_07_1"><Properties><string name="Name">Tambor</string><Content name="SoundId"><url>rbxassetid://472214107</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1.5</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="GU_SFX_07_2"><Properties><string name="Name">Fecha</string><Content name="SoundId"><url>rbxassetid://54111471</url></Content><float name="Volume">0.9</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item>
+			<Item class="Sound" referent="GU_SFX_07_0"><Properties><string name="Name">Tiro</string><Content name="SoundId"><url>rbxassetid://546410481</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="GU_SFX_07_1"><Properties><string name="Name">Tambor</string><Content name="SoundId"><url>rbxassetid://933780081</url></Content><float name="Volume">0.7</float><float name="PlaybackSpeed">1.6</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="GU_SFX_07_2"><Properties><string name="Name">Fecha</string><Content name="SoundId"><url>rbxassetid://769464514</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1.35</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item>
 			<Item class="StringValue" referent="GU_Damage_07"><Properties><string name="Name">DamageClass</string><string name="Value">Ranged</string></Properties></Item><Item class="StringValue" referent="GU_ChaveR_07"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Guest_Arma</string></Properties></Item><Item class="NumberValue" referent="GU_Energy_07"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="GU_Recarg_07"><Properties><string name="Name">RecargaGlobal</string><float name="Value">3</float></Properties></Item><Item class="RemoteEvent" referent="GU_VFXR_07"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="GU_ACAO_07"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="GU_Client_07"><Properties><string name="Name">Client</string><ProtectedString name="Source"><![CDATA[-- Client.lua
 -- Script com RunContext = Client — A arma  (conjunto GUEST)
 --

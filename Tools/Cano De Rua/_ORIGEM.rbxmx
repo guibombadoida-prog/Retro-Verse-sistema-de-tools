@@ -1095,7 +1095,7 @@ tool.Equipped:connect(equip)</ProtectedString>
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">1088</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">
@@ -1194,7 +1194,7 @@ tool.Equipped:connect(equip)</ProtectedString>
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">816</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">
@@ -1293,7 +1293,7 @@ tool.Equipped:connect(equip)</ProtectedString>
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">816</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">
@@ -1392,7 +1392,7 @@ tool.Equipped:connect(equip)</ProtectedString>
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">1088</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">
@@ -1491,7 +1491,7 @@ tool.Equipped:connect(equip)</ProtectedString>
 				<token name="LeftSurface">0</token>
 				<token name="LeftSurfaceInput">0</token>
 				<bool name="Locked">false</bool>
-				<bool name="Massless">false</bool>
+				<bool name="Massless">true</bool>
 				<token name="Material">816</token>
 				<string name="MaterialVariantSerialized" />
 				<CoordinateFrame name="PivotOffset">

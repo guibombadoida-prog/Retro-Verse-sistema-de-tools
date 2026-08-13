@@ -130,7 +130,34 @@ As 7 juntas: [`Guest_7_Tools.rbxmx`](Guest_7_Tools.rbxmx) · binário
 | `Cano De Rua` | `Instance.new("ScreenGui")` na cara de quem apanhava — proibida, e só quem levou via | lentidão com prazo, legível para a sala |
 | `Abacate` | `OpenSound` com `SoundId` **em branco**, e o `Equipped` chamando `:Play()` nele | id preenchido |
 | `Humilhador` · `A arma` | chegaram **mudas** — a primeira criava o `Sound` no código, a segunda não tinha nenhum | `Sound` como instância dentro da Tool |
+| `A arma` | **121 peças, nenhuma `Massless`** — todas penduradas no braço direito por Motor6D. O `Humanoid` carregava a massa das 121, e caminhada, pulo e o próprio equipar saíam do lugar | 120 peças `Massless`; só o `Handle` mantém massa |
+| `A arma` | sem `Tool.Grip`. O original tinha `RequiresHandle = false` e soldava o modelo à mão pelo próprio LocalScript, que saiu — sem Grip o revólver é segurado pela origem local do Handle, atravessado na mão | `Grip` **derivado** do `barrelend` (ver abaixo) |
 | todas | 47 `wait()` · 41 `math.random` · 12 `tick()` · 11 `spawn(` · 1 `delay(` · 2 `:Destroy()` | trocados |
+
+### O `Grip` de `A arma` é derivado, não chutado
+
+No espaço local do `Handle`, o `barrelend` está em **(-1.679, 0.000, 1.607)** — a 2.325
+studs, e com **y exatamente zero**, o que quer dizer que o cano vive no plano XZ do Handle e
+um *yaw* puro basta para apontá-lo.
+
+```
+quero  Grip:Inverse() * v = (0, 0, -1)          o "para frente" da mão
+logo   v = Grip * (0, 0, -1) = (-sen θ, 0, -cos θ)
+de     v = (-0.722, 0, 0.691)   ->   sen θ = 0.722,  cos θ = -0.691
+θ = 133.74°
+```
+
+⚠️ Isso acerta a **direção** do cano. O rolamento e o encaixe fino na palma **não dá para
+medir daqui** — precisam de olho no Studio. A mecânica do tiro não depende disso: o Server
+calcula o disparo do `barrelend` ao vivo, seja como for que a arma esteja sendo segurada.
+
+### Os SFX são todos do próprio Guest
+
+`Humilhador` e `A arma` chegaram mudas. Os quatro sons que a conversão acrescentou vêm
+**do próprio `guest_tools.rbxmx`** — `Tiro` é o `MetalHit2` do Cano, `Tambor` é o `MetalHit`,
+`Fecha` é o `Equip` do Taco, e `Provoca` é o id que o Humilhador criava no próprio código.
+Uma primeira versão puxou três ids do Xester e foi corrigida: o conjunto tem de soar como ele
+mesmo.
 
 ### O tempo das poses foge da tabela, e está declarado
 

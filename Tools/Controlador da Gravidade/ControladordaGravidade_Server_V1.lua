@@ -131,6 +131,18 @@ local function tocar(nome, pitch, corte)
 	return som
 end
 
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
+--- e o dano, o VFX e o som do beat simplesmente não acontecem.
+---
+--- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
@@ -270,7 +282,8 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("INVERTE", function(marca)
+	rig:PlaySequence("INVERTE", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "SOLTA" then return end
 		local id = novoId("CAMPO")
 		tocarEm("Shift", mira, 1.1)
@@ -299,7 +312,8 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("ESMAGAR", function(marca)
+	rig:PlaySequence("ESMAGAR", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ERGUE" then
 			tocar("Shift", 0.7)
 		elseif marca == "ESMAGA" then

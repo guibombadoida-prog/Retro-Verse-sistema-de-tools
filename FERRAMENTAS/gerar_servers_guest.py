@@ -179,6 +179,18 @@ local function tocar(nome, pitch, corte)
 	return som
 end
 
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
+--- e o dano, o VFX e o som do beat simplesmente não acontecem.
+---
+--- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
@@ -570,7 +582,8 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar("Swoosh", 1 + jitter(0.7) * 0.1)
-	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(marca)
+	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "BATE" then
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
 		end
@@ -590,7 +603,8 @@ end
 function extra(_mira)
 	ocupado = true
 	rig:LockCharacter(true)
-	rig:PlaySequence("FINALIZADOR", function(marca)
+	rig:PlaySequence("FINALIZADOR", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "SEGURA" then
 			tocar("Swoosh", 0.72)
 		elseif marca == "IMPACTO" then
@@ -680,7 +694,8 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar(segundo and "Swoosh2" or "Swoosh", 1 + jitter(0.9) * 0.1)
-	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(marca)
+	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "BATE" then
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
 		end
@@ -700,7 +715,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("CONCUSSAO", function(marca)
+	rig:PlaySequence("CONCUSSAO", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "SEGURA" then
 			tocar("Swoosh2", 0.7)
 		elseif marca == "IMPACTO" then
@@ -765,7 +781,8 @@ local GRIP_BOCA = CFrame.new(1.5, -0.5, 0.3)
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("COMER", function(marca)
+	rig:PlaySequence("COMER", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "LEVA" then
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
@@ -809,7 +826,8 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("ARREMESSO", function(marca)
+	rig:PlaySequence("ARREMESSO", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "SOLTA" then return end
 		tocar("OpenSound", 1.3)
 
@@ -897,7 +915,8 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("BEBER", function(marca)
+	rig:PlaySequence("BEBER", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ERGUE" then
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
@@ -940,7 +959,8 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("LATA", function(marca)
+	rig:PlaySequence("LATA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "AMASSA" then
 			tocar("OpenSound", 0.7)
 		elseif marca == "JOGA" then
@@ -1027,7 +1047,8 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("PROVOCA", function(marca)
+	rig:PlaySequence("PROVOCA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "SPRITE" then
 			tocarEm("Provoca", pontoDaCabeca(), 1)
 			vfx("ZOMBARIA", { posicao = pontoDaCabeca(), escala = 1 })
@@ -1046,7 +1067,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("RODA", function(marca)
+	rig:PlaySequence("RODA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "GIRA" then
 			tocarEm("Provoca", pontoDaCabeca(), 0.85)
 		elseif marca == "PULSO" then
@@ -1106,7 +1128,8 @@ CONJUNTO["Diamond"] = dict(
 function primaria(_mira)
 	ocupado = true
 	tocar("Smack", 1 + jitter(0.6) * 0.12)
-	rig:PlaySequence("TAPA", function(marca)
+	rig:PlaySequence("TAPA", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "BATE" then return end
 		local ponto = frente(CFG.ALCANCE)
 		vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 0.5, -CFG.ALCANCE * 0.6),
@@ -1151,7 +1174,8 @@ function extra(_mira)
 	local esteId = "PEDRA_" .. tostring(idPedra)
 
 	rig:LockCharacter(true)
-	rig:PlaySequence("PEDRA", function(marca)
+	rig:PlaySequence("PEDRA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "FECHA" then
 			tocarEm("Smack", raiz.Position, 0.55)
 			vfx("PEDRA", { posicao = raiz.Position, escala = 1,
@@ -1238,7 +1262,8 @@ function primaria(mira)
 	ocupado = true
 	tambor = tambor - 1
 
-	rig:PlaySequence("TIRO", function(marca)
+	rig:PlaySequence("TIRO", function(passo)
+		local marca = marcaDe(passo)
 		if marca ~= "DISPARA" then return end
 
 		local cano = bocaDoCano()
@@ -1285,7 +1310,8 @@ end
 function extra(_mira)
 	if tambor >= CFG.CAPACIDADE then return end
 	ocupado = true
-	rig:PlaySequence("RECARGA", function(marca)
+	rig:PlaySequence("RECARGA", function(passo)
+		local marca = marcaDe(passo)
 		if marca == "ABRE" then
 			tocar("Tambor", 1.1)
 		elseif marca == "EJETA" then
