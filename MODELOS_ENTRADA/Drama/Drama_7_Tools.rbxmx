@@ -1,0 +1,1014 @@
+<?xml version='1.0' encoding='utf-8'?>
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="D01_RBX7BC98A41D09D4E6AB1A191482BDA6F5B">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Combo de tres golpes; a Extra abre com o chute rodado</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Combate</string>
+			<int64 name="SourceAssetId">9695528530</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="DR_HANDLE_01"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="DR_SFX_01_0"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_01_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_01_2"><Properties><string name="Name">PREPARA</string><Content name="SoundId"><url>rbxasset://sounds/unsheath.wav</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="DR_Damage_01"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_01"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Combate</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_01"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_01"><Properties><string name="Name">RecargaGlobal</string><float name="Value">3</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_01"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_01"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="DR_Combate_Serv_01"><Properties><string name="Name">Combate_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_01"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_01"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_01"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_01"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<Item class="Tool" referent="D02_RBXD3D33A05B97843CEB60EAB284322EFBA">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Empurra quem esta na frente; a Extra e a esquiva com invencibilidade</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Desviar e Empurrar</string>
+			<int64 name="SourceAssetId">7994693460</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="DR_HANDLE_02"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="DR_SFX_02_0"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_02_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_02_2"><Properties><string name="Name">PREPARA</string><Content name="SoundId"><url>rbxasset://sounds/unsheath.wav</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="DR_Damage_02"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_02"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Desviar</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_02"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_02"><Properties><string name="Name">RecargaGlobal</string><float name="Value">4</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_02"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_02"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="DR_DesviareEmpu_02"><Properties><string name="Name">DesviareEmpurrar_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_02"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_02"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_02"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_02"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<Item class="Tool" referent="D03_RBXB5EF1137461441E8B1730097934DA7A0">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>-3.30000019</Y>
+				<Z>0</Z>
+				<R00>0</R00>
+				<R01>0</R01>
+				<R02>1</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>-0</R12>
+				<R20>-1</R20>
+				<R21>0</R21>
+				<R22>0</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Corte de lamina; a Extra e a execucao, com cutscene</string>
+			<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117902</url></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>82.4653168</X>
+					<Y>10.119709</Y>
+					<Z>56.1450882</Z>
+					<R00>-0.605327368</R00>
+					<R01>0.000128343701</R01>
+					<R02>0.795976698</R02>
+					<R10>0.401777685</R10>
+					<R11>0.863308609</R11>
+					<R12>0.305406183</R12>
+					<R20>-0.687134326</R20>
+					<R21>0.504676342</R21>
+					<R22>-0.522635937</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Corte Frio</string>
+			<int64 name="SourceAssetId">71737453447563</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="D03_RBX7A1408A5EE7A40E2857B7028611C16FE">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">2</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">0</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>1.44022286</X>
+					<Y>6.83248329</Y>
+					<Z>-1.85769534</Z>
+					<R00>0.0573985912</R00>
+					<R01>0.0110554053</R01>
+					<R02>-0.998289943</R02>
+					<R10>-0.0212227553</R10>
+					<R11>0.999726117</R11>
+					<R12>0.00985107664</R12>
+					<R20>0.998125613</R20>
+					<R21>0.0206210315</R21>
+					<R22>0.0576175041</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">false</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4284702562</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">256</token>
+				<string name="MaterialVariantSerialized" />
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>-1.26950113e-06</X>
+					<Y>-1.27787558e-14</Y>
+					<Z>-1.5344765e-06</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">0</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>5.88059902e-06</X>
+					<Y>1.49958323e-05</Y>
+					<Z>-4.86512999e-06</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>1</X>
+					<Y>7.5999999</Y>
+					<Z>1</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="SpecialMesh" referent="D03_RBXDEA70891E5C04C4F8C41B4F26414B628">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=93117521</url></Content>
+					<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117835</url></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>0.699999988</X>
+						<Y>0.699999988</Y>
+						<Z>0.699999988</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="DR_SFX_03_0"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_03_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_03_2"><Properties><string name="Name">PREPARA</string><Content name="SoundId"><url>rbxasset://sounds/unsheath.wav</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_03_3"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://93157691</url></Content><float name="Volume">1.2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item>
+		<Item class="Part" referent="D03_RBXFA099E9415B6457297C83D4AF2CECDC0">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">0</token>
+				<bool name="Anchored">true</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">5</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">2</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>80.6356583</X>
+					<Y>9.43225002</Y>
+					<Z>57.3549194</Z>
+					<R00>-0.605327368</R00>
+					<R01>0.000128343701</R01>
+					<R02>0.795976698</R02>
+					<R10>0.401777685</R10>
+					<R11>0.863308609</R11>
+					<R12>0.305406183</R12>
+					<R20>-0.687134326</R20>
+					<R21>0.504676342</R21>
+					<R22>-0.522635937</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">false</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">5</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">2</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">true</bool>
+				<bool name="Massless">true</bool>
+				<token name="Material">256</token>
+				<string name="MaterialVariantSerialized" />
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">2</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">2</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">1</float>
+				<Vector3 name="Velocity">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>6</X>
+					<Y>9</Y>
+					<Z>1</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">SlashPart</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="SpecialMesh" referent="D03_RBX2AEA50736202428685A5453BDCD3D7B5">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=87112830</url></Content>
+					<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93067310</url></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>1.5</X>
+						<Y>3.70000005</Y>
+						<Z>0.100000001</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>2</X>
+						<Y>0.800000012</Y>
+						<Z>0.800000012</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			</Item>
+		<Item class="StringValue" referent="DR_Damage_03"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_03"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_CorteFrio</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_03"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_03"><Properties><string name="Name">RecargaGlobal</string><float name="Value">6</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_03"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_03"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_CUTR_03"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="DR_CorteFrio_Se_03"><Properties><string name="Name">CorteFrio_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_03"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_03"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_03"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_03"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_CutsceneCam_03"><Properties><string name="Name">CutsceneCam</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item></Item>
+	<Item class="Tool" referent="D04_RBX7BC98A41D09D4E6AB1A191482BDA6F5B">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Soco pesado que arremessa; a Extra racha o chao</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Impacto Forte</string>
+			<int64 name="SourceAssetId">9695528530</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="DR_HANDLE_04"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="DR_SFX_04_0"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_04_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_04_2"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://93157691</url></Content><float name="Volume">1.2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="DR_Damage_04"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_04"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Impacto</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_04"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_04"><Properties><string name="Name">RecargaGlobal</string><float name="Value">7</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_04"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_04"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="DR_ImpactoForte_04"><Properties><string name="Name">ImpactoForte_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_04"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_04"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_04"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_04"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<Item class="Tool" referent="D05_RBXD3D33A05B97843CEB60EAB284322EFBA">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Liga a aura e ela sustenta; a Extra solta o pulso</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Aura</string>
+			<int64 name="SourceAssetId">7994693460</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="DR_HANDLE_05"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="DR_SFX_05_0"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://93157691</url></Content><float name="Volume">1.2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_05_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_05_2"><Properties><string name="Name">PREPARA</string><Content name="SoundId"><url>rbxasset://sounds/unsheath.wav</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="DR_Damage_05"><Properties><string name="Name">DamageClass</string><string name="Value">Suporte</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_05"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Aura</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_05"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_05"><Properties><string name="Name">RecargaGlobal</string><float name="Value">10</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_05"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_05"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="DR_Aura_Server__05"><Properties><string name="Name">Aura_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_05"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_05"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_05"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_05"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<Item class="Tool" referent="D06_RBX7BC98A41D09D4E6AB1A191482BDA6F5B">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Feixe pelos olhos; a Extra varre em leque</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Olhos Laser</string>
+			<int64 name="SourceAssetId">9695528530</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="DR_HANDLE_06"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="DR_SFX_06_0"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://93157691</url></Content><float name="Volume">1.2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_06_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_06_2"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="DR_Damage_06"><Properties><string name="Name">DamageClass</string><string name="Value">Ranged</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_06"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Olhos</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_06"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_06"><Properties><string name="Name">RecargaGlobal</string><float name="Value">5</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_06"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_06"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="DR_OlhosLaser_S_06"><Properties><string name="Name">OlhosLaser_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_06"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_06"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_06"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_06"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<Item class="Tool" referent="D07_RBXB5EF1137461441E8B1730097934DA7A0">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>-3.30000019</Y>
+				<Z>0</Z>
+				<R00>0</R00>
+				<R01>0</R01>
+				<R02>1</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>-0</R12>
+				<R20>-1</R20>
+				<R21>0</R21>
+				<R22>0</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Combo de quatro golpes; a Extra finaliza, com cutscene</string>
+			<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117902</url></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>82.4653168</X>
+					<Y>10.119709</Y>
+					<Z>56.1450882</Z>
+					<R00>-0.605327368</R00>
+					<R01>0.000128343701</R01>
+					<R02>0.795976698</R02>
+					<R10>0.401777685</R10>
+					<R11>0.863308609</R11>
+					<R12>0.305406183</R12>
+					<R20>-0.687134326</R20>
+					<R21>0.504676342</R21>
+					<R22>-0.522635937</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">TryHard</string>
+			<int64 name="SourceAssetId">71737453447563</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Part" referent="D07_RBX7A1408A5EE7A40E2857B7028611C16FE">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">2</token>
+				<bool name="Anchored">false</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">0</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">0</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>1.44022286</X>
+					<Y>6.83248329</Y>
+					<Z>-1.85769534</Z>
+					<R00>0.0573985912</R00>
+					<R01>0.0110554053</R01>
+					<R02>-0.998289943</R02>
+					<R10>-0.0212227553</R10>
+					<R11>0.999726117</R11>
+					<R12>0.00985107664</R12>
+					<R20>0.998125613</R20>
+					<R21>0.0206210315</R21>
+					<R22>0.0576175041</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">false</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4284702562</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">0</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">0</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">false</bool>
+				<bool name="Massless">false</bool>
+				<token name="Material">256</token>
+				<string name="MaterialVariantSerialized" />
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">0</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>-1.26950113e-06</X>
+					<Y>-1.27787558e-14</Y>
+					<Z>-1.5344765e-06</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">0</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">0</float>
+				<Vector3 name="Velocity">
+					<X>5.88059902e-06</X>
+					<Y>1.49958323e-05</Y>
+					<Z>-4.86512999e-06</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>1</X>
+					<Y>7.5999999</Y>
+					<Z>1</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Handle</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="SpecialMesh" referent="D07_RBXDEA70891E5C04C4F8C41B4F26414B628">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=93117521</url></Content>
+					<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117835</url></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>0.699999988</X>
+						<Y>0.699999988</Y>
+						<Z>0.699999988</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>1</X>
+						<Y>1</Y>
+						<Z>1</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="Sound" referent="DR_SFX_07_0"><Properties><string name="Name">GOLPE</string><Content name="SoundId"><url>rbxasset://sounds/swordslash.wav</url></Content><float name="Volume">1</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_07_1"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://93107761</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_07_2"><Properties><string name="Name">PREPARA</string><Content name="SoundId"><url>rbxasset://sounds/unsheath.wav</url></Content><float name="Volume">0.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="DR_SFX_07_3"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://93157691</url></Content><float name="Volume">1.2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item>
+		<Item class="Part" referent="D07_RBXFA099E9415B6457297C83D4AF2CECDC0">
+			<Properties>
+				<token name="shape">1</token>
+				<token name="formFactorRaw">0</token>
+				<bool name="Anchored">true</bool>
+				<bool name="AudioCanCollide">true</bool>
+				<float name="BackParamA">-0.5</float>
+				<float name="BackParamB">0.5</float>
+				<token name="BackSurface">5</token>
+				<token name="BackSurfaceInput">0</token>
+				<float name="BottomParamA">-0.5</float>
+				<float name="BottomParamB">0.5</float>
+				<token name="BottomSurface">2</token>
+				<token name="BottomSurfaceInput">0</token>
+				<CoordinateFrame name="CFrame">
+					<X>80.6356583</X>
+					<Y>9.43225002</Y>
+					<Z>57.3549194</Z>
+					<R00>-0.605327368</R00>
+					<R01>0.000128343701</R01>
+					<R02>0.795976698</R02>
+					<R10>0.401777685</R10>
+					<R11>0.863308609</R11>
+					<R12>0.305406183</R12>
+					<R20>-0.687134326</R20>
+					<R21>0.504676342</R21>
+					<R22>-0.522635937</R22>
+				</CoordinateFrame>
+				<bool name="CanCollide">false</bool>
+				<bool name="CanQuery">true</bool>
+				<bool name="CanTouch">true</bool>
+				<bool name="CastShadow">true</bool>
+				<string name="CollisionGroup">Default</string>
+				<int name="CollisionGroupId">0</int>
+				<Color3uint8 name="Color3uint8">4294506744</Color3uint8>
+				<PhysicalProperties name="CustomPhysicalProperties">
+					<CustomPhysics>false</CustomPhysics>
+				</PhysicalProperties>
+				<bool name="EnableFluidForces">true</bool>
+				<float name="FrontParamA">-0.5</float>
+				<float name="FrontParamB">0.5</float>
+				<token name="FrontSurface">5</token>
+				<token name="FrontSurfaceInput">0</token>
+				<float name="LeftParamA">-0.5</float>
+				<float name="LeftParamB">0.5</float>
+				<token name="LeftSurface">2</token>
+				<token name="LeftSurfaceInput">0</token>
+				<bool name="Locked">true</bool>
+				<bool name="Massless">true</bool>
+				<token name="Material">256</token>
+				<string name="MaterialVariantSerialized" />
+				<CoordinateFrame name="PivotOffset">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+					<R00>1</R00>
+					<R01>0</R01>
+					<R02>0</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>0</R20>
+					<R21>0</R21>
+					<R22>1</R22>
+				</CoordinateFrame>
+				<float name="Reflectance">0</float>
+				<float name="RightParamA">-0.5</float>
+				<float name="RightParamB">0.5</float>
+				<token name="RightSurface">2</token>
+				<token name="RightSurfaceInput">0</token>
+				<int name="RootPriority">0</int>
+				<Vector3 name="RotVelocity">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+				</Vector3>
+				<float name="TopParamA">-0.5</float>
+				<float name="TopParamB">0.5</float>
+				<token name="TopSurface">2</token>
+				<token name="TopSurfaceInput">0</token>
+				<float name="Transparency">1</float>
+				<Vector3 name="Velocity">
+					<X>0</X>
+					<Y>0</Y>
+					<Z>0</Z>
+				</Vector3>
+				<Vector3 name="size">
+					<X>6</X>
+					<Y>9</Y>
+					<Z>1</Z>
+				</Vector3>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">SlashPart</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="SpecialMesh" referent="D07_RBX2AEA50736202428685A5453BDCD3D7B5">
+				<Properties>
+					<token name="MeshType">5</token>
+					<Content name="MeshId"><url>http://www.roblox.com/asset/?id=87112830</url></Content>
+					<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93067310</url></Content>
+					<Vector3 name="Offset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="Scale">
+						<X>1.5</X>
+						<Y>3.70000005</Y>
+						<Z>0.100000001</Z>
+					</Vector3>
+					<Vector3 name="VertexColor">
+						<X>2</X>
+						<Y>0.800000012</Y>
+						<Z>0.800000012</Z>
+					</Vector3>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">Mesh</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+			</Item>
+			</Item>
+		<Item class="StringValue" referent="DR_Damage_07"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_07"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_TryHard</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_07"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_07"><Properties><string name="Name">RecargaGlobal</string><float name="Value">22</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_07"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_07"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_CUTR_07"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="DR_TryHard_Serv_07"><Properties><string name="Name">TryHard_Server_V1</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_Client_07"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="DR_R6CFrameAnim_07"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_Poses_07"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="DR_VFXModule_07"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item><Item class="Script" referent="DR_CutsceneCam_07"><Properties><string name="Name">CutsceneCam</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item></Item>
+	<SharedStrings><SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA==" /></SharedStrings></roblox>

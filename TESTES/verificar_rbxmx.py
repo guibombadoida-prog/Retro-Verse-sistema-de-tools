@@ -301,8 +301,17 @@ def verificar(nome):
                 nomes_sfx.add(texto(filho, "Name"))
                 url = prop(filho, "SoundId")
                 destino = url.find("url") if url is not None else None
-                if destino is None or not (destino.text or "").startswith("rbxassetid://"):
-                    erros.append("Sound %r sem SoundId" % texto(filho, "Name"))
+                # `rbxasset://` NÃO é `rbxassetid://`, e é igualmente válido:
+                # é conteúdo que vem JUNTO com o cliente Roblox
+                # (`rbxasset://sounds/swordslash.wav`). Mais "dentro" que
+                # qualquer id de catálogo, porque não há nada para buscar. O
+                # `drama.rbxmx` traz dois assim, e recusá-los era o verificador
+                # sendo estreito, não a Tool sendo errada.
+                valor = (destino.text or "") if destino is not None else ""
+                if not (valor.startswith("rbxassetid://")
+                        or valor.startswith("rbxasset://")):
+                    erros.append("Sound %r sem SoundId utilizável (%r)"
+                                 % (texto(filho, "Name"), valor))
             varrer_sons(filho)
     varrer_sons(tool)
 
@@ -428,6 +437,17 @@ CONJUNTOS = [
     ]),
     # As 5 remasterizadas do `guest_tools.rbxmx` mais as 2 do
     # `guest_tools_2_more.rbxmx`, fundidas por FERRAMENTAS/fundir_guest.py.
+    # 7 Tools de briga a partir das 3 do `drama.rbxmx`: `Fists` e `dodge` não
+    # têm Handle nenhum, e ganham um invisível. Duas têm CUTSCENE.
+    ("Drama_7_Tools.rbxmx", "Drama", [
+        "Combate",
+        "Desviar e Empurrar",
+        "Corte Frio",
+        "Impacto Forte",
+        "Aura",
+        "Olhos Laser",
+        "TryHard",
+    ]),
     ("Guest_7_Tools.rbxmx", "Guest_Tools", [
         "Taco de Baseball",
         "Cano De Rua",

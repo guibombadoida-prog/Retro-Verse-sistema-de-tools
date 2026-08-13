@@ -1,6 +1,6 @@
 # Tools
 
-**52 Tools, em sete conjuntos.**
+**59 Tools, em oito conjuntos.**
 
 ## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
 
@@ -267,6 +267,104 @@ As sete dividem as mesmas poses de base — `ABRE_MAO`, `SUSTENTA`, `FECHA`,
 `PUXA`, `ESMAGA`, `ERGUE`, `BATE_CHAO`. Sete Tools do mesmo tema têm de **ler
 como o mesmo poder**; o que muda entre elas é o que vem depois do gesto, e o
 tempo de cada passo.
+
+---
+
+## Conjunto DRAMA — 7 Tools, de `drama.rbxmx`
+
+**Três Tools de origem, e só uma com Handle.** O `Fists` tem 21 instâncias e
+nenhum Handle; o `dodge` tem duas — um Script e mais nada. Só o `UpperSword` traz
+geometria. As de punho e de olho ganham **Handle invisível de 0.4 stud**, que não
+substitui mesh de ninguém: supre o que a origem não tem.
+
+| Tool | Handle vem de | M1 | Extra |
+|---|---|---|---|
+| `Combate` | Fists (invisível) | combo de **três** (12 / 12 / 22) | **R** Chute Rodado — 32 em raio 10, tomba |
+| `Desviar e Empurrar` | dodge (invisível) | empurrão em cone (9, empurra 92) | **R** Esquiva — recua 34 com `ForceField` de 0.42 s |
+| `Corte Frio` | UpperSword | corte de lâmina (26) | **R** Execução — 85 · **CUTSCENE** |
+| `Impacto Forte` | Fists **(clone)** | soco pesado (40 + arremesso 96) | **R** Rachar o Chão — 52 em raio 20 |
+| `Aura` | dodge **(clone)** | liga a aura: `WalkSpeed` 26 e 4 pulsos de 7 | **R** Pulso — 34, ou **54 e apaga a aura** |
+| `Olhos Laser` | Fists **(clone)** | feixe pelos olhos (22, alcance 220) | **R** Varredura — leque de **7** feixes |
+| `TryHard` | UpperSword **(clone)** | combo de **quatro** (11 / 13 / 16 / 30) | **R** Finalizador — 130 · **CUTSCENE** |
+
+As 7 juntas: [`Drama_7_Tools.rbxm`](Drama_7_Tools.rbxm) · XML
+[`Drama_7_Tools.rbxmx`](Drama_7_Tools.rbxmx)
+
+### A cutscene finalmente enquadra POR ESPECTADOR
+
+A regra 2 da [`GRAMATICA_CUTSCENE.md`](../ACERVO_RETROVERSE/_AUTORAL_RetroVerse/CAMERA/GRAMATICA_CUTSCENE.md)
+foi escrita a partir do YorrSlayer e **nunca tinha sido implementada aqui**:
+
+```
+quem invoca  ->  vê o golpe de fora, com o alvo no quadro
+quem é alvo  ->  vê a SI MESMO sendo alcançado
+```
+
+O motivo de nunca ter saído do papel é simples: a `CutsceneCam` era `LocalScript`,
+e LocalScript dentro de Tool **só roda para quem a segura**. O alvo nunca
+executava o arquivo, então a metade da cena que era dele não existia.
+
+Aqui ela é `Script` com `RunContext = Client`, e o servidor manda **um
+`FireClient` por espectador** com o papel de cada um no payload. Só o portador e
+o alvo entram na cena — quem está do outro lado do mapa não perde a câmera por
+causa de briga alheia.
+
+As outras cinco regras também estão implementadas: FOV como técnica principal
+(44 → 96 no `Corte Frio`, 40 → 104 no `TryHard`), aproximação **exponencial**
+`k = 1 - math.exp(-3.2 * dt)`, estágio por tempo dentro do `RenderStepped`,
+tremor com envelope nas frequências 24 e 41, e pular segurando **E** por 1.5 s —
+só visual, o servidor segue no tempo dele.
+
+**Seis portas devolvem a câmera:** `Unequipped`, `Destroying`,
+`CharacterRemoving`, `Died`, prazo estourado e o pulo. A de prazo existe porque o
+servidor pode morrer no meio da cena e nunca mandar o `FIM`.
+
+### O que saiu do `drama.rbxmx`
+
+| Onde | O que era | O que ficou |
+|---|---|---|
+| `Fists` | 2078 linhas com **um único `TakeDamage`**, contra 9 `Health = Health - x` e 4 `BreakJoints` | `TakeDamage` pelo Núcleo; `PlatformStand` com prazo no lugar do `BreakJoints` |
+| `dodge` | dois `workspace.DescendantAdded`/`Removing` **globais**, mantendo uma tabela de todo `Humanoid` do jogo, ligados para sempre | `detectarHumanoides`, que é consulta espacial sob demanda |
+| todas | **31 `tick()`** — `tick()` alimentando geometria foi o que picotou a animação das bombas | `os.clock()` para recarga, acumulador `dt` para animação |
+| `Fists`, `UpperSword` | 2 `ScreenGui` (`fistgui` com as barras de combo, `FlashScreen`) | `ContextActionService`, e o combo é estado do Server |
+| `UpperSword` | 5 `Animation` com `LoadAnimation` | pose CFrame sob `R6CFrameAnimator` |
+| `UpperSword` | um `Sound` chamado literalmente `Sound`, repetido 4 vezes no mesmo pai | 4 papéis com nome de papel — `FindFirstChild` com nome repetido devolve o primeiro que achar |
+| todas | 39 `math.random` · 18 `:Destroy()` · 9 `wait()` · 3 `delay()` · 3 `workspace:GetDescendants()` | trocados |
+
+### O que veio da origem, e é dela
+
+O `dhtime = 0.65` do `dodge` — a duração da esquiva, medida pelo autor original
+(Rufus14, o mesmo de `A arma`). É o único número do conjunto abaixo da faixa da
+regra 1, e está declarado: **esquiva lenta não é esquiva.**
+
+E os quatro sons, todos do próprio modelo: `powerup`, o `Sound` do `SlashPart`, e
+os dois `rbxasset://sounds/` — que são conteúdo do **cliente Roblox**, mais
+"dentro" que qualquer id de catálogo. O verificador foi ensinado a aceitar essa
+forma por causa deles.
+
+⚠️ A paleta sonora é **fina**: quatro timbres para sete Tools. Está declarado
+para não parecer descuido.
+
+### O tempo das poses segue a tabela ao pé da letra
+
+A gramática foi medida em soco, empurrão, uppercut e combo do Saitama — que é
+exatamente o repertório deste conjunto. Aqui não há desconto a pedir:
+
+| Regra | O que diz | Onde |
+|---|---|---|
+| 1 | golpe rápido entre 0.8 s e 1.2 s | `SOCO_A/B/C`, `CORTE`, `SOCO` |
+| 2 | o impacto cai na **metade** | os mesmos, ~50% |
+| 3 | combo inverte para **35 : 65** | `COMBO_1..4` do TryHard |
+| 5 | ultimate 7–9 s com 64–86% de preparação | `FINALIZADOR`, 7.60 s e 76% |
+| 7 | estas animações são, em maioria, **paradas** | quadro segurado em todas |
+
+A ressalva que o conjunto GUEST levantou — golpe de rua vive em 0.3–0.6 s — **não
+vale aqui**, e é decisão declarada: `Combate` e `TryHard` são briga **encenada**,
+com combo e finalizador, que é o caso que o Saitama mede.
+
+`Olhos Laser` lidera por **`Head`** — a única junta líder que a gramática não
+prevê. Está aqui porque a alternativa era pior: um feixe que sai dos olhos
+conduzido pelo braço lê como se a mão estivesse atirando.
 
 ---
 

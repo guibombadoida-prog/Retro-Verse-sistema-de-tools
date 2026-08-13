@@ -1,8 +1,8 @@
 # _INDICE — Acervo Retro-Verse
 
-> **52 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **59 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
-> 7 de `Guest_Tools`, **7 de `Calebe_Tools` (o conjunto GRAVIDADE)** e as
+> 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), **7 de `Drama`** e as
 > **6 do `collector` — o conjunto AUTORAL**, que não sai de modelo nenhum: sai
 > daqui. Ver `Tools/README.md`.
 >
@@ -187,7 +187,8 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses.lua` × 7 | **autoral**, pela gramática | 39 poses · 17 sequências | **LIMPO** | as 7 Tools do conjunto GUEST |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · 14 sequências | **LIMPO** | as 7 Tools do conjunto GRAVIDADE |
 | poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
-| poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** | — |
+| poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** — medida, não copiada | a gramática |
+| `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
 
 > **`Guest_Tools` é a fonte de pose mais barata do Acervo.** Ela escreve em `Weld.C0` com
 > `RightArmWelde`/`LeftArmWelde`/`HeadWelde`/`HumanoidRootPartWelde` soldados a partir do
@@ -222,11 +223,23 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 |---|---|---|---|---|
 | `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (referência) |
 | `YorrSlayer_CutsceneCam_V1` | YorrSlayer (conformado) | **enquadramento por espectador** + FOV | LIMPO | técnica aplicada no Escudo Partido |
-| `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido |
+| `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido · **as 2 do DRAMA** |
+| `CutsceneCam_Drama` | **autoral**, pelas 6 regras | **enquadramento por espectador**, de verdade | **LIMPO** | `Corte Frio`, `TryHard` |
 
 Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
 `STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a
-Regra nº 1 — mas só em `LocalScript`, e sempre devolvida em `Unequipped`/`Destroying`.
+Regra nº 1 — desde que seja devolvida em `Unequipped` e `Destroying`.
+
+> **Correção registrada: a regra 2 exigia `RunContext = Client`, não `LocalScript`.**
+> A regra 2 da gramática — enquadramento POR ESPECTADOR — ficou três conjuntos no papel, e
+> o motivo era este arquivo dizer "só em `LocalScript`". LocalScript dentro de Tool **só roda
+> para quem a segura**: o ALVO da cena nunca executava a `CutsceneCam`, então a metade da
+> cena que era dele não existia. A `CutsceneCam` do conjunto DRAMA é `Script` com
+> `RunContext = Client`, e o servidor manda **um `FireClient` por espectador** com o papel de
+> cada um no payload. É a primeira implementação de verdade da regra 2.
+>
+> Só o portador e o alvo entram na cena. Uma cutscene que toma a câmera de quem não está
+> envolvido é a definição de tempo morto.
 
 Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md) e
 `DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md`.
@@ -265,7 +278,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Guest_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GUEST | [FICHA.md](Guest_Tools/FICHA.md) |
 | `Dano_Verdadeiro/` | **CRU** — ⚠️ o payload apaga o servidor; a carga e os `SoundEffect` valem | [FICHA.md](Dano_Verdadeiro/FICHA.md) |
 | `Calebe_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GRAVIDADE | [FICHA.md](Calebe_Tools/FICHA.md) |
-| `Drama/` | **CRU** — 3 `Tool`; a **esquiva** que faltava no repertório | [FICHA.md](Drama/FICHA.md) |
+| `Drama/` | **LIMPO** — base das **7 Tools** do conjunto DRAMA, duas com cutscene | [FICHA.md](Drama/FICHA.md) |
 | `Faker_Tools/` | **CRU** — o His Cube **original**; 5 malhas de VFX novas | [FICHA.md](Faker_Tools/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,

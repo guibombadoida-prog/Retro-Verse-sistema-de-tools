@@ -1,11 +1,11 @@
-# Modelo: Drama — 3 Tools de briga
+# Modelo: Drama — 3 Tools de briga → **7 Tools**
 
 - Autor original:            **Rufus14** no `dodge` (declarado no cabeçalho); os outros dois **a confirmar** ⚠️
 - Origem:                    `drama.rbxmx`, enviado no lote de 2026-08-13
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-13
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Drama/` · notas em `R6_CFRAME/NOTAS.md`
+- Status:                    **LIMPO** — passe §12.12.2 executado; falta licença
+- Onde vive:                 `MODELOS_ENTRADA/Drama/` · as **7 Tools** em `Tools/`
 
 ---
 
@@ -93,4 +93,60 @@ animação das bombas, e aqui ele é a base de tempo de tudo.
 Zero `loadstring`, zero `require(<id numérico>)`, zero `HttpService`, zero webhook, zero
 `getfenv`/`setfenv`, zero `ReplicatedStorage`/`ServerStorage`. Limpo.
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+## Passe de conformidade §12.12.2 — EXECUTADO
+
+```bash
+python3 FERRAMENTAS/preparar_drama.py          # 3 Handles -> 7 Tools
+python3 FERRAMENTAS/gerar_poses_drama.py       # 7 Poses.lua
+python3 FERRAMENTAS/gerar_servers_drama.py     # Server · Client · VFX · CutsceneCam
+python3 FERRAMENTAS/clonar_tool.py montar ...  # os .rbxmx
+python3 FERRAMENTAS/converter_para_rbxm.py ... # a entrega
+```
+
+Saíram **7 Tools** — `Drama_7_Tools.rbxm`. `Fists` e `dodge` não têm Handle
+nenhum, e as cinco derivadas deles ganharam um **invisível de 0.4 stud**. Duas
+têm **cutscene**: `Corte Frio` e `TryHard`.
+
+### A regra 2 da gramática de cutscene finalmente saiu do papel
+
+`GRAMATICA_CUTSCENE.md` regra 2 — **enquadramento por espectador** — foi escrita
+a partir do YorrSlayer e nunca tinha sido implementada. O motivo: a
+`CutsceneCam` era `LocalScript`, e LocalScript dentro de Tool só roda para quem
+a segura. **O alvo nunca executava o arquivo**, então a metade da cena que era
+dele não existia.
+
+Aqui ela é `Script` com `RunContext = Client`, e o servidor manda um
+`FireClient` por espectador com o papel de cada um. Só o portador e o alvo
+entram — quem está longe não perde a câmera por briga alheia.
+
+### O que foi trocado
+
+| Defeito da origem | Conserto |
+|---|---|
+| 9 `Health = Health - x` contra **1** `TakeDamage` no `Fists` inteiro | `TakeDamage` pelo Núcleo |
+| 4 `BreakJoints` | `PlatformStand` com prazo |
+| 2 `workspace.DescendantAdded`/`Removing` globais no `dodge`, ligados para sempre | `detectarHumanoides`, consulta espacial sob demanda |
+| **31 `tick()`** | `os.clock()` para recarga, acumulador `dt` para animação |
+| 2 `ScreenGui` | `ContextActionService`; o combo é estado do Server |
+| 5 `Animation` + 2 `LoadAnimation` | pose CFrame sob `R6CFrameAnimator` |
+| um `Sound` chamado `Sound`, repetido 4× no mesmo pai | 4 papéis com nome de papel |
+| 39 `math.random` · 18 `:Destroy()` · 9 `wait()` · 3 `delay()` · 3 `GetDescendants()` | trocados |
+
+### O que a origem deu, e ficou
+
+O **`dhtime = 0.65`** do `dodge` — a duração da esquiva, medida por Rufus14. É o
+único número do conjunto abaixo da faixa da regra 1, e está declarado: esquiva
+lenta não é esquiva.
+
+E os quatro sons, todos do próprio modelo. Dois deles são `rbxasset://sounds/`,
+conteúdo do **cliente Roblox** — mais "dentro" que qualquer id de catálogo,
+porque não há nada para buscar. `TESTES/verificar_rbxmx.py` foi ensinado a
+aceitar essa forma por causa deles; recusá-la era o verificador sendo estreito.
+
+⚠️ A paleta sonora é **fina**: quatro timbres para sete Tools.
+
+## Para sair de LIMPO e virar APROVADO
+
+Falta a **licença** e o teste em jogo. Nada aqui rodou no Studio — a verificação
+é toda estática, e a cutscene por espectador é justamente o tipo de coisa que só
+o jogo confirma.
