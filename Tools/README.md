@@ -1,6 +1,6 @@
 # Tools
 
-**18 Tools, em três conjuntos.**
+**45 Tools, em seis conjuntos.**
 
 ## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
 
@@ -92,6 +92,68 @@ que foi removido.
 | `Escudo Partido` | [`Escudo Partido.rbxmx`](Escudo%20Partido/Escudo%20Partido.rbxmx) |
 
 As 7 juntas: [`Escudos_7_Tools.rbxmx`](Escudos_7_Tools.rbxmx)
+
+---
+
+## Conjunto GUEST — 7 Tools, de `guest_tools.rbxmx` + `guest_tools_2_more.rbxmx`
+
+**Cinco remasterizadas** (o primeiro arquivo) e **duas que entraram depois** (o
+segundo). Sete cai exato no teto da regra de distribuição: nenhuma se funde,
+nenhuma vira Extra de outra.
+
+Cada uma tem primária no clique e **uma Extra**, com botão de toque desenhado
+pelo `ContextActionService` — celular e controle entram pelo mesmo caminho.
+
+| Tool | M1 | Extra | Entrega |
+|---|---|---|---|
+| `Taco de Baseball` | dois golpes que revezam (16 / 22) | **R** Vibe Check — 55 em raio 11, tomba | [`.rbxmx`](Taco%20de%20Baseball/Taco%20de%20Baseball.rbxmx) |
+| `Cano De Rua` | dois golpes; o segundo cobra mais (13 / 19) | **R** Concussão — 34 em raio 13 + lentidão 3.5 s | [`.rbxmx`](Cano%20De%20Rua/Cano%20De%20Rua.rbxmx) |
+| `Abacate (roubado) do mexico` | come e cura **14** | **R** Caroço — arremesso, 12 de dano | [`.rbxmx`](Abacate%20%28roubado%29%20do%20mexico/Abacate%20%28roubado%29%20do%20mexico.rbxmx) |
+| `Energetico` | bebe: cura **10** + `WalkSpeed` 26 por 6 s | **R** Lata — arremesso, 15 de dano | [`.rbxmx`](Energetico/Energetico.rbxmx) |
+| `Humilhador` | provoca — **zero dano**, de propósito | **R** Roda — afrouxa a 60% em raio 22 | [`.rbxmx`](Humilhador/Humilhador.rbxmx) |
+| `Diamond` | tapa que arremessa (18 + empurrão 78) | **E** Pedra — 4.5 s trancado, abre com 30 em raio 13 | [`.rbxmx`](Diamond/Diamond.rbxmx) |
+| `A arma` | revólver, 6 tiros (24 · **46 na cabeça**) | **R** Recarregar | [`.rbxmx`](A%20arma/A%20arma.rbxmx) |
+
+As 7 juntas: [`Guest_7_Tools.rbxmx`](Guest_7_Tools.rbxmx) · binário
+[`Guest_7_Tools.rbxm`](Guest_7_Tools.rbxm)
+
+### Os bugs que vieram nos originais, e o que foi feito
+
+| Onde | O que era | O que ficou |
+|---|---|---|
+| `Diamond` | `tool:WaitForChild("AbilityActivateButton")` — **essa GUI não existe no modelo**. `WaitForChild` sem timeout trava para sempre: o CLIENT morria na linha 10 e a Tool inteira era inerte | botão pelo `ContextActionService` |
+| `Diamond` | `require(ReplicatedFirst.Ragdoll)` — dependência de fora, e num place vazio a Tool erra na primeira ativação | `PlatformStand` com prazo, dentro da Tool |
+| `Diamond` | `Touched` decidindo acerto no **cliente** | quem decide dano é o servidor |
+| `Taco de Baseball` | soldava as duas pernas e zerava `WalkSpeed` no finalizador; o `Unequipped` soltava braço, cabeça e raiz e **não as pernas** — desequipar no meio deixava o personagem soldado e parado, sem volta | perna é do `R6CFrameAnimator`, sob demanda, com `ReleaseLegs` nas **duas** portas |
+| `Taco de Baseball` | `isAlly()` decidindo aliado dentro da Tool | o Núcleo, sob guarda |
+| `Cano De Rua` | `Health = Health - math.random(10,15)` | `TakeDamage`, que respeita `ForceField` |
+| `Cano De Rua` | `Instance.new("ScreenGui")` na cara de quem apanhava — proibida, e só quem levou via | lentidão com prazo, legível para a sala |
+| `Abacate` | `OpenSound` com `SoundId` **em branco**, e o `Equipped` chamando `:Play()` nele | id preenchido |
+| `Humilhador` · `A arma` | chegaram **mudas** — a primeira criava o `Sound` no código, a segunda não tinha nenhum | `Sound` como instância dentro da Tool |
+| todas | 47 `wait()` · 41 `math.random` · 12 `tick()` · 11 `spawn(` · 1 `delay(` · 2 `:Destroy()` | trocados |
+
+### O tempo das poses foge da tabela, e está declarado
+
+A medição do próprio Guest está em
+[`ACERVO_RETROVERSE/Guest_Tools/R6_CFRAME/NOTAS.md`](../ACERVO_RETROVERSE/Guest_Tools/R6_CFRAME/NOTAS.md):
+o combo do `Cano De Rua` original sai em **0.317 s, proporção 42 : 58**.
+
+A proporção **confirma** a regra 3 da gramática (combo bate cedo, 35 : 65) — e
+vem de um autor que nunca viu a nossa tabela. A duração **contraria** a regra 1
+(golpe rápido entre 0.8 s e 1.2 s).
+
+A leitura registrada: a regra 1 foi medida em bake de anime, onde o golpe é
+*encenado*; aqui é porrada de rua, onde ele é *responsivo*. Então o conjunto
+fica em **0.50–0.62 s** — mais lento que o original, que não tinha um único
+quadro segurado, e mais rápido que a tabela, porque a 0.8 s uma briga de rua
+vira coreografia. Ultimate e transformação seguem a tabela sem desconto.
+
+### Duas exceções de geometria, declaradas
+
+| Tool | O quê | Por quê |
+|---|---|---|
+| `A arma` | o `Handle` **subiu de nível**, de `model/Handle` para filho direto | Tool com `RequiresHandle = true` exige Handle como filho direto — é exigência do Roblox. `Weld` e `Motor6D` apontam por `referent`, não por caminho, então nada se desfez |
+| `Humilhador` | ganhou um `Handle` **invisível de 0.4 stud** | a origem não tem nenhum: é provocação pura, só um Script. Sem Handle a Tool não equipa. Não substitui mesh de ninguém — supre o que não existe |
 
 ---
 

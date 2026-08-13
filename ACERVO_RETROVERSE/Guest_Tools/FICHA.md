@@ -1,17 +1,19 @@
-# Modelo: Guest Tools — 5 Tools de rua
+# Modelo: Guest Tools — 7 Tools de rua
 
 - Autor original:            **a confirmar** ⚠️ — parte já passou por mão deste projeto (ver abaixo)
-- Origem:                    `guesdttools.rbxmx`, enviado no lote de 2026-08-13
+- Origem:                    `guesdttools.rbxmx` (5 Tools) + `Guest_Tools_2_more.rbxmx` (2 Tools)
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-13
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Guest_Tools/`
+- Status:                    **LIMPO** — passe §12.12.2 executado nas 7; falta licença
+- Onde vive:                 `MODELOS_ENTRADA/Guest_Tools/` · as 7 Tools em `Tools/`
 
 ---
 
 ## O que é
 
-**Cinco `Tool` prontas** na raiz. 129 instâncias, 1463 linhas, **16 `Sound`**, 79 `Weld`.
+**Sete `Tool` prontas**, em dois arquivos. As cinco primeiras chegaram no primeiro
+(129 instâncias, 1463 linhas, 16 `Sound`, 79 `Weld`); `Diamond` e `A arma` chegaram no
+segundo (299 instâncias, 1561 linhas, 118 `Motor6D`).
 
 | Tool | Instâncias | Linhas | O que faz | Sons |
 |---|---|---|---|---|
@@ -20,9 +22,13 @@
 | `Abacate (roubado) do mexico` | 78 | 93 | consumível — cura 3 HP em 3 s | 2 |
 | `Energetico` | 8 | 71 | consumível — cura 2 HP + `WalkSpeed` 22 por 5 s | 2 |
 | `Humilhador` | 9 | 114 | provocação — sprite sobre a cabeça, 1.25 s | 1 (criado no código) |
+| `Diamond` | 20 | 130 | tapa que arremessa + "virar pedra" | 1 |
+| `A arma` | 279 | 1431 | revólver de seis tiros, por Rufus14 | 0 ⚠️ |
 
-Cinco Tools, **uma habilidade cada, zero `KeyCode`** (só o `Taco` tem `ButtonR2`, para
-mobile). Cinco cai exato no piso 3 / teto 7 — **nenhuma se funde, nenhuma vira Extra.**
+Na origem, **uma habilidade cada, quase zero `KeyCode`** (só o `Taco` tem `ButtonR2` e o
+`Diamond` escuta `e` por `mouse.KeyDown`, que é depreciado). Sete cai **exato no teto** da
+regra de distribuição — nenhuma se funde, nenhuma vira Extra de outra. Na entrega cada uma
+ganhou uma habilidade **Extra**, com botão de toque.
 
 ---
 
@@ -83,7 +89,9 @@ cliente.** É animação de graça, sem rig nenhum, e serve de molde para qualqu
 
 ---
 
-## O que ainda precisa mudar
+## O que precisava mudar — e mudou
+
+Tudo abaixo foi trocado na conversão. Ver o passe, no fim desta ficha.
 
 | Achado | Quantos | Onde | O que a regra manda |
 |---|---|---|---|
@@ -143,4 +151,31 @@ Cada `Ouch`/`Hit` tem par (`Hit` + `Hit2`), o que dá alternância de golpe sem 
 Zero `loadstring`, zero `require(<id numérico>)`, zero `HttpService`, zero webhook, zero
 `getfenv`/`setfenv`. Limpo.
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+## Passe de conformidade §12.12.2 — EXECUTADO
+
+`python3 FERRAMENTAS/preparar_guest.py` · `gerar_poses_guest.py` ·
+`gerar_servers_guest.py` · `clonar_tool.py montar`
+
+As **7 Tools** estão em `Tools/`, uma por arquivo mais o conjunto
+`Guest_7_Tools.rbxmx`. Todas passam em `verificar_rbxmx`, `verificar_poses` e
+`verificar_pack_vfx`.
+
+O que a conversão trocou está na tabela de `Tools/README.md`, seção
+*Conjunto GUEST*. O resumo: `require` externo, `ScreenGui`, `Animation`,
+`isAlly` próprio, `Health = Health - x`, `Touched` no cliente, `BreakJoints`,
+`workspace:GetDescendants()`, e 114 chamadas de sintaxe proibida.
+
+### O que a origem manteve, intacto
+
+Handle, mesh, `Sound`, `Weld`, `Motor6D`, `Texture`, hierarquia. É remaster:
+`clonar_tool.py` só reescreve o `Source` dos scripts.
+
+Duas exceções de geometria, e as duas estão declaradas em
+`FERRAMENTAS/preparar_guest.py`: o `Handle` de `A arma` subiu de `model/Handle`
+para filho direto (exigência do Roblox para `RequiresHandle`), e o `Humilhador`
+ganhou um `Handle` invisível porque a origem não tem nenhum.
+
+## Para sair de LIMPO e virar APROVADO
+
+Falta a **licença** e o teste em jogo. Nada aqui rodou no Studio — a verificação
+é toda estática.

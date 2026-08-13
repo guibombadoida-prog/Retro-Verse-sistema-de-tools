@@ -859,7 +859,7 @@ Tool.Destroying:Connect(function()
 	vfx("PARAR", { id = ID_AURA })
 	limparTudo()
 end)
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{6C6A54AA-EB09-43AD-80BF-3E0A9EB53DAB}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EscudoBloqueador_Server_V6</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="LocalScript" referent="RBX340D480010D14F3B918FBC69AE4E647E"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoBloqueador_Client_V6.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{6C6A54AA-EB09-43AD-80BF-3E0A9EB53DAB}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EscudoBloqueador_Server_V6</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Script" referent="RBX340D480010D14F3B918FBC69AE4E647E"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoBloqueador_Client_V6.lua
 -- LocalScript "Client" DENTRO da Tool "Escudo Bloqueador"
 --
 -- Papel (§12.10): capturar entrada e EXECUTAR os VFX recebidos pelo VFXRemote.
@@ -1060,7 +1060,7 @@ Tool.Destroying:Connect(function()
 	if desligarEntrada then desligarEntrada() end
 	limparCliente()
 end)
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{F1EDAADE-F0F9-42EF-84B6-F822FCA4BAA7}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX1F569A7C8DBA42D6BE6B65AE0E121BD5"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">2</token><string name="ScriptGuid">{F1EDAADE-F0F9-42EF-84B6-F822FCA4BAA7}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX1F569A7C8DBA42D6BE6B65AE0E121BD5"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
 -- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
 -- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
 --[==[

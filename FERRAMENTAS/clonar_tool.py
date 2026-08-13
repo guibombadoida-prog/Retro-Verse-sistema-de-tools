@@ -274,6 +274,44 @@ def enxertar_pack(tool):
                 if i.get("class") == "ModuleScript"])
 
 
+def cliente_para_runcontext(tool):
+    """
+    `Client` como LocalScript vira `Script` com RunContext = Client.
+
+    POR QUE ISSO PRECISA ACONTECER NA MONTAGEM
+
+        LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+        contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em
+        todo mundo — mas o único ouvinte que existe é o de quem está segurando.
+        Era por isso que o VFX aparecia só para o portador.
+
+        As Bombas, o Xester e o collector já nasceram com `RunContext = 2`
+        porque o `preparar_*` de cada um o escreve. Os 7 Escudos NÃO: eles
+        vieram do clonador, e o `_ORIGEM.rbxmx` deles guarda o `Client` como
+        LocalScript desde antes do conserto. Remontar não bastava — o defeito
+        estava na base, não no `.lua`.
+
+        Conferido antes de escrever esta função: `Bomba Nuclear` e
+        `Xester Teleporte` já saíam com `Script` + RunContext 2, e os sete
+        Escudos ainda saíam com `LocalScript`.
+    """
+    trocados = 0
+    for item, _caminho in percorrer(tool):
+        if item.get("class") != "LocalScript":
+            continue
+        if texto(item, "Name") != "Client":
+            continue
+        item.set("class", "Script")
+        campo = prop(item, "RunContext")
+        if campo is None:
+            campo = ET.SubElement(item.find("Properties"), "token",
+                                  {"name": "RunContext"})
+        campo.tag = "token"
+        campo.text = "2"
+        trocados = trocados + 1
+    return trocados
+
+
 def montar(nomes, destino):
     """
     Monta o .rbxmx de entrega a partir dos _ORIGEM.rbxmx de cada Tool,
@@ -284,7 +322,7 @@ def montar(nomes, destino):
     para arrastar) e mais o conjunto com as Tools do modelo todo.
     """
     raiz = nova_raiz()
-    trocados, mantidos, enxertados, legendadas = 0, 0, 0, 0
+    trocados, mantidos, enxertados, legendadas, convertidos = 0, 0, 0, 0, 0
     penduradas = []
 
     # A tabela de SharedStrings vem das DUAS fontes: o _ORIGEM de cada Tool e o
@@ -301,6 +339,8 @@ def montar(nomes, destino):
 
         sub = ET.parse(base).getroot()
         tool = sub.find("Item")
+
+        convertidos = convertidos + cliente_para_runcontext(tool)
 
         if not (texto(tool, "ToolTip") or "").strip() and nome in TOOLTIPS:
             campo = prop(tool, "ToolTip")
@@ -344,6 +384,8 @@ def montar(nomes, destino):
           % enxertados)
     print("   %d ToolTip preenchido(s) — a origem veio com o campo vazio"
           % legendadas)
+    print("   %d Client LocalScript -> Script RunContext=Client (visibilidade)"
+          % convertidos)
     print("   %d SharedString na tabela, 0 pendurada" % len(tabela)
           if not penduradas else
           "   ⚠️  %d SharedString PENDURADA: %s"

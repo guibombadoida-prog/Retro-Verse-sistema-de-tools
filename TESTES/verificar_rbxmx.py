@@ -376,6 +376,17 @@ CONJUNTOS = [
         "Escudo Cyclone",
         "Escudo Partido",
     ]),
+    # As 5 remasterizadas do `guest_tools.rbxmx` mais as 2 do
+    # `guest_tools_2_more.rbxmx`, fundidas por FERRAMENTAS/fundir_guest.py.
+    ("Guest_7_Tools.rbxmx", "Guest_Tools", [
+        "Taco de Baseball",
+        "Cano De Rua",
+        "Abacate (roubado) do mexico",
+        "Energetico",
+        "Humilhador",
+        "Diamond",
+        "A arma",
+    ]),
 ]
 
 

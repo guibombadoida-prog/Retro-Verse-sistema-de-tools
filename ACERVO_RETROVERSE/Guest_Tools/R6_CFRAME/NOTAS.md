@@ -1,7 +1,12 @@
 # NOTAS R6 — Guest Tools
 
-**Status: CRU.** Nenhuma pose extraída ainda. Mas esta é a fonte de pose mais **barata** que
-já entrou no Acervo, e o motivo é de convenção, não de qualidade.
+**Status: CRU** como material — nenhuma pose foi extraída, e nenhuma será: a regra é que
+daqui saem PROPORÇÕES, não silhuetas. O que ficou **LIMPO** é o que se autorou a partir
+delas: os sete `Poses.lua` do conjunto GUEST, em `Tools/<Nome>/Poses.lua`, gerados por
+`FERRAMENTAS/gerar_poses_guest.py` — 39 poses e 17 sequências.
+
+Esta é a fonte de pose mais **barata** que já entrou no Acervo, e o motivo é de convenção,
+não de qualidade.
 
 ---
 
@@ -115,3 +120,21 @@ como certo.
    chega ao alvo: cada volta interpola a partir do `C0` **novo**, então o resto encolhe
    geometricamente. É a mesma armadilha do `:lerp` repetido já registrada no projeto.
 4. Perna sob demanda, e `ReleaseLegs` em `Unequipped` **e** `Destroying` — as duas portas.
+
+---
+
+## O que saiu disso, na prática
+
+`FERRAMENTAS/gerar_poses_guest.py`, sete arquivos. A decisão que foge da tabela está
+declarada no cabeçalho do gerador:
+
+| | duração | proporção | segurados |
+|---|---|---|---|
+| original do `Cano` | 0.317 s | 42 : 58 | **0** |
+| a tabela (regra 1) | 0.80–1.20 s | 49–59 : 51–41 | — |
+| **o que ficou** | **0.50 s** | 35 : 65 | **2** |
+
+Mais lento que o original porque ele não tinha um único quadro segurado, e a regra 7 é a que
+mais muda a leitura. Mais rápido que a tabela porque a 0.8 s uma briga de rua vira
+coreografia. Ultimate (`FINALIZADOR`, 1.50 s, 64% de preparação) e transformação (`PEDRA`,
+2.00 s, 2 : 98) seguem a tabela sem desconto.
