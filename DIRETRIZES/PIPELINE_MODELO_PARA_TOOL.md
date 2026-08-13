@@ -132,7 +132,7 @@ Copiar `_MODELO_DE_PASTA/` como ponto de partida. Atualizar `_INDICE.md`.
 
 ## Passo 6b — Montar o `.rbxmx`
 
-A entrega é o arquivo da Tool, não o `.lua` solto (`REGRA_ENTREGA_RBXMX.md`):
+A entrega é o arquivo da Tool, não o `.lua` solto (`REGRA_ENTREGA_RBXM.md`):
 
 ```bash
 python3 FERRAMENTAS/montar_rbxmx.py

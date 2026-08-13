@@ -1,12 +1,38 @@
-# REGRA DE ENTREGA — TODO MODELO CONVERTIDO SAI COMO `.rbxmx`
+# REGRA DE ENTREGA — TODO MODELO CONVERTIDO SAI COMO `.rbxm`
 **Retro-Verse / Studios** · regra de entrega
 
 ---
 
 ## O enunciado
 
-> **Todo modelo convertido é entregue como UM arquivo `.rbxmx` com TODAS as Tools do conjunto.**
-> Um arquivo por modelo, pronto para arrastar para o Studio. `.lua` solto **não é entrega**.
+> **Todo modelo convertido é entregue como UM arquivo `.rbxm` — BINÁRIO — com TODAS as
+> Tools do conjunto.** Um arquivo por modelo, pronto para arrastar para o Studio.
+> `.lua` solto **não é entrega**.
+
+### `.rbxm` é a entrega. `.rbxmx` é a etapa do meio.
+
+Os dois continuam sendo gerados, e os dois abrem no Studio — mas quem vale como **entrega**
+é o binário:
+
+| | `.rbxmx` | `.rbxm` |
+|---|---|---|
+| o que é | XML, legível | binário, o formato nativo |
+| para que serve | **revisar o diff no repositório** | **arrastar para o Studio** |
+| tamanho | ~5× maior | o de verdade |
+| é a entrega? | não | **sim** |
+
+O `.rbxmx` fica versionado porque é o único dos dois em que o `git diff` mostra o que mudou.
+O `.rbxm` é o que se manda para quem vai usar.
+
+```bash
+python3 FERRAMENTAS/converter_para_rbxm.py <arquivo.rbxmx> <saida.rbxm>
+```
+
+Ele é um wrapper sobre o `rbx-dom`, a implementação de referência do formato — a mesma que o
+Rojo usa. **Ninguém escreve `.rbxm` à mão:** é formato de chunks com as propriedades
+transpostas por classe e codificação intercalada (int32 em zigzag, referente em delta
+acumulado, float com rotação de bit). Um encoding sutilmente errado faz o Studio recusar o
+arquivo — ou, pior, aceitar e religar propriedade no objeto errado sem avisar.
 
 Instrução de montagem não é entrega. Se para usar o resultado alguém precisa criar `Instance`
 na mão, colar script por script e criar `Value` por `Value`, a conversão não terminou.
@@ -48,11 +74,11 @@ Tool  "[NomeDaTool]"                CanBeDropped=false · RequiresHandle=true ·
 ```
 
 **Teste que decide** — o mesmo da Regra nº 1, agora sobre o arquivo:
-importe o `.rbxmx` sozinho num place vazio, ponha na `StarterPack`, e **funciona por inteiro**.
+importe o `.rbxm` sozinho num place vazio, ponha na `StarterPack`, e **funciona por inteiro**.
 
 ---
 
-## O `.rbxmx` é DERIVADO, nunca escrito à mão
+## O arquivo é DERIVADO, nunca escrito à mão
 
 O arquivo é gerado a partir dos `.lua` da pasta da Tool:
 

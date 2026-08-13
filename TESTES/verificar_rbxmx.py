@@ -12,6 +12,7 @@ e antes de fechar entrega.
 O que confere:
   1. O XML abre e a raiz é uma Tool
   2. CanBeDropped = false · RequiresHandle = true · ToolTip preenchido
+  2b. O `.rbxm` binário existe e é mais novo que o `.rbxmx` — ele É a entrega
   3. Existe um Handle, com esse nome exato
   4. DamageClass declarado (§12.4) — sem ele, bônus por classe fica inerte
   5. Todo script exigido pelo §12.10 está presente, com o nome de objeto certo
@@ -141,6 +142,9 @@ def achar_servidor(fontes):
 def verificar(nome):
     pasta = os.path.join(TOOLS, nome)
     caminho = os.path.join(pasta, "%s.rbxmx" % nome)
+    # o laço de scripts mais abaixo reusa o nome `caminho`; o arquivo da Tool
+    # precisa de um nome próprio para sobreviver a ele
+    arquivo_xml = caminho
     erros = []
 
     if not os.path.exists(caminho):
@@ -233,6 +237,19 @@ def verificar(nome):
     # 7. remotes
     if achar(tool, "RemoteEvent", "VFXRemote") is None:
         erros.append("sem VFXRemote")
+
+    # 7b. O BINÁRIO É A ENTREGA (REGRA_ENTREGA_RBXM)
+    #
+    # `.rbxmx` é a etapa do meio — fica versionado porque é o único dos dois em
+    # que o `git diff` mostra o que mudou. Quem se arrasta para o Studio é o
+    # `.rbxm`. Um `.rbxmx` novo sem o binário ao lado é entrega pela metade, e
+    # o jeito de isso passar despercebido é justamente ninguém conferir.
+    binario = os.path.join(pasta, "%s.rbxm" % nome)
+    if not os.path.exists(binario):
+        erros.append("sem %s.rbxm — o binário é a entrega "
+                     "(FERRAMENTAS/converter_para_rbxm.py)" % nome)
+    elif os.path.getmtime(binario) < os.path.getmtime(arquivo_xml):
+        erros.append("%s.rbxm é mais VELHO que o .rbxmx — converta de novo" % nome)
 
     tem_cam = os.path.exists(os.path.join(pasta, "CutsceneCam.lua"))
     tem_cut = achar(tool, "RemoteEvent", "CutsceneRemote") is not None
@@ -424,6 +441,12 @@ def verificar_conjunto(arquivo, nomes):
             erros.append("item de raiz %r não é Tool — na StarterPack não seria entregue"
                          % item.get("class"))
 
+    binario = os.path.join(TOOLS, arquivo.replace(".rbxmx", ".rbxm"))
+    if not os.path.exists(binario):
+        erros.append("sem o .rbxm do conjunto — o binário é a entrega")
+    elif os.path.getmtime(binario) < os.path.getmtime(caminho):
+        erros.append("o .rbxm do conjunto é mais VELHO que o .rbxmx")
+
     # referent duplicado faz o Studio religar propriedades no objeto errado
     vistos = set()
     for item in raiz.iter("Item"):
@@ -466,8 +489,8 @@ def main():
                    and not d.startswith("_"))
 
     print("")
-    print("VERIFICAÇÃO DOS .rbxmx ENTREGUES")
-    print(CINZA % "Tool conforme, autocontida, e com a fonte igual à do repositório")
+    print("VERIFICAÇÃO DAS TOOLS ENTREGUES")
+    print(CINZA % "Tool conforme, autocontida, fonte igual à do repositório, e o .rbxm ao lado")
     print("")
 
     total = 0
@@ -498,7 +521,7 @@ def main():
 
     print("")
     if total == 0:
-        print(VERDE % "TODOS OS .rbxmx OK")
+        print(VERDE % "TODAS AS ENTREGAS OK")
         print("")
         return 0
     print(VERMELHO % ("%d PROBLEMA(S)" % total))

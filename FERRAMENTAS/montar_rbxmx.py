@@ -694,7 +694,7 @@ def envolver_cdata(texto):
 
 # UM CONJUNTO POR MODELO DE ORIGEM — não um arquivo com tudo dentro.
 #
-# A REGRA_ENTREGA_RBXMX manda entregar as Tools DE UM MODELO num arquivo só.
+# A REGRA_ENTREGA_RBXM manda entregar as Tools DE UM MODELO num arquivo só.
 # Juntar modelos diferentes no mesmo .rbxmx não é conveniência: quem importa o
 # conjunto de um modelo passa a receber Tools de outro que não pediu, e o nome
 # do arquivo deixa de dizer o que ele tem dentro. Modelo novo entra como

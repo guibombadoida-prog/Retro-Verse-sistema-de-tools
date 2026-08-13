@@ -17,7 +17,7 @@ O trabalho desta pasta é um só: **converter modelos (`.rbxm` / `.rbxmx`) em To
 | [`DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md`](DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md) | Base: classe `Tool`, Handle, debounce, proibições |
 | [`DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md`](DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md) | Núcleo de combate, material de terceiros, Acervo |
 | [`DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md`](DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md) | Quantas Tools saem de um modelo — piso 3, teto 7 |
-| [`DIRETRIZES/REGRA_ENTREGA_RBXMX.md`](DIRETRIZES/REGRA_ENTREGA_RBXMX.md) | Todo modelo convertido sai como `.rbxmx` |
+| [`DIRETRIZES/REGRA_ENTREGA_RBXM.md`](DIRETRIZES/REGRA_ENTREGA_RBXM.md) | Todo modelo convertido sai como `.rbxmx` |
 | [`DIRETRIZES/REGRA_ANIMACAO_R6.md`](DIRETRIZES/REGRA_ANIMACAO_R6.md) | Weld C0, animator canônico, perna sob demanda |
 | [`DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md`](DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md) | Câmera é 100% cliente, e sempre devolvida |
 | [`DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md`](DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md) | Passo a passo da conversão modelo → Tool |

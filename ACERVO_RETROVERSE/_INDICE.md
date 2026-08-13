@@ -124,6 +124,7 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 | _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | — (nenhuma Tool no repositório) |
 | _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO | — (nenhuma Tool no repositório) |
 | _(21 sons)_ | Canhao_Satelite | **Impacto pesado** — explosão, martelo, gavel | **CRU** | — |
+| _(28 sons)_ | Calebe_Tools | **Máquina** — garra, motor, lançamento ×4, gravidade | **CRU** | — |
 | _(20 sons)_ | Guest_Tools | **Porrada** — swoosh, hit, ouch, metal, beber, provocação, tiro | **LIMPO** | as 7 Tools do conjunto GUEST |
 | _(5 sons)_ | Dano_Verdadeiro | Carga, alarme, estouro, rastro | **CRU** | — |
 | _(8 sons)_ | Trident | Golpe, terremoto, invocação, execução | **CRU** | — |
@@ -184,6 +185,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | poses do `Cano De Rua` e do `Taco` | **Guest_Tools** | 78 escritas em `Weld.C0` | **CRU** — medidas, não copiadas | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 39 poses · 17 sequências | **LIMPO** | as 7 Tools do conjunto GUEST |
 | poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
+| poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** | — |
 
 > **`Guest_Tools` é a fonte de pose mais barata do Acervo.** Ela escreve em `Weld.C0` com
 > `RightArmWelde`/`LeftArmWelde`/`HeadWelde`/`HumanoidRootPartWelde` soldados a partir do
@@ -260,6 +262,9 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `NPC_For_Tools/` | **CRU** — **fora do escopo**: é bancada de teste, não vira Tool | [FICHA.md](NPC_For_Tools/FICHA.md) |
 | `Guest_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GUEST | [FICHA.md](Guest_Tools/FICHA.md) |
 | `Dano_Verdadeiro/` | **CRU** — ⚠️ o payload apaga o servidor; a carga e os `SoundEffect` valem | [FICHA.md](Dano_Verdadeiro/FICHA.md) |
+| `Calebe_Tools/` | **CRU** — 5 `Tool` de gravidade, tema coeso; ⚠️ `workspace.Gravity` sem devolução | [FICHA.md](Calebe_Tools/FICHA.md) |
+| `Drama/` | **CRU** — 3 `Tool`; a **esquiva** que faltava no repertório | [FICHA.md](Drama/FICHA.md) |
+| `Faker_Tools/` | **CRU** — o His Cube **original**; 5 malhas de VFX novas | [FICHA.md](Faker_Tools/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem

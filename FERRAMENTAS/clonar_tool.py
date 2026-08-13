@@ -318,7 +318,7 @@ def montar(nomes, destino):
     reescrevendo SÓ o Source dos scripts que existem como .lua na pasta, e
     enxertando o pack de VFX do Acervo dentro do VFXModule.
 
-    Sai um arquivo por Tool (REGRA_ENTREGA_RBXMX: uma Tool, um arquivo, pronto
+    Sai um arquivo por Tool (REGRA_ENTREGA_RBXM: uma Tool, um arquivo, pronto
     para arrastar) e mais o conjunto com as Tools do modelo todo.
     """
     raiz = nova_raiz()

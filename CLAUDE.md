@@ -12,22 +12,28 @@ matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate
 1. `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md` — **regra nº 1, vence tudo**
 2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
 3. `DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md` — quantas Tools saem de um modelo
-4. `DIRETRIZES/REGRA_ENTREGA_RBXMX.md` — todo modelo convertido sai como `.rbxmx`
+4. `DIRETRIZES/REGRA_ENTREGA_RBXM.md` — todo modelo convertido sai como `.rbxm` binário
 5. `DIRETRIZES/REGRA_ANIMACAO_R6.md` — Weld C0, animator canônico, perna sob demanda
 6. `DIRETRIZES/REGRA_CAMERA_DE_CUTSCENE.md` — câmera é 100% cliente, e sempre devolvida
 7. `DIRETRIZES/DIRETRIZES_SISTEMA_DE_TOOL.md` — base (Handle, debounce, proibições)
 8. `DIRETRIZES/PIPELINE_MODELO_PARA_TOOL.md` — como converter
 9. `DIRETRIZES/CHECKLIST_ENTREGA.md` — o que verificar antes de fechar
 
-## Entrega é `.rbxmx`, não `.lua` solto
+## Entrega é `.rbxm` binário, não `.lua` solto
 
-Todo modelo convertido sai como **arquivo `.rbxmx` da Tool montada**, um por Tool, pronto para
-arrastar para o Studio. Instrução de montagem não é entrega.
+Todo modelo convertido sai como **arquivo `.rbxm` do conjunto montado**, pronto para arrastar
+para o Studio. Instrução de montagem não é entrega.
 
-O `.rbxmx` é **derivado** dos `.lua` — nunca escrito à mão:
+**`.rbxm` é a entrega; `.rbxmx` é a etapa do meio.** O XML fica versionado porque é o único
+dos dois em que o `git diff` mostra o que mudou; o binário é o que se manda para quem vai
+usar. Os dois são gerados sempre, e os dois abrem no Studio.
+
+Os dois são **derivados** dos `.lua` — nunca escritos à mão:
 
 ```bash
-python3 FERRAMENTAS/montar_rbxmx.py     # editou o .lua? monta de novo
+python3 FERRAMENTAS/montar_rbxmx.py                        # Tool autoral
+python3 FERRAMENTAS/clonar_tool.py montar <origem> <saída>  # Tool que chegou pronta
+python3 FERRAMENTAS/converter_para_rbxm.py <x.rbxmx> <x.rbxm>   # o binário da entrega
 python3 TESTES/verificar_rbxmx.py       # confere fonte byte a byte
 python3 TESTES/verificar_poses.py       # poses × animator V2
 ```
