@@ -28,6 +28,8 @@ local Tool      = script.Parent
 local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 
 --══════════════════════════════════════════════════════════════
@@ -59,7 +61,7 @@ local CFG = {
 -- ESTADO
 --══════════════════════════════════════════════════════════════
 
-local jogador, personagem, humanoide, raiz
+local jogador, personagem, humanoide, raiz, rig
 local ultimoUso, ultimoExtra = 0, 0
 local ultimaMira = nil
 local ativos = {}
@@ -289,6 +291,35 @@ local function extra()
 	end
 end
 
+
+--══════════════════════════════════════════════════════════════
+-- ANIMAÇÃO — o rig é DO SERVIDOR
+--
+-- `Instance.new("Weld")` criado num LocalScript é instância LOCAL: não replica.
+-- Enquanto o rig morou no cliente, os outros jogadores viam o portador
+-- executando a habilidade PARADO. Weld do servidor replica, e o C0 junto.
+--══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "XesterAtodeDesaparecer", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+local function animar(sequencia)
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence(sequencia, function(passo)
+		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+	end)
+end
+
+local function desmontarRig()
+	if not rig then return end
+	rig:CancelSequence()
+	rig:ReleaseLegs()
+end
 
 --══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA

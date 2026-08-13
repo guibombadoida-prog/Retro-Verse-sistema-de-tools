@@ -344,6 +344,93 @@ SONS_F1 = {
 }
 
 
+# ═══════════════════════════════════════════════════════════════
+# SFX — por PAPEL, e por Tool
+# ═══════════════════════════════════════════════════════════════
+#
+# Antes existia uma pasta `SFX/` com 18 Sound chamados `S<id>` — e nenhuma
+# linha que os tocasse. Nome de id não diz nada para quem escreve o beat, então
+# nada era chamado. Agora cada Tool leva só os SEUS sons, com o nome do MOMENTO
+# em que tocam, e o VFXModule chama por esse nome.
+#
+# Os ids são os do script original, no papel que ele lhes dava:
+#   342337569 arranque do Cardnado · 1072606965 rugido sustentado
+#   1882057730 leque abrindo · 1499747506 cartas saindo
+#   236989198 carta colossal surgindo · 765590102 carta colossal batendo
+#   1888686669 portal abrindo · 472579737 colapso do buraco negro
+#   1894958339 teleporte · 1898092341 selo · 472214107 plataforma selando
+#   54111471 fim do ato · 288641686 e 413682983 escudo
+#   842332424 bola de fogo · 1982011510 bola imensa
+#   2014087015 sopro do dragão · 1910988873 o raio
+
+SONS_POR_TOOL = {
+    "Xester Ato de Desaparecer": [
+        ("SELA", "1898092341", 4, 1.0), ("AFUNDA", "472214107", 4, 0.85),
+        ("FIM", "54111471", 5, 0.9), ("RISO", "1072606965", 3, 1.25),
+    ],
+    "Xester Full House": [
+        ("ABRE", "1882057730", 4, 1.0), ("ATIRA", "1499747506", 3, 1.1),
+    ],
+    "Xester Cardnado": [
+        ("ARRANCA", "342337569", 5, 1.0), ("RUGE", "1072606965", 3, 1.0),
+        ("FOGO", "842332424", 4, 1.15),
+    ],
+    "Xester Teleporte": [
+        ("SOME", "1894958339", 5, 1.0),
+    ],
+    "Xester Carta Colossal": [
+        ("ERGUE", "236989198", 4, 0.9), ("BATE", "765590102", 6, 0.85),
+        ("FOGO", "1982011510", 5, 0.9),
+    ],
+    "Xester Buraco Negro": [
+        ("ABRE", "1888686669", 4, 0.75), ("COLAPSA", "472579737", 6, 0.8),
+        ("RAIO", "1910988873", 5, 1.0),
+    ],
+    "Xester Escudo de Cartas": [
+        ("SOBE", "236989198", 4, 1.05), ("REBATE", "288641686", 4, 1.0),
+        ("ESTILHACA", "413682983", 4, 1.1), ("SOPRO", "2014087015", 5, 0.9),
+    ],
+    # Forma 2 — ids do `xesterv2`, no papel que ele lhes dava
+    "Xester Carta Ceifeira": [
+        ("SAI", "1544022435", 4, 1.0), ("CRAVA", "1843578719", 5, 0.95),
+    ],
+    "Xester Esfera do Fim": [
+        ("CARREGA", "1845012046", 3, 1.0), ("DETONA", "142070127", 6, 0.85),
+        ("ECO", "1040136448", 4, 0.9),
+    ],
+    "Xester Baralho Espectral": [
+        ("CONJURA", "4255432837", 4, 1.0), ("GOLPE", "1301200629", 3, 1.1),
+    ],
+    "Xester Invocacao": [
+        ("CHAMA", "3292075199", 5, 0.95), ("NASCE", "4571960003", 4, 1.0),
+    ],
+    "Xester Furia do Machado": [
+        ("SACA", "187042245", 4, 1.0), ("RISO", "1072606965", 3, 1.25),
+    ],
+    "Xester Procissao de Cartas": [
+        ("SOBE", "3855293277", 4, 1.0),
+    ],
+    "Xester Portal do Cajado": [
+        ("ABRE", "314678645", 4, 0.9), ("CORTA", "821439273", 4, 1.05),
+    ],
+}
+
+
+def pasta_de_sfx(tool, nome, marca):
+    """`Tool/SFX/` com os moldes de som, nomeados pelo MOMENTO em que tocam."""
+    if nome not in SONS_POR_TOOL:
+        return 0
+    sfx, _ = novo_item(tool, "Folder", "SFX", "RV_SFX_%s" % marca)
+    for rotulo, ident, volume, pitch in SONS_POR_TOOL[nome]:
+        _s, props = novo_item(sfx, "Sound", rotulo, "RV_SN%s_%s" % (rotulo, marca))
+        ET.SubElement(props, "Content", {"name": "SoundId"}).append(ET.Element("url"))
+        props[-1][0].text = "rbxassetid://%s" % ident
+        ET.SubElement(props, "float", {"name": "Volume"}).text = str(volume)
+        ET.SubElement(props, "float", {"name": "PlaybackSpeed"}).text = str(pitch)
+        ET.SubElement(props, "float", {"name": "RollOffMaxDistance"}).text = "220"
+    return len(SONS_POR_TOOL[nome])
+
+
 def parte(pai, nome, referent, tamanho, cor="Really black", material="Neon"):
     item, props = novo_item(pai, "Part", nome, referent)
     ET.SubElement(props, "Vector3", {"name": "size"})
@@ -426,21 +513,7 @@ def moldes_forma1(tool, marca, fonte):
     orbe = parte(moldes, "Orbe", "RV_MOR_%s" % marca, (2, 2, 2), cor="White")
     ET.SubElement(orbe.find("Properties"), "token", {"name": "shape"}).text = "0"
 
-    # sons
-    sfx, _ = novo_item(tool, "Folder", "SFX", "RV_SFX_%s" % marca)
-    vistos = []
-    for lista in SONS_F1.values():
-        for ident in lista:
-            if ident in vistos:
-                continue
-            vistos.append(ident)
-            _s, sp = novo_item(sfx, "Sound", "S%s" % ident,
-                               "RV_SN%s_%s" % (ident, marca))
-            ET.SubElement(sp, "Content", {"name": "SoundId"}).append(
-                ET.Element("url"))
-            sp[-1][0].text = "rbxassetid://%s" % ident
-            ET.SubElement(sp, "float", {"name": "Volume"}).text = "3"
-    return len(ASES) + len(MALHAS) + 1, len(vistos)
+    return len(ASES) + len(MALHAS) + 1, 0
 
 
 def handle_forma1(tool, marca, fonte):
@@ -557,7 +630,7 @@ def equipar(tool, dados, marca, extra):
 
     for classe, alvo in (
         ("Script", "%s_Server_V1" % nome.replace(" ", "")),
-        ("LocalScript", "Client"),
+        ("Script", "Client"),
         ("ModuleScript", "Poses"),
         ("ModuleScript", "R6CFrameAnimator"),
         ("ModuleScript", "VFXModule"),
@@ -565,6 +638,11 @@ def equipar(tool, dados, marca, extra):
         item, props = novo_item(tool, classe, alvo,
                                 "RV_%s_%s" % (alvo.replace(" ", "")[:14], marca))
         ET.SubElement(props, "ProtectedString", {"name": "Source"}).text = ""
+        if alvo == "Client":
+            # RunContext = Client (2), NÃO LocalScript. LocalScript dentro de
+            # Tool só roda para quem a segura, então o VFX das 14 aparecia só
+            # para o portador. Este é o mesmo conserto do `collector`.
+            ET.SubElement(props, "token", {"name": "RunContext"}).text = "2"
 
 
 def montar(conjunto, fonte, forma, relatorio, compartilhadas):
@@ -593,6 +671,9 @@ def montar(conjunto, fonte, forma, relatorio, compartilhadas):
                 return False
             apagados, trazidos = moldes_forma2(tool, fonte, marca, dados[9])
             detalhe = "%d moldes apagados, de %s" % (apagados, "/".join(trazidos))
+
+        n_sons = pasta_de_sfx(tool, nome, marca)
+        detalhe = detalhe + ", %d som(ns)" % n_sons
 
         pasta = os.path.join(TOOLS, nome)
         os.makedirs(pasta, exist_ok=True)

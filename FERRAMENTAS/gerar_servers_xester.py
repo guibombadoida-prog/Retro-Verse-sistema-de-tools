@@ -96,6 +96,8 @@ local Tool      = script.Parent
 local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 %(acao_remote)s%(mira_remote)s
 --%(regua)s
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -110,7 +112,7 @@ local CFG = {
 -- ESTADO
 --%(regua)s
 
-local jogador, personagem, humanoide, raiz
+local jogador, personagem, humanoide, raiz, rig
 local ultimoUso, ultimoExtra = 0, 0
 local ultimaMira = nil
 local ativos = {}
@@ -285,6 +287,35 @@ end
 
 %(corpo)s
 %(escuta_mira)s
+--%(regua)s
+-- ANIMAÇÃO — o rig é DO SERVIDOR
+--
+-- `Instance.new("Weld")` criado num LocalScript é instância LOCAL: não replica.
+-- Enquanto o rig morou no cliente, os outros jogadores viam o portador
+-- executando a habilidade PARADO. Weld do servidor replica, e o C0 junto.
+--%(regua)s
+
+local function montarRig()
+	if rig then return rig end
+	if not personagem then return nil end
+	rig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
+	return rig
+end
+
+local function animar(sequencia)
+	local atual = montarRig()
+	if not atual then return end
+	atual:PlaySequence(sequencia, function(passo)
+		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+	end)
+end
+
+local function desmontarRig()
+	if not rig then return end
+	rig:CancelSequence()
+	rig:ReleaseLegs()
+end
+
 --%(regua)s
 -- CICLO DE VIDA
 --%(regua)s
@@ -1449,8 +1480,11 @@ def gerar_server(nome, dados):
                         if precisa_mira else ""),
         "escuta_mira": ((ESCUTA_MIRA % {"regua": REGUA}) if precisa_mira else ""),
         "passa_mira": ("mirar(ultimaMira)" if precisa_mira else ""),
-        "liga_extra": (LIGA_EXTRA if extra_nome else ""),
+        "liga_extra": ((LIGA_EXTRA % {"seq_extra": extra_nome})
+                       if extra_nome else ""),
         "ao_guardar": ao_guardar,
+        "sufixo": nome.replace(" ", ""),
+        "seq": dados["seq"],
     }
 
 
@@ -1459,66 +1493,78 @@ def gerar_server(nome, dados):
 # ═══════════════════════════════════════════════════════════════
 
 CLIENTE = '''-- Client.lua
--- LocalScript — %(titulo)s
+-- Script com RunContext = Client — %(titulo)s
 --
--- Três trabalhos, e nenhum deles é regra de combate:
---   1. mandar a mira (o mouse só existe aqui)
---   2. tocar a sequência de pose no animator canônico
---   3. DESENHAR o VFX que o servidor anuncia por beat nomeado
+-- POR QUE NÃO É LocalScript
+--   LocalScript dentro de Tool só roda para o jogador cujo Character a contém.
+--   O servidor manda o beat com `FireAllClients` e ele CHEGA em todo mundo, mas
+--   o único ouvinte era o de quem segurava. Era por isso que o VFX das 14
+--   aparecia só para o portador.
 --
--- POR QUE O VFX É DAQUI
---   Parte ancorada movida por script de servidor replica a ~20 Hz, sem
---   interpolação — é o "não está fluido". Aqui o desenho roda a 60 Hz no
---   Heartbeat de cada cliente, e o servidor só diz O QUE e ONDE.
+--   `Script` com `RunContext = Client` roda em TODO cliente, inclusive dentro
+--   da Tool de outro jogador. Nada saiu de dentro da Tool: Regra nº 1 de pé.
 --
--- MOBILE
---   `ContextActionService:BindAction(nome, fn, true, tecla)` — o `true` é o
---   `createTouchButton`: o Roblox desenha o botão sozinho no celular. Não é
---   ScreenGui, e ContextActionService é serviço, não depósito de asset.
+-- O QUE É DE TODOS, E O QUE É SÓ DO DONO
+--   De todos: desenhar o VFX e tocar o SFX. É o ponto.
+--   Só do dono: mandar a mira e disparar a habilidade Extra.
+--
+--   A animação NÃO está aqui: o rig é do servidor, porque Weld criado no
+--   cliente não replica e os outros viam o portador parado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_xester.py.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
-local Debris = game:GetService("Debris")
 
 local jogador = Players.LocalPlayer
-local rato = jogador:GetMouse()
 
 local Tool      = script.Parent
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
-local Poses     = require(Tool:WaitForChild("Poses"))
-local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local VFX       = require(Tool:WaitForChild("VFXModule"))
 %(remotes)s
-local SEQUENCIA = "%(seq)s"
-%(seq_extra)s
 local ALCANCE_MIRA = %(alcance)s
 local RITMO_MIRA = 0.1
 
-local rig, personagem
-local equipada = false
-local conexoes = {}
+local portador = nil
+local mandandoMira = false
+local rato = nil
 
-local function guardar(conexao)
-\ttable.insert(conexoes, conexao)
-\treturn conexao
+local function donoDaTool()
+\tlocal pai = Tool.Parent
+\tif not pai then return nil end
+\tif not pai:FindFirstChildOfClass("Humanoid") then return nil end
+\treturn pai
 end
 
-local function soltarTudo()
-\tfor _, conexao in ipairs(conexoes) do
-\t\tif conexao.Connected then conexao:Disconnect() end
+local function souODono()
+\tlocal corpo = donoDaTool()
+\tif not corpo then return false end
+\treturn Players:GetPlayerFromCharacter(corpo) == jogador
+end
+
+--%(regua)s
+-- DESENHO — roda em TODOS os clientes
+--%(regua)s
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+\tlocal corpo = portador or donoDaTool()
+\tif tipo == "BEAT" then
+\t\tVFX.beat(dados and dados.marca, corpo)
+\t\treturn
 \tend
-\tconexoes = {}
-end
+\tVFX.desenhar(tipo, dados or {}, Moldes, corpo)
+end)
 
---- Ponto mirado, cortado pelo alcance. O servidor CONFERE de novo — este
---- corte é para o traçado do efeito, não é a autoridade.
+--%(regua)s
+-- MIRA E EXTRA — só o dono
+--%(regua)s
+
 local function pontoMirado()
-\tlocal raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+\tlocal corpo = portador
+\tlocal raiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
 \tif not raiz then return nil end
+\tif not rato then return raiz.Position + raiz.CFrame.LookVector * 20 end
 \tlocal alvo = rato.Hit and rato.Hit.Position
 \tif not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
 \tlocal delta = alvo - raiz.Position
@@ -1528,103 +1574,63 @@ local function pontoMirado()
 \treturn alvo
 end
 
---%(regua)s
--- ANIMAÇÃO
---%(regua)s
-
-local function montarRig()
-\tif rig then return rig end
-\tif not personagem then return nil end
-\trig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
-\treturn rig
-end
-
---- Toca a sequência e devolve o beat ao VFX. `marca` é o que o keyframe
---- carrega: "CARGA" quando o gesto começa, "GOLPE" quando ele solta.
-local function tocar(nome)
-\tlocal atual = montarRig()
-\tif not atual then return end
-\tatual:PlaySequence(nome, function(passo)
-\t\tif passo.marca then
-\t\t\tVFX.beat(passo.marca, personagem)
+local function comecarMira()
+\tif mandandoMira or not MiraRemote then return end
+\tmandandoMira = true
+\trato = rato or (jogador and jogador:GetMouse())
+\ttask.spawn(function()
+\t\twhile mandandoMira do
+\t\t\tlocal ponto = pontoMirado()
+\t\t\tif ponto then MiraRemote:FireServer(ponto) end
+\t\t\ttask.wait(RITMO_MIRA)
 \t\tend
 \tend)
 end
 
---%(regua)s
--- VFX — o servidor anuncia, este cliente desenha
---%(regua)s
-
-VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-\tVFX.desenhar(tipo, dados or {}, Moldes, personagem)
-end)
-
---%(regua)s
--- ENTRADA
---%(regua)s
-
 local function aoEquipar()
-\tpersonagem = Tool.Parent
-\tequipada = true
-\tmontarRig()
-%(liga_extra_cliente)s
-\t-- a mira vai a 10 Hz, não por quadro: o servidor só precisa do PARA ONDE,
-\t-- e 60 pacotes por segundo por jogador é tráfego jogado fora
-\tif MiraRemote then
-\t\ttask.spawn(function()
-\t\t\twhile equipada do
-\t\t\t\tlocal ponto = pontoMirado()
-\t\t\t\tif ponto then MiraRemote:FireServer(ponto) end
-\t\t\t\ttask.wait(RITMO_MIRA)
-\t\t\tend
-\t\tend)
-\tend
-end
+\tportador = donoDaTool()
+\tif not souODono() then return end
+\trato = rato or (jogador and jogador:GetMouse())
+\tcomecarMira()
+%(liga_extra_cliente)send
 
 local function aoGuardar()
-\tequipada = false
-\tsoltarTudo()
-%(desliga_extra_cliente)s
-\tif rig then
-\t\trig:CancelSequence()
-\t\trig:ReleaseLegs()
-\tend
-\tVFX.limpar()
+\tmandandoMira = false
+\tportador = nil
+%(desliga_extra_cliente)s\tVFX.limpar()
 end
 
 Tool.Equipped:Connect(aoEquipar)
 Tool.Unequipped:Connect(aoGuardar)
 
-Tool.Activated:Connect(function()
-\tif not equipada then return end
-\ttocar(SEQUENCIA)
-end)
-
---- `Destroying`, não `AncestryChanged`: guardar a Tool na mochila troca o pai
---- sem destruir nada, e o cleanup não pode disparar aí.
-Tool.Destroying:Connect(function()
-\taoGuardar()
-\tif rig then
-\t\trig:Destroy()
-\t\trig = nil
+-- `Tool.Equipped` não dispara nos clientes que NÃO são o dono: para eles a
+-- Tool só aparece dentro de um Character já montado. Por isso o portador é
+-- resolvido na entrada e a cada troca de Parent.
+portador = donoDaTool()
+Tool:GetPropertyChangedSignal("Parent"):Connect(function()
+\tportador = donoDaTool()
+\tif portador and souODono() then
+\t\trato = rato or (jogador and jogador:GetMouse())
+\t\tcomecarMira()
 \tend
 end)
+
+Tool.Destroying:Connect(aoGuardar)
 '''
+
 
 LIGA_EXTRA_CLIENTE = '''
 \t-- o `true` no terceiro argumento é o botão de mobile
 \tContextActionService:BindAction("%(acao)s", function(_nome, estado)
 \t\tif estado ~= Enum.UserInputState.Begin then return end
-\t\tif not equipada then return end
+\t\tif not souODono() then return end
 \t\tAcaoRemote:FireServer(pontoMirado())
-\t\ttocar(SEQUENCIA_EXTRA)
 \tend, true, Enum.KeyCode.%(tecla)s)
 \tContextActionService:SetTitle("%(acao)s", "%(rotulo)s")
 '''
 
 DESLIGA_EXTRA_CLIENTE = '''\tContextActionService:UnbindAction("%(acao)s")
 '''
-
 
 # ═══════════════════════════════════════════════════════════════
 # VFXModule — molde apagado, clone aceso
@@ -1758,6 +1764,40 @@ end
 
 local function achar(moldes, nome)
 	return moldes and moldes:FindFirstChild(nome, true)
+end
+
+--%(regua)s
+-- SOM
+--
+-- Toca aqui, e não no servidor, pelo mesmo motivo do VFX: este script roda em
+-- TODO cliente (RunContext = Client), então cada um cria o seu Sound local na
+-- posição certa. Todo mundo ouve, posicionado, com custo de rede zero.
+--
+-- A âncora é peça PRÓPRIA e não a peça do efeito: Sound só toca enquanto tem
+-- pai no DataModel, e peça de efeito some no meio do som.
+--%(regua)s
+
+local SFX = script.Parent:FindFirstChild("SFX")
+
+local function som(rotulo, posicao, pitch)
+	local base = SFX and SFX:FindFirstChild(rotulo)
+	if not base then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored, ancora.CanCollide = true, false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local copia = base:Clone()
+	if pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+	copia.Parent = ancora
+	copia:Play()
+
+	table.insert(vivos, ancora)
+	Debris:AddItem(ancora, (copia.TimeLength > 0 and copia.TimeLength or 5) + 1)
+	return copia
 end
 
 --%(regua)s
@@ -1952,12 +1992,15 @@ end
 local VFX = {}
 
 function VFX.CARTA_CHAO(d, moldes)
+	som("SELA", d.posicao)
+	som("AFUNDA", d.posicao, 0.95)
 	carta(moldes, CFrame.new(d.posicao)
 		* CFrame.Angles(0, math.rad(d.giro or 0), 0), d.tamanho, 2.5)
 	rachadura(d.posicao, 10, COR.ESCURO, 3)
 end
 
 function VFX.ONDA_DUPLA(d)
+	som("FIM", d.posicao)
 	onda(d.posicao, d.escala or 1, COR.CLARO, 1.4)
 	ondaLarga(d.posicao, (d.escala or 1) * 0.6, COR.ESCURO, 2)
 end
@@ -1967,6 +2010,8 @@ function VFX.ONDA_CHAO(d)
 end
 
 function VFX.LEQUE_ABRE(d, moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("ABRE", r0 and r0.Position or nil)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	anelSonar(raiz.CFrame, 5, COR.CLARO, 0.8)
@@ -1983,6 +2028,7 @@ end
 function VFX.LEQUE_FECHA() end
 
 function VFX.LEQUE_ATIRA(d)
+	som("ATIRA", d.origem)
 	nova(d.origem, 3, COR.CLARO, 0.5)
 end
 
@@ -1993,6 +2039,9 @@ end
 
 --- Cardnado: espiral é literalmente o efeito certo, e o pack já tem.
 function VFX.TEMPESTADE(d, moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("ARRANCA", r0 and r0.Position or nil)
+	som("RUGE", r0 and r0.Position or nil)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	espiral(raiz.Position, 1.6, COR.CLARO, 30, d.raio and (d.raio / 3) or 7,
@@ -2017,6 +2066,7 @@ function VFX.TEMPESTADE(d, moldes, personagem)
 end
 
 function VFX.FANTASMA(d, _moldes, personagem)
+	som("SOME", d.posicao)
 	nova(d.posicao, 4, COR.CLARO, 0.5)
 	if not personagem then return end
 	for _, parte in ipairs(personagem:GetChildren()) do
@@ -2037,11 +2087,13 @@ function VFX.FANTASMA(d, _moldes, personagem)
 end
 
 function VFX.CARTA_ERGUE(d, moldes)
+	som("ERGUE", d.posicao)
 	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.2)
 	anelSonar(CFrame.new(d.posicao), 8, COR.CLARO, 0.7)
 end
 
 function VFX.CARTA_DESABA(d, moldes)
+	som("BATE", d.posicao)
 	carta(moldes, CFrame.new(d.posicao), d.tamanho, 1.4)
 	rachadura(d.posicao, 16, COR.ESCURO, 4)
 	local i = 1
@@ -2055,6 +2107,7 @@ function VFX.CARTA_DESABA(d, moldes)
 end
 
 function VFX.PORTAL_ABRE(d, moldes)
+	som("ABRE", d.posicao)
 	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
 		d.tamanho, 3)
 	anelSonar(CFrame.new(d.posicao), 10, COR.ESCURO, 1.2)
@@ -2062,6 +2115,7 @@ function VFX.PORTAL_ABRE(d, moldes)
 end
 
 function VFX.PORTAL_COLAPSA(d)
+	som("COLAPSA", d.posicao)
 	estouroFumegante(d.posicao, 12, COR.ESCURO, COR.FUMACA)
 	local i = 1
 	while i <= (d.estouros or 4) do
@@ -2079,14 +2133,17 @@ function VFX.PORTAL_COLAPSA(d)
 end
 
 function VFX.ESCUDO_SOBE(d)
+	som("SOBE", d.posicao)
 	anelSonar(CFrame.new(d.posicao), 6, COR.CLARO, 0.6)
 end
 
 function VFX.ESCUDO_REBATE(d)
+	som("REBATE", d.posicao)
 	nova(d.posicao, 4, COR.CLARO, 0.4)
 end
 
 function VFX.ESCUDO_ESTILHACA(d, moldes)
+	som("ESTILHACA", d.posicao)
 	estouro(d.posicao, 7, COR.CLARO, 0.8)
 	local i = 1
 	while i <= (d.cacos or 12) do
@@ -2098,6 +2155,7 @@ function VFX.ESCUDO_ESTILHACA(d, moldes)
 end
 
 function VFX.CEIFEIRA_VOA(d, moldes)
+	som("SAI", d.origem)
 	local peca = carta(moldes, CFrame.new(d.origem), nil, (d.voo or 0.35) + 0.4)
 	if not peca then return end
 	TweenService:Create(peca, TweenInfo.new(d.voo or 0.35,
@@ -2107,11 +2165,14 @@ function VFX.CEIFEIRA_VOA(d, moldes)
 end
 
 function VFX.CEIFEIRA_ESTOURA(d)
+	som("CRAVA", d.posicao)
 	estouro(d.posicao, 9, COR.ESCURO, 0.9)
 	rachadura(d.posicao, 8, COR.ESCURO, 2.5)
 end
 
 function VFX.ESFERA_CARREGA(d, _moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("CARREGA", r0 and r0.Position or nil)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	espiral(raiz.Position + raiz.CFrame.LookVector * 3, 1.5, COR.ESCURO,
@@ -2119,11 +2180,15 @@ function VFX.ESFERA_CARREGA(d, _moldes, personagem)
 end
 
 function VFX.ESFERA_DETONA(d)
+	som("DETONA", d.posicao)
+	som("ECO", d.posicao, 0.9)
 	estouroFumegante(d.posicao, 14 * (d.escala or 1), COR.ESCURO, COR.FUMACA)
 	ondaLarga(d.posicao, 2, COR.ESCURO, 2.2)
 end
 
 function VFX.BARALHO_CONJURA(d, moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("CONJURA", r0 and r0.Position or nil)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	anelSonar(raiz.CFrame, 9, COR.ESCURO, d.duracao or 2.5)
@@ -2137,10 +2202,13 @@ function VFX.BARALHO_CONJURA(d, moldes, personagem)
 end
 
 function VFX.BARALHO_GOLPE(d)
+	som("GOLPE", d.posicao)
 	corte(CFrame.new(d.posicao), 5, COR.ESCURO, 0.4)
 end
 
 function VFX.INVOCA(d)
+	som("CHAMA", d.posicao)
+	som("NASCE", d.posicao, 1.05)
 	espiral(d.posicao, 1.6, COR.ESCURO, 28, 6, 12)
 	rachadura(d.posicao, 7, COR.ESCURO, 3)
 end
@@ -2150,6 +2218,8 @@ function VFX.SERVO_GOLPE(d)
 end
 
 function VFX.MACHADO_SACA(d, _moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("SACA", r0 and r0.Position or nil)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	anelSonar(raiz.CFrame, 7, COR.QUENTE, 0.8)
@@ -2167,6 +2237,7 @@ end
 function VFX.MACHADO_GUARDA() end
 
 function VFX.PROCISSAO(d, moldes)
+	som("SOBE", d.origem)
 	local i = 1
 	while i <= (d.passos or 24) do
 		local indice = i
@@ -2182,6 +2253,7 @@ function VFX.PROCISSAO(d, moldes)
 end
 
 function VFX.PORTAL_CAJADO(d, moldes)
+	som("ABRE", d.posicao)
 	carta(moldes, CFrame.new(d.posicao) * CFrame.Angles(math.rad(90), 0, 0),
 		Vector3.new(9, 0.35, 9), (d.duracao or 4) + 1)
 	anelSonar(CFrame.new(d.posicao), 9, COR.ESCURO, 1.2)
@@ -2189,10 +2261,12 @@ function VFX.PORTAL_CAJADO(d, moldes)
 end
 
 function VFX.CORTE_PORTAL(d)
+	som("CORTA", d.posicao)
 	corte(CFrame.new(d.posicao), 6, COR.ESCURO, 0.4)
 end
 
 function VFX.GARGALHADA(d, moldes)
+	som("RISO", d.posicao)
 	anelSonar(CFrame.new(d.posicao), 5, COR.CLARO, 0.9)
 	local i = 1
 	while i <= (d.cartas or 8) do
@@ -2209,6 +2283,7 @@ function VFX.GARGALHADA(d, moldes)
 end
 
 function VFX.FOGO_SAI(d)
+	som("FOGO", d.origem)
 	nova(d.origem, (d.calibre or 2) * 1.2, COR.QUENTE, 0.4)
 end
 
@@ -2217,6 +2292,8 @@ function VFX.FOGO_ESTOURA(d)
 end
 
 function VFX.FOGO_CARREGA(d, _moldes, personagem)
+	local r0 = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	som("FOGO", r0 and r0.Position or nil, 0.8)
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 	if not raiz then return end
 	espiral(raiz.Position + raiz.CFrame.LookVector * 3 + Vector3.new(0, 1.5, 0),
@@ -2233,6 +2310,7 @@ function VFX.FOGO_ESTOURA_GRANDE(d)
 end
 
 function VFX.SOPRO(d)
+	som("SOPRO", d.origem)
 	local i = 1
 	while i <= (d.passos or 25) do
 		local indice = i
@@ -2250,6 +2328,7 @@ end
 --- O feixe é do pack: uma peça esticada de uma vez, no cliente. Esticar por
 --- quadro no servidor é o caso que replica picotado.
 function VFX.RAIO(d)
+	som("RAIO", d.origem)
 	feixe(d.origem, d.origem + d.direcao * (d.alcance or 60),
 		d.calibre or 3, COR.CLARO, d.duracao or 2.2)
 	nova(d.origem, 3, COR.CLARO, 0.4)
@@ -2392,10 +2471,7 @@ def gerar_cliente(nome, dados):
     return CLIENTE % {
         "titulo": nome,
         "regua": REGUA,
-        "seq": dados["seq"],
-        "seq_extra": seq_extra,
         "alcance": alcance,
-        "sufixo": sufixo,
         "remotes": "\n".join(remotes) + "\n",
         "liga_extra_cliente": liga,
         "desliga_extra_cliente": desliga,

@@ -90,12 +90,47 @@ local function vfx(tipo, dados)
 \tVFXRemote:FireAllClients(tipo, dados)
 end
 
+--- Toca um som do Handle numa ÂNCORA PRÓPRIA, nunca na peça que o pediu.
+---
+--- Era o bug que emudecia a explosão das seis: `tocar("Explode", bomba)`
+--- punha o Sound dentro da bomba, e a linha seguinte tirava a bomba do mundo.
+--- O som morria no quadro em que nascia. Um `Sound` só toca enquanto tem pai
+--- no DataModel, então ele precisa de um pai que sobreviva a ele.
+local function tocarEm(nome, posicao, pitch, corte)
+\tlocal base = Handle:FindFirstChild(nome)
+\tif not base or not base:IsA("Sound") then return nil end
+
+\tlocal ancora = Instance.new("Part")
+\tancora.Size = Vector3.new(0.2, 0.2, 0.2)
+\tancora.Transparency = 1
+\tancora.Anchored = true
+\tancora.CanCollide = false
+\tancora.CanQuery = false
+\tancora.CFrame = CFrame.new(posicao or Vector3.new())
+\tancora.Parent = workspace
+
+\tlocal som = base:Clone()
+\tsom.PlaybackSpeed = pitch or 1
+\tsom.Parent = ancora
+\tsom:Play()
+
+\tlocal vida = corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1)
+\tDebris:AddItem(ancora, vida)
+\treturn som
+end
+
+--- Versão presa a uma peça — só para peça que NÃO vai sumir (o Handle).
 local function tocar(nome, onde, pitch, corte)
+\tlocal alvo = onde or Handle
+\tif alvo ~= Handle then
+\t\t-- qualquer peça que não seja o Handle pode sumir no meio do som
+\t\treturn tocarEm(nome, alvo.Position, pitch, corte)
+\tend
 \tlocal base = Handle:FindFirstChild(nome)
 \tif not base or not base:IsA("Sound") then return nil end
 \tlocal som = base:Clone()
 \tsom.PlaybackSpeed = pitch or 1
-\tsom.Parent = onde or Handle
+\tsom.Parent = Handle
 \tsom:Play()
 \tDebris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
 \treturn som

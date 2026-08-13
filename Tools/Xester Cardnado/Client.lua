@@ -1,67 +1,78 @@
 -- Client.lua
--- LocalScript — Xester Cardnado
+-- Script com RunContext = Client — Xester Cardnado
 --
--- Três trabalhos, e nenhum deles é regra de combate:
---   1. mandar a mira (o mouse só existe aqui)
---   2. tocar a sequência de pose no animator canônico
---   3. DESENHAR o VFX que o servidor anuncia por beat nomeado
+-- POR QUE NÃO É LocalScript
+--   LocalScript dentro de Tool só roda para o jogador cujo Character a contém.
+--   O servidor manda o beat com `FireAllClients` e ele CHEGA em todo mundo, mas
+--   o único ouvinte era o de quem segurava. Era por isso que o VFX das 14
+--   aparecia só para o portador.
 --
--- POR QUE O VFX É DAQUI
---   Parte ancorada movida por script de servidor replica a ~20 Hz, sem
---   interpolação — é o "não está fluido". Aqui o desenho roda a 60 Hz no
---   Heartbeat de cada cliente, e o servidor só diz O QUE e ONDE.
+--   `Script` com `RunContext = Client` roda em TODO cliente, inclusive dentro
+--   da Tool de outro jogador. Nada saiu de dentro da Tool: Regra nº 1 de pé.
 --
--- MOBILE
---   `ContextActionService:BindAction(nome, fn, true, tecla)` — o `true` é o
---   `createTouchButton`: o Roblox desenha o botão sozinho no celular. Não é
---   ScreenGui, e ContextActionService é serviço, não depósito de asset.
+-- O QUE É DE TODOS, E O QUE É SÓ DO DONO
+--   De todos: desenhar o VFX e tocar o SFX. É o ponto.
+--   Só do dono: mandar a mira e disparar a habilidade Extra.
+--
+--   A animação NÃO está aqui: o rig é do servidor, porque Weld criado no
+--   cliente não replica e os outros viam o portador parado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_xester.py.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ContextActionService = game:GetService("ContextActionService")
-local Debris = game:GetService("Debris")
 
 local jogador = Players.LocalPlayer
-local rato = jogador:GetMouse()
 
 local Tool      = script.Parent
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
-local Poses     = require(Tool:WaitForChild("Poses"))
-local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local VFX       = require(Tool:WaitForChild("VFXModule"))
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local MiraRemote = nil
 
-local SEQUENCIA = "CARDNADO"
-local SEQUENCIA_EXTRA = "BOLA_DE_FOGO"
-
 local ALCANCE_MIRA = 60
 local RITMO_MIRA = 0.1
 
-local rig, personagem
-local equipada = false
-local conexoes = {}
+local portador = nil
+local mandandoMira = false
+local rato = nil
 
-local function guardar(conexao)
-	table.insert(conexoes, conexao)
-	return conexao
+local function donoDaTool()
+	local pai = Tool.Parent
+	if not pai then return nil end
+	if not pai:FindFirstChildOfClass("Humanoid") then return nil end
+	return pai
 end
 
-local function soltarTudo()
-	for _, conexao in ipairs(conexoes) do
-		if conexao.Connected then conexao:Disconnect() end
+local function souODono()
+	local corpo = donoDaTool()
+	if not corpo then return false end
+	return Players:GetPlayerFromCharacter(corpo) == jogador
+end
+
+--══════════════════════════════════════════════════════════════
+-- DESENHO — roda em TODOS os clientes
+--══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	local corpo = portador or donoDaTool()
+	if tipo == "BEAT" then
+		VFX.beat(dados and dados.marca, corpo)
+		return
 	end
-	conexoes = {}
-end
+	VFX.desenhar(tipo, dados or {}, Moldes, corpo)
+end)
 
---- Ponto mirado, cortado pelo alcance. O servidor CONFERE de novo — este
---- corte é para o traçado do efeito, não é a autoridade.
+--══════════════════════════════════════════════════════════════
+-- MIRA E EXTRA — só o dono
+--══════════════════════════════════════════════════════════════
+
 local function pontoMirado()
-	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	local corpo = portador
+	local raiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
 	if not raiz then return nil end
+	if not rato then return raiz.Position + raiz.CFrame.LookVector * 20 end
 	local alvo = rato.Hit and rato.Hit.Position
 	if not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
 	local delta = alvo - raiz.Position
@@ -71,94 +82,54 @@ local function pontoMirado()
 	return alvo
 end
 
---══════════════════════════════════════════════════════════════
--- ANIMAÇÃO
---══════════════════════════════════════════════════════════════
-
-local function montarRig()
-	if rig then return rig end
-	if not personagem then return nil end
-	rig = Animator.new(personagem, "XesterCardnado", Poses, Poses.SEQUENCIAS)
-	return rig
-end
-
---- Toca a sequência e devolve o beat ao VFX. `marca` é o que o keyframe
---- carrega: "CARGA" quando o gesto começa, "GOLPE" quando ele solta.
-local function tocar(nome)
-	local atual = montarRig()
-	if not atual then return end
-	atual:PlaySequence(nome, function(passo)
-		if passo.marca then
-			VFX.beat(passo.marca, personagem)
+local function comecarMira()
+	if mandandoMira or not MiraRemote then return end
+	mandandoMira = true
+	rato = rato or (jogador and jogador:GetMouse())
+	task.spawn(function()
+		while mandandoMira do
+			local ponto = pontoMirado()
+			if ponto then MiraRemote:FireServer(ponto) end
+			task.wait(RITMO_MIRA)
 		end
 	end)
 end
 
---══════════════════════════════════════════════════════════════
--- VFX — o servidor anuncia, este cliente desenha
---══════════════════════════════════════════════════════════════
-
-VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-	VFX.desenhar(tipo, dados or {}, Moldes, personagem)
-end)
-
---══════════════════════════════════════════════════════════════
--- ENTRADA
---══════════════════════════════════════════════════════════════
-
 local function aoEquipar()
-	personagem = Tool.Parent
-	equipada = true
-	montarRig()
+	portador = donoDaTool()
+	if not souODono() then return end
+	rato = rato or (jogador and jogador:GetMouse())
+	comecarMira()
 
 	-- o `true` no terceiro argumento é o botão de mobile
 	ContextActionService:BindAction("Xester_XesterCardnado", function(_nome, estado)
 		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipada then return end
+		if not souODono() then return end
 		AcaoRemote:FireServer(pontoMirado())
-		tocar(SEQUENCIA_EXTRA)
 	end, true, Enum.KeyCode.Y)
 	ContextActionService:SetTitle("Xester_XesterCardnado", "Bola De Fogo")
-
-	-- a mira vai a 10 Hz, não por quadro: o servidor só precisa do PARA ONDE,
-	-- e 60 pacotes por segundo por jogador é tráfego jogado fora
-	if MiraRemote then
-		task.spawn(function()
-			while equipada do
-				local ponto = pontoMirado()
-				if ponto then MiraRemote:FireServer(ponto) end
-				task.wait(RITMO_MIRA)
-			end
-		end)
-	end
 end
 
 local function aoGuardar()
-	equipada = false
-	soltarTudo()
+	mandandoMira = false
+	portador = nil
 	ContextActionService:UnbindAction("Xester_XesterCardnado")
-
-	if rig then
-		rig:CancelSequence()
-		rig:ReleaseLegs()
-	end
 	VFX.limpar()
 end
 
 Tool.Equipped:Connect(aoEquipar)
 Tool.Unequipped:Connect(aoGuardar)
 
-Tool.Activated:Connect(function()
-	if not equipada then return end
-	tocar(SEQUENCIA)
-end)
-
---- `Destroying`, não `AncestryChanged`: guardar a Tool na mochila troca o pai
---- sem destruir nada, e o cleanup não pode disparar aí.
-Tool.Destroying:Connect(function()
-	aoGuardar()
-	if rig then
-		rig:Destroy()
-		rig = nil
+-- `Tool.Equipped` não dispara nos clientes que NÃO são o dono: para eles a
+-- Tool só aparece dentro de um Character já montado. Por isso o portador é
+-- resolvido na entrada e a cada troca de Parent.
+portador = donoDaTool()
+Tool:GetPropertyChangedSignal("Parent"):Connect(function()
+	portador = donoDaTool()
+	if portador and souODono() then
+		rato = rato or (jogador and jogador:GetMouse())
+		comecarMira()
 	end
 end)
+
+Tool.Destroying:Connect(aoGuardar)
