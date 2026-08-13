@@ -1,8 +1,9 @@
 # _INDICE — Acervo Retro-Verse
 
-> **59 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **66 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
-> 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), **7 de `Drama`** e as
+> 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
+> **7 de `Faker_Tools`** e as
 > **6 do `collector` — o conjunto AUTORAL**, que não sai de modelo nenhum: sai
 > daqui. Ver `Tools/README.md`.
 >
@@ -69,6 +70,32 @@ diferentes no mesmo conjunto.
 | `ESTILHACOS` | **autoral** | 10 cacos em ângulo áureo, com queda parabólica | LIMPO | — (nenhuma Tool no repositório) |
 
 Dispersão por **ângulo áureo (Vogel)** por índice sequencial — nunca `math.random`.
+
+#### `VFXModule_Faker` — o primeiro que desenha com MALHA de modelo, não com primitiva
+
+Os `VFXModule` deste repositório desenham com `Part` primitiva esticada. O do conjunto FAKER
+não: ele clona as **sete malhas do próprio `faker_tools.rbxmx`**, que vivem em `Tool/Moldes/`
+invisíveis e são acesas no clone.
+
+| Efeito | Molde que usa | O que é |
+|---|---|---|
+| `IMPACTO` | `E` | disco chato abrindo no ponto de contato |
+| `COGUMELO` | `Mushroom` | o cogumelo, subindo de 20 para 130 studs |
+| `ANEL` | `Ring` | o anel que corre até 180 studs |
+| `SALA` / `SALA_FIM` | `WindSphere` | domo que fecha em volta, e a implosão |
+| `ESPIRAL` | `Spiral` | espiral que gira 720° por tween de `CFrame` |
+| `PRISAO` / `PRISAO_FIM` | `Erlo` + `Sphere` | quatro paredes e o núcleo, e o estilhaço |
+| `ENTIDADE` | `Sphere` + `E` | núcleo com halo girando 1440° |
+| `POCO` | `Ring` + `Spiral` | a boca e o funil, com motes DESCENDO |
+| `FEIXE` | — (primitiva) | corpo **preto** grosso com núcleo **branco** fino |
+
+Todo efeito tem **fallback com primitiva**: se a Tool não trouxer aquela malha, o efeito ainda
+sai. É o que mantém a Regra nº 1 verdadeira — a Tool sozinha num place vazio funciona por
+inteiro, e nenhuma delas carrega as sete.
+
+A paleta é **preto com contorno branco** (`COR_VAZIO` rgb(10,8,14), `COR_BORDA` branco,
+`COR_FALHA` rgb(176,96,255)), herdada do original: ele fazia `Color3.new(0,0,0)` no corpo do
+laser e `Color3.new(1,1,1)` no núcleo. Nenhum outro conjunto do repositório é preto.
 
 ### `VFX_Library_V2` — a maior entrada do Acervo, ainda CRU
 
@@ -168,6 +195,13 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 |---|---|---|
 | `Jupiter_Great_Pressure_Sword` | 7 `MeshId`/`TextureId` | **CRU** |
 | `Sword_of_Cosmic_Entity` | 16 `MeshId`/`TextureId` | **CRU** |
+| `Faker_Tools` | **7 malhas de VFX** — `E`, `Erlo`, `Sphere`, `Spiral`, `WindSphere`, `Ring`, `Mushroom` | **LIMPO** — as 7 em uso no conjunto FAKER |
+
+> **Cinco das sete nunca tinham sido ligadas por ninguém.** O código de origem usa `Sphere`
+> (3 clones) e `Mushroom` (1); `E`, `Erlo`, `Spiral`, `WindSphere` e `Ring` estavam no
+> `AbbilityClient`, pagas e apagadas. O **tamanho** de cada uma decidiu para onde foi:
+> `Ring` (500 studs) e `Mushroom` (522) são efeito de EVENTO, não de golpe, e só as duas Tools
+> de escala grande as carregam.
 
 > **Reuso cruzado já detectado:** `rbxassetid://863344136` é o mesmo mesh no
 > `Shockwave_2` do Jupiter e no `MegaWave` do Sword of Cosmic Entity. Converter uma vez
@@ -189,6 +223,14 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
 | poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** — medida, não copiada | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
+| `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · 17 sequências | **LIMPO** | as 7 Tools do conjunto FAKER |
+
+> **O `Faker_Tools` é a única fonte que não deu pose nenhuma.** 796 linhas de habilidade e
+> nem uma `Animation`, nem uma escrita em `Motor6D.C0`, nem um `Weld` de pose: o personagem
+> dele fica parado enquanto o cubo trabalha. As 14 poses do conjunto FAKER são autorais por
+> inteiro, e o vocabulário é de **mão aberta** — `CUBO_FORMA`, `PALMA_DIR`, `ABRE_BRACOS`,
+> `FECHA_PUNHOS` — porque quem bate ali é o cubo, o poço e a entidade, não o punho. Um combo
+> de socos seria o conjunto DRAMA com outro nome.
 
 > **`Guest_Tools` é a fonte de pose mais barata do Acervo.** Ela escreve em `Weld.C0` com
 > `RightArmWelde`/`LeftArmWelde`/`HeadWelde`/`HumanoidRootPartWelde` soldados a partir do
@@ -223,8 +265,21 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 |---|---|---|---|---|
 | `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (referência) |
 | `YorrSlayer_CutsceneCam_V1` | YorrSlayer (conformado) | **enquadramento por espectador** + FOV | LIMPO | técnica aplicada no Escudo Partido |
-| `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido · **as 2 do DRAMA** |
+| `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido · as 2 do DRAMA · **as 2 do FAKER** |
 | `CutsceneCam_Drama` | **autoral**, pelas 6 regras | **enquadramento por espectador**, de verdade | **LIMPO** | `Corte Frio`, `TryHard` |
+| `CutsceneCam_Faker` | **autoral**, pelas 6 regras | cena de **AFASTAMENTO** + foco `cima` + plateia de área | **LIMPO** | `Era Do Fim`, `Faker Entity` |
+
+> **A cutscene do FAKER inverte a direção do estouro, e a regra 1 continua valendo.**
+> O DRAMA fecha a câmera na cara do alvo (`Corte Frio` chega a FOV 44). No FAKER a malha é o
+> `Mushroom` de **522 studs** — fechar nela mostra uma parede preta. O beat `DETONA` joga a
+> câmera para 42 studs e abre o FOV para **100**. A amplitude (52) é idêntica à do
+> `Corte Frio`: o FOV segue sendo a técnica, só o sentido mudou.
+>
+> Duas coisas novas que o `CutsceneCam_Drama` não tinha, e que valem para o próximo conjunto:
+> **`olhar = "cima"`**, um terceiro alvo de foco que aponta `alto` studs acima de quem
+> conjurou (acompanha o cogumelo subindo sem uma `Part` no mundo para mirar), e a **plateia de
+> área** — em evento de área a regra 2 vale para todos dentro do raio, cada um com o papel
+> `ALVO`, e não só para um alvo escolhido.
 
 Câmera é **100% cliente**: o servidor manda beat nomeado (`START`/`ORBIT`/`CLOSE`/`PUNCH`/
 `STOP`), nunca `CFrame`. `workspace.CurrentCamera` é singleton por cliente e **não** viola a
@@ -279,7 +334,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Dano_Verdadeiro/` | **CRU** — ⚠️ o payload apaga o servidor; a carga e os `SoundEffect` valem | [FICHA.md](Dano_Verdadeiro/FICHA.md) |
 | `Calebe_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GRAVIDADE | [FICHA.md](Calebe_Tools/FICHA.md) |
 | `Drama/` | **LIMPO** — base das **7 Tools** do conjunto DRAMA, duas com cutscene | [FICHA.md](Drama/FICHA.md) |
-| `Faker_Tools/` | **CRU** — o His Cube **original**; 5 malhas de VFX novas | [FICHA.md](Faker_Tools/FICHA.md) |
+| `Faker_Tools/` | **LIMPO** — base das **7 Tools** do conjunto FAKER, duas com cutscene | [FICHA.md](Faker_Tools/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem

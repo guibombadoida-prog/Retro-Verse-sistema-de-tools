@@ -4,8 +4,8 @@
 - Origem:                    `Faker_tools.rbxmx`, enviado no lote de 2026-08-13
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-13
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Faker_Tools/` · notas em `VFX/NOTAS.md`
+- Status:                    **LIMPO** — passe §12.12.2 executado; falta licença
+- Onde vive:                 `MODELOS_ENTRADA/Faker_Tools/` · as **7 Tools** em `Tools/` · notas em `VFX/NOTAS.md`
 
 ---
 
@@ -101,9 +101,124 @@ Zero `loadstring`, zero `require(<id numérico>)`, zero `HttpService`, zero webh
 `getfenv`/`setfenv`, e **zero referência a qualquer depósito fora da Tool**. É o modelo mais
 limpo desse ponto de vista que já chegou.
 
-## Não vira Tool nova
+## "Não vira Tool nova" — REVERTIDO em 2026-08-13, a pedido
 
-Já existe His Cube convertido neste repositório. Este entra como **fonte de VFX** e como
-registro do que o original era — não como sexta, sétima ou oitava Tool de cubo.
+Esta ficha dizia, ao entrar: *"Já existe His Cube convertido neste repositório. Este entra
+como fonte de VFX e como registro do que o original era."*
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+O usuário pediu o contrário, e o pedido está certo. O que ele pediu foram **sete Tools
+nomeadas** — e duas delas são os nomes que **o próprio modelo usa**:
+
+```lua
+Services.Input:SetTitle("Primary",   "Ultra Combo")        -- Q
+Services.Input:SetTitle("Secondary", "An end of an Era")   -- E
+```
+
+`T1: Ultra Combo` e `T2: Era Do Fim` não foram inventados no pedido; foram lidos de dentro do
+arquivo. As sete não competem com o His Cube convertido: aquelas são Tools de **cubo**, estas
+são de **vazio** — sala, prisão, poço, entidade, e o cogumelo de 522 studs.
+
+---
+
+## Passe de conformidade §12.12.2 — EXECUTADO
+
+```bash
+python3 FERRAMENTAS/preparar_faker.py          # 1 Tool -> 7
+python3 FERRAMENTAS/gerar_poses_faker.py       # 7 Poses.lua
+python3 FERRAMENTAS/gerar_servers_faker.py     # Server · Client · VFX · CutsceneCam
+python3 FERRAMENTAS/clonar_tool.py montar ...  # o .rbxmx
+python3 FERRAMENTAS/converter_para_rbxm.py ... # a entrega
+```
+
+Saíram **7 Tools** — `Faker_7_Tools.rbxm`. Duas têm **cutscene**: `Era Do Fim` e
+`Faker Entity`.
+
+### O conserto é de VISIBILIDADE, e foi o que o usuário pediu por escrito
+
+> *"faço com que os efeitos apareça para todos não esqueça disso"*
+
+Não é preferência de estilo — é o defeito central da origem, e ele tem duas metades:
+
+| Metade | Na origem | Aqui |
+|---|---|---|
+| quem DESENHA | `Client` (431 linhas) e `AbbilityClient` (365), os dois **LocalScript** | `Script` com `RunContext = Client`, que roda em TODO cliente |
+| quem manda desenhar | o cliente, para si mesmo | o **servidor**, por `VFXRemote:FireAllClients` |
+
+LocalScript dentro de Tool só roda para o jogador cujo Character a contém. As 796 linhas de
+VFX da origem aconteciam **só na tela de quem segurava a Tool** — para o resto do servidor a
+habilidade era invisível. E como o `Shoot` tinha 40 linhas e nenhum `TakeDamage`, também não
+fazia nada.
+
+Nada saiu de dentro da Tool para consertar isso. A Regra nº 1 está intacta.
+
+### As cinco malhas que a origem nunca ligou
+
+O `AbbilityClient` carrega sete `MeshPart`/`UnionOperation`, e o código de origem usa **duas**:
+`Sphere` (3 clones) e `Mushroom` (1). As outras cinco estão lá, pagas, e nunca acesas. Elas são
+o motivo de o conjunto existir, e o **tamanho** de cada uma decidiu para onde ela foi:
+
+| Malha | Tamanho | O que é | Vai para |
+|---|---|---|---|
+| `E` | 9.9 × **1.0** × 9.9 | disco chato | Ultra Combo · Faker Entity |
+| `Erlo` | 5³ | bloco cúbico | Prisao Cubica |
+| `Sphere` | 4³ | esfera | Prisao Cubica · Faker Entity |
+| `Spiral` | 33 × 17 × 40 | espiral | Ilusao · Abismo Profundo |
+| `WindSphere` | 9.9³ | domo | Sala Do Abismo |
+| `Ring` | **500** × 48 × 500 | anel gigante | Era Do Fim · Abismo Profundo |
+| `Mushroom` | **522 × 543 × 522** | cogumelo | Era Do Fim |
+
+`Ring` e `Mushroom` são duas ordens de grandeza maiores que tudo que já entrou aqui. Não são
+efeito de golpe, são efeito de **evento** — e por isso só as duas Tools de escala grande as
+usam.
+
+Elas vivem em `Tool/Moldes/`, **invisíveis** (`Transparency = 1`, `Anchored`, sem colisão). Quem
+aparece é o clone, aceso pelo `VFXModule` na execução. É a regra que o usuário fixou: *"deixar
+os vfx invisível dentro da tool, e visível na execução da habilidade"*.
+
+### A cutscene é de AFASTAMENTO, não de aproximação
+
+O conjunto DRAMA fecha a câmera na cara do alvo — `Corte Frio` tem FOV 44 no quadro mais
+apertado. Aqui é o oposto, e o motivo é o tamanho: fechar a câmera num cogumelo de 522 studs
+mostra uma parede preta. O beat `DETONA` joga a câmera para 42 studs e abre o FOV para 100.
+
+A regra 1 continua valendo — o FOV é a técnica, e a amplitude (52) é a mesma do `Corte Frio`.
+Só a direção do estouro é para fora.
+
+A `CutsceneCam_Faker` ganhou um terceiro alvo de foco que o DRAMA não tinha: **`cima`**, que
+aponta `alto` studs acima de quem conjurou. É assim que a câmera acompanha o cogumelo subindo
+e a entidade nascendo, sem precisar de uma `Part` no mundo para mirar.
+
+E a plateia é diferente: no DRAMA a cena é entre **dois**, porque é execução de um alvo; aqui
+é evento de área, então todo mundo dentro do raio recebe o papel `ALVO`. Quem está fora não
+perde a câmera, que é o ponto da regra 2.
+
+### O que foi trocado
+
+| Defeito da origem | Conserto |
+|---|---|
+| **796 linhas de habilidade em LocalScript** — efeito só na tela do portador | `RunContext = Client` + `FireAllClients` |
+| **zero `TakeDamage`, zero `Health =`** nas 859 linhas | `TakeDamage` pelo Núcleo, com fallback |
+| **67 `math.random`** | ângulo áureo e jitter senoidal por contador |
+| 20 `spawn(` · 15 `wait()` · 2 `delay(` | `task.spawn` · `task.wait` · `task.delay` |
+| 18 `:Destroy()` | `Parent = nil` e `Debris:AddItem` |
+| `Sound` com **`Volume = 100`** (o teto do Roblox é 10) | 1.1 – 2.2, com volume de gente |
+| UI própria por `Input:SetTitle` | `ContextActionService`, com botão de toque para celular |
+| cinco malhas pagas e nunca acesas | as sete estão em uso, uma por papel |
+
+### O que a origem deu, e ficou
+
+Os **nomes das habilidades** (`Ultra Combo`, `An end of an Era`), as **sete malhas**, e a
+**paleta**: `Color3.new(0,0,0)` no corpo do laser com `Color3.new(1,1,1)` no núcleo. Preto com
+contorno branco é a assinatura do original, e nenhum outro conjunto deste repositório é preto
+— ele se distingue sem precisar de cor.
+
+⚠️ A paleta **sonora** é de um timbre só: `rbxassetid://2960518660`, o único `Sound` do modelo,
+repartido em três papéis por volume e pitch (`DISPARO`, `GRAVE`, `AGUDO`). É a mais fina do
+repositório, mais fina até que a do DRAMA.
+
+## Para sair de LIMPO e virar APROVADO
+
+Falta a **licença** e o teste em jogo. Nada aqui rodou no Studio — a verificação é toda
+estática. O que só o jogo confirma: se o cogumelo de 522 studs cabe no quadro que a cutscene
+escolheu, e se a entidade parada (ela não persegue, por decisão declarada) lê como ameaça ou
+como enfeite.

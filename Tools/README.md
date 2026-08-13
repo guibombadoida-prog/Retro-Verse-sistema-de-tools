@@ -1,6 +1,6 @@
 # Tools
 
-**59 Tools, em oito conjuntos.**
+**66 Tools, em nove conjuntos.**
 
 ## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
 
@@ -365,6 +365,169 @@ com combo e finalizador, que é o caso que o Saitama mede.
 `Olhos Laser` lidera por **`Head`** — a única junta líder que a gramática não
 prevê. Está aqui porque a alternativa era pior: um feixe que sai dos olhos
 conduzido pelo braço lê como se a mão estivesse atirando.
+
+---
+
+## Conjunto FAKER — 7 Tools, de `faker_tools.rbxmx`
+
+**Uma Tool de origem, e ela não fazia dano nenhum.** O `faker_tools.rbxmx` é o
+His Cube **original** — não a nossa conversão de volta. O `Shoot` de servidor
+dele tem **40 linhas**, recebe um aviso, retransmite e nada mais: o scan não
+achou um `TakeDamage` nem uma escrita em `Health` nas 859 linhas do modelo.
+
+E ele batiza as próprias habilidades, no `Client`:
+
+```lua
+Services.Input:SetTitle("Primary",   "Ultra Combo")        -- Q
+Services.Input:SetTitle("Secondary", "An end of an Era")   -- E
+```
+
+**T1 e T2 são os nomes que o próprio modelo usa.** Não foram inventados aqui.
+
+| Tool | Malhas que carrega | M1 | Extra |
+|---|---|---|---|
+| `Ultra Combo` | `E` | combo de **quatro** de palma (10 / 11 / 14 / 26) | **R** Selo — 34 em raio 14, e afrouxa |
+| `Era Do Fim` | `Mushroom`, `Ring` | o cogumelo: **120** no núcleo, 55 na borda · **CUTSCENE** | **R** Onda — 34 em raio **88** |
+| `Sala Do Abismo` | `WindSphere` | fecha a sala: 8 s de dano por tick em raio 26 | **R** Implosão — 45 e puxa, e **consome a sala** |
+| `Ilusao da Alucinacao` | `Spiral` | espiral: 22 e lentidão de 3.5 s | **R** Troca — troca de lugar com o alvo |
+| `Prisao Cubica` | `Erlo`, `Sphere` | prende o alvo por 4 s com `BodyPosition` | **R** Estilhaço — 55 **com prisão de pé**, 27 sem |
+| `Faker Entity` | `Sphere`, `E` | invoca a entidade: 10 s batendo em raio 18 · **CUTSCENE** | **R** Enviar — ela salta para o alvo, 48 |
+| `Abismo Profundo` | `Ring`, `Spiral` | abre o poço: 6 s sugando em raio 22 | **R** Puxão — 30 **com poço aberto**, 15 sem |
+
+As 7 juntas: [`Faker_7_Tools.rbxm`](Faker_7_Tools.rbxm) · XML
+[`Faker_7_Tools.rbxmx`](Faker_7_Tools.rbxmx)
+
+### O conserto é de VISIBILIDADE, e era o pedido
+
+> *"faço com que os efeitos apareça para todos não esqueça disso"*
+
+O defeito tem duas metades, e as duas estavam na origem:
+
+| Metade | Na origem | Aqui |
+|---|---|---|
+| quem **desenha** | `Client` (431 linhas) e `AbbilityClient` (365) — os dois **LocalScript** | `Script` com `RunContext = Client` |
+| quem **manda desenhar** | o próprio cliente, para si mesmo | o **servidor**, por `VFXRemote:FireAllClients` |
+
+LocalScript dentro de Tool só roda para o jogador cujo Character a contém. As 796
+linhas de VFX aconteciam **só na tela de quem segurava a Tool** — para o resto do
+servidor a habilidade era invisível. E como o `Shoot` não aplicava dano, ela
+também não fazia nada.
+
+**Nada saiu de dentro da Tool para consertar isso.** Os dois arquivos continuam
+filhos da Tool; o que mudou foi a classe e o `RunContext`.
+
+### Cinco das sete malhas nunca tinham sido ligadas
+
+O `AbbilityClient` carrega sete `MeshPart`/`UnionOperation` e o código de origem
+usa **duas**: `Sphere` (3 clones) e `Mushroom` (1). As outras cinco estavam lá,
+pagas e apagadas. O **tamanho** de cada uma decidiu para onde ela foi:
+
+| Malha | Tamanho | O que é | Vai para |
+|---|---|---|---|
+| `E` | 9.9 × **1.0** × 9.9 | disco chato | Ultra Combo · Faker Entity |
+| `Erlo` | 5³ | bloco cúbico | Prisao Cubica |
+| `Sphere` | 4³ | esfera | Prisao Cubica · Faker Entity |
+| `Spiral` | 33 × 17 × 40 | espiral | Ilusao · Abismo Profundo |
+| `WindSphere` | 9.9³ | domo | Sala Do Abismo |
+| `Ring` | **500** × 48 × 500 | anel gigante | Era Do Fim · Abismo Profundo |
+| `Mushroom` | **522 × 543 × 522** | cogumelo | Era Do Fim |
+
+`Ring` e `Mushroom` são duas ordens de grandeza maiores que tudo que já entrou
+aqui. Não são efeito de golpe, são efeito de **evento** — e por isso só as duas
+Tools de escala grande as carregam.
+
+Elas vivem em `Tool/Moldes/`, **invisíveis** (`Transparency = 1`, `Anchored`, sem
+colisão). Quem aparece é o clone, aceso pelo `VFXModule` na execução. Cada efeito
+tem **fallback com primitiva**: nenhuma Tool carrega as sete, e a que não tem a
+malha ainda desenha.
+
+### A cutscene é de AFASTAMENTO
+
+O conjunto DRAMA fecha a câmera na cara do alvo — `Corte Frio` chega a FOV **44**.
+Aqui é o contrário, e o motivo é o tamanho: fechar num cogumelo de 522 studs
+mostra uma parede preta. O beat `DETONA` joga a câmera para **42 studs** e abre o
+FOV para **100**.
+
+A regra 1 continua valendo: o FOV é a técnica, a amplitude é **52** — idêntica à
+do `Corte Frio`. Só o sentido do estouro mudou.
+
+Duas coisas que a `CutsceneCam_Drama` não tinha:
+
+- **`olhar = "cima"`**, um terceiro alvo de foco que aponta `alto` studs acima de
+  quem conjurou. É assim que a câmera acompanha o cogumelo subindo e a entidade
+  nascendo, sem precisar de uma `Part` no mundo para mirar.
+- **plateia de área.** No DRAMA a cena é entre dois, porque é execução de um
+  alvo. Aqui é evento de área: todo mundo dentro do raio recebe o papel `ALVO`,
+  cada um com o enquadramento dele. Quem está fora não perde a câmera.
+
+As seis portas de saída continuam as mesmas: `Unequipped`, `Destroying`,
+`CharacterRemoving`, `Died`, prazo (16 s aqui, porque a maior sequência tem 7.20 s)
+e o pulo com **E** por 1.5 s.
+
+### O que saiu do `faker_tools.rbxmx`
+
+| O que era | O que ficou |
+|---|---|
+| **796 linhas de habilidade em LocalScript** | `RunContext = Client` + `FireAllClients` |
+| **zero `TakeDamage`, zero `Health =`** em 859 linhas | `TakeDamage` pelo Núcleo, com fallback |
+| **67 `math.random`** — a maior densidade de sorteio que já entrou | ângulo áureo e jitter senoidal por contador |
+| 20 `spawn(` · 15 `wait()` · 2 `delay(` | `task.spawn` · `task.wait` · `task.delay` |
+| 18 `:Destroy()` | `Parent = nil` e `Debris:AddItem` |
+| um `Sound` com **`Volume = 100`** — o teto do Roblox é 10 | 1.1 – 2.2, em três papéis por volume e pitch |
+| UI própria por `Input:SetTitle` | `ContextActionService`, com botão de toque |
+
+O `math.random` pesa mais neste conjunto do que nos outros: **todos os clientes
+desenham**. Um sorteio faria cada um ver uma cena diferente, e isso lê como lag,
+não como efeito.
+
+### As poses são autorais por inteiro, e o vocabulário é de mão aberta
+
+É a única fonte que não deixou **nenhuma** pose para herdar: nem `Animation`, nem
+escrita em `Motor6D.C0`, nem `Weld` de pose. O personagem da origem fica parado
+enquanto o cubo trabalha.
+
+O vocabulário não é o do DRAMA. Lá é `GUARDA`, `SOCO_DIR`, `GANCHO`; aqui é
+`CUBO_FORMA`, `PALMA_DIR`, `ABRE_BRACOS`, `FECHA_PUNHOS` — porque quem bate no
+FAKER é o cubo, o poço e a entidade. Até o `Ultra Combo` bate de **palma**: um
+combo de socos seria o DRAMA com outro nome.
+
+| Regra | O que diz | Onde |
+|---|---|---|
+| 1 | golpe rápido entre 0.8 s e 1.2 s | `ESPIRAL` e `PRENDE`, 1.20 s |
+| 2 | o impacto cai na **metade** | `ESPIRAL` 52%, `PRENDE` 58% |
+| 3 | combo inverte para **35 : 65** | `COMBO_1`, 37% |
+| 4 | transformação **2 : 98** | `FECHA_SALA`, 3% |
+| 5 | ultimate 7–9 s com 64–86% de preparação | `FIM_DA_ERA` 7.20 s / 74% · `INVOCA` 7.10 s / 72% |
+| 7 | estas animações são, em maioria, **paradas** | quadro segurado nas sete |
+
+`TROCA` sai em **0.70 s**, abaixo da faixa da regra 1, e é decisão declarada — é
+troca de lugar, não golpe. Vale a mesma exceção da esquiva do DRAMA.
+
+`Sala Do Abismo` lidera pelo **HRP** em vez do braço, o que a regra 6 não prevê
+para conjuração. Está aqui porque o efeito nasce centrado no portador e o
+envolve: conduzir isso pelo braço leria como *"ele jogou algo"*, que é
+exatamente o que a Tool não faz.
+
+### Três decisões declaradas
+
+**A entidade não persegue.** Ela fica onde nasceu e bate em quem chega perto, por
+tick de 0.8 s. Perseguir exigiria o servidor mover geometria por quadro, que é o
+defeito já anotado em quatro Tools deste repositório. Quem quer a entidade em
+cima do alvo usa a Extra, que a faz **saltar** — uma fala do servidor, e o
+percurso é desenhado pelo cliente.
+
+**O poço não é buraco de verdade.** Mexer no `Terrain` seria escrever no mapa de
+todo mundo sem volta — a mesma família do `workspace.Gravity` que este
+repositório já proibiu. Ele suga com um puxão fraco por tick; quem quiser sair,
+sai andando.
+
+**Confundir é lentidão, não inversão de controle.** Inverter o comando de outro
+jogador faz a pessoa achar que travou. A lentidão comunica a mesma coisa e
+continua jogável.
+
+⚠️ A paleta sonora é de **um timbre só** — `rbxassetid://2960518660`, o único
+`Sound` do modelo, repartido em três papéis por volume e pitch. É a mais fina do
+repositório, mais fina que a do DRAMA. Está declarado para não parecer descuido.
 
 ---
 

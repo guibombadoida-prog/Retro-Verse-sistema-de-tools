@@ -457,6 +457,19 @@ CONJUNTOS = [
         "Diamond",
         "A arma",
     ]),
+    # 7 Tools a partir da ÚNICA Tool do `faker_tools.rbxmx` (o His Cube
+    # original). Duas têm CUTSCENE. O conserto do conjunto é de VISIBILIDADE:
+    # a origem punha 796 linhas de habilidade em dois LocalScript, então o
+    # efeito só existia na tela de quem segurava a Tool.
+    ("Faker_7_Tools.rbxmx", "Faker_Tools", [
+        "Ultra Combo",
+        "Era Do Fim",
+        "Sala Do Abismo",
+        "Ilusao da Alucinacao",
+        "Prisao Cubica",
+        "Faker Entity",
+        "Abismo Profundo",
+    ]),
 ]
 
 
