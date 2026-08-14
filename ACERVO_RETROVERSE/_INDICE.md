@@ -39,6 +39,18 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 | `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | — (nenhuma Tool no repositório) |
 | `IMPACTO_ESCUDO` | **Saitama** / Death Counter | `Impacto` | LIMPO | — (nenhuma Tool no repositório) |
 | `POEIRA_ESCUDO` | **Saitama** / Serious Mode | `Poeira` | LIMPO | — (nenhuma Tool no repositório) |
+| `VoidCrystal` · `SmallVoidCrystal` · `MiniVoidCrystal` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **CRU** | — |
+| `VoidMagic` · `VoidExplode` · `VoidExplode2` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **CRU** | — |
+| `Stun` | **Noob_Despertado** | `StunParticles` | **CRU** | — |
+
+> **O `Noob_Despertado` traz a primeira paleta de VAZIO/NEBULOSA do Acervo.** Os 10 emissores
+> acima dele são raio, estilhaço, brasa, faísca, aura e os cinco do Saitama — nenhum é vazio.
+> E os três cristais (`VoidCrystal`, `SmallVoidCrystal`, `MiniVoidCrystal`) são **escala
+> pronta**: o mesmo molde em três tamanhos, que é o que o repositório vinha resolvendo com
+> `Size` no tween.
+>
+> ⚠️ A pasta `Effects` do modelo está **duplicada** — 26 `ParticleEmitter` no XML são **13
+> reais**. Quem for depositar tem de copiar de um lado só.
 
 Vivem em `Tool/Efeitos/<TIPO>` e são ligados por `Enabled` + `Rate` — **zero `:Emit()`**.
 `:Emit()` dispara uma leva fixa e ignora o `Rate` autorado; a curva extraída do modelo de
@@ -348,6 +360,8 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Calebe_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GRAVIDADE | [FICHA.md](Calebe_Tools/FICHA.md) |
 | `Drama/` | **LIMPO** — base das **7 Tools** do conjunto DRAMA, duas com cutscene | [FICHA.md](Drama/FICHA.md) |
 | `Faker_Tools/` | **LIMPO** — base das **7 Tools** do conjunto FAKER, duas com cutscene | [FICHA.md](Faker_Tools/FICHA.md) |
+| **lote de 2026-08-14** | | |
+| `Noob_Despertado/` | **CRU** — script de FORMAS, não Tool; **13 emissores de vazio**, inéditos aqui | [FICHA.md](Noob_Despertado/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem
