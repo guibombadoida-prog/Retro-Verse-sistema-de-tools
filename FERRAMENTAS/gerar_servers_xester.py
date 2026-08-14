@@ -105,6 +105,10 @@ local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 
 local ARQUETIPO = "%(arquetipo)s"
 
+--- A sequência de pose que esta habilidade toca. Ela existe no `Poses.lua`
+--- desde sempre; o que faltava era alguém chamá-la.
+local SEQUENCIA = "%(seq)s"
+%(seq_extra_decl)s
 local CFG = {
 %(cfg)s}
 
@@ -117,6 +121,11 @@ local ultimoUso, ultimoExtra = 0, 0
 local ultimaMira = nil
 local ativos = {}
 local semente = 0
+
+--- Trava de sequência. Sem ela o jogador reencadeia a habilidade por cima da
+--- animação anterior e o `PlaySequence` do quadro seguinte cancela o do
+--- anterior no meio — o golpe sai, a pose não.
+local ocupado = false
 
 local function proximo()
 \tsemente = semente + 1
@@ -151,6 +160,52 @@ local function soltarTudo()
 \t\tif conexao.Connected then conexao:Disconnect() end
 \tend
 \tativos = {}
+end
+
+--%(regua)s
+-- SOM — os `Sound` da Tool, que estavam MUDOS
+--
+-- As 14 Tools carregavam de 1 a 4 `Sound` nomeados por papel (`SELA`,
+-- `AFUNDA`, `RISO`, `CONJURA`…) dentro do `.rbxmx`, e **nenhum server tocava
+-- nenhum**. O asset estava depositado e nunca ligado — foi o "cadê os SFX".
+--
+-- `tocarEm` põe o som numa ÂNCORA PRÓPRIA, nunca na peça que o pediu: um
+-- `Sound` só toca enquanto tem pai no DataModel, e pendurá-lo na carta que some
+-- no quadro seguinte mata o som no quadro em que ele nasce.
+--%(regua)s
+
+local function tocar(nome, pitch, corte)
+\tlocal base = Handle:FindFirstChild(nome)
+\tif not base or not base:IsA("Sound") then return nil end
+\tlocal som = base:Clone()
+\tsom.PlaybackSpeed = pitch or 1
+\tsom.Parent = Handle
+\tsom:Play()
+\tDebris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+\treturn som
+end
+
+local function tocarEm(nome, posicao, pitch, corte)
+\tlocal base = Handle:FindFirstChild(nome)
+\tif not base or not base:IsA("Sound") then return nil end
+
+\tlocal ancora = Instance.new("Part")
+\tancora.Size = Vector3.new(0.2, 0.2, 0.2)
+\tancora.Transparency = 1
+\tancora.Anchored = true
+\tancora.CanCollide = false
+\tancora.CanQuery = false
+\tancora.CanTouch = false
+\tancora.CFrame = CFrame.new(posicao or Vector3.new())
+\tancora.Parent = workspace
+
+\tlocal som = base:Clone()
+\tsom.PlaybackSpeed = pitch or 1
+\tsom.Parent = ancora
+\tsom:Play()
+
+\tDebris:AddItem(ancora, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+\treturn som
 end
 
 --%(regua)s
@@ -302,19 +357,91 @@ local function montarRig()
 	return rig
 end
 
-local function animar(sequencia)
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a TABELA do
+--- passo, e a marca está em `kf.marca`. Comparar o keyframe com uma string
+--- nunca dá verdadeiro, e falha em SILÊNCIO.
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
+--- Toca a sequência e devolve o controle no beat.
+---
+--- ⚠️ ISTO NÃO ERA CHAMADO. O `animar()` existia nas 14 Tools e **nenhuma o
+---    invocava**: `Poses.lua` e o `R6CFrameAnimator` eram código morto, o
+---    personagem ficava parado, e o golpe saía inteiro no mesmo quadro do
+---    clique. A habilidade acontecia; a animação, não.
+---
+--- `aoGolpe` é chamado na marca `GOLPE`. Se a sequência não tiver essa marca —
+--- três delas terminam em `CARGA` —, ele é chamado no FIM. Habilidade que não
+--- dispara é a falha que este repositório já pagou uma vez; aqui não há caminho
+--- em que o golpe simplesmente não aconteça.
+local function animar(sequencia, aoGolpe, aoCarga)
 	local atual = montarRig()
-	if not atual then return end
+	local disparou = false
+
+	local function soltar()
+		if disparou then return end
+		disparou = true
+		if aoGolpe then aoGolpe() end
+	end
+
+	if not atual then
+		-- sem rig (Humanoid sumiu no meio do equipar) a habilidade ainda sai
+		soltar()
+		ocupado = false
+		return
+	end
+
+	ocupado = true
 	atual:PlaySequence(sequencia, function(passo)
-		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+		local marca = marcaDe(passo)
+		if not marca then return end
+		vfx("BEAT", { marca = marca })
+		if marca == "CARGA" then
+			if aoCarga then aoCarga() end
+		elseif marca == "GOLPE" then
+			soltar()
+		end
+	end, function()
+		soltar()
+		ocupado = false
 	end)
 end
 
+--- Solta o rig POR INTEIRO, e zera a referência.
+---
+--- Zerar é o que importa: `montarRig()` devolve o `rig` em cache, e depois de
+--- um respawn esse cache aponta para o Character MORTO. A sequência tocaria
+--- num corpo que não existe mais — sem erro, sem pose, sem nada. Guardar o rig
+--- entre duas vidas é o mesmo tipo de silêncio que o beat comparado com string.
 local function desmontarRig()
 	if not rig then return end
 	rig:CancelSequence()
 	rig:ReleaseLegs()
+	rig:LockCharacter(false)
+	rig:Destroy()
+	rig = nil
 end
+
+--%(regua)s
+-- OS DISPAROS — a habilidade sai NO BEAT, não no clique
+--
+-- Era aqui que faltava o fio. `primaria()` e `extra()` eram chamadas direto do
+-- `Tool.Activated`, e a sequência de pose nunca tocava: dano, VFX e empurrão
+-- saíam todos no MESMO quadro do clique, com o personagem parado.
+--
+-- Agora quem chama é o beat. `CARGA` toca o som de preparação, `GOLPE` solta a
+-- habilidade. A trava `ocupado` impede reencadear por cima da animação.
+--%(regua)s
+
+local function dispararPrimaria()
+	animar(SEQUENCIA, function()
+%(som_golpe)s\t\tprimaria(%(passa_mira)s)
+	end%(cb_carga)s)
+end
+%(disparo_extra)s
 
 --%(regua)s
 -- CICLO DE VIDA
@@ -327,21 +454,32 @@ Tool.Equipped:Connect(function()
 \traiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 end)
 
-Tool.Unequipped:Connect(function()
+--- As duas portas fecham pelo MESMO caminho.
+---
+--- `desmontarRig` era o terceiro código morto desta Tool: definido e nunca
+--- chamado, como o `animar()`. Com a trava `ocupado`, deixá-lo solto seria
+--- pior que inútil — guardar a Tool no meio de uma sequência travaria
+--- `ocupado = true` para sempre, e ao reequipar a habilidade nunca mais sairia.
+local function desmontar()
 \tsoltarTudo()
-%(ao_guardar)send)
+\tdesmontarRig()
+\tocupado = false
+%(ao_guardar)send
+
+Tool.Unequipped:Connect(desmontar)
 
 Tool.Activated:Connect(function()
+\t-- a trava vem ANTES da recarga: barrar depois de `ultimoUso = os.clock()`
+\t-- cobraria o tempo de espera por um golpe que não saiu
+\tif ocupado then return end
 \tif not podeUsar(ultimoUso, CFG.RECARGA) then return end
 \tultimoUso = os.clock()
-\tprimaria()
+\tdispararPrimaria()
 end)
 %(liga_extra)s
 --- `Destroying`, não `AncestryChanged`: a Tool pode trocar de pai a cada
 --- equipar sem estar sendo destruída.
-Tool.Destroying:Connect(function()
-\tsoltarTudo()
-%(ao_guardar)send)
+Tool.Destroying:Connect(desmontar)
 '''
 
 
@@ -367,10 +505,21 @@ LIGA_EXTRA = '''
 AcaoRemote.OnServerEvent:Connect(function(quem, mira)
 \t-- O Remote é a porta de fora: confere QUEM chamou antes de qualquer coisa.
 \tif quem ~= jogador then return end
+\tif ocupado then return end
 \tif not podeUsar(ultimoExtra, CFG.RECARGA_EXTRA) then return end
 \tultimoExtra = os.clock()
-\textra(mirar(mira))
+\tdispararExtra(mirar(mira))
 end)
+'''
+
+
+#: O disparo da Extra, só nas 6 Tools que têm uma.
+DISPARO_EXTRA = '''
+local function dispararExtra(ponto)
+\tanimar(SEQUENCIA_EXTRA, function()
+%(som_extra_golpe)s\t\textra(ponto)
+\tend%(cb_extra_carga)s)
+end
 '''
 
 
@@ -410,6 +559,9 @@ local function primaria()
 \talvo.PlatformStand = true
 \ttask.delay(CFG.MERGULHO, function()
 \t\tif alvo and alvo.Parent then alvo.PlatformStand = false end
+\t\t-- `FIM` fecha o truque: toca quando o alvo termina de afundar, não no
+\t\t-- clique. É o único dos quatro timbres desta Tool que tem hora marcada.
+\t\ttocarEm("FIM", chao, 1)
 \tend)
 
 \tvfx("ONDA_DUPLA", { posicao = chao, escala = CFG.ESCALA_ONDA })
@@ -598,6 +750,9 @@ local function baixarEscudo()
 \t\ttoque = nil
 \tend
 \tif escudo then
+\t\t-- o estilhaço soa onde o escudo ESTAVA, e só se ele existia: guardar a
+\t\t-- Tool sem escudo de pé não deve fazer barulho de vidro quebrando
+\t\ttocarEm("ESTILHACA", escudo.Position, 1)
 \t\tescudo.Parent = nil
 \t\tescudo = nil
 \tend
@@ -707,6 +862,11 @@ local function detonar(centro, forca)
 \tvfx("ESFERA_DETONA", { posicao = centro, escala = forca })
 \tgolpearArea(centro, CFG.RAIO * forca, CFG.DANO_MIN * forca,
 \t\tCFG.DANO_MAX * forca, CFG.EMPURRAO, 16)
+\t-- `ECO` é RÉPLICA, não segunda explosão: chega depois, mais grave, e não
+\t-- carrega dano nenhum. O estouro é o `DETONA`, que já saiu no beat.
+\ttask.delay(0.35, function()
+\t\ttocarEm("ECO", centro, 0.7)
+\tend)
 end
 
 local function primaria()
@@ -1408,7 +1568,9 @@ TABELA = {
                 ("DANO_MIN", "20"), ("DANO_MAX", "34"), ("EMPURRAO", "40")],
     },
     "Xester Portal do Cajado": {
-        "seq": "PROCISSAO_DE_CARTAS", "extra": None, "arquetipo": "CEIFA",
+        # Era `PROCISSAO_DE_CARTAS` — a sequência de OUTRA Tool. A Forma 2 deu
+        # seis tracks para sete Tools, e esta ficou com a emprestada.
+        "seq": "PORTAL_DO_CAJADO", "extra": None, "arquetipo": "CEIFA",
         "m1": "Carta-portal a frente que puxa e corta.",
         "origem": [
             "hitbox a (0, 0, -10) do portador (xesterv2.lua:2071)",
@@ -1437,6 +1599,62 @@ for _nome in ("Xester Carta Ceifeira", "Xester Esfera do Fim",
     FORMA_DE[_nome] = "Forma2"
 
 
+# ═══════════════════════════════════════════════════════════════
+# SFX — que Sound toca em que beat
+#
+# As 14 Tools carregavam 34 `Sound` no total, todos nomeados por papel e todos
+# MUDOS: nenhum server script chamava nenhum. O asset estava depositado e nunca
+# ligado.
+#
+# `CARGA` toca no Handle (acompanha o portador); `GOLPE` toca numa âncora no
+# mundo, na posição do portador — assim o som não morre se a Tool for guardada
+# no meio do efeito.
+#
+# alvo -> (carga, golpe, extra_carga, extra_golpe); cada um (nome, pitch) ou None
+# ═══════════════════════════════════════════════════════════════
+
+SONS = {
+    "Xester Ato de Desaparecer": (("SELA", 1), ("AFUNDA", 1), None, ("RISO", 1)),
+    "Xester Full House":         (("ABRE", 1), ("ATIRA", 1), None, None),
+    "Xester Cardnado":           (("ARRANCA", 1), ("RUGE", 1), None, ("FOGO", 1)),
+    "Xester Teleporte":          (None, ("SOME", 1), None, None),
+    "Xester Carta Colossal":     (("ERGUE", 1), ("BATE", 1), None, ("FOGO", 0.85)),
+    "Xester Buraco Negro":       (("ABRE", 1), ("COLAPSA", 1), None, ("RAIO", 1)),
+    "Xester Escudo de Cartas":   (("SOBE", 1), ("REBATE", 1), None, ("SOPRO", 1)),
+    "Xester Carta Ceifeira":     (("SAI", 1), ("CRAVA", 1), None, None),
+    "Xester Esfera do Fim":      (("CARREGA", 1), ("DETONA", 1), None, None),
+    "Xester Baralho Espectral":  (("CONJURA", 1), ("GOLPE", 1), None, None),
+    "Xester Invocacao":          (("CHAMA", 1), ("NASCE", 1), None, None),
+    # A Fúria tem dois timbres para três momentos: `SACA` serve a carga e o
+    # golpe, separados por pitch — o mesmo recurso do conjunto FAKER, que tem
+    # um timbre só. `RISO` é da Gargalhada, e fica com ela.
+    "Xester Furia do Machado":   (("SACA", 1.15), ("SACA", 0.8), None, ("RISO", 1)),
+    "Xester Procissao de Cartas": (None, ("SOBE", 1), None, None),
+    "Xester Portal do Cajado":   (("ABRE", 1), ("CORTA", 1), None, None),
+}
+
+
+def cb_carga(par):
+    """O callback de CARGA, ou nada — `animar` aceita o terceiro argumento nil.
+
+    Sem isto, as Tools cujo timbre de carga não existe (Teleporte, Procissão)
+    ganhavam um `function() end` vazio, que é ruído no arquivo entregue.
+    """
+    if not par:
+        return ""
+    return ", function()\n%s\tend" % linha_som(par, False)
+
+
+def linha_som(par, posicional, recuo="\t\t"):
+    """Uma linha de `tocar`/`tocarEm`, ou nada se a Tool não tiver o timbre."""
+    if not par:
+        return ""
+    nome, pitch = par
+    if posicional:
+        return '%stocarEm("%s", raiz.Position, %s)\n' % (recuo, nome, pitch)
+    return '%stocar("%s", %s)\n' % (recuo, nome, pitch)
+
+
 def gerar_server(nome, dados):
     corpo_chave = dados.get("corpo", dados["seq"])
     precisa_mira = dados.get("mira_primaria", False)
@@ -1463,6 +1681,16 @@ def gerar_server(nome, dados):
     elif corpo_chave == "FULL_HOUSE":
         ao_guardar = "\tleque = false\n"
 
+    carga, golpe, extra_carga, extra_golpe = SONS.get(
+        nome, (None, None, None, None))
+
+    disparo_extra = ""
+    if extra_nome:
+        disparo_extra = DISPARO_EXTRA % {
+            "cb_extra_carga": cb_carga(extra_carga),
+            "som_extra_golpe": linha_som(extra_golpe, True),
+        }
+
     # quem precisa de mira na primária recebe o ponto pelo AcaoRemote
     return ESQUELETO % {
         "arquivo": "%s_Server_V1.lua" % nome.replace(" ", ""),
@@ -1479,12 +1707,21 @@ def gerar_server(nome, dados):
         "mira_remote": ("local MiraRemote = Tool:WaitForChild(\"MiraRemote\")\n"
                         if precisa_mira else ""),
         "escuta_mira": ((ESCUTA_MIRA % {"regua": REGUA}) if precisa_mira else ""),
-        "passa_mira": ("mirar(ultimaMira)" if precisa_mira else ""),
+        # O corpo já corta pelo alcance com `mirar(destino)`; aqui vai o ponto
+        # cru que o MiraRemote entregou. Este valor era CALCULADO e nunca
+        # substituído: as 5 Tools de mira chamavam `primaria()` sem argumento,
+        # caíam no fallback do `mirar()` e saíam sempre retas à frente.
+        "passa_mira": ("ultimaMira" if precisa_mira else ""),
         "liga_extra": ((LIGA_EXTRA % {"seq_extra": extra_nome})
                        if extra_nome else ""),
         "ao_guardar": ao_guardar,
         "sufixo": nome.replace(" ", ""),
         "seq": dados["seq"],
+        "seq_extra_decl": ('local SEQUENCIA_EXTRA = "%s"\n' % extra_nome
+                           if extra_nome else ""),
+        "cb_carga": cb_carga(carga),
+        "som_golpe": linha_som(golpe, True),
+        "disparo_extra": disparo_extra,
     }
 
 
@@ -2422,11 +2659,18 @@ def escrever_poses(titulo, forma, nomes, tabela):
         else:
             for indice in range(1, len(track)):
                 dt = max(track[indice]["t"] - track[indice - 1]["t"], 0.03)
+                # GOLPE vence o desempate, não CARGA.
+                #
+                # Com a ordem invertida, uma track de DOIS keyframes tem um
+                # passo só, ele cai nos dois testes, e o `elif` dava a ele
+                # `CARGA` — a sequência terminava sem nunca marcar o golpe.
+                # Era o caso de BARALHO_ESPECTRAL, BURACO_NEGRO e RAIO: três
+                # habilidades cuja marca de impacto não existia.
                 marca = ""
-                if indice == 1:
-                    marca = ', marca = "CARGA"'
-                elif indice == len(track) - 1:
+                if indice == len(track) - 1:
                     marca = ', marca = "GOLPE"'
+                elif indice == 1:
+                    marca = ', marca = "CARGA"'
                 corpo.append(
                     '\t\t{ pose = "%s_%d", time = %.3f, style = "Exponential", '
                     'dir = "Out"%s },' % (nome, indice + 1, dt, marca))
@@ -2478,6 +2722,80 @@ def gerar_cliente(nome, dados):
     }
 
 
+# ═══════════════════════════════════════════════════════════════
+# A ÚNICA TRACK AUTORAL DO CONJUNTO
+#
+# A Forma 2 tem SETE Tools e o `xesterv2.lua` deu SEIS tracks de habilidade.
+# A sétima — `Xester Portal do Cajado` — ficou sem, e estava declarada com
+# `seq = "PROCISSAO_DE_CARTAS"`: tocava a animação de OUTRA Tool.
+#
+# Esta track é escrita pela `GRAMATICA_R6.md`, não extraída:
+#
+#   · conjuração de 1.14 s, dentro da faixa 0.8–1.2 s da regra 1
+#   · impacto (`CORTA`) a 0.60 s, 53% do total — a regra 2 pede a metade
+#   · lidera o RightArm, que é o que a regra 6 manda para conjuração
+#   · dois quadros segurados, pela regra 7
+#
+# O gesto acompanha os dois sons que a Tool já tinha e nunca tocou: `ABRE`
+# quando o braço abre o portal, `CORTA` quando ele desce.
+#
+# Vive aqui, e não no `poses_xester.json`, porque aquele arquivo é SAÍDA do
+# `extrair_poses_xester.py` — o que for escrito lá some na próxima extração.
+# ═══════════════════════════════════════════════════════════════
+
+TRACK_AUTORAL = {
+    "Forma2": {
+        "PORTAL_DO_CAJADO": [
+            # 0.00 — sai da guarda, o cajado recolhido junto ao corpo
+            {"t": 0.0, "juntas": {
+                "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-4), math.rad(-18), math.rad(0))",
+                "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-6), math.rad(14), math.rad(0))",
+                "RightArm": "CFrame.new(1.34, 0.18, -0.52) * CFrame.Angles(math.rad(62), math.rad(-16), math.rad(-24))",
+                "LeftArm": "CFrame.new(-1.42, 0.06, -0.3) * CFrame.Angles(math.rad(28), math.rad(10), math.rad(16))",
+                "RightLeg": "CFrame.new(0.5, -1.92, -0.18) * CFrame.Angles(math.rad(-9), math.rad(0), math.rad(0))",
+                "LeftLeg": "CFrame.new(-0.5, -1.9, 0.16) * CFrame.Angles(math.rad(8), math.rad(0), math.rad(0))",
+            }},
+            # 0.42 — ABRE: o braço estende e a mão abre o portal à frente
+            {"t": 0.42, "juntas": {
+                "HRP": "CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-12), math.rad(-32), math.rad(0))",
+                "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-16), math.rad(26), math.rad(0))",
+                "RightArm": "CFrame.new(1.52, 0.44, -1.16) * CFrame.Angles(math.rad(104), math.rad(-22), math.rad(-10))",
+                "LeftArm": "CFrame.new(-1.36, 0.24, -0.62) * CFrame.Angles(math.rad(72), math.rad(14), math.rad(24))",
+                "RightLeg": "CFrame.new(0.5, -1.88, -0.26) * CFrame.Angles(math.rad(-13), math.rad(0), math.rad(0))",
+                "LeftLeg": "CFrame.new(-0.5, -1.88, 0.22) * CFrame.Angles(math.rad(11), math.rad(0), math.rad(0))",
+            }},
+            # 0.60 — o quadro segurado: o portal está aberto e nada se move
+            {"t": 0.6, "juntas": {
+                "HRP": "CFrame.new(0, 0.05, 0) * CFrame.Angles(math.rad(-11), math.rad(-30), math.rad(0))",
+                "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-15), math.rad(24), math.rad(0))",
+                "RightArm": "CFrame.new(1.53, 0.46, -1.18) * CFrame.Angles(math.rad(106), math.rad(-21), math.rad(-9))",
+                "LeftArm": "CFrame.new(-1.35, 0.26, -0.64) * CFrame.Angles(math.rad(74), math.rad(13), math.rad(23))",
+                "RightLeg": "CFrame.new(0.5, -1.88, -0.26) * CFrame.Angles(math.rad(-13), math.rad(0), math.rad(0))",
+                "LeftLeg": "CFrame.new(-0.5, -1.88, 0.22) * CFrame.Angles(math.rad(11), math.rad(0), math.rad(0))",
+            }},
+            # 0.74 — CORTA: o braço desce em diagonal, o tronco vai junto
+            {"t": 0.74, "juntas": {
+                "HRP": "CFrame.new(0, -0.08, 0) * CFrame.Angles(math.rad(14), math.rad(28), math.rad(0))",
+                "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(12), math.rad(-22), math.rad(0))",
+                "RightArm": "CFrame.new(1.44, -0.22, -0.74) * CFrame.Angles(math.rad(42), math.rad(24), math.rad(18))",
+                "LeftArm": "CFrame.new(-1.44, -0.04, -0.36) * CFrame.Angles(math.rad(32), math.rad(-12), math.rad(-18))",
+                "RightLeg": "CFrame.new(0.5, -1.82, -0.42) * CFrame.Angles(math.rad(-21), math.rad(0), math.rad(0))",
+                "LeftLeg": "CFrame.new(-0.5, -1.9, 0.28) * CFrame.Angles(math.rad(15), math.rad(0), math.rad(0))",
+            }},
+            # 1.14 — o corte segurado até a guarda voltar
+            {"t": 1.14, "juntas": {
+                "HRP": "CFrame.new(0, -0.06, 0) * CFrame.Angles(math.rad(11), math.rad(22), math.rad(0))",
+                "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(9), math.rad(-18), math.rad(0))",
+                "RightArm": "CFrame.new(1.42, -0.18, -0.68) * CFrame.Angles(math.rad(38), math.rad(20), math.rad(16))",
+                "LeftArm": "CFrame.new(-1.44, -0.02, -0.34) * CFrame.Angles(math.rad(30), math.rad(-10), math.rad(-16))",
+                "RightLeg": "CFrame.new(0.5, -1.84, -0.38) * CFrame.Angles(math.rad(-19), math.rad(0), math.rad(0))",
+                "LeftLeg": "CFrame.new(-0.5, -1.9, 0.26) * CFrame.Angles(math.rad(14), math.rad(0), math.rad(0))",
+            }},
+        ],
+    },
+}
+
+
 def main():
     if not os.path.exists(DADOS):
         print("tabela de poses não encontrada: %s" % DADOS)
@@ -2485,6 +2803,10 @@ def main():
         return 1
     with open(DADOS, encoding="utf-8") as f:
         tabela = json.load(f)
+
+    # a track autoral entra por cima do que veio da extração
+    for _forma, _tracks in TRACK_AUTORAL.items():
+        tabela.setdefault(_forma, {}).update(_tracks)
 
     if not os.path.exists(ANIMATOR):
         print("animator canônico não encontrado: %s" % ANIMATOR)

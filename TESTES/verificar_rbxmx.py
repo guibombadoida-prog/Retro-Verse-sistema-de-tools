@@ -38,6 +38,7 @@ PACK_ACERVO = os.path.join(RAIZ, "ACERVO_RETROVERSE", "Stella_VFX_Addon", "VFX")
 VERMELHO = "\033[31m%s\033[0m"
 VERDE = "\033[32m%s\033[0m"
 CINZA = "\033[90m%s\033[0m"
+AMARELO = "\033[33m%s\033[0m"
 
 PROIBIDOS = ("ReplicatedStorage", "ServerStorage", "ServerScriptService",
              "InsertService", "StarterGui", "StarterPack", "ACERVO")
@@ -252,6 +253,55 @@ def verificar(nome):
                              "e assim o beat NUNCA dispara"
                              % (nome_obj, parametro, parametro))
 
+    # 6c. A ANIMAÇÃO TEM DE SER CHAMADA POR ALGUÉM
+    #
+    # Uma Tool pode carregar `Poses.lua` com `P.SEQUENCIAS`, o
+    # `R6CFrameAnimator` inteiro, e um `animar()` bem escrito — e nunca invocar
+    # nada disso. O arquivo passa em todo verificador de forma, e no jogo o
+    # personagem executa a habilidade PARADO, com o golpe saindo no mesmo
+    # quadro do clique.
+    #
+    # Foi o estado das 14 Tools do Xester: `animar()` definido nas 14, chamado
+    # em ZERO. Esta checagem existe por causa disso.
+    tem_sequencias = any("SEQUENCIAS" in f for f in fontes.values())
+    if tem_sequencias:
+        chamou = False
+        for nome_obj, fonte in fontes.items():
+            limpo = sem_comentario(fonte)
+            # a definição não conta como chamada
+            sem_def = re.sub(r"(local\s+)?function\s+animar\s*\(", "", limpo)
+            if re.search(r"PlaySequence\s*\(|PlayTrack\s*\(", sem_def):
+                chamou = True
+            elif re.search(r"\banimar\s*\(", sem_def):
+                chamou = True
+        if not chamou:
+            erros.append("tem P.SEQUENCIAS e NINGUÉM toca a animação — "
+                         "sem PlaySequence/PlayTrack/animar() o personagem "
+                         "executa a habilidade parado")
+
+    # 6d. SOM DEPOSITADO É SOM QUE ALGUÉM TOCA
+    #
+    # `Sound` dentro da Tool que nenhum script referencia é asset pago e mudo.
+    # As 14 do Xester tinham 34 `Sound` nomeados por papel e zero `tocar()` —
+    # o "cadê os SFX" era isto.
+    nomes_som = set()
+    for item in tool.iter("Item"):
+        if item.get("class") == "Sound":
+            alvo = texto(item, "Name")
+            if alvo:
+                nomes_som.add(alvo)
+    if nomes_som:
+        citados = set()
+        for fonte in fontes.values():
+            citados.update(re.findall(r"[\"'](\w+)[\"']", sem_comentario(fonte)))
+        mudos = sorted(n for n in nomes_som if n not in citados)
+        if mudos:
+            # AVISO, não erro: a checagem é nova e encontrou o mesmo defeito em
+            # conjuntos antigos que ninguém pediu para mexer. Contá-los como
+            # falha esconderia as falhas de verdade no meio do inventário.
+            erros.append("AVISO: Sound que nenhum script cita: %s — asset "
+                         "depositado e mudo" % ", ".join(mudos))
+
     for obrigatorio in ("Client", "VFXModule", "Poses", "R6CFrameAnimator"):
         if obrigatorio not in fontes:
             erros.append("sem script chamado %r" % obrigatorio)
@@ -457,6 +507,27 @@ CONJUNTOS = [
         "Diamond",
         "A arma",
     ]),
+    # O Xester sai em DOIS arquivos, um por forma — e por isso ficou três
+    # levas fora desta lista. Sem registro aqui, ninguém conferia se as 7 de
+    # cada forma continuavam sendo as 7 certas.
+    ("Xester_Forma1_7_Tools.rbxmx", "Xester_Forma1", [
+        "Xester Ato de Desaparecer",
+        "Xester Full House",
+        "Xester Cardnado",
+        "Xester Teleporte",
+        "Xester Carta Colossal",
+        "Xester Buraco Negro",
+        "Xester Escudo de Cartas",
+    ]),
+    ("Xester_Forma2_7_Tools.rbxmx", "Xester_Forma2", [
+        "Xester Carta Ceifeira",
+        "Xester Esfera do Fim",
+        "Xester Baralho Espectral",
+        "Xester Invocacao",
+        "Xester Furia do Machado",
+        "Xester Procissao de Cartas",
+        "Xester Portal do Cajado",
+    ]),
     # 7 Tools a partir da ÚNICA Tool do `faker_tools.rbxmx` (o His Cube
     # original). Duas têm CUTSCENE. O conserto do conjunto é de VISIBILIDADE:
     # a origem punha 796 linhas de habilidade em dois LocalScript, então o
@@ -560,16 +631,31 @@ def main():
     print("")
 
     total = 0
+    avisados = []
     for nome in nomes:
-        erros = verificar(nome)
+        achados = verificar(nome)
+        erros = [e for e in achados if not e.startswith("AVISO:")]
+        avisos = [e for e in achados if e.startswith("AVISO:")]
+        if avisos:
+            avisados.append((nome, avisos))
         if erros:
             total += len(erros)
             print(VERMELHO % ("✗ %s" % nome))
             for e in erros:
                 print("    %s" % e)
+            for a in avisos:
+                print(AMARELO % ("    %s" % a))
         else:
             caminho = os.path.join(TOOLS, nome, "%s.rbxmx" % nome)
             print(VERDE % ("✓ %-20s %7d bytes" % (nome, os.path.getsize(caminho))))
+
+    if avisados:
+        print("")
+        print(AMARELO % ("AVISOS — %d Tool(s) com asset depositado e mudo"
+                         % len(avisados)))
+        for nome, avisos in avisados:
+            for a in avisos:
+                print(AMARELO % ("  %-24s %s" % (nome, a[7:])))
 
     print("")
     print(CINZA % "CONJUNTOS — um arquivo por modelo de origem")

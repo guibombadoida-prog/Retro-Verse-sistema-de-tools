@@ -70,12 +70,12 @@ P.RAIO_2 = {
 P.SEQUENCIAS = {
 
 	BURACO_NEGRO = {
-		{ pose = "BURACO_NEGRO_2", time = 0.250, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "BURACO_NEGRO_2", time = 0.250, style = "Exponential", dir = "Out", marca = "GOLPE" },
 		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
 	},
 
 	RAIO = {
-		{ pose = "RAIO_2", time = 0.250, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "RAIO_2", time = 0.250, style = "Exponential", dir = "Out", marca = "GOLPE" },
 		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
 	},
 

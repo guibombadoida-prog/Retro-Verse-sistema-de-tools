@@ -95,6 +95,102 @@ As 7 juntas: [`Escudos_7_Tools.rbxmx`](Escudos_7_Tools.rbxmx)
 
 ---
 
+## Conjunto XESTER — 14 Tools em DOIS arquivos, de `Xester.rbxmx` + `Xester_O_despertar.rbxmx`
+
+Duas formas do mesmo personagem, e cada uma sai no arquivo dela — as Tools da
+Forma 2 não devem aparecer para quem só tem a Forma 1.
+
+### Forma 1 — o Mestre das Cartas
+
+| Tool | M1 | Extra |
+|---|---|---|
+| `Xester Ato de Desaparecer` | some o alvo dentro de uma carta no chão (72–96) | **Y** Gargalhada |
+| `Xester Full House` | abre o leque de 20 cartas; ativar de novo atira | — |
+| `Xester Cardnado` | tempestade de cartas, 35 pulsos em raio 22 | **Y** Bola de Fogo |
+| `Xester Teleporte` | reaparece **onde o mouse aponta** | — |
+| `Xester Carta Colossal` | ergue uma carta de 24 studs e derruba (55–85) | **Y** Bola de Fogo Imensa |
+| `Xester Buraco Negro` | portal de carta que suga e colapsa | **Y** Raio |
+| `Xester Escudo de Cartas` | escudo que rebate | **Y** Sopro do Dragão |
+
+As 7 juntas: [`Xester_Forma1_7_Tools.rbxm`](Xester_Forma1_7_Tools.rbxm) · XML
+[`Xester_Forma1_7_Tools.rbxmx`](Xester_Forma1_7_Tools.rbxmx)
+
+### Forma 2 — O Despertar
+
+| Tool | M1 | Extra |
+|---|---|---|
+| `Xester Carta Ceifeira` | carta que sai e crava no alvo | — |
+| `Xester Esfera do Fim` | carrega e detona | — |
+| `Xester Baralho Espectral` | conjura o baralho | — |
+| `Xester Invocacao` | invoca os servos | — |
+| `Xester Furia do Machado` | saca o machado e corre | **Y** Gargalhada |
+| `Xester Procissao de Cartas` | fileira de cartas que avança 24 passos | — |
+| `Xester Portal do Cajado` | carta-portal à frente que puxa e corta | — |
+
+As 7 juntas: [`Xester_Forma2_7_Tools.rbxm`](Xester_Forma2_7_Tools.rbxm) · XML
+[`Xester_Forma2_7_Tools.rbxmx`](Xester_Forma2_7_Tools.rbxmx)
+
+### O que estava quebrado, e não dava para ver pelo arquivo
+
+As 14 passavam em todos os verificadores. Quatro defeitos, todos da mesma
+família — **código escrito, entregue, e nunca chamado**:
+
+| Defeito | Alcance | O sintoma no jogo |
+|---|---|---|
+| `animar()` definido e **nunca invocado** | **14 de 14** | o personagem executava a habilidade **parado**; dano, VFX e empurrão saíam todos no mesmo quadro do clique |
+| `tocar()` **inexistente** | **14 de 14**, 34 `Sound` | os sons estavam dentro da Tool, nomeados por papel, e **mudos** |
+| `passa_mira` calculado e **nunca substituído** | **5 de 14** | `primaria()` recebia `nil`, caía no fallback do `mirar()` e saía **sempre reta à frente**, no alcance cheio |
+| `desmontarRig()` definido e **nunca invocado** | **14 de 14** | o rig sobrevivia ao respawn apontando para o corpo morto |
+
+O `Poses.lua` e o `R6CFrameAnimator` estavam nas 14 Tools o tempo todo, com as
+sequências corretas e as marcas `CARGA` e `GOLPE` no lugar. Faltava o fio.
+
+### Agora quem chama é o beat
+
+```lua
+local function dispararPrimaria()
+	animar(SEQUENCIA, function()
+		tocarEm("AFUNDA", raiz.Position, 1)   -- GOLPE
+		primaria()
+	end, function()
+		tocar("SELA", 1)                      -- CARGA
+	end)
+end
+```
+
+`CARGA` toca no Handle, que acompanha o portador; `GOLPE` toca numa âncora no
+mundo, para o som não morrer se a Tool for guardada no meio do efeito.
+
+**Nenhuma habilidade pode deixar de sair.** Se a sequência não tiver a marca
+`GOLPE`, o disparo acontece no fim — três delas terminavam em `CARGA`, e uma
+habilidade que não dispara é a falha que este repositório já pagou uma vez.
+
+E a trava `ocupado` vem **antes** da recarga: barrar depois de
+`ultimoUso = os.clock()` cobraria o tempo de espera por um golpe que não saiu.
+
+### A marca `GOLPE` não existia em três sequências
+
+O gerador escrevia `CARGA` no primeiro passo e `GOLPE` no último, nessa ordem.
+Numa track de **dois** keyframes há um passo só: ele caía nos dois testes, e o
+`elif` dava `CARGA`. `BARALHO_ESPECTRAL`, `BURACO_NEGRO` e `RAIO` terminavam
+sem nunca marcar o impacto. Agora `GOLPE` vence o desempate.
+
+### O Portal do Cajado tocava a animação de outra Tool
+
+A Forma 2 tem **sete** Tools e o `xesterv2.lua` deu **seis** tracks de
+habilidade. A sétima ficou declarada com `seq = "PROCISSAO_DE_CARTAS"`.
+
+`PORTAL_DO_CAJADO` é a **única track autoral do conjunto**, escrita pela
+gramática: conjuração de 1.14 s (regra 1), impacto a 53% (regra 2), liderada
+pelo `RightArm` (regra 6), com dois quadros segurados (regra 7). O gesto
+acompanha os dois sons que a Tool já tinha: `ABRE` quando o braço abre o
+portal, `CORTA` quando ele desce.
+
+Ela vive no gerador, não no `poses_xester.json` — aquele arquivo é **saída** do
+`extrair_poses_xester.py`, e o que for escrito lá some na próxima extração.
+
+---
+
 ## Conjunto GUEST — 7 Tools, de `guest_tools.rbxmx` + `guest_tools_2_more.rbxmx`
 
 **Cinco remasterizadas** (o primeiro arquivo) e **duas que entraram depois** (o

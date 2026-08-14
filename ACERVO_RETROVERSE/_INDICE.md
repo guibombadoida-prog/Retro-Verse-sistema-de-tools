@@ -216,6 +216,19 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
 | `Poses_Xester_Forma1_V1` | Xester_Forma1 (extraída) | 12 seq · guarda + ação | **LIMPO** | 7 Tools da Forma 1 |
 | `Poses_Xester_Forma2_V1` | Xester_Forma2 (extraída) | 8 seq · guarda de cajado | **LIMPO** | 7 Tools da Forma 2 |
+| `PORTAL_DO_CAJADO` | **autoral**, pela gramática | conjuração 1.14 s · impacto a 53% · lidera RightArm | **LIMPO** | `Xester Portal do Cajado` |
+
+> ⚠️ **Tabela de pose entregue não é tabela de pose TOCADA.** As 14 Tools do Xester
+> carregaram `Poses.lua` completo, com as sequências certas e as marcas `CARGA`/`GOLPE` no
+> lugar, durante três levas — e o `animar()` que as tocaria estava definido nas 14 e chamado
+> em **zero**. O personagem executava a habilidade parado.
+>
+> `TESTES/verificar_rbxmx.py` passou a cobrar isso (check 6c): Tool com `P.SEQUENCIAS` e
+> nenhum `PlaySequence`/`PlayTrack`/`animar()` é erro.
+>
+> A Forma 2 tem **sete** Tools e o `xesterv2.lua` deu **seis** tracks. A sétima ficou
+> apontando para a sequência de outra Tool — daí a `PORTAL_DO_CAJADO` autoral acima, que é a
+> única track escrita à mão no conjunto.
 | `GRAMATICA_R6.md` | **medida no Saitama** | as 7 regras de timing | **APROVADO** | Escudos, Bombas |
 | poses do `Cano De Rua` e do `Taco` | **Guest_Tools** | 78 escritas em `Weld.C0` | **CRU** — medidas, não copiadas | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 39 poses · 17 sequências | **LIMPO** | as 7 Tools do conjunto GUEST |
@@ -319,9 +332,9 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
 | `YorrSlayer/` | **CRU** — a câmera dele já conformada; ver GRAMATICA_CUTSCENE | [FICHA.md](YorrSlayer/FICHA.md) |
-| `Xester_Forma1/` | **LIMPO** — base das 7 Tools da Forma 1 | [FICHA.md](Xester_Forma1/FICHA.md) |
+| `Xester_Forma1/` | **LIMPO** — base das 7 Tools da Forma 1; animação e SFX ligados em 2026-08-14 | [FICHA.md](Xester_Forma1/FICHA.md) |
 | ↳ o baralho `cards` | serve **as duas** formas: Handle e moldes de carta da Forma 1 saem dele | — |
-| `Xester_Forma2_O_Despertar/` | **LIMPO** — base das 7 Tools da Forma 2 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
+| `Xester_Forma2_O_Despertar/` | **LIMPO** — base das 7 Tools da Forma 2; animação e SFX ligados em 2026-08-14 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 | **lote de 2026-08-13** | | |

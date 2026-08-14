@@ -52,7 +52,7 @@ P.BARALHO_ESPECTRAL_2 = {
 P.SEQUENCIAS = {
 
 	BARALHO_ESPECTRAL = {
-		{ pose = "BARALHO_ESPECTRAL_2", time = 2.500, style = "Exponential", dir = "Out", marca = "CARGA" },
+		{ pose = "BARALHO_ESPECTRAL_2", time = 2.500, style = "Exponential", dir = "Out", marca = "GOLPE" },
 		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
 	},
 

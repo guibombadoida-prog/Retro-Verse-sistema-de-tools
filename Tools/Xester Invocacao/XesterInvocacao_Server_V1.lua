@@ -36,6 +36,10 @@ local MiraRemote = Tool:WaitForChild("MiraRemote")
 
 local ARQUETIPO = "CEIFA"
 
+--- A sequência de pose que esta habilidade toca. Ela existe no `Poses.lua`
+--- desde sempre; o que faltava era alguém chamá-la.
+local SEQUENCIA = "INVOCACAO"
+
 local CFG = {
 	RECARGA = 40,
 	ALCANCE = 90,
@@ -58,6 +62,11 @@ local ultimoUso, ultimoExtra = 0, 0
 local ultimaMira = nil
 local ativos = {}
 local semente = 0
+
+--- Trava de sequência. Sem ela o jogador reencadeia a habilidade por cima da
+--- animação anterior e o `PlaySequence` do quadro seguinte cancela o do
+--- anterior no meio — o golpe sai, a pose não.
+local ocupado = false
 
 local function proximo()
 	semente = semente + 1
@@ -92,6 +101,52 @@ local function soltarTudo()
 		if conexao.Connected then conexao:Disconnect() end
 	end
 	ativos = {}
+end
+
+--══════════════════════════════════════════════════════════════
+-- SOM — os `Sound` da Tool, que estavam MUDOS
+--
+-- As 14 Tools carregavam de 1 a 4 `Sound` nomeados por papel (`SELA`,
+-- `AFUNDA`, `RISO`, `CONJURA`…) dentro do `.rbxmx`, e **nenhum server tocava
+-- nenhum**. O asset estava depositado e nunca ligado — foi o "cadê os SFX".
+--
+-- `tocarEm` põe o som numa ÂNCORA PRÓPRIA, nunca na peça que o pediu: um
+-- `Sound` só toca enquanto tem pai no DataModel, e pendurá-lo na carta que some
+-- no quadro seguinte mata o som no quadro em que ele nasce.
+--══════════════════════════════════════════════════════════════
+
+local function tocar(nome, pitch, corte)
+	local base = Handle:FindFirstChild(nome)
+	if not base or not base:IsA("Sound") then return nil end
+	local som = base:Clone()
+	som.PlaybackSpeed = pitch or 1
+	som.Parent = Handle
+	som:Play()
+	Debris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+	return som
+end
+
+local function tocarEm(nome, posicao, pitch, corte)
+	local base = Handle:FindFirstChild(nome)
+	if not base or not base:IsA("Sound") then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored = true
+	ancora.CanCollide = false
+	ancora.CanQuery = false
+	ancora.CanTouch = false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local som = base:Clone()
+	som.PlaybackSpeed = pitch or 1
+	som.Parent = ancora
+	som:Play()
+
+	Debris:AddItem(ancora, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+	return som
 end
 
 --══════════════════════════════════════════════════════════════
@@ -326,19 +381,94 @@ local function montarRig()
 	return rig
 end
 
-local function animar(sequencia)
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a TABELA do
+--- passo, e a marca está em `kf.marca`. Comparar o keyframe com uma string
+--- nunca dá verdadeiro, e falha em SILÊNCIO.
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
+--- Toca a sequência e devolve o controle no beat.
+---
+--- ⚠️ ISTO NÃO ERA CHAMADO. O `animar()` existia nas 14 Tools e **nenhuma o
+---    invocava**: `Poses.lua` e o `R6CFrameAnimator` eram código morto, o
+---    personagem ficava parado, e o golpe saía inteiro no mesmo quadro do
+---    clique. A habilidade acontecia; a animação, não.
+---
+--- `aoGolpe` é chamado na marca `GOLPE`. Se a sequência não tiver essa marca —
+--- três delas terminam em `CARGA` —, ele é chamado no FIM. Habilidade que não
+--- dispara é a falha que este repositório já pagou uma vez; aqui não há caminho
+--- em que o golpe simplesmente não aconteça.
+local function animar(sequencia, aoGolpe, aoCarga)
 	local atual = montarRig()
-	if not atual then return end
+	local disparou = false
+
+	local function soltar()
+		if disparou then return end
+		disparou = true
+		if aoGolpe then aoGolpe() end
+	end
+
+	if not atual then
+		-- sem rig (Humanoid sumiu no meio do equipar) a habilidade ainda sai
+		soltar()
+		ocupado = false
+		return
+	end
+
+	ocupado = true
 	atual:PlaySequence(sequencia, function(passo)
-		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
+		local marca = marcaDe(passo)
+		if not marca then return end
+		vfx("BEAT", { marca = marca })
+		if marca == "CARGA" then
+			if aoCarga then aoCarga() end
+		elseif marca == "GOLPE" then
+			soltar()
+		end
+	end, function()
+		soltar()
+		ocupado = false
 	end)
 end
 
+--- Solta o rig POR INTEIRO, e zera a referência.
+---
+--- Zerar é o que importa: `montarRig()` devolve o `rig` em cache, e depois de
+--- um respawn esse cache aponta para o Character MORTO. A sequência tocaria
+--- num corpo que não existe mais — sem erro, sem pose, sem nada. Guardar o rig
+--- entre duas vidas é o mesmo tipo de silêncio que o beat comparado com string.
 local function desmontarRig()
 	if not rig then return end
 	rig:CancelSequence()
 	rig:ReleaseLegs()
+	rig:LockCharacter(false)
+	rig:Destroy()
+	rig = nil
 end
+
+--══════════════════════════════════════════════════════════════
+-- OS DISPAROS — a habilidade sai NO BEAT, não no clique
+--
+-- Era aqui que faltava o fio. `primaria()` e `extra()` eram chamadas direto do
+-- `Tool.Activated`, e a sequência de pose nunca tocava: dano, VFX e empurrão
+-- saíam todos no MESMO quadro do clique, com o personagem parado.
+--
+-- Agora quem chama é o beat. `CARGA` toca o som de preparação, `GOLPE` solta a
+-- habilidade. A trava `ocupado` impede reencadear por cima da animação.
+--══════════════════════════════════════════════════════════════
+
+local function dispararPrimaria()
+	animar(SEQUENCIA, function()
+		tocarEm("NASCE", raiz.Position, 1)
+		primaria(ultimaMira)
+	end, function()
+		tocar("CHAMA", 1)
+	end)
+end
+
 
 --══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA
@@ -351,20 +481,30 @@ Tool.Equipped:Connect(function()
 	raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
 end)
 
-Tool.Unequipped:Connect(function()
+--- As duas portas fecham pelo MESMO caminho.
+---
+--- `desmontarRig` era o terceiro código morto desta Tool: definido e nunca
+--- chamado, como o `animar()`. Com a trava `ocupado`, deixá-lo solto seria
+--- pior que inútil — guardar a Tool no meio de uma sequência travaria
+--- `ocupado = true` para sempre, e ao reequipar a habilidade nunca mais sairia.
+local function desmontar()
 	soltarTudo()
+	desmontarRig()
+	ocupado = false
 	dispensarServos()
-end)
+end
+
+Tool.Unequipped:Connect(desmontar)
 
 Tool.Activated:Connect(function()
+	-- a trava vem ANTES da recarga: barrar depois de `ultimoUso = os.clock()`
+	-- cobraria o tempo de espera por um golpe que não saiu
+	if ocupado then return end
 	if not podeUsar(ultimoUso, CFG.RECARGA) then return end
 	ultimoUso = os.clock()
-	primaria()
+	dispararPrimaria()
 end)
 
 --- `Destroying`, não `AncestryChanged`: a Tool pode trocar de pai a cada
 --- equipar sem estar sendo destruída.
-Tool.Destroying:Connect(function()
-	soltarTudo()
-	dispensarServos()
-end)
+Tool.Destroying:Connect(desmontar)
