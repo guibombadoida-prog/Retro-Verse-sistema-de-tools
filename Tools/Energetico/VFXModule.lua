@@ -463,6 +463,62 @@ function Efeitos.ARREMESSO(d)
 	camadaFaiscas(p, cor(d, CFG.COR_CURA), 0.28 * e, 5)
 end
 
+--- A CEGUEIRA — a nuvem que fica NA FRENTE DA CARA do alvo.
+---
+--- O original do Cano abria uma `ScreenGui` no cliente de quem apanhava.
+--- `ScreenGui` dentro de Tool é proibida, e além de proibida é ruim: só a
+--- vítima via, e para a sala inteira nada acontecia.
+---
+--- Aqui a cegueira é **geometria no mundo 3D**: uma nuvem escura soldada à
+--- frente da cabeça. Ela tapa a vista de quem levou — porque está fisicamente
+--- no caminho — e todo mundo vê que aquele jogador está cego. Some por
+--- `VFX.Parar`, e o `Debris` é a rede de segurança.
+function Efeitos.CEGUEIRA(d)
+	local alvo = d and d.alvo
+	local cabeca = alvo and alvo:FindFirstChild("Head")
+	if not cabeca then return end
+
+	local nuvem = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2.6, 2.6, 2.6) * ((d and d.escala) or 1),
+		Color = CFG.COR_FUMACA or Color3.fromRGB(28, 26, 24),
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 1,
+		Anchored = false,
+		CFrame = cabeca.CFrame,
+	})
+	local solda = Instance.new("Weld")
+	solda.Part0 = cabeca
+	solda.Part1 = nuvem
+	solda.C0 = CFrame.new(0, 0, -0.6)
+	solda.Parent = nuvem
+
+	tween(nuvem, 0.18, { Transparency = 0.05 })
+
+	local att = Instance.new("Attachment")
+	att.Parent = nuvem
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = CFG.TEX_FUMACA or "rbxasset://textures/particles/smoke_main.dds"
+	em.Color = ColorSequence.new(Color3.fromRGB(20, 18, 16))
+	em.Size = NumberSequence.new(2.2)
+	em.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.25),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	em.Lifetime = NumberRange.new(0.5, 0.9)
+	em.Speed = NumberRange.new(0.4, 1.2)
+	em.SpreadAngle = Vector2.new(180, 180)
+	em.Rate = 26
+	em.Enabled = true
+	em.Parent = att
+
+	registrar(nuvem, (d and d.duracao) or 3)
+	if d and d.id then
+		PorId[d.id] = PorId[d.id] or { partes = {}, conexoes = {} }
+		table.insert(PorId[d.id].partes, nuvem)
+	end
+end
+
 --═══════════════════════════════════════════════════════════════
 -- API
 --═══════════════════════════════════════════════════════════════

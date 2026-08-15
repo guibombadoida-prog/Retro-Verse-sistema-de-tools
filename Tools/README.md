@@ -278,6 +278,78 @@ vira coreografia. Ultimate e transformação seguem a tabela sem desconto.
 | `A arma` | o `Handle` **subiu de nível**, de `model/Handle` para filho direto | Tool com `RequiresHandle = true` exige Handle como filho direto — é exigência do Roblox. `Weld` e `Motor6D` apontam por `referent`, não por caminho, então nada se desfez |
 | `Humilhador` | ganhou um `Handle` **invisível de 0.4 stud** | a origem não tem nenhum: é provocação pura, só um Script. Sem Handle a Tool não equipa. Não substitui mesh de ninguém — supre o que não existe |
 
+
+### O Cano e o Taco voltaram à animação ORIGINAL
+
+A pedido, estas **duas** deixaram de usar as poses autorais e passaram a usar as
+do próprio `guest_tools.rbxmx`. As outras cinco do conjunto seguem autorais.
+
+Elas são as únicas do repositório inteiro cuja animação **pode** voltar sem
+perda, e o motivo é o laço:
+
+```lua
+for i = 0, 1, 0.1 do
+    C0 = C0:lerp(alvo, i)      -- o alpha VARRE de 0 a 1
+```
+
+No último passo o alpha é 1, e `lerp(alvo, 1)` é o próprio alvo. **A pose
+escrita no código é a pose alcançada** — dá para ler direto. No Xester o alpha
+era constante (`lerp(alvo, 0.5)` repetido), e foi preciso simular o laço para
+achar onde a pose realmente parava.
+
+E a convenção já era a nossa: o original solda `Weld` do **Torso para o membro**
+(`RightArmWelde`, `LeftArmWelde`, `HeadWelde`, `HumanoidRootPartWelde`), que é
+o que o `R6CFrameAnimator` V2 faz. Zero conversão de pivô.
+
+| Tool | Quadros extraídos | Juntas |
+|---|---|---|
+| `Cano De Rua` | **4** — carga e batida dos dois golpes | RightArm, LeftArm, Head, HRP |
+| `Taco de Baseball` | **5** — os mesmos quatro, mais o erguido | as **seis**, com as pernas |
+
+O que ficou de fora: `CFrame.fromEulerAnglesXYZ(0, math.rad(swingrand), 0)` no
+braço direito. `swingrand` é `math.random(-50,50)` por golpe — sorteio em
+gameplay é proibido, e com todos os clientes desenhando cada um veria um ângulo
+diferente. A variação voltou como jitter senoidal por contador, no Server.
+
+### Cano De Rua — a Extra agora **cega**
+
+É a habilidade do original levada até o fim. O `LeadpipeServer` já virava a
+cabeça de quem apanhava para encarar o agressor:
+
+```lua
+headdd.CFrame = CFrame.new(headdd.Position, owner.Head.Position)
+```
+
+e pendurava um `BoolValue` chamado `owieConcussed` — mas a "concussão" dele não
+fazia nada além de desenhar uma `ScreenGui` na cara da vítima. GUI dentro de
+Tool é proibida, e além de proibida é ruim: **só quem levou via**.
+
+Aqui cegar é **geometria no mundo 3D**. Uma nuvem escura fica soldada à frente
+da cabeça: tapa a vista de quem levou porque está fisicamente no caminho, e a
+sala inteira vê quem está cego. Mais o que a origem já fazia — a cabeça virada
+— e o que ela não tinha: **`AutoRotate = false`**, que é o que de fato atrapalha
+mirar.
+
+Tudo com prazo de 4 s, e tudo devolvido em `desmontar()` mesmo se a Tool sumir
+no meio.
+
+### Taco de Baseball — a Extra agora **rebate objetos**
+
+O taco ergue e fica de prontidão. Durante a janela, tudo que estiver voando
+perto volta na direção em que o portador olha — projétil de outra Tool, caco de
+escudo, bomba, o que for.
+
+A janela é o quadro **segurado** da sequência, não o instante do golpe: rebater
+é reação, e reação precisa de tempo com a guarda de pé. São **0.9 s**.
+
+| Conta como rebatível | Não conta |
+|---|---|
+| `BasePart` solta com velocidade ≥ **8** studs/s | peça **ancorada** — devolver o cenário na cara de alguém não é rebater |
+| qualquer coisa dentro de **12 studs** | o personagem do portador — senão o taco rebate as próprias pernas |
+
+A velocidade volta multiplicada por **2.4**, e o `creator` do objeto passa a ser
+quem rebateu: quem for atingido pelo objeto devolvido morre para o taco, não
+para quem atirou.
 ---
 
 ## Conjunto GRAVIDADE — 7 Tools, de `calebe_tools.rbxmx`

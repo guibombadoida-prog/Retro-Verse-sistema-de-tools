@@ -585,8 +585,22 @@ def escrever(tool, lidera, poses, sequencias):
     return "\n".join(L) + "\n"
 
 
+#: Estas DUAS não saem daqui.
+#
+# A pedido, o `Cano De Rua` e o `Taco de Baseball` voltaram à animação ORIGINAL
+# do modelo. Quem escreve o Poses.lua delas é o
+# FERRAMENTAS/gerar_poses_guest_originais.py, a partir do que o
+# extrair_poses_guest.py leu do `guest_tools.rbxmx`.
+#
+# Sem esta guarda, rodar este gerador desfaz o pedido em silêncio.
+PULAR = ("Cano De Rua", "Taco de Baseball")
+
+
 def main():
     for tool, (lidera, poses, sequencias) in CONJUNTO.items():
+        if tool in PULAR:
+            print('%-20s PULADA — usa a animação ORIGINAL' % tool)
+            continue
         pasta = os.path.join(TOOLS, tool)
         if not os.path.isdir(pasta):
             print("sem pasta Tools/%s" % tool)

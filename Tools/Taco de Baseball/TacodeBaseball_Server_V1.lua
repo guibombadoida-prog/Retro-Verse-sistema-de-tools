@@ -6,7 +6,7 @@
 -- e hierarquia saem da origem intactos. O que muda é a habilidade.
 --
 --   M1   dois golpes de taco que revezam
---   R    Vibe Check   (Extra, por `AcaoRemote` — e por botão no celular)
+--   R    Rebater   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_guest.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -35,7 +35,12 @@ local CFG = {
 	EMPURRAO      = 34,
 	RECARGA       = 0.55,
 
-	RECARGA_EXTRA = 9,
+	RECARGA_EXTRA = 10,
+	JANELA_REBATE = 0.9,
+	RAIO_REBATE   = 12,
+	FORCA_REBATE  = 2.4,
+	MINIMO_REBATE = 8,
+	DANO_REBATE   = 26,
 	DANO_EXTRA    = 55,
 	RAIO_EXTRA    = 11,
 	EMPURRAO_EXTRA = 95,
@@ -305,41 +310,101 @@ function primaria(_mira)
 end
 
 --═══════════════════════════════════════════════════════════════
--- EXTRA — Vibe Check
+-- EXTRA — Rebater
 --
--- O finalizador do original, com três coisas mudadas: o dano não mata mais na
--- hora, a perna é do animator (e volta sozinha), e o `WalkSpeed` é devolvido
--- por `desmontar()`, que está nas duas portas.
+-- O taco ergue e FICA DE PRONTIDÃO. Durante a janela, tudo que estiver voando
+-- perto volta na direção em que o portador olha — projétil de outra Tool, caco
+-- de escudo, bomba, o que for.
+--
+-- A janela é o quadro SEGURADO da sequência, não o instante do golpe: rebater
+-- é reação, e reação precisa de tempo em que a guarda está de pé. São 0.9 s.
+--
+-- O QUE CONTA COMO OBJETO REBATÍVEL
+--
+--   `BasePart` solta (não ancorada) com velocidade acima de 8 studs/s. Peça
+--   parada não é ameaça, e peça ancorada é cenário — devolver o mapa na cara
+--   de alguém não é rebater, é quebrar o jogo.
+--
+--   O personagem do portador fica de fora do teste, senão o taco rebateria as
+--   próprias pernas a cada passo.
+--
+-- A velocidade volta MULTIPLICADA por 2.4, e quem for atingido pelo objeto
+-- rebatido leva dano creditado a quem rebateu — não a quem atirou.
 --═══════════════════════════════════════════════════════════════
+
+local function rebaterPerto(direcao)
+	local centro = raiz.Position
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+
+	local rebatidos = 0
+	for _, peca in ipairs(workspace:GetPartBoundsInRadius(centro,
+			CFG.RAIO_REBATE, filtro)) do
+		if peca:IsA("BasePart") and not peca.Anchored then
+			local v = peca.AssemblyLinearVelocity
+			if v.Magnitude >= CFG.MINIMO_REBATE then
+				-- volta na direção em que o portador olha, com a energia dele
+				-- somada: rebater não é só espelhar, é devolver com juros
+				peca.AssemblyLinearVelocity =
+					direcao.Unit * (v.Magnitude * CFG.FORCA_REBATE)
+				vfx("IMPACTO_METAL", { posicao = peca.Position, escala = 1 })
+				tocarEm("Hit2", peca.Position, 1 + jitter(0.5) * 0.1)
+
+				-- o crédito passa a ser de quem rebateu
+				local dono = peca:FindFirstChild("creator")
+				if dono then dono.Parent = nil end
+				local marca = Instance.new("ObjectValue")
+				marca.Name = "creator"
+				marca.Value = jogador
+				marca.Parent = peca
+				Debris:AddItem(marca, 4)
+
+				rebatidos = rebatidos + 1
+			end
+		end
+	end
+	return rebatidos
+end
 
 function extra(_mira)
 	ocupado = true
-	rig:LockCharacter(true)
-	rig:PlaySequence("FINALIZADOR", function(passo)
+	rig:PlaySequence("REBATER", function(passo)
 		local marca = marcaDe(passo)
-		if marca == "SEGURA" then
-			tocar("Swoosh", 0.72)
-		elseif marca == "IMPACTO" then
-			local ponto = frente(CFG.ALCANCE * 0.8)
-			vfx("CONCUSSAO", { posicao = ponto - Vector3.new(0, 2.4, 0), escala = 1.3 })
-			tocarEm("Hit2", ponto, 0.78)
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 8)) do
-				aplicarDano(alvo, CFG.DANO_EXTRA)
-				tombar(alvo, CFG.TOMBO)
+		if marca == "CARGA" then
+			tocar("Equip", 1.1)
+			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2),
+				escala = 1.1 })
+		elseif marca == "SEGURA" then
+			-- a janela: varre uma vez por quadro segurado, não por frame
+			local direcao = raiz.CFrame.LookVector
+			if rebaterPerto(direcao) > 0 then
+				tocar("Swoosh", 0.9)
+			end
+		elseif marca == "GOLPE" then
+			local ponto = frente(CFG.ALCANCE)
+			tocarEm("Hit", ponto, 0.9)
+			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2.4),
+				escala = 1.3 })
+			rebaterPerto(raiz.CFrame.LookVector)
+
+			-- e quem estiver ao alcance leva o taco, rebatendo ou não
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
+				aplicarDano(alvo, CFG.DANO_REBATE)
 				local corpo = alvo.Parent
 				local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
 				if alvoRaiz then
 					empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-						+ Vector3.new(0, 0.6, 0), CFG.EMPURRAO_EXTRA, 0.3)
-					vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.6 })
+						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_EXTRA, 0.26)
+					vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.2 })
 				end
 			end
 		end
 	end, function()
-		rig:LockCharacter(false)
 		ocupado = false
 	end)
 end
+
 
 --═══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA

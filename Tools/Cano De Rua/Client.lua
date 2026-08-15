@@ -95,7 +95,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Concussao")
+	ContextActionService:SetTitle(ACAO, "Cegar")
 	-- Em escala, não em pixel: celular pequeno e tablet dividem a mesma conta.
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end

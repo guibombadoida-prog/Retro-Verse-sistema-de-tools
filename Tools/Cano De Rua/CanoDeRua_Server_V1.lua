@@ -6,7 +6,7 @@
 -- e hierarquia saem da origem intactos. O que muda é a habilidade.
 --
 --   M1   golpe de cano; o segundo vem mais forte
---   R    Concussao   (Extra, por `AcaoRemote` — e por botão no celular)
+--   R    Cegar   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_guest.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -35,7 +35,8 @@ local CFG = {
 	EMPURRAO      = 28,
 	RECARGA       = 0.5,
 
-	RECARGA_EXTRA = 11,
+	RECARGA_EXTRA = 13,
+	DURACAO_CEGO  = 4,
 	DANO_EXTRA    = 34,
 	RAIO_EXTRA    = 13,
 	EMPURRAO_EXTRA = 55,
@@ -57,6 +58,8 @@ local semente = 0
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
 local golpeB = false
+local cegos = 0
+local cegueiras = {}
 
 local function proximo()
 	semente = semente + 1
@@ -309,41 +312,82 @@ function primaria(_mira)
 end
 
 --═══════════════════════════════════════════════════════════════
--- EXTRA — Concussão
+-- EXTRA — Cegar
 --
--- O original abria uma `ScreenGui` na cara de quem apanhava. Isso é proibido
--- dentro de Tool, e além de proibido é ruim: só quem levou via alguma coisa.
--- Aqui a concussão é LENTIDÃO com prazo — legível para a sala inteira, e
--- devolvida por `desmontar()` mesmo se a Tool sumir no meio.
+-- É a habilidade do ORIGINAL levada até o fim. O `LeadpipeServer` já virava a
+-- cabeça de quem apanhava para encarar o agressor
+--
+--     headdd.CFrame = CFrame.new(headdd.Position, owner.Head.Position)
+--
+-- e pendurava um `BoolValue` chamado `owieConcussed` — mas a "concussão" dele
+-- não fazia nada além de desenhar uma `ScreenGui` na cara da vítima. GUI dentro
+-- de Tool é proibida, e além de proibida é ruim: só quem levou via.
+--
+-- Aqui cegar é GEOMETRIA NO MUNDO 3D. Uma nuvem escura fica soldada à frente
+-- da cabeça: tapa a vista de quem levou porque está fisicamente no caminho, e
+-- a sala inteira vê quem está cego. Mais o que a origem já fazia — a cabeça
+-- virada — e o que ela não tinha coragem de fazer: `AutoRotate = false`, que é
+-- o que realmente atrapalha mirar.
+--
+-- Tudo com prazo, e tudo devolvido em `desmontar()`.
 --═══════════════════════════════════════════════════════════════
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("CONCUSSAO", function(passo)
+	rig:PlaySequence("CEGAR", function(passo)
 		local marca = marcaDe(passo)
-		if marca == "SEGURA" then
-			tocar("Swoosh2", 0.7)
-		elseif marca == "IMPACTO" then
-			local ponto = frente(CFG.ALCANCE * 0.7)
-			local chao = ponto - Vector3.new(0, 2.6, 0)
-			vfx("CONCUSSAO", { posicao = chao, escala = 1.2 })
-			tocarEm("MetalHit2", chao, 0.74)
-			for _, alvo in ipairs(alvosEm(chao, CFG.RAIO_EXTRA, 8)) do
+		if marca == "CARGA" then
+			tocar("Swoosh2", 0.72)
+		elseif marca == "GOLPE" then
+			local ponto = frente(CFG.ALCANCE)
+			tocarEm("MetalHit", ponto, 0.8)
+
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_EXTRA)
-				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_LENTO)
+				afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_CEGO)
+
 				local corpo = alvo.Parent
+				local cabeca = corpo and corpo:FindFirstChild("Head")
 				local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+				if cabeca then
+					local id = "CEGO_" .. tostring(cegos + 1)
+					cegos = cegos + 1
+					vfx("CEGUEIRA", { alvo = corpo, id = id, escala = 1,
+						duracao = CFG.DURACAO_CEGO })
+					table.insert(cegueiras, id)
+					task.delay(CFG.DURACAO_CEGO, function()
+						vfx("PARAR", { id = id })
+					end)
+				end
+
+				-- a cabeça virada: é o gesto do original, e ele fica
+				if cabeca and personagem and personagem:FindFirstChild("Head") then
+					cabeca.CFrame = CFrame.new(cabeca.Position,
+						personagem.Head.Position)
+				end
+
+				-- e o que a origem não fazia: tirar a mira
+				alvo.AutoRotate = false
+				task.delay(CFG.DURACAO_CEGO, function()
+					if alvo and alvo.Parent and alvo.Health > 0 then
+						alvo.AutoRotate = true
+					end
+				end)
+
 				if alvoRaiz then
-					empurrar(alvo, (alvoRaiz.Position - chao)
-						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_EXTRA, 0.24)
-					vfx("IMPACTO_METAL", { posicao = alvoRaiz.Position, escala = 1.3 })
+					empurrar(alvo, (alvoRaiz.Position - raiz.Position)
+						+ Vector3.new(0, 0.3, 0), CFG.EMPURRAO_EXTRA, 0.22)
+					vfx("IMPACTO_METAL", { posicao = alvoRaiz.Position, escala = 1.2 })
 				end
 			end
+		elseif marca == "SEGURA" then
+			tocar("Swoosh", 0.66)
 		end
 	end, function()
 		ocupado = false
 	end)
 end
+
 
 --═══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA
@@ -399,6 +443,8 @@ local function desmontar()
 	ocupado = false
 	devolverVelocidades()
 	tocar("unequip", 1)
+	for _, id in ipairs(cegueiras) do vfx("PARAR", { id = id }) end
+	table.clear(cegueiras)
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()
