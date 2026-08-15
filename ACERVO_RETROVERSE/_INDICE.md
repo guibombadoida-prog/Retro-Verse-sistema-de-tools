@@ -16,6 +16,12 @@
 > código próprio no `VFXModule` delas é a carta — que o pack não tem, porque é a
 > assinatura do personagem — e o fallback de cada efeito.
 
+> ⛔ **QUARENTENA — `Reality_Tools`.** É o primeiro material que entra aqui com **backdoor**:
+> `Pistol/…/qPerfectionWeld` busca um número em `https://assetimport.org/` e o passa para
+> `require()`, o que é execução remota de código com permissão de servidor. Roda em
+> `task.spawn` no carregamento, sem clique. **Não arraste `reality_tools.rbxmx` para um place
+> de produção**, nem para testar. Ver [Reality_Tools/FICHA.md](Reality_Tools/FICHA.md).
+
 Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer efeito novo** (§12.16.2).
 
 > Se já existe algo equivalente aqui, **reusar e adaptar** — não recriar. Esse é o único motivo
@@ -229,6 +235,19 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses_Xester_Forma1_V1` | Xester_Forma1 (extraída) | 12 seq · guarda + ação | **LIMPO** | 7 Tools da Forma 1 |
 | `Poses_Xester_Forma2_V1` | Xester_Forma2 (extraída) | 8 seq · guarda de cajado | **LIMPO** | 7 Tools da Forma 2 |
 | `PORTAL_DO_CAJADO` | **autoral**, pela gramática | conjuração 1.14 s · impacto a 53% · lidera RightArm | **LIMPO** | `Xester Portal do Cajado` |
+| `california gurls` · `a-train` | **Reality_Tools** | **5 `KeyframeSequence`, 801 keyframes** — a maior densidade que já entrou | ⛔ **CRU/QUARENTENA** | — |
+
+> **A primeira animação de Roblox DE VERDADE do Acervo.** Tudo que entrou antes era `Weld.C0`
+> ou `Motor6D.C0` escrito em laço; esta é `KeyframeSequence` com `Keyframe` e `Pose`, que traz
+> `CFrame` por junta e por tempo — exatamente o que o `R6CFrameAnimator` consome.
+>
+> `california gurls` tem **361 keyframes** numa das quatro cópias, mais que o dobro da maior
+> track já medida aqui. `Animation`/`LoadAnimation` continuam proibidos dentro de Tool, mas
+> `KeyframeSequence` é DADO, não instância de runtime — a distinção é o que torna esta fonte
+> aproveitável.
+>
+> ⛔ O arquivo está em quarentena por causa do backdoor. Extrair daqui é copiar a
+> `KeyframeSequence` sozinha, sem nenhum script junto.
 
 > ⚠️ **Tabela de pose entregue não é tabela de pose TOCADA.** As 14 Tools do Xester
 > carregaram `Poses.lua` completo, com as sequências certas e as marcas `CARGA`/`GOLPE` no
@@ -369,6 +388,8 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Faker_Tools/` | **LIMPO** — base das **7 Tools** do conjunto FAKER, duas com cutscene | [FICHA.md](Faker_Tools/FICHA.md) |
 | **lote de 2026-08-14** | | |
 | `Noob_Despertado/` | **LIMPO** — base das **7 Tools** do conjunto NOOB, duas com cutscene | [FICHA.md](Noob_Despertado/FICHA.md) |
+| **lote de 2026-08-15** | | |
+| `Reality_Tools/` | ⛔ **CRU — QUARENTENA.** 83 Tools de free model; uma tem **backdoor de execução remota**. Traz 5 `KeyframeSequence` (801 keyframes) e 191 sons | [FICHA.md](Reality_Tools/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem
