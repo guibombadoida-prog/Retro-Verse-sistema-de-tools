@@ -847,7 +847,7 @@ Tool.Destroying:Connect(function()
 	vfx("PARAR", { id = ID_AURA })
 	limparTudo()
 end)
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{E4ED8FAE-EC2D-4879-AC64-52515FBB34BF}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">EscudoSkate_Server_V3</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Script" referent="RBX0E01458A259C4BC8B40E8FB9C78BEDE5"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoSkate_Client_V3.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">0</token><string name="ScriptGuid">{E4ED8FAE-EC2D-4879-AC64-52515FBB34BF}</string><BinaryString name="AttributesSerialize" /><string name="Name">EscudoSkate_Server_V3</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="Script" referent="RBX0E01458A259C4BC8B40E8FB9C78BEDE5"><Properties><ProtectedString name="Source"><![CDATA[-- EscudoSkate_Client_V3.lua
 -- LocalScript "Client" DENTRO da Tool "Escudo Skate"
 --
 -- Papel (§12.10): capturar entrada e EXECUTAR os VFX recebidos pelo VFXRemote.
@@ -1037,7 +1037,7 @@ Tool.Destroying:Connect(function()
 	if desligarEntrada then desligarEntrada() end
 	limparCliente()
 end)
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">2</token><string name="ScriptGuid">{8A68474B-692E-4338-B991-7BA98276BD34}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXE7A3178711DC4303A1A727505D1E4BF6"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><token name="RunContext">2</token><string name="ScriptGuid">{8A68474B-692E-4338-B991-7BA98276BD34}</string><BinaryString name="AttributesSerialize" /><string name="Name">Client</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBXE7A3178711DC4303A1A727505D1E4BF6"><Properties><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
 -- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
 -- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
 --[==[
@@ -1406,7 +1406,7 @@ function Animator:Destroy()
 end
 
 return Animator
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{267B1DD8-409F-4927-8234-550E171EC8F0}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">R6CFrameAnimator</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX301CFF58EB904228B011198F42B31E81"><Properties><ProtectedString name="Source"><![CDATA[-- Poses.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{267B1DD8-409F-4927-8234-550E171EC8F0}</string><BinaryString name="AttributesSerialize" /><string name="Name">R6CFrameAnimator</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX301CFF58EB904228B011198F42B31E81"><Properties><ProtectedString name="Source"><![CDATA[-- Poses.lua
 -- ModuleScript "Poses" — Escudo Skate
 --
 -- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
@@ -1475,7 +1475,7 @@ P.SEQUENCIAS = {
 }
 
 return P
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{C63A7CC6-7F6B-4CF2-9B84-C4E9D92FF97F}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">Poses</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX359050260E2C4559B680BDA0DFF1904F"><Properties><ProtectedString name="Source"><![CDATA[-- VFXModule_Escudos_V2.lua
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{C63A7CC6-7F6B-4CF2-9B84-C4E9D92FF97F}</string><BinaryString name="AttributesSerialize" /><string name="Name">Poses</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties></Item><Item class="ModuleScript" referent="RBX359050260E2C4559B680BDA0DFF1904F"><Properties><ProtectedString name="Source"><![CDATA[-- VFXModule_Escudos_V2.lua
 -- ModuleScript "VFXModule" — executor de VFX da família ESCUDOS
 --
 -- ONDE RODA: CLIENTE. O LocalScript "Client" da Tool escuta o VFXRemote e
@@ -2938,7 +2938,7 @@ function VFX.LimparTudo()
 end
 
 return VFX
-]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{853F5358-FAFD-4C20-A87F-56AA88B1A788}</string><BinaryString name="AttributesSerialize" /><SecurityCapabilities name="Capabilities">0</SecurityCapabilities><bool name="DefinesCapabilities">false</bool><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties><Item class="Folder" referent="RVPACK_EscudoSkate"><Properties><string name="Name">Pack</string></Properties><Item class="ModuleScript" referent="RBXDD62479EE0D2498691640ADECC9F7DAB_EscudoSkate">
+]]></ProtectedString><bool name="Disabled">false</bool><Content name="LinkedSource" /><string name="ScriptGuid">{853F5358-FAFD-4C20-A87F-56AA88B1A788}</string><BinaryString name="AttributesSerialize" /><string name="Name">VFXModule</string><int64 name="SourceAssetId">-1</int64><SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString></Properties><Item class="Folder" referent="RVPACK_EscudoSkate"><Properties><string name="Name">Pack</string></Properties><Item class="ModuleScript" referent="RBXDD62479EE0D2498691640ADECC9F7DAB_EscudoSkate">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -3040,8 +3040,6 @@ return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, 
 end]]></ProtectedString>
 					<string name="ScriptGuid">{14F8DFE6-A33A-4482-AB31-D8803524516B}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Shockwave</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3174,8 +3172,6 @@ end]]></ProtectedString>
 							<Z>10.5047703</Z>
 						</Vector3>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Shockwave</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3284,8 +3280,6 @@ return function(StartCFrame, EndCFrame, Duration, Vector_Size_A, Vector_Size_B, 
 end]]></ProtectedString>
 					<string name="ScriptGuid">{98F8196D-CE66-4D39-8566-D9F943244D4A}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Shockwave_2</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3418,8 +3412,6 @@ end]]></ProtectedString>
 							<Z>7</Z>
 						</Vector3>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Shockwave</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3583,8 +3575,6 @@ return function(Position, Duration, Size_A,Size_B,Color_A,Color_B, Easing_Style)
 end]]></ProtectedString>
 					<string name="ScriptGuid">{43CB3F44-1EC8-42FB-8B4A-2AA1A2F953F1}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Small_Nova</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3635,8 +3625,6 @@ end]]></ProtectedString>
 						<bool name="WindAffectsDrag">false</bool>
 						<float name="ZOffset">0</float>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">ExplosionParticles</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3770,8 +3758,6 @@ end]]></ProtectedString>
 							<Z>0.0600000024</Z>
 						</Vector3>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Wave</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3912,8 +3898,6 @@ end
 ]]></ProtectedString>
 					<string name="ScriptGuid">{A21763F3-E198-4A35-84DE-3651C6129ABB}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Smoky_Explosion</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -3963,8 +3947,6 @@ end
 							</CFrame>
 						</OptionalCoordinateFrame>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">VFX</string>
 						<int64 name="SourceAssetId">7183818583</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4097,8 +4079,6 @@ end
 								<Z>0.906000018</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Smoke</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4232,8 +4212,6 @@ end
 								<Z>0.906000018</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Core</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4367,8 +4345,6 @@ end
 								<Z>1</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Sphere_2</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4502,8 +4478,6 @@ end
 								<Z>1</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Sphere_1</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4637,8 +4611,6 @@ end
 								<Z>3.78399992</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Shockwaves</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4746,8 +4718,6 @@ return function(Position, Duration, Size_A, Size_B, Color_A, Color_B)
 end]]></ProtectedString>
 					<string name="ScriptGuid">{2123AF5A-D61F-48F6-9D97-90F78CB0DF51}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Shockwave_Explosion</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4797,8 +4767,6 @@ end]]></ProtectedString>
 							</CFrame>
 						</OptionalCoordinateFrame>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Explosion</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4895,8 +4863,6 @@ end]]></ProtectedString>
 								<Z>1.29999995</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Outer</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -4994,8 +4960,6 @@ end]]></ProtectedString>
 								<Z>1</Z>
 							</Vector3>
 							<BinaryString name="AttributesSerialize" />
-							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-							<bool name="DefinesCapabilities">false</bool>
 							<string name="Name">Core</string>
 							<int64 name="SourceAssetId">-1</int64>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5076,8 +5040,6 @@ return function(CF, Size, Duration, Color_A, Color_B)
 end]]></ProtectedString>
 					<string name="ScriptGuid">{E957C1A9-95D8-43CF-8428-1EB0C24820BC}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Small_Slash</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5182,8 +5144,6 @@ end
 ]]></ProtectedString>
 					<string name="ScriptGuid">{1AC840AB-BEFC-4CDA-8E90-D6811005657A}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Sonar_Ring</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5316,8 +5276,6 @@ end
 							<Z>2.00099993</Z>
 						</Vector3>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Ring</string>
 						<int64 name="SourceAssetId">559831847</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5417,8 +5375,6 @@ return function(CF, Size, Lasting, Color)
 end]]></ProtectedString>
 					<string name="ScriptGuid">{35A5AED0-27E0-4F50-8AAA-D58A8FB133A7}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Floor_Crack</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5469,8 +5425,6 @@ end]]></ProtectedString>
 						<bool name="WindAffectsDrag">false</bool>
 						<float name="ZOffset">1</float>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">Crack</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5567,8 +5521,6 @@ end
 ]]></ProtectedString>
 					<string name="ScriptGuid">{339B6B84-EF80-4E25-A9C0-D55C14F9F0CB}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Laser_Shot</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5716,8 +5668,6 @@ return function(Position,Size,Color,Iterations,Radius,Distance)
 end]]></ProtectedString>
 					<string name="ScriptGuid">{81885297-0E3F-4D59-93DC-61DC9BB277B4}</string>
 					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">17996771963439872</SecurityCapabilities>
-					<bool name="DefinesCapabilities">true</bool>
 					<string name="Name">Spiral_Effect</string>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
@@ -5741,8 +5691,6 @@ end]]></ProtectedString>
 						<NumberSequence name="Transparency">0 0 0 1 1 0 </NumberSequence>
 						<NumberSequence name="WidthScale">0 1 0 1 0 0 </NumberSequence>
 						<BinaryString name="AttributesSerialize" />
-						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-						<bool name="DefinesCapabilities">false</bool>
 						<string name="Name">SpiralTrail</string>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>

@@ -312,6 +312,62 @@ def cliente_para_runcontext(tool):
     return trocados
 
 
+#: As duas propriedades que transformam um script em FRONTEIRA DE SANDBOX.
+CAMPOS_SANDBOX = ("DefinesCapabilities", "Capabilities")
+
+
+def tirar_sandbox(tool):
+    """Tira a fronteira de capabilities de todo script dentro da Tool.
+
+    O QUE ISTO CONSERTA, E COMO ELE APARECIA
+
+        The current thread cannot require 'Poses' since 'Poses' has the
+        Sandboxed property set to false but the calling thread is sandboxed
+        Script 'Players.<jogador>.Backpack.A arma.Aarma_Server_V1', Line 21
+
+    `DefinesCapabilities = true` num script faz a thread dele rodar SANDBOXADA.
+    Thread sandboxada só pode dar `require` em ModuleScript que também seja
+    sandboxado — e o `Poses`, o `R6CFrameAnimator` e o `VFXModule` nascem aqui,
+    limpos, sem essa marca. O `require` da linha 21 morre, e a Tool inteira
+    morre com ele: sem Poses não há animação, sem animação não há beat, sem beat
+    não há dano.
+
+    DE ONDE VEIO
+
+        Do próprio modelo de origem. Este montador é fiel por desenho — ele
+        reescreve o `Source` e **não toca em mais nada do Item**, que é o que
+        preserva Handle, Mesh e Sound. Só que `DefinesCapabilities` viaja no
+        Item, não no Source: o código passou a ser nosso e a fronteira de
+        sandbox continuou sendo do autor original.
+
+        `A arma` era a única Tool com o SERVER marcado assim, e por isso a única
+        que morria. Os 10 módulos do pack Stella carregam a mesma marca nas 73
+        Tools — ali ela não estourava, mas limitava o que o pack podia fazer.
+
+    POR QUE TIRAR, E NÃO MARCAR O POSES COMO SANDBOXED
+
+        Porque a fronteira não é nossa. Todo o Lua entregue foi escrito neste
+        repositório e roda em Tool comum; herdar um sandbox de um script que já
+        foi substituído é carregar uma restrição sem dono. Tirar devolve o
+        comportamento padrão, que é o que as outras 72 Tools já usavam.
+    """
+    limpos = 0
+    for item, _caminho in percorrer(tool):
+        if item.get("class") not in CLASSES_SCRIPT:
+            continue
+        propriedades = item.find("Properties")
+        if propriedades is None:
+            continue
+        tirou = False
+        for campo in list(propriedades):
+            if campo.get("name") in CAMPOS_SANDBOX:
+                propriedades.remove(campo)
+                tirou = True
+        if tirou:
+            limpos = limpos + 1
+    return limpos
+
+
 def montar(nomes, destino):
     """
     Monta o .rbxmx de entrega a partir dos _ORIGEM.rbxmx de cada Tool,
@@ -323,6 +379,7 @@ def montar(nomes, destino):
     """
     raiz = nova_raiz()
     trocados, mantidos, enxertados, legendadas, convertidos = 0, 0, 0, 0, 0
+    dessandbox = 0
     penduradas = []
 
     # A tabela de SharedStrings vem das DUAS fontes: o _ORIGEM de cada Tool e o
@@ -341,6 +398,7 @@ def montar(nomes, destino):
         tool = sub.find("Item")
 
         convertidos = convertidos + cliente_para_runcontext(tool)
+        dessandbox = dessandbox + tirar_sandbox(tool)
 
         if not (texto(tool, "ToolTip") or "").strip() and nome in TOOLTIPS:
             campo = prop(tool, "ToolTip")
@@ -386,6 +444,8 @@ def montar(nomes, destino):
           % legendadas)
     print("   %d Client LocalScript -> Script RunContext=Client (visibilidade)"
           % convertidos)
+    print("   %d script(s) sem a fronteira de sandbox (DefinesCapabilities)"
+          % dessandbox)
     print("   %d SharedString na tabela, 0 pendurada" % len(tabela)
           if not penduradas else
           "   ⚠️  %d SharedString PENDURADA: %s"

@@ -253,6 +253,33 @@ def verificar(nome):
                              "e assim o beat NUNCA dispara"
                              % (nome_obj, parametro, parametro))
 
+    # 6a. NENHUM SCRIPT ABRE FRONTEIRA DE SANDBOX
+    #
+    # `DefinesCapabilities = true` faz a thread do script rodar SANDBOXADA, e
+    # thread sandboxada só pode dar `require` em ModuleScript que também seja
+    # sandboxado. O `Poses`, o `R6CFrameAnimator` e o `VFXModule` nascem aqui,
+    # limpos — então o `require` morre com:
+    #
+    #   The current thread cannot require 'Poses' since 'Poses' has the
+    #   Sandboxed property set to false but the calling thread is sandboxed
+    #
+    # E a Tool morre junto: sem Poses não há animação, sem animação não há beat,
+    # sem beat não há dano. Foi o que matou `A arma` em jogo.
+    #
+    # A propriedade viaja no ITEM, não no Source — o montador reescreve o código
+    # e a fronteira do autor original fica. Esta checagem existe por causa disso.
+    for item, caminho in percorrer_scripts(tool):
+        p = item.find("Properties")
+        if p is None:
+            continue
+        for campo in p:
+            if campo.get("name") != "DefinesCapabilities":
+                continue
+            if (campo.text or "").strip() == "true":
+                erros.append("%s tem DefinesCapabilities=true — a thread dele "
+                             "roda SANDBOXADA e o `require` de Poses morre"
+                             % caminho.rsplit("/", 1)[-1])
+
     # 6c. A ANIMAÇÃO TEM DE SER CHAMADA POR ALGUÉM
     #
     # Uma Tool pode carregar `Poses.lua` com `P.SEQUENCIAS`, o

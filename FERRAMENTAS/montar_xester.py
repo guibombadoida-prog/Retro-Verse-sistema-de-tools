@@ -34,6 +34,7 @@ import xml.etree.ElementTree as ET
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from clonar_tool import (PACK_VFX, RAIZ, TOOLS, enxertar_pack, escrever,
+                         tirar_sandbox,
                          nome_arquivo, nova_raiz, percorrer, prop,
                          tabela_compartilhada)
 
@@ -94,6 +95,7 @@ def montar(nomes, destino, rotulo):
                 mantidos = mantidos + 1
 
         enxertados = enxertados + enxertar_pack(tool)
+        tirar_sandbox(tool)
 
         # Uma Tool, um arquivo — é assim que ela chega no Studio.
         sozinha = nova_raiz()
