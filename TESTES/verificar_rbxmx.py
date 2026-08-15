@@ -555,6 +555,18 @@ CONJUNTOS = [
         "Xester Procissao de Cartas",
         "Xester Portal do Cajado",
     ]),
+    # 7 Tools de DUAS fontes: seis do `reality_tools.rbxmx` (que está em
+    # QUARENTENA por causa do backdoor) e uma do `Canhao_satelite.rbxmx`.
+    # Nenhum script da origem atravessou — só geometria, som e KeyframeSequence.
+    ("Reality Gui.rbxmx", "Reality_Gui", [
+        "Lapada Seca",
+        "Canhao Satelite",
+        "Trem",
+        "Arvore Maligna",
+        "Gato Ajudante Boss",
+        "Samsungus",
+        "Danca Provocadora",
+    ]),
     # 7 Tools a partir do `noob_despertado.rbxmx`, que NÃO é uma Tool: é um
     # Script de 2650 linhas solto na raiz. Nove ataques viraram 7 primárias e
     # 2 Extras; as seis FORMAS não viram Tool. Duas têm CUTSCENE.
