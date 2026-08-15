@@ -129,7 +129,13 @@ CLASSES_FORA = CLASSES_SCRIPT + ("Animation", "ScreenGui", "TextLabel",
                                  "RemoteFunction", "RemoteEvent",
                                  "BindableEvent", "BindableFunction",
                                  "Humanoid", "HumanoidController",
-                                 "BodyGyro", "BodyVelocity", "BodyPosition")
+                                 "BodyGyro", "BodyVelocity", "BodyPosition",
+                                 # o `WeldConstraint` do `SLAP` aponta para uma
+                                 # peça que NÃO foi copiada: Ref pendurada, e o
+                                 # Studio religa no objeto errado. Handle é
+                                 # soldado pelo Grip, e molde é clone ancorado —
+                                 # solda da origem não serve para nenhum dos dois.
+                                 "WeldConstraint", "Weld", "Motor6D", "Snap")
 CLASSES_PECA = ("Part", "MeshPart", "UnionOperation", "WedgePart")
 
 

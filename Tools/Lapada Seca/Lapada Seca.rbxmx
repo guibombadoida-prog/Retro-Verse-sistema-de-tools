@@ -306,33 +306,6 @@
 				<int64 name="SourceAssetId">-1</int64>
 				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
-			<Item class="WeldConstraint" referent="RGM01_0_RBX9820C99F13D74848983AA34DA53B6298">
-				<Properties>
-					<CoordinateFrame name="CFrame0">
-						<X>-0.24621582</X>
-						<Y>2.62084961</Y>
-						<Z>0.0831718445</Z>
-						<R00>-2.99991178e-11</R00>
-						<R01>-1</R01>
-						<R02>2.25545693e-11</R02>
-						<R10>-1</R10>
-						<R11>2.99991143e-11</R11>
-						<R12>5.01796825e-12</R12>
-						<R20>-5.01796825e-12</R20>
-						<R21>-2.25545711e-11</R21>
-						<R22>-1</R22>
-					</CoordinateFrame>
-					<Ref name="Part0Internal">RGM01_0_RBX73423CBBA6D0471F946791B9A6886E24</Ref>
-					<Ref name="Part1Internal">RBX05406D1EB9BA444B86A3BC155FF7FDF4</Ref>
-					<int name="State">3</int>
-					<BinaryString name="AttributesSerialize" />
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">WeldConstraint</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-				</Properties>
-			</Item>
 			</Item>
 		</Item><Item class="StringValue" referent="RG_Damage_01"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_01"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Lapada</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_01"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_01"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.5</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_01"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_ACAO_01"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RG_LapadaSeca_S_01"><Properties><string name="Name">LapadaSeca_Server_V1</string><ProtectedString name="Source"><![CDATA[-- LapadaSeca_Server_V1.lua
 -- Script de servidor — Lapada Seca  (conjunto REALITY GUI)
