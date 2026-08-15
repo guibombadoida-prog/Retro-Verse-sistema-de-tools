@@ -1,9 +1,9 @@
 # _INDICE — Acervo Retro-Verse
 
-> **66 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **73 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
-> **7 de `Faker_Tools`** e as
+> 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
 > **6 do `collector` — o conjunto AUTORAL**, que não sai de modelo nenhum: sai
 > daqui. Ver `Tools/README.md`.
 >
@@ -39,9 +39,9 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 | `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | — (nenhuma Tool no repositório) |
 | `IMPACTO_ESCUDO` | **Saitama** / Death Counter | `Impacto` | LIMPO | — (nenhuma Tool no repositório) |
 | `POEIRA_ESCUDO` | **Saitama** / Serious Mode | `Poeira` | LIMPO | — (nenhuma Tool no repositório) |
-| `VoidCrystal` · `SmallVoidCrystal` · `MiniVoidCrystal` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **CRU** | — |
-| `VoidMagic` · `VoidExplode` · `VoidExplode2` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **CRU** | — |
-| `Stun` | **Noob_Despertado** | `StunParticles` | **CRU** | — |
+| `VoidCrystal` · `SmallVoidCrystal` · `MiniVoidCrystal` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **LIMPO** | as 7 do conjunto NOOB |
+| `VoidMagic` · `VoidExplode` · `VoidExplode2` | **Noob_Despertado** | `Nebulea1` + `Nebulea2` cada | **LIMPO** | as 7 do conjunto NOOB |
+| `Stun` | **Noob_Despertado** | `StunParticles` | **LIMPO** | `Parada do Tempo`, `Colar das Trevas` |
 
 > **O `Noob_Despertado` traz a primeira paleta de VAZIO/NEBULOSA do Acervo.** Os 10 emissores
 > acima dele são raio, estilhaço, brasa, faísca, aura e os cinco do Saitama — nenhum é vazio.
@@ -249,6 +249,13 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** — medida, não copiada | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · 17 sequências | **LIMPO** | as 7 Tools do conjunto FAKER |
+| `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · 10 sequências | **LIMPO** | as 7 Tools do conjunto NOOB |
+
+> **O `Noob_Despertado` é o primeiro modelo com animação DENSA que não deixou nada para
+> herdar.** Ele anima em `Motor6D.C0` com `Clerp` dentro de um laço de `Swait()` — três
+> desqualificações de uma vez: `Motor6D.C0` é proibido pela `REGRA_ANIMACAO_R6`; o alvo do
+> `Clerp` é o valor ESCRITO, não o alcançado; e o `Swait` é `wait()`, então nem a duração é
+> confiável. O único empréstimo é o GESTO do `Shot`, que virou `APONTA_LADO`.
 
 > **O `Faker_Tools` é a única fonte que não deu pose nenhuma.** 796 linhas de habilidade e
 > nem uma `Animation`, nem uma escrita em `Motor6D.C0`, nem um `Weld` de pose: o personagem
@@ -361,7 +368,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `Drama/` | **LIMPO** — base das **7 Tools** do conjunto DRAMA, duas com cutscene | [FICHA.md](Drama/FICHA.md) |
 | `Faker_Tools/` | **LIMPO** — base das **7 Tools** do conjunto FAKER, duas com cutscene | [FICHA.md](Faker_Tools/FICHA.md) |
 | **lote de 2026-08-14** | | |
-| `Noob_Despertado/` | **CRU** — script de FORMAS, não Tool; **13 emissores de vazio**, inéditos aqui | [FICHA.md](Noob_Despertado/FICHA.md) |
+| `Noob_Despertado/` | **LIMPO** — base das **7 Tools** do conjunto NOOB, duas com cutscene | [FICHA.md](Noob_Despertado/FICHA.md) |
 
 > **Xester — os dois estão LIMPO.** Ficha completa nos quatro campos de §12.12.3,
 > e nenhum script da origem entrou nas Tools: a lógica foi reescrita, e da origem

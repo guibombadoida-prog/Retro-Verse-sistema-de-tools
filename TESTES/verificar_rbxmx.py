@@ -528,6 +528,18 @@ CONJUNTOS = [
         "Xester Procissao de Cartas",
         "Xester Portal do Cajado",
     ]),
+    # 7 Tools a partir do `noob_despertado.rbxmx`, que NÃO é uma Tool: é um
+    # Script de 2650 linhas solto na raiz. Nove ataques viraram 7 primárias e
+    # 2 Extras; as seis FORMAS não viram Tool. Duas têm CUTSCENE.
+    ("Noob_7_Tools.rbxmx", "Noob_Despertado", [
+        "Tiro do Vazio",
+        "Chuva de Lava",
+        "Parada do Tempo",
+        "Buraco Negro",
+        "Colar das Trevas",
+        "Explosao Lunar",
+        "Super Dominus",
+    ]),
     # 7 Tools a partir da ÚNICA Tool do `faker_tools.rbxmx` (o His Cube
     # original). Duas têm CUTSCENE. O conserto do conjunto é de VISIBILIDADE:
     # a origem punha 796 linhas de habilidade em dois LocalScript, então o

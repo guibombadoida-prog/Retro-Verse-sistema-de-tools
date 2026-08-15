@@ -4,8 +4,8 @@
 - Origem:                    `noob_despertado.rbxmx`, enviado em 2026-08-14
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-14
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Noob_Despertado/`
+- Status:                    **LIMPO** — passe §12.12.2 executado; falta licença
+- Onde vive:                 `MODELOS_ENTRADA/Noob_Despertado/` · as **7 Tools** em `Tools/`
 
 ---
 
@@ -146,7 +146,77 @@ As seis formas não são habilidade de Tool: `mode` global que troca aparência 
 ataque é estado de personagem, e cada Tool aqui é autocontida por definição. O que sobrevive
 delas é o **tema** — vazio, tempo, lua, robô — e os props de vestir viram Handle.
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+## Passe de conformidade §12.12.2 — EXECUTADO
 
-Este modelo está **CRU**: catalogado e triado, sem conversão. Falta a **licença** (§12.12.3),
-e falta o pedido — quais Tools, com que nomes.
+```bash
+python3 FERRAMENTAS/preparar_noob.py           # 1 Script solto -> 7 Tools
+python3 FERRAMENTAS/gerar_poses_noob.py        # 7 Poses.lua
+python3 FERRAMENTAS/gerar_servers_noob.py      # Server · Client · VFX · CutsceneCam
+python3 FERRAMENTAS/clonar_tool.py montar ...  # o .rbxmx
+python3 FERRAMENTAS/converter_para_rbxm.py ... # a entrega
+```
+
+Saíram **7 Tools** — `Noob_7_Tools.rbxm`. Duas têm **cutscene**: `Chuva de Lava` e
+`Super Dominus`.
+
+| Tool | Handle | Primária | Extra |
+|---|---|---|---|
+| `Tiro do Vazio` | `c` | feixe de 220 studs (34) | Disparo — 88, raio 22 |
+| `Chuva de Lava` | invisível | a laje: 105 / 46, raio 30 · CUTSCENE | — |
+| `Parada do Tempo` | `hat` | trava em raio 26 (18) | Relógio — 42, raio 15 |
+| `Buraco Negro` | `RobotPart` | 26 por tique, 4 s | Colapso — 70 |
+| `Colar das Trevas` | `RobotPart2` | 14 por tique, 30 ao soltar | — |
+| `Explosao Lunar` | invisível | a lua: 62, raio 20 | — |
+| `Super Dominus` | `dominus` | a coroa: 130 / 58, raio 34 · CUTSCENE | — |
+
+### Nove ataques viraram 7 primárias e 2 Extras
+
+Pela `REGRA_DISTRIBUICAO_DE_TOOLS`: com 8 ou mais habilidades saem 7 Tools, e o excedente
+vira **Extra** na Tool de tema mais próximo. Os dois excedentes são o `BlastShoot` (foi para
+o `Tiro do Vazio`) e o `ClockDestroyer` (foi para a `Parada do Tempo`) — os dois do mesmo
+tema da primária que os recebeu.
+
+**Quatro das sete não têm Extra**, e é por fidelidade: os modes `dark` e `dominus` da origem
+tinham um e dois ataques, e inventar mais seria escrever habilidade que o modelo não tem.
+
+### Os três ataques enterrados entraram
+
+`TimeStop`, `BlackRole` e `ClockDestroyer` só saem no `mode == "master"`, e a tecla `e` que
+ligaria a forma cai em **dois `if` seguidos** — `MasterForm()` e depois `LightForm()` — sem
+`elseif`. O `mode` termina `"light"`, que não existe no despacho.
+
+Os três estavam escritos, completos, e inalcançáveis. É o oposto do que o FAKER mostrou: lá
+eram cinco malhas pagas e nunca acesas; aqui é código.
+
+### O que foi trocado
+
+| Defeito da origem | Conserto |
+|---|---|
+| **`Banish` faz `Foe:Destroy()`** — apaga o personagem do jogador | `TakeDamage` pesado pelo Núcleo |
+| **4 dos 9 ataques com INSTAKILL**, um com 999 de dano em raio 400 | núcleo e borda, na faixa do repositório |
+| raio **1000** (`TimeStop`) e **900** (`Lava`) — o mapa inteiro | 26 e 30 |
+| **zero `TakeDamage`** em 2650 linhas | `TakeDamage` pelo Núcleo, com fallback |
+| **56 `wait(`** — o maior número já visto aqui | `task.wait` e beat do animator |
+| 21 `math.random` | ângulo áureo e jitter senoidal por contador |
+| 13 `tick()` | `os.clock()` para recarga, acumulador `dt` para animação |
+| 6 `BreakJoints` · 5 `Health =` | `PlatformStand` com prazo · `TakeDamage` |
+| 12 `:Destroy()` | `Parent = nil` e `Debris:AddItem` |
+| `ScreenGui` `Talk` com 2 `TextLabel` | `ContextActionService`, com botão de toque |
+| animação em `Motor6D.C0` com `Clerp` | pose CFrame sob `R6CFrameAnimator` |
+| `Sound` criado em código com `VOLUME = 10` | 13 `Sound` dentro da Tool, volume 1.2–2.0 |
+
+### O que a origem deu, e ficou
+
+Os **13 emissores de vazio**, os **três cristais em escala**, os **13 ids de som**, os
+**props** que viraram Handle em cinco das sete, e o `ClockDestroyer` quase intocado — o único
+dos nove cujos números já estavam na faixa.
+
+E um detalhe que vale registrar: o `Neckless` chamava `ApplyDamage(HUM, **0**, true)`. Dano
+zero. O agarrão existia, prendia, e não cobrava nada — o oposto dos outros oito, que matavam
+de um golpe.
+
+## Para sair de LIMPO e virar APROVADO
+
+Falta a **licença** (§12.12.3) e o teste em jogo. Nada aqui rodou no Studio — a verificação é
+toda estática. O que só o jogo confirma: se os emissores de vazio, ligados por `Enabled` +
+`Rate` em vez de `:Emit()`, mantêm a cara que tinham na origem.

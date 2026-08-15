@@ -1,6 +1,6 @@
 # Tools
 
-**66 Tools, em nove conjuntos.**
+**73 Tools, em dez conjuntos.**
 
 ## Conjunto BOMBAS — 6 Tools, de `bomba_v4.rbxmx`
 
@@ -624,6 +624,151 @@ continua jogável.
 ⚠️ A paleta sonora é de **um timbre só** — `rbxassetid://2960518660`, o único
 `Sound` do modelo, repartido em três papéis por volume e pitch. É a mais fina do
 repositório, mais fina que a do DRAMA. Está declarado para não parecer descuido.
+
+---
+
+## Conjunto NOOB — 7 Tools, de `noob_despertado.rbxmx`
+
+**A origem não é uma Tool.** É um `Script` de 2650 linhas solto na raiz, com
+props de vestir e uma `ScreenGui` — formato de *script showcase* que se cola
+dentro de um Character. Não havia `Tool` nenhuma para clonar: aqui não se
+clonou, se **construiu**.
+
+| Tool | Handle | M1 | Extra |
+|---|---|---|---|
+| `Tiro do Vazio` | `c` (origem) | feixe de **220 studs** (34) | **R** Disparo — 88 no núcleo, raio 22 |
+| `Chuva de Lava` | invisível | a laje que sobe: **105** no núcleo, 46 na borda · **CUTSCENE** | — |
+| `Parada do Tempo` | `hat` (origem) | trava quem está no raio 26 (18) | **R** Relógio — 42 em raio 15 |
+| `Buraco Negro` | `RobotPart` (origem) | esfera que puxa, 26 por tique por 4 s | **R** Colapso — 70, e **consome o buraco** |
+| `Colar das Trevas` | `RobotPart2` (origem) | agarra e drena: 14 por tique, 30 ao soltar | — |
+| `Explosao Lunar` | invisível | a lua cai do céu: 62 em raio 20 | — |
+| `Super Dominus` | `dominus` (origem) | a coroa desce: **130** no núcleo · **CUTSCENE** | — |
+
+As 7 juntas: [`Noob_7_Tools.rbxm`](Noob_7_Tools.rbxm) · XML
+[`Noob_7_Tools.rbxmx`](Noob_7_Tools.rbxmx)
+
+### Nove ataques, e três deles nunca dispararam na origem
+
+O `KeyDown` despacha por tecla, e o ataque depende do `mode` que a forma ligou.
+A tecla `e` cai em **dois `if` separados**:
+
+```lua
+if Key == "e" and ATTACK == false then MasterForm() end   -- mode = "master"
+...
+if Key == "e" and ATTACK == false then LightForm()  end   -- mode = "light"
+```
+
+Não é `if/elseif`, então os dois rodam e o `LightForm` escreve por último. O
+`mode` termina `"light"`, e **não existe ramo `light`** no despacho:
+`TimeStop`, `BlackRole` e `ClockDestroyer` — os três ataques da forma Master —
+nunca disparam no modelo como ele veio.
+
+Os três entram aqui, no `Parada do Tempo` e no `Buraco Negro`. É o oposto do
+que o FAKER mostrou: lá eram cinco malhas pagas e nunca acesas; aqui é
+habilidade **escrita** e enterrada por um `elseif` que ninguém digitou.
+
+### As formas não viraram Tool
+
+`mode` global que troca aparência e desbloqueia ataque é **estado de
+personagem**, e cada Tool aqui é autocontida por definição. O que sobreviveu
+das seis formas é o tema — vazio, tempo, lua, dominus — e os props, que viraram
+Handle em cinco das sete.
+
+`Chuva de Lava` e `Explosao Lunar` ficaram sem prop: a laje de 900 studs e a
+bomba de 13.7 são **efeito**, não coisa que se segura. Elas ganharam um Handle
+invisível de 0.4 stud, como o `Fists` e o `dodge` do conjunto DRAMA.
+
+### Os números da origem eram de exibição, e estão todos declarados
+
+| Ataque | Raio | Dano | INSTAKILL | Virou |
+|---|---|---|---|---|
+| `Shot` | — | **`Foe:Destroy()`** | — | 34, feixe de 220 |
+| `BlastShoot` | **400** | **999** | sim | 88 em raio 22 |
+| `Lava` | **900** | 90–100 | sim | 105 / 46, raio 30 |
+| `TimeStop` | **1000** | 25–50 | não | 18 e trava, raio 26 |
+| `BlackRole` | 100 | 90–100 | sim | 26 por tique, colapso 70 |
+| `SuperDominus` | 200 | 100 | sim | 130 / 58, raio 34 |
+| `Lunar_Blast` | 25 | `killnearest` | — | 62 em raio 20 |
+| `Neckless` | — | **0** | — | 14 por tique, 30 ao soltar |
+| `ClockDestroyer` | 15 | 30–40 | não | **42 em raio 15** |
+
+**Quatro dos nove eram INSTAKILL** e um fazia 999 em raio 400. Raio 1000 é o
+mapa inteiro. Isso não é balanceamento ruim — é script de exibição, feito para
+limpar o servidor num clique.
+
+O `ClockDestroyer` é o único que **já estava na faixa**: 30–40 em raio 15. Ele
+entra quase intocado, e é a prova de que o autor sabia fazer — os outros oito
+são escolha, não descuido.
+
+E o `Neckless` fazia `ApplyDamage(HUM, 0, true)`: **dano zero**. O agarrão
+existia, prendia, e não cobrava nada. É o oposto dos outros oito, e sugere que
+o autor parou no meio deste.
+
+### `Banish` não atravessou
+
+```lua
+Foe:Destroy()
+CLONE.Parent = Effects
+CLONE:BreakJoints()
+```
+
+Destruir o alvo tira o abate do Núcleo e apaga o personagem do jogador. É a
+**terceira vez** que este padrão chega aqui — depois do `death()` do Xester e
+do `enemyhum.Parent:Remove()` do Ato de Desaparecer — e sai pelo mesmo caminho:
+`TakeDamage` pesado, com o crédito indo para quem atirou.
+
+### O primeiro VFXModule com emissor de verdade
+
+Os outros `VFXModule` do repositório desenham com `Part` primitiva esticada, e
+o do FAKER com malha de modelo. Este é o primeiro com **`ParticleEmitter`
+autorado**: 13 deles, em 9 moldes.
+
+Emissor autorado se liga por **`Enabled` + `Rate`**, nunca por `:Emit()`.
+`:Emit(n)` dispara uma leva fixa e ignora o `Rate` que o autor escreveu — a
+curva de emissão se perde e o efeito fica com outra cara. É a regra que o
+`_INDICE.md` fixou para os 10 emissores do Acervo, e vale igual aqui.
+
+Os três cristais (`VoidCrystal` 14.9 studs, `SmallVoidCrystal` 9.1,
+`MiniVoidCrystal` 2.7) são o **mesmo molde em três tamanhos** — escala pronta,
+o que o repositório vinha resolvendo com `Size` no tween.
+
+⚠️ A pasta `Effects` está **duplicada** no arquivo de origem: existe como filha
+do `Script noob` E como `Folder` na raiz. Os 26 `ParticleEmitter` do XML são
+**13 reais**, e copiar os dois lados poria cada emissor em dobro dentro da
+Tool — o efeito sairia com o dobro do `Rate` autorado.
+
+### A `Lava` era o próprio raio
+
+A peça de origem tem **900 × 20 × 900 studs**, o mesmo 900 do
+`ApplyAoE(..., 900, ...)`. A laje **era** o raio. Os dois vieram para 30
+juntos, porque mexer num sem o outro deixaria o efeito mentindo sobre o
+alcance.
+
+### As poses são autorais, e a origem tinha animação
+
+É o primeiro modelo que chega com animação de corpo **densa** e mesmo assim não
+deixa nada para herdar:
+
+1. Escreve em **`Motor6D.C0`**, que a `REGRA_ANIMACAO_R6` proíbe.
+2. O alvo do `Clerp` é o valor **escrito**, não o alcançado — um `lerp` a 0.5
+   repetido N quadros nunca chega ao destino.
+3. O laço é `Swait()`, que é `wait()` — nem a **duração** é confiável.
+
+O único empréstimo é o *gesto* do `Shot`: braço direito a 90° com o tronco
+girado 90°, que virou `APONTA_LADO`. O resto sai do tema: o Noob conjura do
+vazio, e vazio se abre com a **palma para cima**. Nenhuma pose deste conjunto
+soca; o único golpe de contato é o `Colar das Trevas`, e ele agarra.
+
+| Regra | O que diz | Onde |
+|---|---|---|
+| 1 | golpe rápido entre 0.8 s e 1.2 s | `TIRO` 1.00 s, `AGARRAR` 1.10 s |
+| 2 | o impacto cai na **metade** | `TIRO` 52%, `PARAR` 52% |
+| 5 | ultimate 7–9 s com 64–86% de preparação | `LAVA` 7.10 s / 70% · `COROA` 7.85 s / 71% |
+| 7 | estas animações são, em maioria, **paradas** | quadro segurado nas sete |
+
+`Chuva de Lava` e `Super Dominus` lideram pelo **HRP**, e `Explosao Lunar` pela
+**Head** — três exceções à regra 6, todas declaradas: o efeito nasce no
+portador e o envolve, e conduzir isso pelo braço leria como *"ele jogou algo"*.
 
 ---
 
