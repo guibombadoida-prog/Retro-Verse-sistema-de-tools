@@ -5,16 +5,17 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   entra em corrida e atropela por contato
---   R    Frear   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   entra em corrida e atropela (a-train/SwordScript)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `a-train`: RequiresHandle = false, sem Handle — ganha um invisivel
---   `KeyframeSequence` de **40 keyframes** em 0.59 s, amostrada em 10
+--   `KeyframeSequence` de **40 keyframes** em 0.59 s — INTEIRA, sem corte
 --   som blood 5507830073
---   LOGICA: `Activated` poe **WalkSpeed = 125**, toca a musica, desliga o
---      Animate — e o `Touched` mata quem encostar. `Unequipped` devolve
---      WalkSpeed = 16. E ESTADO DE CORRIDA, nao uma investida de 0.7 s.
+--   `humanoid.WalkSpeed = 125` no Activated · volta a 16 no Unequipped
+--   `Touched` -> Health = 0, ragdoll, clona o corpo e joga a 50,50,50
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -28,7 +29,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -48,8 +48,6 @@ local CFG = {
 	TOMBO          = 2,
 	PASSO          = 0.1,
 	RASTRO_A_CADA  = 4,
-
-	RECARGA_EXTRA  = 1,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -57,15 +55,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local velocidadeAntes = nil
 local atropelados = {}
 local geracao = 0
@@ -326,16 +324,22 @@ end
 --══════════════════════════════════════════════════════════════
 -- A CORRIDA — o que a origem realmente faz
 --
--- `humanoid.WalkSpeed = 125` no `Activated`, e volta a 16 no `Unequipped`. Não
--- há impulso, não há dash: o personagem simplesmente passa a correr, e mata
--- quem encostar enquanto isso dura. A versão anterior era um `BodyVelocity` de
--- 0.7 s, que é outra coisa.
+--     humanoid.WalkSpeed = 125
+--     humanoid.Parent.Animate.Enabled = false
 --
--- A velocidade guardada é a que o portador TINHA, nunca 16 fixo — ele pode
--- estar com velocidade própria de outra Tool, e devolver 16 seria roubar.
+-- Não há impulso, não há dash: o personagem passa a correr, e mata quem
+-- encostar enquanto isso dura. `Unequipped` devolve `WalkSpeed = 16`.
 --
--- Cada alvo paga UMA vez por corrida. Na origem isso é automático porque o
--- alvo é destruído; aqui é a lista `atropelados`, que zera a cada uso.
+-- A velocidade guardada aqui é a que o portador TINHA, nunca 16 fixo — ele
+-- pode estar com velocidade própria de outra Tool, e devolver 16 seria roubar.
+--
+-- O `Animate.Enabled = false` da origem não veio: o `R6CFrameAnimator` já solda
+-- `Weld` por cima das juntas enquanto a track roda, então o Animate não briga
+-- por elas. E desligar o Animate deixaria o personagem duro se a Tool sumisse
+-- no meio.
+--
+-- Cada alvo paga UMA vez por corrida. Na origem isso é automático porque o alvo
+-- é destruído; aqui é a lista `atropelados`, que zera a cada uso.
 --══════════════════════════════════════════════════════════════
 
 local function frear()
@@ -358,7 +362,6 @@ local function correr()
 		velocidadeAntes = humanoide.WalkSpeed
 	end
 	humanoide.WalkSpeed = CFG.VELOCIDADE
-	tocar("APITO", 0.85)
 
 	task.spawn(function()
 		local ate = os.clock() + CFG.DURACAO
@@ -396,32 +399,21 @@ local function correr()
 end
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — entrar em corrida
+-- A HABILIDADE — no clique
+--
+-- A animação é a `KeyframeSequence` `a-train` INTEIRA: 40 de 40 quadros, por
+-- `PlayTrack`. A versão anterior entregou 10.
 --══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("INVESTIDA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("APITO", 1.1)
-		elseif marca == "GOLPE" then
+	tocar("APITO", 0.85)
+	rig:PlayTrack("INVESTIDA", function(passo)
+		local evento = passo and passo.event
+		if evento == "GOLPE" then
 			correr()
 		end
 	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — frear
---
--- A origem para a corrida no `Unequipped`, e só. Esta Extra é esse mesmo
--- desligar, na tecla — não uma segunda habilidade inventada.
---══════════════════════════════════════════════════════════════
-
-function extra(_mira)
-	if velocidadeAntes == nil then return end
-	tocar("ATROPELA", 0.7)
-	frear()
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -446,15 +438,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -462,7 +445,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityTrem", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityTrem", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio

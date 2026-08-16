@@ -5,16 +5,18 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   o feixe de orbita, e a radiacao que fica
---   R    Marcar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   a chamada de orbita (LowOrbitIonCannon/Script)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `LowOrbitIonCannon`: Handle 0.8 x 2.3 x 0.4, **21 Sound**
 --   Call 88858815 · Big Explosion 814635481 · Electric Explosion 2674547670
---   ja estava no repositorio como CRU desde o lote de 2026-08-13
---   LOGICA: disco de mira que so aceita superficie Top -> Call -> 3 s ->
---      satelite desliza para cima do ponto -> feixe -> bola de 150 studs,
---      tremor em todo mundo a 600 studs, e **radiacao expandindo por 12 s**
+--   `Call:Play()` -> `wait(3)` -> anuncio -> `wait(1)` -> feixe
+--   `energyhit` bola de **150 studs** · tremor em quem esta a **600**
+--   29 esferas Neon + 100 Glass expandindo por **~12 s** depois do tiro
+--   a animacao de braco e cabeca saiu dos 6 lacos de Weld.C0 do Script
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -28,7 +30,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
@@ -54,9 +55,6 @@ local CFG = {
 	DURACAO_RAD    = 10,
 	INTERVALO_RAD  = 1,
 	DANO_RAD       = 9,
-
-	RECARGA_EXTRA  = 6,
-	DURACAO_MARCA  = 8,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -64,17 +62,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
-local marcaId = nil
-local marcaOnde = nil
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local radiacaoId = nil
 local geracao = 0
 
@@ -386,27 +382,26 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o feixe, COM CUTSCENE
+-- A CHAMADA DE ÓRBITA — com cutscene
 --
--- ULTIMATE: 7.30 s com 71 por cento de preparação, dentro da regra 5.
+-- A ANIMAÇÃO É A DA ORIGEM. Os seis laços de `Weld.C0` do Script do LOIC saem
+-- em `Poses.lua` verbatim: braço e cabeça sobem, seguram 2.5 s, ajustam,
+-- seguram 1.5 s, e descem. 6.05 s, que é o que o autor escreveu.
 --
--- O feixe cai no ponto MARCADO se houver um, e à frente se não houver. É o par
--- da Extra, e reproduz o disco de mira da origem: lá o clique só valia sobre
--- uma superfície `Top`, e o disco ficava azul ou vermelho para dizer isso.
+-- Isso fica ABAIXO da faixa de 7–9 s que a regra 5 pede para ultimate. É de
+-- propósito: a animação da origem vale mais que o número da gramática, e o
+-- pedido foi manter a essência.
 --
 -- A RADIAÇÃO É DA ORIGEM, E FALTAVA. Depois que a bola de 150 studs nasce, o
--- LOIC solta 29 esferas `Neon` e 100 esferas `Glass` expandindo por cerca de
--- 12 s — não é decoração, é o que faz o ponto ficar intransitável depois do
--- tiro. Aqui ela cobra por tique, com prazo, e some sozinha.
+-- LOIC solta 29 esferas `Neon` e 100 `Glass` expandindo por ~12 s — não é
+-- decoração, é o que faz o ponto ficar intransitável depois do tiro.
+--
+-- O que não veio: o `v:destroy()` que apagava toda peça num raio de 250 studs
+-- em seis ondas, o `game.Chat:Chat` do anúncio, e o `shakerbreaker` que
+-- escrevia `workspace.CurrentCamera.CFrame` num LocalScript clonado para
+-- dentro do personagem alheio. O tremor da cutscene faz esse trabalho, e mora
+-- dentro da Tool.
 --══════════════════════════════════════════════════════════════
-
-local function apagarMarca()
-	if marcaId then
-		vfx("APAGAR", { id = marcaId })
-		marcaId = nil
-	end
-	marcaOnde = nil
-end
 
 local function apagarRadiacao()
 	geracao = geracao + 1
@@ -444,7 +439,7 @@ end
 
 function primaria(mira)
 	ocupado = true
-	local centro = marcaOnde or mira or frente(CFG.ALCANCE)
+	local centro = mira or frente(CFG.ALCANCE)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
@@ -453,9 +448,9 @@ function primaria(mira)
 		if not marca then return end
 
 		if marca == "CAMERA" then
+			-- `handle.Call:Play()` — a chamada, que é o que abre tudo
 			tocar("CHAMADA", 0.8)
-		elseif marca == "MARCA" then
-			beatCena("MARCA")
+			beatCena("CAMERA")
 			vfx("CONJURA", { posicao = centro, escala = 1.4, duracao = 1.2 })
 		elseif marca == "CARGA" then
 			beatCena("CARGA")
@@ -466,7 +461,6 @@ function primaria(mira)
 			beatCena("DESCE")
 		elseif marca == "GOLPE" then
 			beatCena("GOLPE")
-			apagarMarca()
 			vfx("DISPARO", { origem = centro + Vector3.new(0, CFG.ALTURA_FEIXE, 0),
 				destino = centro, grossura = 7, escala = 2 })
 			vfx("LUA_FIM", { posicao = centro, escala = 2.2 })
@@ -483,37 +477,6 @@ function primaria(mira)
 		rig:LockCharacter(false)
 		ocupado = false
 	end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — marcar o ponto
---
--- É o disco de mira da origem, na sua própria tecla. Alcance 140 studs, dura
--- 8 s, e **não faz dano**: o disco do LOIC não fere ninguém, ele só diz onde o
--- tiro vai cair. A versão anterior cobrava 12 aqui, o que era invenção.
---══════════════════════════════════════════════════════════════
-
-function extra(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("MIRA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CHAMADA", 1.2)
-		elseif marca == "GOLPE" then
-			apagarMarca()
-			local onde = destino or frente(CFG.ALCANCE)
-			marcaOnde = onde
-			marcaId = novoId("MARCA")
-			vfx("PARAR", { posicao = onde, escala = 1.2,
-				duracao = CFG.DURACAO_MARCA, id = marcaId })
-			tocarEm("CARGA", onde, 1.1)
-			local meu = marcaId
-			task.delay(CFG.DURACAO_MARCA, function()
-				if marcaId == meu then apagarMarca() end
-			end)
-		end
-	end, function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -538,15 +501,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -554,7 +508,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityCanhao", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityCanhao", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -565,7 +520,6 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	apagarMarca()
 	apagarRadiacao()
 	fecharCena()
 	if rig then

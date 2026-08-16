@@ -1,18 +1,17 @@
 -- Poses.lua
 -- ModuleScript "Poses" — Gato Ajudante Boss  (conjunto REALITY GUI)
 --
+-- AUTORAL — e aqui isso não é escolha, é falta de original.
+--
+-- A origem NÃO ANIMA O PERSONAGEM nesta Tool. Ver o topo do gerador:
+-- o `Animation` da `SLAP` tem `AnimationId` vazio, e na `tre` e no
+-- `gravity cat` quem se mexe é o modelo invocado, não quem invoca.
+--
 -- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
--- Sequência usa `time` / `style` / `dir` (V2).
---
--- AUTORAL, pela GRAMATICA_R6.md. Nenhum script da origem atravessou a
--- quarentena do `reality_tools.rbxmx` — só geometria, som e malha.
---
 -- JUNTA QUE LIDERA: **RightArm** (regra 6).
 --
---   CHAMAR       conjuração       1.30s · 5 passo(s)
---   MANDAR       conjuração       0.88s · 4 passo(s)
---
 -- Gerado por FERRAMENTAS/gerar_poses_reality.py.
+--   CHAMAR       conjuração       1.30s · 5 passo(s)
 
 local P = {}
 
@@ -46,15 +45,7 @@ P.SEQUENCIAS = {
 		{ pose = "ASSOBIA", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
 		{ pose = "APONTA_ALVO", time = 0.14, style = "Quint", dir = "Out", marca = "GOLPE" },
 		{ pose = "APONTA_ALVO", time = 0.22, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out" },
-	},
-
-	-- conjuração · 0.88s · 4 passo(s)
-	MANDAR = {
-		{ pose = "APONTA_ALVO", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "APONTA_ALVO", time = 0.28, style = "Sine", dir = "InOut" },
-		{ pose = "APONTA_ALVO", time = 0.12, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

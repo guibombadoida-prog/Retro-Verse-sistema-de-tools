@@ -53,7 +53,9 @@ PREAMBULO = '''-- {objeto}.lua
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
 --   M1   {rotulo_primaria}
---   {tecla}    {rotulo_extra}   (Extra, por `AcaoRemote` — e por botão no celular)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 {origem}--
@@ -69,7 +71,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 {extra_require}
@@ -88,15 +89,15 @@ local CFG = {{
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {{}}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 {estado}
 
 local function proximo()
@@ -433,15 +434,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "{tecla}" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -449,7 +441,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "{sufixo}", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "{sufixo}", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 {ao_equipar}end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -485,24 +478,20 @@ CLIENTE = '''-- Client.lua
 -- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
 -- cliente não replica e os outros jogadores viam o portador parado.
 --
--- MOBILE: `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)`.
--- O terceiro argumento faz o Roblox desenhar o botão de toque sozinho. A origem
--- tinha uma `ScreenGui` chamada `Talk` com dois `TextLabel`; `ScreenGui` dentro
--- de Tool é proibida, e o botão do CAS faz o trabalho sem sair da Tool.
+-- MOBILE: nada a fazer. A habilidade é UMA e ela mora no `Tool.Activated`, que
+-- o Roblox já liga no botão da Tool em toda plataforma. Sem `ContextActionService`,
+-- sem tecla, sem botão desenhado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_reality.py.
 
 local Players = game:GetService("Players")
-local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool       = script.Parent
-local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
-local VFX        = require(Tool:WaitForChild("VFXModule"))
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local VFX       = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Reality_{sufixo}_{tecla}"
 local ALCANCE_MIRA = {alcance_mira}
 
 local equipado = false
@@ -545,22 +534,6 @@ local function mira()
 	return alvo
 end
 
-local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
-		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipado then return end
-		AcaoRemote:FireServer("{tecla}", mira())
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.{tecla}, Enum.KeyCode.{botao})
-
-	ContextActionService:SetTitle(ACAO, "{rotulo_extra}")
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
-end
-
-local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
-end
-
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
@@ -573,12 +546,10 @@ end)
 Tool.Equipped:Connect(function()
 	if not souODono() then return end
 	equipado = true
-	ligarEntrada()
 end)
 
 local function aoGuardar()
 	equipado = false
-	desligarEntrada()
 	VFX.LimparTudo()
 end
 

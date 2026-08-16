@@ -5,17 +5,17 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   planta a arvore, e ela caca
---   R    Derrubar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   planta a arvore, e ela caca (tre/.../Death/Script)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `tre`: Handle 4 x 1 x 2 e o Model `tree` com 5 UnionOperation
 --   som Kill 4817657002
---   LOGICA: a arvore CACA. Ela procura o Humanoid mais perto num raio de
---      200, e **so anda enquanto ninguem esta olhando para ela** — o
---      `canSee` da origem testa FOV mais raycast. A menos de 10 studs,
---      mata. E anjo chorao, nao aura parada.
---   o BodyGyro e a ScreenGui da origem NAO atravessaram
+--   `seen_dist = 200` · `canSee` = FOV (`vec:Dot(lookVector) > 0`) + raycast
+--   `if minply and not beingwatched` -> avanca `unit*-15`
+--   `if minmag < 10` -> Health = 0, BreakJoints, Kill:Play()
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -29,7 +29,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -51,8 +50,6 @@ local CFG = {
 	TOMBO          = 2.5,
 	INTERVALO_ALVO = 1.6,
 	ARRASTO_A_CADA = 4,
-
-	RECARGA_EXTRA  = 2,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -60,15 +57,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local arvoreId = nil
 local arvoreOnde = nil
 local geracao = 0
@@ -327,25 +324,30 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- O ANJO CHORÃO — a mecânica que a versão anterior tinha perdido
+-- O ANJO CHORÃO
 --
 -- O `tre` não é uma aura. Ele é uma peça que persegue: acha o `Humanoid` mais
--- perto num raio de 200 studs, aponta para ele, e **avança 15 studs por volta
--- do laço — mas só enquanto aquele alvo NÃO está olhando para ela**. O teste
--- da origem (`canSee`) é o produto escalar do vetor até a árvore com o
--- `lookVector` da cabeça: positivo = está no campo de visão = ela congela.
+-- perto num raio de 200 studs, aponta para ele, e avança — **mas só enquanto
+-- aquele alvo NÃO está olhando para ela**:
+--
+--     local isInFOV = (vec:Dot(vh.CFrame.lookVector) > 0)
+--     if minply and not beingwatched then ... end
 --
 -- A menos de 10 studs, mata.
 --
 -- O que mudou para caber nas regras: o passo é de 0.35 s (a origem roda com
--- `wait(.000001)`, o que é por quadro e replica picotado), o avanço é de 4.5
+-- `wait(.000001)`, que é por quadro e replica picotado), o avanço é de 4.5
 -- studs por passo em vez de 15, o alcance é 90 em vez de 200, e o abate é
 -- `TakeDamage` pelo Núcleo em vez de `Health = 0` mais `BreakJoints`.
 --
--- O raycast de linha de visão da origem ficou de fora: o teste de FOV é o que
--- dá a leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
+-- O raycast de linha de visão ficou de fora: o teste de FOV é o que dá a
+-- leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
 -- pagaria caro por pouco. Quem se esconder atrás de uma parede e olhar na
 -- direção dela ainda a congela.
+--
+-- E a `ScreenGui` `Popup` que a origem clonava para a `PlayerGui` da vítima não
+-- veio: é proibida dentro de Tool, e mexer na GUI de outro jogador é a
+-- referência fora da Tool que a regra nº 1 fecha.
 --══════════════════════════════════════════════════════════════
 
 local function derrubar()
@@ -357,7 +359,7 @@ local function derrubar()
 	arvoreOnde = nil
 end
 
---- O alvo está olhando para o ponto? `> 0` é o teste da origem: meio giro
+--- `vec:Dot(vh.CFrame.lookVector) > 0` — o teste da origem, igual. Meio giro
 --- inteiro conta como "de frente", e é isso que faz a árvore parecer travada
 --- sempre que se vira para ela.
 local function estaOlhando(alvo, ponto)
@@ -432,10 +434,11 @@ local function cacar(id)
 end
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — plantar
+-- A HABILIDADE — no clique
 --
--- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Entrou como
--- GEOMETRIA, ancorada e invisível; o clone é que aparece, e é ele que anda.
+-- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Na origem
+-- ele morava em `ReplicatedStorage`; aqui mora em `Tool/Moldes/`, ancorado e
+-- invisível. O clone é que aparece, e é ele que anda.
 --══════════════════════════════════════════════════════════════
 
 function primaria(mira)
@@ -454,30 +457,6 @@ function primaria(mira)
 				duracao = CFG.DURACAO, id = arvoreId })
 			tocarEm("GALHO", onde, 0.7)
 			cacar(arvoreId)
-		end
-	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — derrubar
---
--- A origem não tem segunda habilidade: a árvore fica de pé até o fim do round.
--- Esta Extra é o desligar dela, na tecla.
---══════════════════════════════════════════════════════════════
-
-function extra(_mira)
-	if not arvoreId then return end
-	ocupado = true
-	local onde = arvoreOnde
-	rig:PlaySequence("GALHADA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GALHO", 1.15)
-		elseif marca == "GOLPE" then
-			local centro = onde or frente(CFG.ALCANCE)
-			derrubar()
-			vfx("BURACO_FIM", { posicao = centro, escala = 1.8 })
-			tocarEm("GALHO", centro, 0.55)
 		end
 	end, function() ocupado = false end)
 end
@@ -504,15 +483,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -520,7 +490,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityArvore", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityArvore", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio

@@ -414,8 +414,11 @@ def montar(dados, marca, fontes):
         item, pv = novo_item(tool, classe, alvo, "RG_%s_%s" % (alvo[:6], marca))
         ET.SubElement(pv, tag, {"name": "Value"}).text = valor
 
+    # Sem `AcaoRemote`: estas Tools têm UMA habilidade, e ela é no clique. O
+    # `Tool.Activated` já vai por `VFXRemote`. Um RemoteEvent que nenhum script
+    # cita é asset depositado e mudo — o mesmo defeito que o verificador aponta
+    # nos `Sound` órfãos, e ainda por cima é porta aberta de graça.
     novo_item(tool, "RemoteEvent", "VFXRemote", "RG_VFXR_%s" % marca)
-    novo_item(tool, "RemoteEvent", "AcaoRemote", "RG_ACAO_%s" % marca)
     if cutscene:
         novo_item(tool, "RemoteEvent", "CutsceneRemote", "RG_CUTR_%s" % marca)
 

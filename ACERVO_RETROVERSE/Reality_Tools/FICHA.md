@@ -175,40 +175,70 @@ Falta a licença (§12.12.3) e falta o pedido — quais Tools, com que nomes, de
 
 ---
 
-## 2026-08-16 — a lógica das 7 foi RELIDA da origem, e continua sem código atravessando
+## 2026-08-16 — a auditoria, e a lógica que atravessa
 
-O conjunto `Reality Gui` saiu no dia 15 com as habilidades escritas **por tema**: o nome da
-Tool sugeria uma habilidade e a habilidade era inventada em cima do nome. Isso foi corrigido.
+### As 6 Tools que o conjunto usa NÃO têm veneno
 
-O que se fez: ler os scripts das seis Tools de origem — como **texto**, num diretório de
-trabalho fora do repositório — e anotar o que cada uma realmente faz. Depois reescrever a
-habilidade sob as regras daqui.
+O backdoor mora na `Pistol` e o `require(206209239)` mora no `TrenchGun`. Nenhuma das duas
+entra no `Reality Gui`. Varredura nas seis usadas — `SLAP`, `a-train`, `tre`,
+`gravity cat not amused`, `samsung`, `kick dance` — atrás de `assetimport`, `loadstring`,
+`getfenv`, `setfenv`, `HttpService`, `GetAsync`, `PostAsync` e `require(<id>)`: **zero**.
 
-| Tool | o que a origem faz | o que a versão de 15/08 tinha |
+A primeira entrega tratou o arquivo inteiro como se todo script fosse a `Pistol`, e reescreveu
+as sete habilidades do zero. Estava errado. O que a origem tem de problema nestas seis é isto,
+e é tudo substituição mecânica:
+
+| Da origem | Vira | Quantos |
 |---|---|---|
-| `Lapada Seca` | `Hand.Touched` → `BodyVelocity` **900** em `-Head.lookVector`, `Sit`, ragdoll | girava o alvo 140° |
-| `Canhao Satelite` | feixe → bola de 150 studs → **radiação expandindo por ~12 s** | o feixe, sem a radiação |
-| `Trem` | `Activated` põe **`WalkSpeed = 125`** até o `Unequipped` | investida de 0.7 s |
-| `Arvore Maligna` | a árvore **CAÇA**, e **só anda enquanto ninguém olha** | aura parada de 16 studs |
-| `Gato Ajudante Boss` | **bombardeia**: bola preta, 0.8 s, explosão raio 7 · e a chuva de 50 | aura que cobrava por tique |
-| `Samsungus` | leadpipe de R2DA: **duas** batidas alternadas · **concussão** | uma batida · trava no lugar |
-| `Danca Provocadora` | animação + música. **Nada mais.** | aura de 26 studs que puxava e feria |
+| `wait(` · `spawn(` | `task.wait` · `task.spawn` | 57 · 10 |
+| `math.random` em gameplay | `jitter` / `naFaixa` determinísticos | 36 |
+| `:Destroy()` · `:remove()` | `Parent = nil` / `Debris` | 11 · 3 |
+| `Health = 0` | `TakeDamage` pelo Núcleo | 8 |
+| `BreakJoints` | `PlatformStand` com prazo | 2 |
+| `Instance.new("Explosion")` | `detectarHumanoides` | 2 |
+| `ReplicatedStorage` · `ServerStorage` · `ReplicatedFirst` | asset dentro da Tool | 9 |
+| `ScreenGui` · `PlayerGui` | caem — proibido dentro de Tool | 4 |
 
-**A quarentena não foi tocada.** `preparar_reality.py` continua barrando todo `Script`,
-`LocalScript` e `ModuleScript` da origem, e continua varrendo o arquivo escrito atrás de
-`assetimport`, `require(<id>)`, `loadstring`, `getfenv` e `HttpService`. Ler o que um script
-faz e reimplementar é a coisa oposta de copiá-lo: nenhuma linha da origem está no `.rbxm`.
+### A animação da origem entra INTEIRA
 
-O que a origem faz e **não** atravessou, com o motivo:
+Quatro das sete têm animação de verdade na origem, e ela foi recuperada quadro a quadro:
+
+| Tool | Fonte da animação | Antes | Agora |
+|---|---|---|---|
+| `Trem` | `KeyframeSequence` `a-train` | 10 quadros | **40 de 40** |
+| `Danca Provocadora` | `KeyframeSequence` `california gurls` | 14 quadros | **361 de 361** |
+| `Samsungus` | laços de `Weld.C0` no `LeadpipeServer` | pose inventada | 4 blocos, verbatim |
+| `Canhao Satelite` | laços de `Weld.C0` no Script do LOIC | pose inventada | 6 blocos, verbatim |
+
+As outras três não têm o que recuperar: o `Animation` da `SLAP` tem `AnimationId` **vazio**, e
+na `tre` e no `gravity cat` quem se mexe é o modelo invocado, não quem invoca.
+
+Duas descobertas que valem para o próximo modelo deste tipo:
+
+1. **`PlayTrack`, não `PlaySequence`, para animação densa.** `PlaySequence` emenda um Tween por
+   passo no `Completed`, e cada emenda custa um quadro: 361 emendas somariam segundos e a dança
+   rodaria em câmera lenta. `PlayTrack` roda no `Heartbeat` com tempo ABSOLUTO.
+2. **O C1 da origem entra INVERTIDO.** `Part1.CFrame = Part0.CFrame * C0 * C1:Inverse()`, e o
+   animator canônico solda com C1 identidade — logo `C0_canonico = alvo * C1⁻¹`. A conferência é
+   o repouso: o braço do `samsung` é `CFrame.new(1.5,0.5,0)`, e `(1.5,0.5,0) * (0,-0.5,0)` dá
+   `(1.5,0,0)`, que é a base do `R6CFrameAnimator`. Com o sinal trocado a animação inteira sai
+   um stud acima do ombro.
+
+### Uma habilidade por Tool, no clique
+
+Sem Extra, sem tecla, sem `AcaoRemote`, sem botão de celular. O `AcaoRemote` saiu também da
+instância: RemoteEvent que nenhum script cita é asset depositado e mudo, e ainda é porta aberta
+de graça.
+
+### O que a origem faz e não atravessou
 
 | Da origem | Por que ficou de fora |
 |---|---|
-| `Health = 0` · `BreakJoints` · `Foe:Destroy()` | matar por decreto tira o abate do Núcleo — a origem fazia em 6 lugares |
-| `require(ReplicatedFirst.Ragdoll)` | dependência FORA da Tool: é a regra nº 1. O tombo virou `PlatformStand` com prazo |
-| `ScreenGui` branca do leadpipe e do gato | proibida dentro de Tool, e mexe na `PlayerGui` de terceiro |
+| `require(ReplicatedFirst.Ragdoll)` | dependência FORA da Tool: é a regra nº 1 |
+| `ScreenGui` branca do leadpipe · `Popup` da `tre` | proibida dentro de Tool, e mexe na `PlayerGui` de terceiro |
 | `v:destroy()` num raio de 250 studs (LOIC) | apagaria o cenário do servidor |
 | `game.Chat:Chat` · `Humanoid.Name = "Immunity"` | fora de escopo de Tool |
-| `Instance.new("Explosion")` do gato | proibido: quem detecta é o Núcleo |
-| os 21 `math.random` | com todo cliente desenhando, sorteio faz cada um ver outra cena |
+| `shakerbreaker` (LocalScript clonado no personagem alheio) | o tremor da cutscene faz isso de dentro da Tool |
+| `attack2` e `attack3` do gato | são o boss em laço infinito, não uma habilidade de clique |
 
 Status do modelo: **segue CRU, em quarentena.** Licença (§12.12.3) continua em aberto.

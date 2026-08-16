@@ -81,6 +81,49 @@ def mexe(junta, valor):
 # formato que eu mesmo tinha escrito antes.
 ABRE_SEQ = re.compile(r"(?m)^(?:\w+\.)?SEQUENCIAS\s*=\s*\{")
 
+# O outro formato do V2: `P.TRACKS`, consumido por `Animator:PlayTrack`.
+ABRE_TRACK = re.compile(r"(?m)^(?:\w+\.)?TRACKS\s*=\s*\{")
+
+# Numa track o keyframe é uma linha só: `{ t = 0.3, style = "...", RightArm = ... }`
+LINHA_TRACK = re.compile(r"(?m)^\s*\{\s*t\s*=\s*([0-9.]+)\s*,(.*)\},?\s*$")
+JUNTA_NA_TRACK = re.compile(r"(\w+)\s*=\s*CFrame\.")
+
+
+def verificar_track(texto, vizinhos):
+    """Confere uma tabela `TRACKS`: tempo absoluto e crescente, juntas que o
+    animator solda, e a perna liberada por alguém da Tool."""
+    erros = []
+    linhas = LINHA_TRACK.findall(texto)
+    if len(linhas) < 2:
+        return ["TRACKS com menos de 2 keyframes — PlayTrack recusa e a "
+                "animação não roda, em silêncio"]
+
+    anterior, usa_perna = None, False
+    for bruto, resto in linhas:
+        t = float(bruto)
+        # `PlayTrack` compara `elapsed >= track[i+1].t`: tempo que não cresce
+        # trava o índice e a track para no lugar.
+        if anterior is not None and t < anterior:
+            erros.append("TRACKS com tempo fora de ordem: %.4f depois de %.4f "
+                         "— PlayTrack usa tempo ABSOLUTO, não delta"
+                         % (t, anterior))
+            break
+        anterior = t
+        for junta in JUNTA_NA_TRACK.findall(resto):
+            if junta not in JUNTAS:
+                erros.append("track cita a junta %r, que o animator não solda"
+                             % junta)
+            elif junta in PERNAS:
+                usa_perna = True
+
+    if anterior == 0:
+        erros.append("TRACKS inteira em t = 0 — a animação salta para o último "
+                     "quadro e acaba")
+    if usa_perna and "ReleaseLegs" not in vizinhos:
+        erros.append("track solda perna e ninguém na Tool chama ReleaseLegs — "
+                     "perna soldada trava a caminhada")
+    return erros
+
 # Pose no topo do arquivo: `P.GUARDA = {` … `}` com o fecha na coluna zero.
 # O corpo é pego inteiro e só depois fatiado por campo — um `CFrame.new(` com
 # os doze componentes em linhas separadas é Lua perfeitamente normal, e o
@@ -119,7 +162,21 @@ def verificar(caminho):
 
     abertura = ABRE_SEQ.search(texto)
     if abertura is None:
-        return ["sem tabela SEQUENCIAS — formato do V2"]
+        # `P.TRACKS` é o OUTRO formato válido do V2, e o CLAUDE.md nomeia os
+        # dois: "`PlaySequence` / `PlayTrack`".
+        #
+        # A diferença é densidade. `SEQUENCIAS` encadeia um Tween por passo e
+        # emenda no `Completed` — ótimo para 5 passos com beat nítido, e ruim
+        # para 361, porque cada emenda custa um quadro e a animação vira câmera
+        # lenta. `TRACKS` roda no `Heartbeat` com tempo ABSOLUTO por keyframe,
+        # sem emenda nenhuma.
+        #
+        # Numa track o CFrame de cada junta mora dentro do próprio keyframe, ao
+        # lado do `t` — não há tabela de poses separada para conferir, e é por
+        # isso que a checagem termina aqui.
+        if ABRE_TRACK.search(texto):
+            return verificar_track(texto, vizinhos)
+        return ["sem tabela SEQUENCIAS nem TRACKS — formato do V2"]
 
     corte = abertura.start()
     bloco_poses = texto[:corte]

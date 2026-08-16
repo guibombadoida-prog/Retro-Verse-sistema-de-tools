@@ -5,16 +5,19 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   combo de duas batidas
---   R    Concussao   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   combo de duas batidas (samsung/LeadpipeServer)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `samsung`: Handle **MeshPart** id 430345282 — o celular
 --   sons MetalHit 6879335951 · Swoosh 9113749736 · Hit 743886825
---   LOGICA: o `LeadpipeServer` e um melee de R2DA — `attacknumber`
---      alterna DUAS batidas, alcance 3, dano math.random(20,25),
---      PlatformStand mais BodyVelocity, e **concussao**: o alvo passa a
---      andar para pontos tortos em volta de si mesmo por 15 s
+--   `attacknumber` alterna DUAS batidas · `range = 3`
+--   `humanoiddd.Health - math.random(20,25)` · `PlatformStand = true`
+--   `velocity.Velocity = owner.HumanoidRootPart.CFrame.lookVector * 10`
+--   `owieConcussed`: o alvo anda para pontos tortos por 15 s
+--   as duas animacoes sairam dos 4 lacos de Weld.C0 do proprio script
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -28,7 +31,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -44,12 +46,10 @@ local CFG = {
 	DANO_MIN       = 20,
 	DANO_MAX       = 25,
 	EMPURRAO       = 40,
+	TOMBO          = 0.7,
 	RECARGA        = 0.65,
 
-	RECARGA_EXTRA  = 12,
-	RAIO_CHAMADA   = 14,
-	DANO_CHAMADA   = 30,
-	DURACAO_CONC   = 9,
+	DURACAO_CONC   = 15,
 	LENTIDAO       = 0.45,
 	CAMBALEIO      = 15,
 	PASSO_CAMBALEIO = 0.6,
@@ -60,15 +60,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local golpeNumero = 0
 
 local function proximo()
@@ -325,79 +325,35 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- O COMBO DE DUAS — `attacknumber` da origem
+-- A CONCUSSÃO — `owieConcussed`, o efeito de assinatura do leadpipe
 --
--- O leadpipe alterna: a primeira batida vem de cima com o braço aberto, a
--- segunda vem de lado com o corpo torcido. Não é a mesma animação repetida, e
--- não é uma batida só — a versão anterior tinha uma.
+--     local therandom1 = math.random(-15,15)
+--     humanoiddd.WalkToPoint = Vector3.new(headdd.Position.x + therandom1, 0, ...)
 --
--- O dano da origem é `math.random(20,25)`. Aqui é `naFaixa(20, 25)`, que é
--- determinístico: o mesmo intervalo, sem sorteio.
---══════════════════════════════════════════════════════════════
-
-local function bater(dano, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			-- a origem empurra pelo `lookVector` de QUEM BATE, não radial
-			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
-				forca, 0.22)
-			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		tombar(alvo, 0.7)
-		achou = true
-	end
-	if achou then tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1) end
-	return achou
-end
-
---══════════════════════════════════════════════════════════════
--- PRIMÁRIA — a batida, alternando
---══════════════════════════════════════════════════════════════
-
-function primaria(_mira)
-	ocupado = true
-	golpeNumero = 1 - golpeNumero
-	local qual = "BATIDA"
-	if golpeNumero == 1 then qual = "BATIDA_B" end
-
-	rig:PlaySequence(qual, function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 1 + jitter(0.2) * 0.2)
-		elseif marca == "GOLPE" then
-			bater(naFaixa(CFG.DANO_MIN, CFG.DANO_MAX), CFG.EMPURRAO)
-		end
-	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — a concussão
---
--- O efeito de assinatura do leadpipe. Na origem, quem leva vira `owieConcussed`
--- e passa 15 s andando para pontos tortos em volta da própria cabeça — não é
--- lentidão, é perder o rumo.
+-- Quem leva passa 15 s andando para pontos tortos em volta da própria cabeça.
+-- Não é lentidão: é perder o rumo. Os `math.random(-15,15)` viram `jitter`
+-- determinístico com a mesma amplitude.
 --
 -- O que não veio: a `ScreenGui` branca que a origem punha na tela de quem é
 -- jogador. `ScreenGui` dentro de Tool é proibida, e mexer na `PlayerGui` de
--- outro jogador é justamente o tipo de referência fora da Tool que a regra nº 1
--- fecha. O cambaleio vale para todo mundo, jogador ou NPC — o que é MAIS do que
--- a origem fazia, que só cambaleava NPC.
+-- outro jogador é a referência fora da Tool que a regra nº 1 fecha. Em troca o
+-- cambaleio vale para todo mundo — a origem só cambaleava NPC.
+--
+-- Também não veio o `owner.Humanoid.Name = "Immunity"`, que dava invencibilidade
+-- ao portador enquanto ele batia: renomear o `Humanoid` para escapar de dano é
+-- exatamente o tipo de coisa que o Núcleo existe para não precisar.
 --══════════════════════════════════════════════════════════════
 
-local function atordoar(alvo, tempo)
+local function atordoar(alvo)
 	local corpo = alvo and alvo.Parent
 	local cabeca = corpo and (corpo:FindFirstChild("Head")
 		or corpo:FindFirstChild("HumanoidRootPart"))
 	if not cabeca then return end
 
-	afrouxar(alvo, CFG.LENTIDAO, tempo)
+	afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_CONC)
 
 	task.spawn(function()
-		local ate = os.clock() + tempo
+		local ate = os.clock() + CFG.DURACAO_CONC
 		local passo = 0
 		while os.clock() < ate do
 			if not (alvo.Parent and alvo.Health > 0 and cabeca.Parent) then
@@ -412,28 +368,59 @@ local function atordoar(alvo, tempo)
 	end)
 end
 
-function extra(_mira)
+--══════════════════════════════════════════════════════════════
+-- A BATIDA
+--
+-- `range = 3` na origem mede cabeça-até-handle. Aqui a consulta é espacial a
+-- partir de um ponto à frente, e 6 é o que dá o mesmo alcance de fato.
+--
+-- O empurrão é pelo `lookVector` de QUEM BATE, não radial — é o que a origem
+-- escreve, e é o que joga o alvo para longe de você em vez de para os lados.
+--══════════════════════════════════════════════════════════════
+
+local function bater()
+	local ponto = frente(CFG.ALCANCE)
+	local achou = false
+	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
+		aplicarDano(alvo, naFaixa(CFG.DANO_MIN, CFG.DANO_MAX))
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
+				CFG.EMPURRAO, 0.22)
+			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
+		end
+		tombar(alvo, CFG.TOMBO)
+		atordoar(alvo)
+		achou = true
+	end
+	if achou then
+		tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1)
+		tocarEm("IMPACTO", ponto, 1 + jitter(0.9) * 0.1)
+	end
+	return achou
+end
+
+--══════════════════════════════════════════════════════════════
+-- A HABILIDADE — no clique, alternando as duas batidas
+--
+-- `attacknumber` da origem: a A vem de lado com o corpo torcido, a B vem de
+-- cima com o braço aberto. São duas animações diferentes, e as duas saíram do
+-- próprio `LeadpipeServer`.
+--══════════════════════════════════════════════════════════════
+
+function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("CHAMADA", function(passo)
+	golpeNumero = 1 - golpeNumero
+	local qual = "BATIDA_A"
+	if golpeNumero == 1 then qual = "BATIDA_B" end
+
+	rig:PlaySequence(qual, function(passo)
 		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 0.8)
-		elseif marca == "SEGURA" then
-			tocar("IMPACTO", 1.4)
+		if marca == "SOPRO" then
+			-- `swooshsound2:Play()` e `swooshsound:Play()`, entre os dois laços
+			tocar("GIRO", 1 + jitter(0.2) * 0.2)
 		elseif marca == "GOLPE" then
-			local centro = frente(CFG.ALCANCE)
-			vfx("RELOGIO", { posicao = centro, escala = 1.4 })
-			tocarEm("IMPACTO", centro, 0.9)
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_CHAMADA, 10)) do
-				aplicarDano(alvo, CFG.DANO_CHAMADA)
-				tombar(alvo, 1.1)
-				atordoar(alvo, CFG.DURACAO_CONC)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					vfx("PARAR", { posicao = alvoRaiz.Position, escala = 1,
-						duracao = CFG.DURACAO_CONC })
-				end
-			end
+			bater()
 		end
 	end, function() ocupado = false end)
 end
@@ -460,15 +447,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -476,7 +454,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealitySamsungus", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealitySamsungus", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio

@@ -32,16 +32,19 @@ A CONVERSÃO: `Pose.CFrame` NÃO É O `C0` QUE O ANIMATOR QUER
 
     Sem multiplicar pela base, o braço nasceria no meio do peito.
 
-A AMOSTRAGEM: 361 QUADROS NÃO CABEM NUMA SEQUÊNCIA
+NADA DE AMOSTRAGEM. ENTRA TUDO.
 
-    `Poses.lua` é tabela de KEYFRAME encadeada por Tween — 361 passos seriam
-    361 tweens e um arquivo de centenas de KB por Tool. A dança é amostrada em
-    N quadros igualmente espaçados no TEMPO, não no índice: o Animation Editor
-    grava quadro denso onde o movimento é rápido, e amostrar por índice
-    espremeria a parte lenta.
+    A primeira versão deste extrator cortava o `a-train` de 40 para 10 quadros
+    e o `kick dance` de 361 para 14, com a desculpa de "guardar a silhueta".
+    Não guarda: joga a animação fora e desenha outra por cima.
 
-    O que se perde é o detalhe fino do gesto. O que se guarda é a silhueta, o
-    ritmo e a duração — que é o que faz a dança ser aquela dança.
+    E não havia nem o que descartar — medido: os 361 são todos DISTINTOS entre
+    si, e o passo é uniforme em 1/30 s. Não existe quadro repetido. Amostrar
+    era perda pura.
+
+    Quem consome é `P.TRACKS` mais `Animator:PlayTrack`, que roda no
+    `Heartbeat` com acumulador `dt` e tempo ABSOLUTO — sem a deriva de emenda
+    que `PlaySequence` teria com 361 tweens encadeados.
 """
 
 import json
@@ -55,10 +58,10 @@ ORIGEM = os.path.join(RAIZ, "MODELOS_ENTRADA", "Reality_Tools",
                       "reality_tools.rbxmx")
 DESTINO = os.path.join(RAIZ, "FERRAMENTAS", "dados", "keyframes_reality.json")
 
-#: Tool de origem -> (nome da KeyframeSequence, quantos quadros amostrar)
+#: Tool de origem -> nome da KeyframeSequence. SEM corte: entra tudo.
 FONTES = {
-    "kick dance": ("california gurls", 14),
-    "a-train": ("a-train", 10),
+    "kick dance": "california gurls",
+    "a-train": "a-train",
 }
 
 #: o repouso R6 que o R6CFrameAnimator usa como base do Weld
@@ -166,32 +169,6 @@ def poses_do_keyframe(kf):
     return saida
 
 
-def amostrar(quadros, quantos):
-    """N quadros igualmente espaçados no TEMPO, não no índice.
-
-    O Animation Editor grava quadro denso onde o movimento é rápido. Amostrar
-    por índice pegaria quase tudo da parte agitada e quase nada da parada.
-    """
-    if len(quadros) <= quantos:
-        return quadros
-    t0, t1 = quadros[0][0], quadros[-1][0]
-    if t1 <= t0:
-        return quadros[:quantos]
-    escolhidos, usados = [], set()
-    for i in range(quantos):
-        alvo = t0 + (t1 - t0) * i / float(quantos - 1)
-        melhor, dist = None, None
-        for indice, (t, _p) in enumerate(quadros):
-            if indice in usados:
-                continue
-            d = abs(t - alvo)
-            if dist is None or d < dist:
-                melhor, dist = indice, d
-        if melhor is not None:
-            usados.add(melhor)
-            escolhidos.append(quadros[melhor])
-    escolhidos.sort(key=lambda par: par[0])
-    return escolhidos
 
 
 def lua_cframe(c):
@@ -212,7 +189,7 @@ def main():
         tool = nome(item)
         if tool not in FONTES:
             continue
-        alvo, quantos = FONTES[tool]
+        alvo = FONTES[tool]
 
         seq = None
         for x in item.iter("Item"):
@@ -233,9 +210,8 @@ def main():
                 quadros.append((t, p))
         quadros.sort(key=lambda par: par[0])
 
-        escolhidos = amostrar(quadros, quantos)
         duracao = quadros[-1][0] - quadros[0][0] if quadros else 0.0
-        t0 = escolhidos[0][0] if escolhidos else 0.0
+        t0 = quadros[0][0] if quadros else 0.0
 
         saida[tool] = {
             "sequencia": alvo,
@@ -244,11 +220,11 @@ def main():
             "quadros": [
                 {"t": round(t - t0, 4),
                  "juntas": {j: lua_cframe(c) for j, c in p.items()}}
-                for t, p in escolhidos
+                for t, p in quadros
             ],
         }
-        print("%-16s %-18s %4d keyframes · %.2fs -> amostrado em %d"
-              % (tool, alvo, len(quadros), duracao, len(escolhidos)))
+        print("%-16s %-18s %4d keyframes · %.2fs -> %d gravados (INTEIRA)"
+              % (tool, alvo, len(quadros), duracao, len(quadros)))
 
     if not saida:
         print("nenhuma KeyframeSequence encontrada")

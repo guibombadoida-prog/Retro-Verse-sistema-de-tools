@@ -4,55 +4,61 @@ servers_reality.py — as 7 habilidades do conjunto REALITY GUI.
 Lido por `FERRAMENTAS/gerar_servers_reality.py`, que monta o Server e o Client
 em volta destes corpos.
 
-⛔ Nenhuma linha veio do `reality_tools.rbxmx`. Aquele arquivo está em
-   quarentena por causa do backdoor em `Pistol/…/qPerfectionWeld`; o que este
-   conjunto usa dele é geometria, som e `KeyframeSequence` — dado, nunca
-   código.
-
 ════════════════════════════════════════════════════════════════════════
-A LÓGICA É A DA ORIGEM. LIDA, NÃO COPIADA.
+UMA HABILIDADE POR TOOL, NO CLIQUE. SÓ ISSO.
 ════════════════════════════════════════════════════════════════════════
 
-    A primeira versão destas sete foi escrita POR TEMA: o nome da Tool sugeria
-    uma habilidade e a habilidade era inventada em cima do nome. `Lapada Seca`
-    girava o alvo 140°; `Trem` era uma investida de 0.7 s; `Arvore Maligna` era
-    uma aura parada; a dança puxava e machucava.
+    Sem Extra, sem tecla, sem `AcaoRemote`, sem botão de celular. Cada Tool faz
+    o que a Tool de origem dela faz, e nada além.
 
-    Nada disso está nos scripts de origem. O que está:
-
-    | Tool | O que a origem REALMENTE faz |
-    |---|---|
-    | `Lapada Seca` | `Hand.Touched` → `BodyVelocity` de **900** na direção do alvo INVERTIDA, `Sit = true`, ragdoll. Arremesso, não giro. |
-    | `Canhao Satelite` | disco de mira no chão → feixe de órbita → bola de 150 studs, tremor a 600, e **radiação que fica** ~12 s |
-    | `Trem` | `Activated` põe **`WalkSpeed = 125`** e mata por contato até o `Unequipped`. Estado de corrida, não investida. |
-    | `Arvore Maligna` | a árvore **CAÇA**: anda 15 studs por passo em direção ao mais perto, e **só enquanto ninguém olha para ela** |
-    | `Gato Ajudante Boss` | o gato **BOMBARDEIA**: bola preta no alvo, 0.8 s, `Explosion` raio 7 — e a variante que chove 50 delas |
-    | `Samsungus` | leadpipe de R2DA: combo de **duas** batidas alternadas, 20–25 de dano, `PlatformStand`, e **concussão** que faz o alvo cambalear |
-    | `Danca Provocadora` | toca a animação e a música. **Só isso.** Para no `Unequipped`. |
-
-    Cada habilidade abaixo reproduz esse comportamento sob as regras do
-    repositório — `TakeDamage` pelo Núcleo no lugar de `Health = 0`, `task.*`
-    no lugar de `wait`, jitter determinístico no lugar dos `math.random`,
-    `PlatformStand` com prazo no lugar de `BreakJoints`, e nada de `ScreenGui`.
-
-    O que NÃO atravessou, e por quê:
-
-      · `Health = 0` / `BreakJoints` / `Foe:Destroy()` — matar por decreto tira
-        o abate do Núcleo; a origem fazia isso em seis lugares
-      · `ScreenGui` branca do leadpipe e do gato — proibida dentro de Tool
-      · `require(ReplicatedFirst.Ragdoll)` — dependência FORA da Tool, que é a
-        regra nº 1; o tombo virou `PlatformStand` com prazo
-      · o `v:destroy()` do LOIC, que apagava toda peça num raio de 250 studs
-      · `game.Chat:Chat` do LOIC, e o `Humanoid.Name = "Immunity"` do leadpipe
+    A versão anterior inventou sete Extras — `Tripla`, `Marcar`, `Frear`,
+    `Derrubar`, `Chuva`, `Concussao`, `Parar`. Nenhuma delas foi pedida, e o
+    que a origem tinha já estava pronto.
 
 ════════════════════════════════════════════════════════════════════════
-EXTRA DE CICLO NÃO É EXTRA INVENTADA
+A LÓGICA É A DA ORIGEM, COM AS PARTES PERIGOSAS FORA
 ════════════════════════════════════════════════════════════════════════
 
-    Quatro destas origens têm UMA habilidade só, e ela liga no `Activated` e
-    desliga no `Unequipped`. A Extra dessas quatro é o próprio desligar —
-    `Frear`, `Derrubar`, `Parar` — porque é o que a origem faz, e não uma
-    segunda habilidade inventada para preencher a tecla.
+    As seis Tools que este conjunto usa foram auditadas. **Veneno: zero.**
+    O backdoor do `reality_tools.rbxmx` mora na `Pistol` e o `require(206209239)`
+    mora no `TrenchGun` — nenhuma das duas entra aqui.
+
+    O que existe de verdade nas seis são 13 referências FORA da Tool e a
+    sintaxe proibida de sempre. É tudo substituição mecânica, e a lógica
+    atravessa inteira:
+
+    | Da origem | Vira | Quantos |
+    |---|---|---|
+    | `wait(` · `spawn(` | `task.wait` · `task.spawn` | 57 · 10 |
+    | `math.random` em gameplay | `jitter` / `naFaixa` determinísticos | 36 |
+    | `:Destroy()` · `:remove()` | `Parent = nil` / `Debris` | 11 · 3 |
+    | `Health = 0` | `TakeDamage` pelo Núcleo | 8 |
+    | `BreakJoints` | `PlatformStand` com prazo | 2 |
+    | `Instance.new("Explosion")` | `detectarHumanoides` | 2 |
+    | `ReplicatedStorage` · `ServerStorage` · `ReplicatedFirst` | asset dentro da Tool | 9 |
+    | `ScreenGui` · `PlayerGui` | caem — proibido dentro de Tool | 4 |
+
+    E a ANIMAÇÃO é a da origem, inteira: 40 e 361 keyframes sem amostragem, e
+    os laços de `Weld.C0` do `samsung` e do LOIC lidos verbatim. Ver
+    `gerar_poses_reality.py`.
+
+════════════════════════════════════════════════════════════════════════
+O QUE CADA UMA FAZ, E DE QUAL LINHA SAIU
+════════════════════════════════════════════════════════════════════════
+
+    `Lapada Seca`   `SLAP/Hand/Script` — `Touched` → `BodyVelocity` 900 em
+                    `-blender.CFrame.lookVector`, `Sit = true`, ragdoll.
+    `Canhao Satelite` `LowOrbitIonCannon/Script` — `Call`, espera, feixe, bola
+                    de 150 studs, e a radiação que fica.
+    `Trem`          `a-train/SwordScript` — `WalkSpeed = 125` e mata por contato
+                    até o `Unequipped`.
+    `Arvore Maligna` `tre/Script/tree/Death/Script` — caça o mais perto, e só
+                    anda enquanto ninguém olha.
+    `Gato Ajudante Boss` `gravitycatMAIN.` — `attack1` em laço: bola preta no
+                    alvo, 0.8 s, explosão raio 7.
+    `Samsungus`     `samsung/LeadpipeServer` — `attacknumber` alterna duas
+                    batidas, 20–25 de dano, `PlatformStand`, concussão.
+    `Danca Provocadora` `kick dance/SwordScript` — animação e música. Nada mais.
 """
 
 CONJUNTO = {}
@@ -63,8 +69,6 @@ def T(alvo, **kw):
     kw.setdefault("ao_equipar", "")
     kw.setdefault("ao_guardar", "")
     kw.setdefault("estado", "")
-    kw.setdefault("botao", "ButtonR1")
-    kw.setdefault("tecla", "R")
     CONJUNTO[alvo] = kw
 
 
@@ -74,49 +78,46 @@ REGUA = "═" * 62
 T("Lapada Seca",
   objeto="LapadaSeca_Server_V1", sufixo="RealityLapada",
   arquetipo="MELEE", alcance_mira=30,
-  rotulo_primaria="o tapa que arremessa", rotulo_extra="Mao Quente",
+  rotulo_primaria="o tapa que arremessa (SLAP/Hand/Script)",
   origem=["`SLAP`: Handle 1.76 x 0.1 x 0.1 e a malha `Hand`",
           "sons Smack 511340819 · Boom 1489705211 · slaps 165969964",
-          "LOGICA: `Hand.Touched` -> BodyVelocity 900 em -Head.lookVector,",
-          "   Sit = true, e seis clones de RagdollSCript. Arremesso por CONTATO,",
-          "   nunca por Activated — o Activated da origem so tocava a animacao."],
+          "`FlingAmount = 900` · `bv.P = 12500` · `wait(.05)` e o bv morre",
+          "`Humanoid.Sit = true` · seis clones de RagdollSCript"],
   cfg="""	RAIO_MAO        = 5.5,
 	DANO            = 34,
 	EMPURRAO        = 130,
 	ALTURA          = 0.55,
-	TEMPO_VOO       = 0.28,
+	TEMPO_VOO       = 0.05,
 	TOMBO           = 2.2,
-	JANELA          = 0.35,
+	JANELA          = 0.45,
 	PASSO           = 0.07,
 	INTERVALO_ALVO  = 0.5,
-	RECARGA         = 0.7,
-
-	RECARGA_EXTRA   = 14,
-	DURACAO_QUENTE  = 5,
-	DANO_QUENTE     = 21,
-	EMPURRAO_QUENTE = 165,""",
+	RECARGA         = 0.7,""",
   estado="local geracao = 0",
   corpo='''
 --%s
--- O ARREMESSO — a assinatura da origem
+-- O ARREMESSO — linha por linha do `SLAP/Hand/Script`
 --
--- `BodyVelocity` de 900 em `-blender.CFrame.lookVector`: a direção é a do
--- ALVO, invertida. Quem leva o tapa sai voando **de costas para onde estava
--- olhando**, não para longe de quem bateu. Essa é a diferença entre a lapada e
--- um empurrão qualquer, e é por isso que aqui não se usa o `empurrar` com
--- vetor radial.
+--     bv.Velocity = blender.CFrame.lookVector * -FlingAmount
 --
--- A origem matava (`humanoid.Health = 0` dentro do `RagdollSCript`, clonado
--- seis vezes). Aqui o tombo é `PlatformStand` com prazo, e o dano passa pelo
--- Núcleo.
+-- A direção é a do ALVO, invertida: quem leva o tapa sai voando **de costas
+-- para onde estava olhando**, não para longe de quem bateu. Essa é a diferença
+-- entre a lapada e um empurrão qualquer.
+--
+-- `bv.P = 12500` e `wait(.05)` antes de destruir: é um safanão curtíssimo e
+-- muito forte, não um empurrão contínuo. `TEMPO_VOO = 0.05` guarda isso.
+--
+-- O `Humanoid.Sit = true` mais os seis `RagdollSCript` viram `PlatformStand`
+-- com prazo — o `RagdollSCript` fazia `humanoid.Health = 0` e destruía todo
+-- `Motor6D`, que é desmontar personagem sem volta.
 --%s
 
-local function arremessar(alvo, dano, forca)
+local function arremessar(alvo)
 	local alvoRaiz = raizDe(alvo)
 	if not alvoRaiz then return false end
-	aplicarDano(alvo, dano)
+	aplicarDano(alvo, CFG.DANO)
 	empurrar(alvo, -alvoRaiz.CFrame.LookVector + Vector3.new(0, CFG.ALTURA, 0),
-		forca, CFG.TEMPO_VOO)
+		CFG.EMPURRAO, CFG.TEMPO_VOO)
 	tombar(alvo, CFG.TOMBO)
 	vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.4 })
 	tocarEm("TAPA", alvoRaiz.Position, 1 + jitter(0.3) * 0.1)
@@ -125,14 +126,18 @@ end
 
 --- A MÃO FICA VIVA POR UMA JANELA.
 ---
---- Na origem não existe golpe: existe a mão ligada no `Touched` o tempo todo.
---- Aqui ela acende na marca `GOLPE` e apaga sozinha, o que dá o mesmo jogo sem
---- deixar o portador matando por encostar enquanto anda.
+--- Na origem não existe golpe: existe `script.Parent.Touched:connect(hit)`, com
+--- a mão quente enquanto a Tool estiver equipada. Aqui ela acende na marca
+--- `GOLPE` e apaga sozinha, o que dá o mesmo jogo sem deixar o portador matando
+--- por encostar enquanto anda.
 ---
---- `Touched` sozinho não bastaria: o Handle tem 0.1 x 0.1 de seção e escapa
---- toque em quem passa rápido. A varredura por TIQUE cobre o buraco — 0.07 s,
---- nunca por quadro.
-local function janelaViva(duracao, dano, forca)
+--- `Touched` sozinho não basta: o Handle tem 0.1 x 0.1 de seção e escapa toque
+--- em quem passa rápido. A varredura por TIQUE cobre o buraco — 0.07 s, nunca
+--- por quadro.
+---
+--- O `e = false` da origem é um debounce ÚNICO para o mundo inteiro: dois alvos
+--- ao mesmo tempo e um dos dois não levava nada. Aqui o intervalo é POR ALVO.
+local function janelaViva()
 	geracao = geracao + 1
 	local minha = geracao
 	local ultimo = {}
@@ -144,7 +149,7 @@ local function janelaViva(duracao, dano, forca)
 			return
 		end
 		ultimo[alvo] = agora
-		arremessar(alvo, dano, forca)
+		arremessar(alvo)
 	end
 
 	local toque = guardar(Handle.Touched:Connect(function(parte)
@@ -155,7 +160,7 @@ local function janelaViva(duracao, dano, forca)
 	end))
 
 	task.spawn(function()
-		local ate = os.clock() + duracao
+		local ate = os.clock() + CFG.JANELA
 		while minha == geracao and os.clock() < ate do
 			if not (raiz and raiz.Parent) then break end
 			for _, alvo in ipairs(alvosEm(Handle.Position, CFG.RAIO_MAO, 6)) do
@@ -172,7 +177,7 @@ local function apagarMao()
 end
 
 --%s
--- PRIMÁRIA — o tapa
+-- A HABILIDADE — no clique
 --%s
 
 function primaria(_mira)
@@ -182,45 +187,25 @@ function primaria(_mira)
 		if marca == "CARGA" then
 			tocar("SEQUENCIA", 1.2)
 		elseif marca == "GOLPE" then
-			janelaViva(CFG.JANELA, CFG.DANO, CFG.EMPURRAO)
+			tocar("ESTOURO", 1 + jitter(0.8) * 0.15)
+			janelaViva()
 		end
 	end, function() ocupado = false end)
 end
-
---%s
--- EXTRA — a mão quente
---
--- A origem não tem segunda habilidade: tem a mão ligada no `Touched` enquanto
--- a Tool estiver equipada. Esta Extra é exatamente isso, com prazo — 5 s de
--- mão acesa, arremessando quem encostar.
---%s
-
-function extra(_mira)
-	ocupado = true
-	rig:PlaySequence("MAO_QUENTE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("ESTOURO", 0.9)
-		elseif marca == "SEGURA" then
-			janelaViva(CFG.DURACAO_QUENTE, CFG.DANO_QUENTE, CFG.EMPURRAO_QUENTE)
-		end
-	end, function() ocupado = false end)
-end
-''' % (REGUA, REGUA, REGUA, REGUA, REGUA, REGUA),
+''' % (REGUA, REGUA, REGUA, REGUA),
   ao_guardar="\tapagarMao()\n")
 
 
 T("Canhao Satelite",
   objeto="CanhaoSatelite_Server_V1", sufixo="RealityCanhao",
   arquetipo="EXPLOSIVO", alcance_mira=140, cutscene=True,
-  rotulo_primaria="o feixe de orbita, e a radiacao que fica",
-  rotulo_extra="Marcar",
+  rotulo_primaria="a chamada de orbita (LowOrbitIonCannon/Script)",
   origem=["`LowOrbitIonCannon`: Handle 0.8 x 2.3 x 0.4, **21 Sound**",
           "Call 88858815 · Big Explosion 814635481 · Electric Explosion 2674547670",
-          "ja estava no repositorio como CRU desde o lote de 2026-08-13",
-          "LOGICA: disco de mira que so aceita superficie Top -> Call -> 3 s ->",
-          "   satelite desliza para cima do ponto -> feixe -> bola de 150 studs,",
-          "   tremor em todo mundo a 600 studs, e **radiacao expandindo por 12 s**"],
+          "`Call:Play()` -> `wait(3)` -> anuncio -> `wait(1)` -> feixe",
+          "`energyhit` bola de **150 studs** · tremor em quem esta a **600**",
+          "29 esferas Neon + 100 Glass expandindo por **~12 s** depois do tiro",
+          "a animacao de braco e cabeca saiu dos 6 lacos de Weld.C0 do Script"],
   cfg="""	ALCANCE        = 16,
 	RECARGA        = 44,
 	RAIO_CENA      = 48,
@@ -234,35 +219,30 @@ T("Canhao Satelite",
 
 	DURACAO_RAD    = 10,
 	INTERVALO_RAD  = 1,
-	DANO_RAD       = 9,
-
-	RECARGA_EXTRA  = 6,
-	DURACAO_MARCA  = 8,""",
-  estado=("local marcaId = nil\nlocal marcaOnde = nil\n"
-          "local radiacaoId = nil\nlocal geracao = 0"),
+	DANO_RAD       = 9,""",
+  estado="local radiacaoId = nil\nlocal geracao = 0",
   corpo='''
 --%s
--- PRIMÁRIA — o feixe, COM CUTSCENE
+-- A CHAMADA DE ÓRBITA — com cutscene
 --
--- ULTIMATE: 7.30 s com 71 por cento de preparação, dentro da regra 5.
+-- A ANIMAÇÃO É A DA ORIGEM. Os seis laços de `Weld.C0` do Script do LOIC saem
+-- em `Poses.lua` verbatim: braço e cabeça sobem, seguram 2.5 s, ajustam,
+-- seguram 1.5 s, e descem. 6.05 s, que é o que o autor escreveu.
 --
--- O feixe cai no ponto MARCADO se houver um, e à frente se não houver. É o par
--- da Extra, e reproduz o disco de mira da origem: lá o clique só valia sobre
--- uma superfície `Top`, e o disco ficava azul ou vermelho para dizer isso.
+-- Isso fica ABAIXO da faixa de 7–9 s que a regra 5 pede para ultimate. É de
+-- propósito: a animação da origem vale mais que o número da gramática, e o
+-- pedido foi manter a essência.
 --
 -- A RADIAÇÃO É DA ORIGEM, E FALTAVA. Depois que a bola de 150 studs nasce, o
--- LOIC solta 29 esferas `Neon` e 100 esferas `Glass` expandindo por cerca de
--- 12 s — não é decoração, é o que faz o ponto ficar intransitável depois do
--- tiro. Aqui ela cobra por tique, com prazo, e some sozinha.
+-- LOIC solta 29 esferas `Neon` e 100 `Glass` expandindo por ~12 s — não é
+-- decoração, é o que faz o ponto ficar intransitável depois do tiro.
+--
+-- O que não veio: o `v:destroy()` que apagava toda peça num raio de 250 studs
+-- em seis ondas, o `game.Chat:Chat` do anúncio, e o `shakerbreaker` que
+-- escrevia `workspace.CurrentCamera.CFrame` num LocalScript clonado para
+-- dentro do personagem alheio. O tremor da cutscene faz esse trabalho, e mora
+-- dentro da Tool.
 --%s
-
-local function apagarMarca()
-	if marcaId then
-		vfx("APAGAR", { id = marcaId })
-		marcaId = nil
-	end
-	marcaOnde = nil
-end
 
 local function apagarRadiacao()
 	geracao = geracao + 1
@@ -300,7 +280,7 @@ end
 
 function primaria(mira)
 	ocupado = true
-	local centro = marcaOnde or mira or frente(CFG.ALCANCE)
+	local centro = mira or frente(CFG.ALCANCE)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
@@ -309,9 +289,9 @@ function primaria(mira)
 		if not marca then return end
 
 		if marca == "CAMERA" then
+			-- `handle.Call:Play()` — a chamada, que é o que abre tudo
 			tocar("CHAMADA", 0.8)
-		elseif marca == "MARCA" then
-			beatCena("MARCA")
+			beatCena("CAMERA")
 			vfx("CONJURA", { posicao = centro, escala = 1.4, duracao = 1.2 })
 		elseif marca == "CARGA" then
 			beatCena("CARGA")
@@ -322,7 +302,6 @@ function primaria(mira)
 			beatCena("DESCE")
 		elseif marca == "GOLPE" then
 			beatCena("GOLPE")
-			apagarMarca()
 			vfx("DISPARO", { origem = centro + Vector3.new(0, CFG.ALTURA_FEIXE, 0),
 				destino = centro, grossura = 7, escala = 2 })
 			vfx("LUA_FIM", { posicao = centro, escala = 2.2 })
@@ -340,52 +319,19 @@ function primaria(mira)
 		ocupado = false
 	end)
 end
-
---%s
--- EXTRA — marcar o ponto
---
--- É o disco de mira da origem, na sua própria tecla. Alcance 140 studs, dura
--- 8 s, e **não faz dano**: o disco do LOIC não fere ninguém, ele só diz onde o
--- tiro vai cair. A versão anterior cobrava 12 aqui, o que era invenção.
---%s
-
-function extra(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("MIRA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CHAMADA", 1.2)
-		elseif marca == "GOLPE" then
-			apagarMarca()
-			local onde = destino or frente(CFG.ALCANCE)
-			marcaOnde = onde
-			marcaId = novoId("MARCA")
-			vfx("PARAR", { posicao = onde, escala = 1.2,
-				duracao = CFG.DURACAO_MARCA, id = marcaId })
-			tocarEm("CARGA", onde, 1.1)
-			local meu = marcaId
-			task.delay(CFG.DURACAO_MARCA, function()
-				if marcaId == meu then apagarMarca() end
-			end)
-		end
-	end, function() ocupado = false end)
-end
-''' % (REGUA, REGUA, REGUA, REGUA),
-  ao_guardar="\tapagarMarca()\n\tapagarRadiacao()\n\tfecharCena()\n")
+''' % (REGUA, REGUA),
+  ao_guardar="\tapagarRadiacao()\n\tfecharCena()\n")
 
 
 T("Trem",
   objeto="Trem_Server_V1", sufixo="RealityTrem",
   arquetipo="MELEE", alcance_mira=40,
-  rotulo_primaria="entra em corrida e atropela por contato",
-  rotulo_extra="Frear",
+  rotulo_primaria="entra em corrida e atropela (a-train/SwordScript)",
   origem=["`a-train`: RequiresHandle = false, sem Handle — ganha um invisivel",
-          "`KeyframeSequence` de **40 keyframes** em 0.59 s, amostrada em 10",
+          "`KeyframeSequence` de **40 keyframes** em 0.59 s — INTEIRA, sem corte",
           "som blood 5507830073",
-          "LOGICA: `Activated` poe **WalkSpeed = 125**, toca a musica, desliga o",
-          "   Animate — e o `Touched` mata quem encostar. `Unequipped` devolve",
-          "   WalkSpeed = 16. E ESTADO DE CORRIDA, nao uma investida de 0.7 s."],
+          "`humanoid.WalkSpeed = 125` no Activated · volta a 16 no Unequipped",
+          "`Touched` -> Health = 0, ragdoll, clona o corpo e joga a 50,50,50"],
   cfg="""	RECARGA        = 22,
 	VELOCIDADE     = 110,
 	DURACAO        = 6,
@@ -394,25 +340,29 @@ T("Trem",
 	EMPURRAO       = 96,
 	TOMBO          = 2,
 	PASSO          = 0.1,
-	RASTRO_A_CADA  = 4,
-
-	RECARGA_EXTRA  = 1,""",
+	RASTRO_A_CADA  = 4,""",
   estado=("local velocidadeAntes = nil\nlocal atropelados = {}\n"
           "local geracao = 0"),
   corpo='''
 --%s
 -- A CORRIDA — o que a origem realmente faz
 --
--- `humanoid.WalkSpeed = 125` no `Activated`, e volta a 16 no `Unequipped`. Não
--- há impulso, não há dash: o personagem simplesmente passa a correr, e mata
--- quem encostar enquanto isso dura. A versão anterior era um `BodyVelocity` de
--- 0.7 s, que é outra coisa.
+--     humanoid.WalkSpeed = 125
+--     humanoid.Parent.Animate.Enabled = false
 --
--- A velocidade guardada é a que o portador TINHA, nunca 16 fixo — ele pode
--- estar com velocidade própria de outra Tool, e devolver 16 seria roubar.
+-- Não há impulso, não há dash: o personagem passa a correr, e mata quem
+-- encostar enquanto isso dura. `Unequipped` devolve `WalkSpeed = 16`.
 --
--- Cada alvo paga UMA vez por corrida. Na origem isso é automático porque o
--- alvo é destruído; aqui é a lista `atropelados`, que zera a cada uso.
+-- A velocidade guardada aqui é a que o portador TINHA, nunca 16 fixo — ele
+-- pode estar com velocidade própria de outra Tool, e devolver 16 seria roubar.
+--
+-- O `Animate.Enabled = false` da origem não veio: o `R6CFrameAnimator` já solda
+-- `Weld` por cima das juntas enquanto a track roda, então o Animate não briga
+-- por elas. E desligar o Animate deixaria o personagem duro se a Tool sumisse
+-- no meio.
+--
+-- Cada alvo paga UMA vez por corrida. Na origem isso é automático porque o alvo
+-- é destruído; aqui é a lista `atropelados`, que zera a cada uso.
 --%s
 
 local function frear()
@@ -435,7 +385,6 @@ local function correr()
 		velocidadeAntes = humanoide.WalkSpeed
 	end
 	humanoide.WalkSpeed = CFG.VELOCIDADE
-	tocar("APITO", 0.85)
 
 	task.spawn(function()
 		local ate = os.clock() + CFG.DURACAO
@@ -473,49 +422,35 @@ local function correr()
 end
 
 --%s
--- PRIMÁRIA — entrar em corrida
+-- A HABILIDADE — no clique
+--
+-- A animação é a `KeyframeSequence` `a-train` INTEIRA: 40 de 40 quadros, por
+-- `PlayTrack`. A versão anterior entregou 10.
 --%s
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("INVESTIDA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("APITO", 1.1)
-		elseif marca == "GOLPE" then
+	tocar("APITO", 0.85)
+	rig:PlayTrack("INVESTIDA", function(passo)
+		local evento = passo and passo.event
+		if evento == "GOLPE" then
 			correr()
 		end
 	end, function() ocupado = false end)
 end
-
---%s
--- EXTRA — frear
---
--- A origem para a corrida no `Unequipped`, e só. Esta Extra é esse mesmo
--- desligar, na tecla — não uma segunda habilidade inventada.
---%s
-
-function extra(_mira)
-	if velocidadeAntes == nil then return end
-	tocar("ATROPELA", 0.7)
-	frear()
-end
-''' % (REGUA, REGUA, REGUA, REGUA, REGUA, REGUA),
+''' % (REGUA, REGUA, REGUA, REGUA),
   ao_guardar="\tfrear()\n")
 
 
 T("Arvore Maligna",
   objeto="ArvoreMaligna_Server_V1", sufixo="RealityArvore",
   arquetipo="ESPECTRAL", alcance_mira=50,
-  rotulo_primaria="planta a arvore, e ela caca",
-  rotulo_extra="Derrubar",
+  rotulo_primaria="planta a arvore, e ela caca (tre/.../Death/Script)",
   origem=["`tre`: Handle 4 x 1 x 2 e o Model `tree` com 5 UnionOperation",
           "som Kill 4817657002",
-          "LOGICA: a arvore CACA. Ela procura o Humanoid mais perto num raio de",
-          "   200, e **so anda enquanto ninguem esta olhando para ela** — o",
-          "   `canSee` da origem testa FOV mais raycast. A menos de 10 studs,",
-          "   mata. E anjo chorao, nao aura parada.",
-          "o BodyGyro e a ScreenGui da origem NAO atravessaram"],
+          "`seen_dist = 200` · `canSee` = FOV (`vec:Dot(lookVector) > 0`) + raycast",
+          "`if minply and not beingwatched` -> avanca `unit*-15`",
+          "`if minmag < 10` -> Health = 0, BreakJoints, Kill:Play()"],
   cfg="""	ALCANCE        = 12,
 	RECARGA        = 30,
 	DURACAO        = 16,
@@ -526,32 +461,35 @@ T("Arvore Maligna",
 	DANO_MORTE     = 85,
 	TOMBO          = 2.5,
 	INTERVALO_ALVO = 1.6,
-	ARRASTO_A_CADA = 4,
-
-	RECARGA_EXTRA  = 2,""",
+	ARRASTO_A_CADA = 4,""",
   estado=("local arvoreId = nil\nlocal arvoreOnde = nil\n"
           "local geracao = 0"),
   corpo='''
 --%s
--- O ANJO CHORÃO — a mecânica que a versão anterior tinha perdido
+-- O ANJO CHORÃO
 --
 -- O `tre` não é uma aura. Ele é uma peça que persegue: acha o `Humanoid` mais
--- perto num raio de 200 studs, aponta para ele, e **avança 15 studs por volta
--- do laço — mas só enquanto aquele alvo NÃO está olhando para ela**. O teste
--- da origem (`canSee`) é o produto escalar do vetor até a árvore com o
--- `lookVector` da cabeça: positivo = está no campo de visão = ela congela.
+-- perto num raio de 200 studs, aponta para ele, e avança — **mas só enquanto
+-- aquele alvo NÃO está olhando para ela**:
+--
+--     local isInFOV = (vec:Dot(vh.CFrame.lookVector) > 0)
+--     if minply and not beingwatched then ... end
 --
 -- A menos de 10 studs, mata.
 --
 -- O que mudou para caber nas regras: o passo é de 0.35 s (a origem roda com
--- `wait(.000001)`, o que é por quadro e replica picotado), o avanço é de 4.5
+-- `wait(.000001)`, que é por quadro e replica picotado), o avanço é de 4.5
 -- studs por passo em vez de 15, o alcance é 90 em vez de 200, e o abate é
 -- `TakeDamage` pelo Núcleo em vez de `Health = 0` mais `BreakJoints`.
 --
--- O raycast de linha de visão da origem ficou de fora: o teste de FOV é o que
--- dá a leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
+-- O raycast de linha de visão ficou de fora: o teste de FOV é o que dá a
+-- leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
 -- pagaria caro por pouco. Quem se esconder atrás de uma parede e olhar na
 -- direção dela ainda a congela.
+--
+-- E a `ScreenGui` `Popup` que a origem clonava para a `PlayerGui` da vítima não
+-- veio: é proibida dentro de Tool, e mexer na GUI de outro jogador é a
+-- referência fora da Tool que a regra nº 1 fecha.
 --%s
 
 local function derrubar()
@@ -563,7 +501,7 @@ local function derrubar()
 	arvoreOnde = nil
 end
 
---- O alvo está olhando para o ponto? `> 0` é o teste da origem: meio giro
+--- `vec:Dot(vh.CFrame.lookVector) > 0` — o teste da origem, igual. Meio giro
 --- inteiro conta como "de frente", e é isso que faz a árvore parecer travada
 --- sempre que se vira para ela.
 local function estaOlhando(alvo, ponto)
@@ -638,10 +576,11 @@ local function cacar(id)
 end
 
 --%s
--- PRIMÁRIA — plantar
+-- A HABILIDADE — no clique
 --
--- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Entrou como
--- GEOMETRIA, ancorada e invisível; o clone é que aparece, e é ele que anda.
+-- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Na origem
+-- ele morava em `ReplicatedStorage`; aqui mora em `Tool/Moldes/`, ancorado e
+-- invisível. O clone é que aparece, e é ele que anda.
 --%s
 
 function primaria(mira)
@@ -663,45 +602,18 @@ function primaria(mira)
 		end
 	end, function() ocupado = false end)
 end
-
---%s
--- EXTRA — derrubar
---
--- A origem não tem segunda habilidade: a árvore fica de pé até o fim do round.
--- Esta Extra é o desligar dela, na tecla.
---%s
-
-function extra(_mira)
-	if not arvoreId then return end
-	ocupado = true
-	local onde = arvoreOnde
-	rig:PlaySequence("GALHADA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GALHO", 1.15)
-		elseif marca == "GOLPE" then
-			local centro = onde or frente(CFG.ALCANCE)
-			derrubar()
-			vfx("BURACO_FIM", { posicao = centro, escala = 1.8 })
-			tocarEm("GALHO", centro, 0.55)
-		end
-	end, function() ocupado = false end)
-end
-''' % (REGUA, REGUA, REGUA, REGUA, REGUA, REGUA),
+''' % (REGUA, REGUA, REGUA, REGUA),
   ao_guardar="\tderrubar()\n")
 
 
 T("Gato Ajudante Boss",
   objeto="GatoAjudanteBoss_Server_V1", sufixo="RealityGato",
   arquetipo="ESPECTRAL", alcance_mira=55,
-  rotulo_primaria="invoca o gato, que bombardeia",
-  rotulo_extra="Chuva",
+  rotulo_primaria="invoca o gato, que bombardeia (gravitycatMAIN.)",
   origem=["`gravity cat not amused`: Handle 4 x 1 x 2 e o Model do gato",
           "som theme 1842053299",
-          "LOGICA: o gato sobe 12 studs, toca o tema, e faz tres ataques —",
-          "   attack1: bola preta em cima do alvo, 0.8 s, Explosion raio 7",
-          "   attack2: **50 bolas** chovendo em volta, uma a cada 0.1 s",
-          "   attack3: teleporta ate o alvo, espera 1 s, volta, e mata",
+          "sobe 12 studs (`t.CFrame.Y + 1` doze vezes) e toca o tema",
+          "`attack1`: bola preta no alvo -> `wait(0.8)` -> Explosion raio 7",
           "o Humanoid e os 6 Motor6D NAO atravessaram: o gato entra como",
           "   geometria, e quem invoca e dispensa e a Tool (NPC fora de escopo)"],
   cfg="""	ALCANCE        = 12,
@@ -714,35 +626,38 @@ T("Gato Ajudante Boss",
 	RAIO_BOMBA     = 7,
 	DANO_BOMBA     = 38,
 	EMPURRAO       = 68,
-	TOMBO          = 1.6,
-
-	RECARGA_EXTRA  = 16,
-	BOMBAS         = 12,
-	RAIO_CHUVA     = 30,
-	PASSO_CHUVA    = 0.12,""",
+	TOMBO          = 1.6,""",
   estado=("local gatoId = nil\nlocal gatoOnde = nil\n"
           "local geracao = 0"),
   corpo='''
 --%s
--- A BOMBA — `attack1` da origem, que é o que o gato faz o tempo todo
+-- A BOMBA — `attack1`, que é o que o gato faz o tempo todo
 --
--- Bola preta em cima do alvo, som, 0.8 s de espera, e uma `Explosion` de raio
--- 7. A espera é o ponto: dá para sair de baixo, e é o que separa o gato de uma
--- aura que cobra por estar perto (que foi o que a versão anterior fez dele).
+--     bobm.CFrame = torso.CFrame ; bobm.Shape = Ball
+--     bobm.Color = Color3.new(0.192157, 0.192157, 0.192157)
+--     wait(0.8)
+--     e.BlastRadius = 7 ; e.BlastPressure = 2
+--
+-- A espera de 0.8 s é a mecânica: dá para sair de baixo. É o que separa o gato
+-- de uma aura que cobra por estar perto.
 --
 -- `Instance.new("Explosion")` é proibido aqui — quem detecta é o Núcleo, por
--- `golpearArea`. O visual do estouro é do cliente.
+-- `golpearArea`. O visual do estouro é do cliente, e o raio 7 é o mesmo.
+--
+-- `attack2` (50 bolas em volta) e `attack3` (teleporta e mata) ficaram de fora:
+-- são o boss da origem em laço infinito, não uma habilidade de Tool. O
+-- `attack1` é o que cabe num clique.
 --%s
 
-local function soltarBomba(onde, raio, dano)
-	vfx("BOMBA", { posicao = onde, escala = raio / 7,
-		espera = CFG.ESPERA_BOMBA, raio = raio })
+local function soltarBomba(onde)
+	vfx("BOMBA", { posicao = onde, escala = 1,
+		espera = CFG.ESPERA_BOMBA, raio = CFG.RAIO_BOMBA })
 	tocarEm("MIADO", onde, 1.45)
 	task.delay(CFG.ESPERA_BOMBA, function()
-		vfx("LUA_FIM", { posicao = onde, escala = raio / 7 })
+		vfx("LUA_FIM", { posicao = onde, escala = 1 })
 		tocarEm("MIADO", onde, 0.5)
-		golpearArea(onde, raio, raio * 0.5, dano, dano * 0.55,
-			CFG.EMPURRAO, CFG.TOMBO)
+		golpearArea(onde, CFG.RAIO_BOMBA, CFG.RAIO_BOMBA * 0.5,
+			CFG.DANO_BOMBA, CFG.DANO_BOMBA * 0.55, CFG.EMPURRAO, CFG.TOMBO)
 	end)
 end
 
@@ -755,8 +670,8 @@ local function dispensarGato()
 	gatoOnde = nil
 end
 
---- O gato invocado. Ele não anda: ele fica no lugar e bombardeia o mais perto,
---- que é o `attack1` em laço da origem.
+--- O gato invocado. Ele não anda: fica no lugar e bombardeia o mais perto, que
+--- é o `attack1` em laço da origem — `findTorso` acha a cabeça mais próxima.
 local function manterGato(onde, id)
 	geracao = geracao + 1
 	local minha = geracao
@@ -767,7 +682,7 @@ local function manterGato(onde, id)
 			local presa = maisPerto(centro, CFG.RAIO_CACA)
 			local presaRaiz = presa and raizDe(presa)
 			if presaRaiz then
-				soltarBomba(presaRaiz.Position, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
+				soltarBomba(presaRaiz.Position)
 			end
 			task.wait(CFG.INTERVALO_BOMBA)
 		end
@@ -780,15 +695,15 @@ local function manterGato(onde, id)
 end
 
 --%s
--- PRIMÁRIA — chamar o gato
+-- A HABILIDADE — no clique
 --
 -- O gato é INVOCAÇÃO, não NPC. O `Humanoid` e os seis `Motor6D` da origem não
 -- atravessaram: o que está em `Tool/Moldes/` é o corpo dele como geometria, e
 -- quem o invoca, faz bombardear e dispensa é esta Tool — com prazo, e solto no
--- `desmontar()`.
+-- `desmontar()`. Na origem ele morava em `ServerStorage`.
 --
--- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é
--- habilidade de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
+-- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é habilidade
+-- de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
 --%s
 
 function primaria(_mira)
@@ -809,137 +724,65 @@ function primaria(_mira)
 		end
 	end, function() ocupado = false end)
 end
-
---%s
--- EXTRA — a chuva
---
--- `attack2`: a origem solta **50 bolas** em volta do gato, uma a cada 0.1 s,
--- em `math.random(-35,15)` por `math.random(-35,35)`. Aqui são 12, espalhadas
--- por ÂNGULO ÁUREO em vez de sorteio — com todos os clientes desenhando, um
--- sorteio faria cada um ver uma chuva diferente.
---
--- Sem gato de pé, ela cai em volta de quem carrega: o `attack2` da origem é do
--- gato, mas a Tool nunca fica inerte.
---%s
-
-function extra(mira)
-	local centro = gatoOnde or mira or frente(CFG.ALCANCE)
-	tocar("MIADO", 0.75)
-
-	task.spawn(function()
-		for i = 1, CFG.BOMBAS do
-			local a = i * 2.399963
-			local r = CFG.RAIO_CHUVA * math.sqrt(i / CFG.BOMBAS)
-			local onde = centro + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
-			soltarBomba(onde, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
-			task.wait(CFG.PASSO_CHUVA)
-		end
-	end)
-end
-''' % (REGUA, REGUA, REGUA, REGUA, REGUA, REGUA),
+''' % (REGUA, REGUA, REGUA, REGUA),
   ao_guardar="\tdispensarGato()\n")
 
 
 T("Samsungus",
   objeto="Samsungus_Server_V1", sufixo="RealitySamsungus",
   arquetipo="MELEE", alcance_mira=35,
-  rotulo_primaria="combo de duas batidas", rotulo_extra="Concussao",
+  rotulo_primaria="combo de duas batidas (samsung/LeadpipeServer)",
   origem=["`samsung`: Handle **MeshPart** id 430345282 — o celular",
           "sons MetalHit 6879335951 · Swoosh 9113749736 · Hit 743886825",
-          "LOGICA: o `LeadpipeServer` e um melee de R2DA — `attacknumber`",
-          "   alterna DUAS batidas, alcance 3, dano math.random(20,25),",
-          "   PlatformStand mais BodyVelocity, e **concussao**: o alvo passa a",
-          "   andar para pontos tortos em volta de si mesmo por 15 s"],
+          "`attacknumber` alterna DUAS batidas · `range = 3`",
+          "`humanoiddd.Health - math.random(20,25)` · `PlatformStand = true`",
+          "`velocity.Velocity = owner.HumanoidRootPart.CFrame.lookVector * 10`",
+          "`owieConcussed`: o alvo anda para pontos tortos por 15 s",
+          "as duas animacoes sairam dos 4 lacos de Weld.C0 do proprio script"],
   cfg="""	ALCANCE        = 5,
 	RAIO_GOLPE     = 6,
 	DANO_MIN       = 20,
 	DANO_MAX       = 25,
 	EMPURRAO       = 40,
+	TOMBO          = 0.7,
 	RECARGA        = 0.65,
 
-	RECARGA_EXTRA  = 12,
-	RAIO_CHAMADA   = 14,
-	DANO_CHAMADA   = 30,
-	DURACAO_CONC   = 9,
+	DURACAO_CONC   = 15,
 	LENTIDAO       = 0.45,
 	CAMBALEIO      = 15,
 	PASSO_CAMBALEIO = 0.6,""",
   estado="local golpeNumero = 0",
   corpo='''
 --%s
--- O COMBO DE DUAS — `attacknumber` da origem
+-- A CONCUSSÃO — `owieConcussed`, o efeito de assinatura do leadpipe
 --
--- O leadpipe alterna: a primeira batida vem de cima com o braço aberto, a
--- segunda vem de lado com o corpo torcido. Não é a mesma animação repetida, e
--- não é uma batida só — a versão anterior tinha uma.
+--     local therandom1 = math.random(-15,15)
+--     humanoiddd.WalkToPoint = Vector3.new(headdd.Position.x + therandom1, 0, ...)
 --
--- O dano da origem é `math.random(20,25)`. Aqui é `naFaixa(20, 25)`, que é
--- determinístico: o mesmo intervalo, sem sorteio.
---%s
-
-local function bater(dano, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			-- a origem empurra pelo `lookVector` de QUEM BATE, não radial
-			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
-				forca, 0.22)
-			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		tombar(alvo, 0.7)
-		achou = true
-	end
-	if achou then tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1) end
-	return achou
-end
-
---%s
--- PRIMÁRIA — a batida, alternando
---%s
-
-function primaria(_mira)
-	ocupado = true
-	golpeNumero = 1 - golpeNumero
-	local qual = "BATIDA"
-	if golpeNumero == 1 then qual = "BATIDA_B" end
-
-	rig:PlaySequence(qual, function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 1 + jitter(0.2) * 0.2)
-		elseif marca == "GOLPE" then
-			bater(naFaixa(CFG.DANO_MIN, CFG.DANO_MAX), CFG.EMPURRAO)
-		end
-	end, function() ocupado = false end)
-end
-
---%s
--- EXTRA — a concussão
---
--- O efeito de assinatura do leadpipe. Na origem, quem leva vira `owieConcussed`
--- e passa 15 s andando para pontos tortos em volta da própria cabeça — não é
--- lentidão, é perder o rumo.
+-- Quem leva passa 15 s andando para pontos tortos em volta da própria cabeça.
+-- Não é lentidão: é perder o rumo. Os `math.random(-15,15)` viram `jitter`
+-- determinístico com a mesma amplitude.
 --
 -- O que não veio: a `ScreenGui` branca que a origem punha na tela de quem é
 -- jogador. `ScreenGui` dentro de Tool é proibida, e mexer na `PlayerGui` de
--- outro jogador é justamente o tipo de referência fora da Tool que a regra nº 1
--- fecha. O cambaleio vale para todo mundo, jogador ou NPC — o que é MAIS do que
--- a origem fazia, que só cambaleava NPC.
+-- outro jogador é a referência fora da Tool que a regra nº 1 fecha. Em troca o
+-- cambaleio vale para todo mundo — a origem só cambaleava NPC.
+--
+-- Também não veio o `owner.Humanoid.Name = "Immunity"`, que dava invencibilidade
+-- ao portador enquanto ele batia: renomear o `Humanoid` para escapar de dano é
+-- exatamente o tipo de coisa que o Núcleo existe para não precisar.
 --%s
 
-local function atordoar(alvo, tempo)
+local function atordoar(alvo)
 	local corpo = alvo and alvo.Parent
 	local cabeca = corpo and (corpo:FindFirstChild("Head")
 		or corpo:FindFirstChild("HumanoidRootPart"))
 	if not cabeca then return end
 
-	afrouxar(alvo, CFG.LENTIDAO, tempo)
+	afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_CONC)
 
 	task.spawn(function()
-		local ate = os.clock() + tempo
+		local ate = os.clock() + CFG.DURACAO_CONC
 		local passo = 0
 		while os.clock() < ate do
 			if not (alvo.Parent and alvo.Health > 0 and cabeca.Parent) then
@@ -954,28 +797,59 @@ local function atordoar(alvo, tempo)
 	end)
 end
 
-function extra(_mira)
+--%s
+-- A BATIDA
+--
+-- `range = 3` na origem mede cabeça-até-handle. Aqui a consulta é espacial a
+-- partir de um ponto à frente, e 6 é o que dá o mesmo alcance de fato.
+--
+-- O empurrão é pelo `lookVector` de QUEM BATE, não radial — é o que a origem
+-- escreve, e é o que joga o alvo para longe de você em vez de para os lados.
+--%s
+
+local function bater()
+	local ponto = frente(CFG.ALCANCE)
+	local achou = false
+	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
+		aplicarDano(alvo, naFaixa(CFG.DANO_MIN, CFG.DANO_MAX))
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
+				CFG.EMPURRAO, 0.22)
+			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
+		end
+		tombar(alvo, CFG.TOMBO)
+		atordoar(alvo)
+		achou = true
+	end
+	if achou then
+		tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1)
+		tocarEm("IMPACTO", ponto, 1 + jitter(0.9) * 0.1)
+	end
+	return achou
+end
+
+--%s
+-- A HABILIDADE — no clique, alternando as duas batidas
+--
+-- `attacknumber` da origem: a A vem de lado com o corpo torcido, a B vem de
+-- cima com o braço aberto. São duas animações diferentes, e as duas saíram do
+-- próprio `LeadpipeServer`.
+--%s
+
+function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("CHAMADA", function(passo)
+	golpeNumero = 1 - golpeNumero
+	local qual = "BATIDA_A"
+	if golpeNumero == 1 then qual = "BATIDA_B" end
+
+	rig:PlaySequence(qual, function(passo)
 		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 0.8)
-		elseif marca == "SEGURA" then
-			tocar("IMPACTO", 1.4)
+		if marca == "SOPRO" then
+			-- `swooshsound2:Play()` e `swooshsound:Play()`, entre os dois laços
+			tocar("GIRO", 1 + jitter(0.2) * 0.2)
 		elseif marca == "GOLPE" then
-			local centro = frente(CFG.ALCANCE)
-			vfx("RELOGIO", { posicao = centro, escala = 1.4 })
-			tocarEm("IMPACTO", centro, 0.9)
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_CHAMADA, 10)) do
-				aplicarDano(alvo, CFG.DANO_CHAMADA)
-				tombar(alvo, 1.1)
-				atordoar(alvo, CFG.DURACAO_CONC)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					vfx("PARAR", { posicao = alvoRaiz.Position, escala = 1,
-						duracao = CFG.DURACAO_CONC })
-				end
-			end
+			bater()
 		end
 	end, function() ocupado = false end)
 end
@@ -986,35 +860,37 @@ end
 T("Danca Provocadora",
   objeto="DancaProvocadora_Server_V1", sufixo="RealityDanca",
   arquetipo="SUPORTE", alcance_mira=40,
-  rotulo_primaria="danca com a musica, ate mandar parar",
-  rotulo_extra="Parar",
+  rotulo_primaria="danca com a musica (kick dance/SwordScript)",
   origem=["`kick dance`: RequiresHandle = false — ganha um Handle invisivel",
-          "`KeyframeSequence` `california gurls`: **361 keyframes** em 12.00 s,",
-          "   amostrada em 14 — a maior densidade que ja entrou no repositorio",
+          "`KeyframeSequence` `california gurls`: **361 keyframes** em 12.00 s —",
+          "   INTEIRA, sem corte. A versao anterior entregou 14.",
           "sem som proprio (o `music` veio vazio): empresta 2 do Canhao",
-          "LOGICA: `Activated` toca a animacao e a musica. `Unequipped` para as",
-          "   duas. **NAO HA MAIS NADA** — sem dano, sem raio, sem puxao."],
-  cfg="""	RECARGA        = 3,
-	RECARGA_EXTRA  = 1,""",
+          "o SwordScript inteiro cabe em nove linhas: play, music, stop"],
+  cfg="""	RECARGA        = 3,""",
   estado="local dancando = false\nlocal musica = nil\nlocal geracao = 0",
   corpo='''
 --%s
 -- A DANÇA, E SÓ A DANÇA
 --
--- O `SwordScript` do `kick dance` inteiro cabe em nove linhas: `Activated` dá
--- `animation:play()` e `music:Play()`, `Unequipped` dá `animation:stop()` e
--- `music:Stop()`. Não existe dano, não existe raio, não existe puxão — a versão
--- anterior tinha aura de 26 studs, 6 de dano por tique e arrasto para o centro,
--- e nada disso está na origem.
+-- O `SwordScript` do `kick dance` inteiro:
 --
--- 14 quadros amostrados de uma `KeyframeSequence` de **361 keyframes** em
--- 12.00 s. É a maior densidade de animação que já entrou aqui.
+--     animation = animator.new(char, script.Parent["california gurls"])
+--     animation:play() ; script.Parent.music:Play()
+--     -- Unequipped: animation:stop() ; music:Stop()
+--
+-- Não existe dano, não existe raio, não existe puxão. A versão anterior tinha
+-- aura de 26 studs, 6 de dano por tique e arrasto para o centro, e nada disso
+-- está na origem.
+--
+-- **361 quadros de 361**, por `PlayTrack`. A versão anterior entregou 14.
+-- `PlayTrack` roda no `Heartbeat` com tempo absoluto: os 12.00 s saem em
+-- 12.00 s, sem a deriva que 361 tweens encadeados teriam.
 --
 -- Ela REPETE: na origem a animação roda até o `Unequipped`, e é por isso que a
--- rodada se re-agenda no `onDone` em vez de parar no fim do ciclo.
+-- rodada se re-agenda no `onDone`.
 --
--- `ocupado` fica FALSO enquanto ela roda, de propósito: se ficasse verdadeiro,
--- o `podeAgir()` barraria a própria tecla de parar.
+-- `ocupado` fica FALSO enquanto ela roda, de propósito: dançar não ocupa o
+-- personagem, e um segundo clique reinicia — que é o que a origem faz.
 --%s
 
 local function pararDanca()
@@ -1031,9 +907,9 @@ end
 local rodada
 rodada = function(minha)
 	if minha ~= geracao or not dancando or not rig then return end
-	rig:PlaySequence("DANCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GOLPE" and raiz then
+	rig:PlayTrack("DANCA", function(passo)
+		local evento = passo and passo.event
+		if evento == "BATIDA" and raiz then
 			tocarEm("BATIDA", raiz.Position, 1 + jitter(0.6) * 0.12)
 		end
 	end, function()
@@ -1044,7 +920,7 @@ rodada = function(minha)
 end
 
 --%s
--- PRIMÁRIA — dançar
+-- A HABILIDADE — no clique
 --%s
 
 function primaria(_mira)
@@ -1059,17 +935,5 @@ function primaria(_mira)
 	rodada(minha)
 	ocupado = false
 end
-
---%s
--- EXTRA — parar
---
--- É o `Unequipped` da origem, na tecla.
---%s
-
-function extra(_mira)
-	if not dancando then return end
-	pararDanca()
-	ocupado = false
-end
-''' % (REGUA, REGUA, REGUA, REGUA, REGUA, REGUA),
+''' % (REGUA, REGUA, REGUA, REGUA),
   ao_guardar="\tpararDanca()\n")

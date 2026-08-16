@@ -5,15 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   o tapa que arremessa
---   R    Mao Quente   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   o tapa que arremessa (SLAP/Hand/Script)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `SLAP`: Handle 1.76 x 0.1 x 0.1 e a malha `Hand`
 --   sons Smack 511340819 · Boom 1489705211 · slaps 165969964
---   LOGICA: `Hand.Touched` -> BodyVelocity 900 em -Head.lookVector,
---      Sit = true, e seis clones de RagdollSCript. Arremesso por CONTATO,
---      nunca por Activated — o Activated da origem so tocava a animacao.
+--   `FlingAmount = 900` · `bv.P = 12500` · `wait(.05)` e o bv morre
+--   `Humanoid.Sit = true` · seis clones de RagdollSCript
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -27,7 +28,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -42,17 +42,12 @@ local CFG = {
 	DANO            = 34,
 	EMPURRAO        = 130,
 	ALTURA          = 0.55,
-	TEMPO_VOO       = 0.28,
+	TEMPO_VOO       = 0.05,
 	TOMBO           = 2.2,
-	JANELA          = 0.35,
+	JANELA          = 0.45,
 	PASSO           = 0.07,
 	INTERVALO_ALVO  = 0.5,
 	RECARGA         = 0.7,
-
-	RECARGA_EXTRA   = 14,
-	DURACAO_QUENTE  = 5,
-	DANO_QUENTE     = 21,
-	EMPURRAO_QUENTE = 165,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -60,15 +55,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local geracao = 0
 
 local function proximo()
@@ -325,25 +320,28 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- O ARREMESSO — a assinatura da origem
+-- O ARREMESSO — linha por linha do `SLAP/Hand/Script`
 --
--- `BodyVelocity` de 900 em `-blender.CFrame.lookVector`: a direção é a do
--- ALVO, invertida. Quem leva o tapa sai voando **de costas para onde estava
--- olhando**, não para longe de quem bateu. Essa é a diferença entre a lapada e
--- um empurrão qualquer, e é por isso que aqui não se usa o `empurrar` com
--- vetor radial.
+--     bv.Velocity = blender.CFrame.lookVector * -FlingAmount
 --
--- A origem matava (`humanoid.Health = 0` dentro do `RagdollSCript`, clonado
--- seis vezes). Aqui o tombo é `PlatformStand` com prazo, e o dano passa pelo
--- Núcleo.
+-- A direção é a do ALVO, invertida: quem leva o tapa sai voando **de costas
+-- para onde estava olhando**, não para longe de quem bateu. Essa é a diferença
+-- entre a lapada e um empurrão qualquer.
+--
+-- `bv.P = 12500` e `wait(.05)` antes de destruir: é um safanão curtíssimo e
+-- muito forte, não um empurrão contínuo. `TEMPO_VOO = 0.05` guarda isso.
+--
+-- O `Humanoid.Sit = true` mais os seis `RagdollSCript` viram `PlatformStand`
+-- com prazo — o `RagdollSCript` fazia `humanoid.Health = 0` e destruía todo
+-- `Motor6D`, que é desmontar personagem sem volta.
 --══════════════════════════════════════════════════════════════
 
-local function arremessar(alvo, dano, forca)
+local function arremessar(alvo)
 	local alvoRaiz = raizDe(alvo)
 	if not alvoRaiz then return false end
-	aplicarDano(alvo, dano)
+	aplicarDano(alvo, CFG.DANO)
 	empurrar(alvo, -alvoRaiz.CFrame.LookVector + Vector3.new(0, CFG.ALTURA, 0),
-		forca, CFG.TEMPO_VOO)
+		CFG.EMPURRAO, CFG.TEMPO_VOO)
 	tombar(alvo, CFG.TOMBO)
 	vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.4 })
 	tocarEm("TAPA", alvoRaiz.Position, 1 + jitter(0.3) * 0.1)
@@ -352,14 +350,18 @@ end
 
 --- A MÃO FICA VIVA POR UMA JANELA.
 ---
---- Na origem não existe golpe: existe a mão ligada no `Touched` o tempo todo.
---- Aqui ela acende na marca `GOLPE` e apaga sozinha, o que dá o mesmo jogo sem
---- deixar o portador matando por encostar enquanto anda.
+--- Na origem não existe golpe: existe `script.Parent.Touched:connect(hit)`, com
+--- a mão quente enquanto a Tool estiver equipada. Aqui ela acende na marca
+--- `GOLPE` e apaga sozinha, o que dá o mesmo jogo sem deixar o portador matando
+--- por encostar enquanto anda.
 ---
---- `Touched` sozinho não bastaria: o Handle tem 0.1 x 0.1 de seção e escapa
---- toque em quem passa rápido. A varredura por TIQUE cobre o buraco — 0.07 s,
---- nunca por quadro.
-local function janelaViva(duracao, dano, forca)
+--- `Touched` sozinho não basta: o Handle tem 0.1 x 0.1 de seção e escapa toque
+--- em quem passa rápido. A varredura por TIQUE cobre o buraco — 0.07 s, nunca
+--- por quadro.
+---
+--- O `e = false` da origem é um debounce ÚNICO para o mundo inteiro: dois alvos
+--- ao mesmo tempo e um dos dois não levava nada. Aqui o intervalo é POR ALVO.
+local function janelaViva()
 	geracao = geracao + 1
 	local minha = geracao
 	local ultimo = {}
@@ -371,7 +373,7 @@ local function janelaViva(duracao, dano, forca)
 			return
 		end
 		ultimo[alvo] = agora
-		arremessar(alvo, dano, forca)
+		arremessar(alvo)
 	end
 
 	local toque = guardar(Handle.Touched:Connect(function(parte)
@@ -382,7 +384,7 @@ local function janelaViva(duracao, dano, forca)
 	end))
 
 	task.spawn(function()
-		local ate = os.clock() + duracao
+		local ate = os.clock() + CFG.JANELA
 		while minha == geracao and os.clock() < ate do
 			if not (raiz and raiz.Parent) then break end
 			for _, alvo in ipairs(alvosEm(Handle.Position, CFG.RAIO_MAO, 6)) do
@@ -399,7 +401,7 @@ local function apagarMao()
 end
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o tapa
+-- A HABILIDADE — no clique
 --══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
@@ -409,27 +411,8 @@ function primaria(_mira)
 		if marca == "CARGA" then
 			tocar("SEQUENCIA", 1.2)
 		elseif marca == "GOLPE" then
-			janelaViva(CFG.JANELA, CFG.DANO, CFG.EMPURRAO)
-		end
-	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — a mão quente
---
--- A origem não tem segunda habilidade: tem a mão ligada no `Touched` enquanto
--- a Tool estiver equipada. Esta Extra é exatamente isso, com prazo — 5 s de
--- mão acesa, arremessando quem encostar.
---══════════════════════════════════════════════════════════════
-
-function extra(_mira)
-	ocupado = true
-	rig:PlaySequence("MAO_QUENTE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("ESTOURO", 0.9)
-		elseif marca == "SEGURA" then
-			janelaViva(CFG.DURACAO_QUENTE, CFG.DANO_QUENTE, CFG.EMPURRAO_QUENTE)
+			tocar("ESTOURO", 1 + jitter(0.8) * 0.15)
+			janelaViva()
 		end
 	end, function() ocupado = false end)
 end
@@ -456,15 +439,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -472,7 +446,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityLapada", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityLapada", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio

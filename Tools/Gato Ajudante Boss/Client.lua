@@ -9,24 +9,20 @@
 -- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
 -- cliente não replica e os outros jogadores viam o portador parado.
 --
--- MOBILE: `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)`.
--- O terceiro argumento faz o Roblox desenhar o botão de toque sozinho. A origem
--- tinha uma `ScreenGui` chamada `Talk` com dois `TextLabel`; `ScreenGui` dentro
--- de Tool é proibida, e o botão do CAS faz o trabalho sem sair da Tool.
+-- MOBILE: nada a fazer. A habilidade é UMA e ela mora no `Tool.Activated`, que
+-- o Roblox já liga no botão da Tool em toda plataforma. Sem `ContextActionService`,
+-- sem tecla, sem botão desenhado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_reality.py.
 
 local Players = game:GetService("Players")
-local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool       = script.Parent
-local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
-local VFX        = require(Tool:WaitForChild("VFXModule"))
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local VFX       = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Reality_RealityGato_R"
 local ALCANCE_MIRA = 55
 
 local equipado = false
@@ -69,22 +65,6 @@ local function mira()
 	return alvo
 end
 
-local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
-		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipado then return end
-		AcaoRemote:FireServer("R", mira())
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
-
-	ContextActionService:SetTitle(ACAO, "Chuva")
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
-end
-
-local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
-end
-
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
@@ -97,12 +77,10 @@ end)
 Tool.Equipped:Connect(function()
 	if not souODono() then return end
 	equipado = true
-	ligarEntrada()
 end)
 
 local function aoGuardar()
 	equipado = false
-	desligarEntrada()
 	VFX.LimparTudo()
 end
 

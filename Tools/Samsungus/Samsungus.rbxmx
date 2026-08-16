@@ -233,23 +233,26 @@
 				</Properties>
 			</Item>
 			</Item>
-		<Item class="Folder" referent="RG_MOLDES_06"><Properties><string name="Name">Moldes</string></Properties></Item><Item class="StringValue" referent="RG_Damage_06"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_06"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Samsungus</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_06"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_06"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.6</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_06"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_ACAO_06"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RG_Samsungus_Se_06"><Properties><string name="Name">Samsungus_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Samsungus_Server_V1.lua
+		<Item class="Folder" referent="RG_MOLDES_06"><Properties><string name="Name">Moldes</string></Properties></Item><Item class="StringValue" referent="RG_Damage_06"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_06"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Samsungus</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_06"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_06"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.6</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_06"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="Script" referent="RG_Samsungus_Se_06"><Properties><string name="Name">Samsungus_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Samsungus_Server_V1.lua
 -- Script de servidor — Samsungus  (conjunto REALITY GUI)
 --
 -- Sai do `reality_tools.rbxmx`, que NÃO é uma Tool: é um Script de 2650
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   combo de duas batidas
---   R    Concussao   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   combo de duas batidas (samsung/LeadpipeServer)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `samsung`: Handle **MeshPart** id 430345282 — o celular
 --   sons MetalHit 6879335951 · Swoosh 9113749736 · Hit 743886825
---   LOGICA: o `LeadpipeServer` e um melee de R2DA — `attacknumber`
---      alterna DUAS batidas, alcance 3, dano math.random(20,25),
---      PlatformStand mais BodyVelocity, e **concussao**: o alvo passa a
---      andar para pontos tortos em volta de si mesmo por 15 s
+--   `attacknumber` alterna DUAS batidas · `range = 3`
+--   `humanoiddd.Health - math.random(20,25)` · `PlatformStand = true`
+--   `velocity.Velocity = owner.HumanoidRootPart.CFrame.lookVector * 10`
+--   `owieConcussed`: o alvo anda para pontos tortos por 15 s
+--   as duas animacoes sairam dos 4 lacos de Weld.C0 do proprio script
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -263,7 +266,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -279,12 +281,10 @@ local CFG = {
 	DANO_MIN       = 20,
 	DANO_MAX       = 25,
 	EMPURRAO       = 40,
+	TOMBO          = 0.7,
 	RECARGA        = 0.65,
 
-	RECARGA_EXTRA  = 12,
-	RAIO_CHAMADA   = 14,
-	DANO_CHAMADA   = 30,
-	DURACAO_CONC   = 9,
+	DURACAO_CONC   = 15,
 	LENTIDAO       = 0.45,
 	CAMBALEIO      = 15,
 	PASSO_CAMBALEIO = 0.6,
@@ -295,15 +295,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local golpeNumero = 0
 
 local function proximo()
@@ -560,79 +560,35 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- O COMBO DE DUAS — `attacknumber` da origem
+-- A CONCUSSÃO — `owieConcussed`, o efeito de assinatura do leadpipe
 --
--- O leadpipe alterna: a primeira batida vem de cima com o braço aberto, a
--- segunda vem de lado com o corpo torcido. Não é a mesma animação repetida, e
--- não é uma batida só — a versão anterior tinha uma.
+--     local therandom1 = math.random(-15,15)
+--     humanoiddd.WalkToPoint = Vector3.new(headdd.Position.x + therandom1, 0, ...)
 --
--- O dano da origem é `math.random(20,25)`. Aqui é `naFaixa(20, 25)`, que é
--- determinístico: o mesmo intervalo, sem sorteio.
---══════════════════════════════════════════════════════════════
-
-local function bater(dano, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			-- a origem empurra pelo `lookVector` de QUEM BATE, não radial
-			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
-				forca, 0.22)
-			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		tombar(alvo, 0.7)
-		achou = true
-	end
-	if achou then tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1) end
-	return achou
-end
-
---══════════════════════════════════════════════════════════════
--- PRIMÁRIA — a batida, alternando
---══════════════════════════════════════════════════════════════
-
-function primaria(_mira)
-	ocupado = true
-	golpeNumero = 1 - golpeNumero
-	local qual = "BATIDA"
-	if golpeNumero == 1 then qual = "BATIDA_B" end
-
-	rig:PlaySequence(qual, function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 1 + jitter(0.2) * 0.2)
-		elseif marca == "GOLPE" then
-			bater(naFaixa(CFG.DANO_MIN, CFG.DANO_MAX), CFG.EMPURRAO)
-		end
-	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — a concussão
---
--- O efeito de assinatura do leadpipe. Na origem, quem leva vira `owieConcussed`
--- e passa 15 s andando para pontos tortos em volta da própria cabeça — não é
--- lentidão, é perder o rumo.
+-- Quem leva passa 15 s andando para pontos tortos em volta da própria cabeça.
+-- Não é lentidão: é perder o rumo. Os `math.random(-15,15)` viram `jitter`
+-- determinístico com a mesma amplitude.
 --
 -- O que não veio: a `ScreenGui` branca que a origem punha na tela de quem é
 -- jogador. `ScreenGui` dentro de Tool é proibida, e mexer na `PlayerGui` de
--- outro jogador é justamente o tipo de referência fora da Tool que a regra nº 1
--- fecha. O cambaleio vale para todo mundo, jogador ou NPC — o que é MAIS do que
--- a origem fazia, que só cambaleava NPC.
+-- outro jogador é a referência fora da Tool que a regra nº 1 fecha. Em troca o
+-- cambaleio vale para todo mundo — a origem só cambaleava NPC.
+--
+-- Também não veio o `owner.Humanoid.Name = "Immunity"`, que dava invencibilidade
+-- ao portador enquanto ele batia: renomear o `Humanoid` para escapar de dano é
+-- exatamente o tipo de coisa que o Núcleo existe para não precisar.
 --══════════════════════════════════════════════════════════════
 
-local function atordoar(alvo, tempo)
+local function atordoar(alvo)
 	local corpo = alvo and alvo.Parent
 	local cabeca = corpo and (corpo:FindFirstChild("Head")
 		or corpo:FindFirstChild("HumanoidRootPart"))
 	if not cabeca then return end
 
-	afrouxar(alvo, CFG.LENTIDAO, tempo)
+	afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_CONC)
 
 	task.spawn(function()
-		local ate = os.clock() + tempo
+		local ate = os.clock() + CFG.DURACAO_CONC
 		local passo = 0
 		while os.clock() < ate do
 			if not (alvo.Parent and alvo.Health > 0 and cabeca.Parent) then
@@ -647,28 +603,59 @@ local function atordoar(alvo, tempo)
 	end)
 end
 
-function extra(_mira)
+--══════════════════════════════════════════════════════════════
+-- A BATIDA
+--
+-- `range = 3` na origem mede cabeça-até-handle. Aqui a consulta é espacial a
+-- partir de um ponto à frente, e 6 é o que dá o mesmo alcance de fato.
+--
+-- O empurrão é pelo `lookVector` de QUEM BATE, não radial — é o que a origem
+-- escreve, e é o que joga o alvo para longe de você em vez de para os lados.
+--══════════════════════════════════════════════════════════════
+
+local function bater()
+	local ponto = frente(CFG.ALCANCE)
+	local achou = false
+	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
+		aplicarDano(alvo, naFaixa(CFG.DANO_MIN, CFG.DANO_MAX))
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
+				CFG.EMPURRAO, 0.22)
+			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1 })
+		end
+		tombar(alvo, CFG.TOMBO)
+		atordoar(alvo)
+		achou = true
+	end
+	if achou then
+		tocarEm("BATE", ponto, 1 + jitter(0.4) * 0.1)
+		tocarEm("IMPACTO", ponto, 1 + jitter(0.9) * 0.1)
+	end
+	return achou
+end
+
+--══════════════════════════════════════════════════════════════
+-- A HABILIDADE — no clique, alternando as duas batidas
+--
+-- `attacknumber` da origem: a A vem de lado com o corpo torcido, a B vem de
+-- cima com o braço aberto. São duas animações diferentes, e as duas saíram do
+-- próprio `LeadpipeServer`.
+--══════════════════════════════════════════════════════════════
+
+function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("CHAMADA", function(passo)
+	golpeNumero = 1 - golpeNumero
+	local qual = "BATIDA_A"
+	if golpeNumero == 1 then qual = "BATIDA_B" end
+
+	rig:PlaySequence(qual, function(passo)
 		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GIRO", 0.8)
-		elseif marca == "SEGURA" then
-			tocar("IMPACTO", 1.4)
+		if marca == "SOPRO" then
+			-- `swooshsound2:Play()` e `swooshsound:Play()`, entre os dois laços
+			tocar("GIRO", 1 + jitter(0.2) * 0.2)
 		elseif marca == "GOLPE" then
-			local centro = frente(CFG.ALCANCE)
-			vfx("RELOGIO", { posicao = centro, escala = 1.4 })
-			tocarEm("IMPACTO", centro, 0.9)
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_CHAMADA, 10)) do
-				aplicarDano(alvo, CFG.DANO_CHAMADA)
-				tombar(alvo, 1.1)
-				atordoar(alvo, CFG.DURACAO_CONC)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					vfx("PARAR", { posicao = alvoRaiz.Position, escala = 1,
-						duracao = CFG.DURACAO_CONC })
-				end
-			end
+			bater()
 		end
 	end, function() ocupado = false end)
 end
@@ -695,15 +682,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -711,7 +689,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealitySamsungus", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealitySamsungus", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -745,24 +724,20 @@ Tool.Destroying:Connect(desmontar)
 -- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
 -- cliente não replica e os outros jogadores viam o portador parado.
 --
--- MOBILE: `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)`.
--- O terceiro argumento faz o Roblox desenhar o botão de toque sozinho. A origem
--- tinha uma `ScreenGui` chamada `Talk` com dois `TextLabel`; `ScreenGui` dentro
--- de Tool é proibida, e o botão do CAS faz o trabalho sem sair da Tool.
+-- MOBILE: nada a fazer. A habilidade é UMA e ela mora no `Tool.Activated`, que
+-- o Roblox já liga no botão da Tool em toda plataforma. Sem `ContextActionService`,
+-- sem tecla, sem botão desenhado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_reality.py.
 
 local Players = game:GetService("Players")
-local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool       = script.Parent
-local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
-local VFX        = require(Tool:WaitForChild("VFXModule"))
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local VFX       = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Reality_RealitySamsungus_R"
 local ALCANCE_MIRA = 35
 
 local equipado = false
@@ -805,22 +780,6 @@ local function mira()
 	return alvo
 end
 
-local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
-		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipado then return end
-		AcaoRemote:FireServer("R", mira())
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
-
-	ContextActionService:SetTitle(ACAO, "Concussao")
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
-end
-
-local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
-end
-
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
@@ -833,12 +792,10 @@ end)
 Tool.Equipped:Connect(function()
 	if not souODono() then return end
 	equipado = true
-	ligarEntrada()
 end)
 
 local function aoGuardar()
 	equipado = false
-	desligarEntrada()
 	VFX.LimparTudo()
 end
 
@@ -1291,88 +1248,81 @@ return Animator
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RG_Poses_06"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
 -- ModuleScript "Poses" — Samsungus  (conjunto REALITY GUI)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
--- Sequência usa `time` / `style` / `dir` (V2).
+-- ⚠️ A ANIMAÇÃO DA ORIGEM, LIDA DO SCRIPT DELA.
 --
--- AUTORAL, pela GRAMATICA_R6.md. Nenhum script da origem atravessou a
--- quarentena do `reality_tools.rbxmx` — só geometria, som e malha.
+-- Ela está escrita em laço, no idioma que o Guest já tinha ensinado:
+--
+--     for i = 0,1 , 0.14 do
+--         weld.C0 = weld.C0:lerp(<ALVO>, i)
+--         step:wait()
+--     end
+--
+-- `i` varre até 1, então a pose ESCRITA é a pose ALCANÇADA — dá para
+-- ler o alvo direto. A duração sai do laço: `ceil(1/passo)+1` voltas
+-- de `Stepped`, a 1/60 s cada.
+--
+-- O alvo entra VERBATIM: já é Lua válido, e copiar o texto não tem
+-- erro de arredondamento. Só o C1 da origem entra como sufixo
+-- INVERTIDO — ver a conta em `extrair_welds_reality.py`.
+--
+-- A primeira versão desta Tool inventou pose. Não precisava.
 --
 -- JUNTA QUE LIDERA: **RightArm** (regra 6).
---
---   BATIDA       golpe rápido     0.84s · 5 passo(s)
---   BATIDA_B     golpe rápido     0.92s · 5 passo(s)
---   CHAMADA      golpe pesado     1.30s · 5 passo(s)
 --
 -- Gerado por FERRAMENTAS/gerar_poses_reality.py.
 
 local P = {}
 
 
-P.BATE_LADO = {
-	RightArm = CFrame.new(1.5, 0.28, -1.06) * CFrame.Angles(math.rad(78), math.rad(-30), math.rad(-8)),
-	LeftArm = CFrame.new(-1.4, 0.02, -0.38) * CFrame.Angles(math.rad(32), math.rad(14), math.rad(18)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(4), math.rad(-26), math.rad(0)),
-	HRP = CFrame.new(0, -0.04, 0) * CFrame.Angles(math.rad(5), math.rad(34), math.rad(0)),
-	RightLeg = CFrame.new(0.5, -1.9, -0.24) * CFrame.Angles(math.rad(-12), math.rad(0), math.rad(0)),
+P.BATIDA_A_0 = {
+	RightArm = CFrame.new(0,-0.1,0) * CFrame.new(1.43301249, 0.884340763, -0.405934334, 0.866025448, 7.4505806e-09, -0.499999762, -0.171009988, -0.939692438, -0.296198189, -0.469846129, 0.342020154, -0.813797832) * CFrame.fromEulerAnglesXYZ(0,0,0) * CFrame.new(0, -0.5, 0),
+	LeftArm = CFrame.new(0.5,0.5,0) * CFrame.new(-1.96153116, 0.131953716, 0, 0.766044378, 0.642787516, -2.98023224e-08, -0.642787516, 0.766044378, 0, -2.98023224e-08, 1.49011612e-08, 0.99999994) * CFrame.new(0, -0.5, 0),
+	Head = CFrame.new(0,-0.5,0) * CFrame.new(-0.0815877914, 1.49240351, -0.0296964645, 0.342020094, -0.163175687, 0.92541647, -1.45519152e-09, 0.98480773, 0.17364797, -0.939692557, -0.0593911, 0.336824089) * CFrame.new(0, 0.5, 0),
+	HRP = CFrame.new(0, 0, 0, 0.33682403, 0.0593911596, -0.939692616, -0.173648149, 0.98480773, 0, 0.925416529, 0.163175896, 0.342020094),
 }
 
-P.DESCE_ALTO = {
-	RightArm = CFrame.new(1.46, -0.1, -0.92) * CFrame.Angles(math.rad(44), math.rad(-10), math.rad(-6)),
-	LeftArm = CFrame.new(-1.38, -0.02, -0.44) * CFrame.Angles(math.rad(40), math.rad(16), math.rad(22)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(16), math.rad(-8), math.rad(0)),
-	HRP = CFrame.new(0, -0.12, 0) * CFrame.Angles(math.rad(18), math.rad(12), math.rad(0)),
-	RightLeg = CFrame.new(0.5, -1.86, -0.3) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
-	LeftLeg = CFrame.new(-0.5, -1.92, 0.16) * CFrame.Angles(math.rad(9), math.rad(0), math.rad(0)),
+P.BATIDA_A_1 = {
+	RightArm = CFrame.new(0,0.4,0.3) * CFrame.new(1.88293552, 0.2333498, -0.433140755, 0.859446883, -0.503111184, -0.0907213986, 0.308427513, 0.651808023, -0.692833483, 0.407705337, 0.567472816, 0.715367913) * CFrame.fromEulerAnglesXYZ(0,0,0) * CFrame.new(0, -0.5, 0),
+	LeftArm = CFrame.new(0.5,0.5,0) * CFrame.new(-1.96153116, 0.131953716, 0, 0.766044378, 0.642787516, -2.98023224e-08, -0.642787516, 0.766044378, 0, -2.98023224e-08, 1.49011612e-08, 0.99999994) * CFrame.new(0, -0.5, 0),
+	Head = CFrame.new(0,-0.5,0) * CFrame.new(-0.0406684875, 1.4979527, 0.0197181702, 0.649181902, -0.0813359022, -0.756272018, 0.0229108427, 0.995905817, -0.0874414966, 0.76028806, 0.0394386649, 0.648387671) * CFrame.new(0, 0.5, 0),
+	HRP = CFrame.new(0, 0, 0, 0.645385742, -0.0593911596, 0.761544466, -0.0868240744, 0.98480767, 0.150383741, -0.758906364, -0.163175881, 0.630424261),
 }
 
-P.ERGUE_ALTO = {
-	RightArm = CFrame.new(1.4, 0.72, -0.18) * CFrame.Angles(math.rad(152), math.rad(-14), math.rad(-22)),
-	LeftArm = CFrame.new(-1.44, 0.14, -0.34) * CFrame.Angles(math.rad(36), math.rad(12), math.rad(16)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-18), math.rad(8), math.rad(0)),
-	HRP = CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-10), math.rad(-12), math.rad(0)),
+P.BATIDA_B_0 = {
+	RightArm = CFrame.new(0,0,0.5) * CFrame.new(1.11058283, 0.534516811, -1.14242649, 0.133022264, 0.395739019, 0.908677936, 0.991084576, -0.0600325875, -0.118940994, 0.00748064928, 0.916398764, -0.400196671) * CFrame.fromEulerAnglesXYZ(0,0,0) * CFrame.new(0, -0.5, 0),
+	LeftArm = CFrame.new(0.5,0.5,0) * CFrame.new(-1.96153116, 0.131953716, 0, 0.766044378, 0.642787516, -2.98023224e-08, -0.642787516, 0.766044378, 0, -2.98023224e-08, 1.49011612e-08, 0.99999994) * CFrame.new(0, -0.5, 0),
+	Head = CFrame.new(0,-0.5,0) * CFrame.new(-2.38418579e-07, 1.49999952, 9.53674316e-07, 0.49999994, 2.60770321e-08, -0.866025388, -1.02445483e-08, 0.999999821, -3.35276127e-08, 0.866025567, -1.49011612e-08, 0.49999994) * CFrame.new(0, 0.5, 0),
+	HRP = CFrame.new(0, 0, 0, 0.342020303, 0.163175672, 0.925416589, 4.47034836e-08, 0.98480773, -0.17364797, -0.939692557, 0.0593911409, 0.336824268),
 }
 
-P.GIRA_MAO = {
-	RightArm = CFrame.new(1.44, 0.34, -0.56) * CFrame.Angles(math.rad(88), math.rad(-26), math.rad(-22)),
-	LeftArm = CFrame.new(-1.46, 0.06, -0.26) * CFrame.Angles(math.rad(24), math.rad(8), math.rad(10)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-6), math.rad(16), math.rad(0)),
-	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-4), math.rad(-18), math.rad(0)),
+P.BATIDA_B_1 = {
+	RightArm = CFrame.new(0,0.7,0.3) * CFrame.new(1.94078016, 0.420045853, -0.739268303, 0.133022189, -0.718527198, 0.682659388, 0.991084456, 0.0912356675, -0.0970924273, 0.00748063065, 0.689488888, 0.724257588) * CFrame.fromEulerAnglesXYZ(0,0,0) * CFrame.new(0, -0.5, 0),
+	LeftArm = CFrame.new(0.7,0,0) * CFrame.new(-2.05798006, 0.156598568, 9.53674316e-07, 0.50000006, 0.866025329, -5.96046448e-08, -0.86602509, 0.499999821, -1.11758709e-08, -4.47034836e-08, -8.94069672e-08, 1) * CFrame.new(0, -0.5, 0),
+	Head = CFrame.new(0,-0.5,0) * CFrame.new(0, 1.49999905, 0, 0.342020094, -6.70552254e-08, 0.939692616, -1.10594556e-08, 0.999999702, -6.70552254e-08, -0.939692676, -1.11758709e-08, 0.342019945) * CFrame.new(0, 0.5, 0),
+	HRP = CFrame.new(0, 0, 0, 0.356122136, 0.10289897, -0.928756654, 0.0610870048, 0.989228606, 0.133022025, 0.932440579, -0.104107097, 0.346000373),
 }
 
-P.IDLE = {
-	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
-	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
+P.REPOUSO = {
+	RightArm = CFrame.new(1.5,0.5,0) * CFrame.fromEulerAnglesXYZ(math.rad(45), math.rad(-2.5), math.rad(-10)) * CFrame.new(0, -0.5, 0),
+	LeftArm = CFrame.new(-1.5,0.5,0) * CFrame.fromEulerAnglesXYZ(math.rad(55), 0, math.rad(10)) * CFrame.new(0, -0.5, 0),
+	Head = CFrame.new(0,1,0) * CFrame.new(0, 0.5, 0),
+	HRP = CFrame.new(0,0,0),
 }
 
 P.SEQUENCIAS = {
 
-	-- golpe rápido · 0.84s · 5 passo(s)
-	BATIDA = {
-		{ pose = "GIRA_MAO", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "GIRA_MAO", time = 0.14, style = "Sine", dir = "InOut" },
-		{ pose = "BATE_LADO", time = 0.1, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "BATE_LADO", time = 0.16, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out" },
+	-- golpe rápido · 0.55s · 3 passo(s), da origem
+	BATIDA_A = {
+		{ pose = "BATIDA_A_0", time = 0.15, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "BATIDA_A_1", time = 0.183, style = "Quint", dir = "Out", marca = "SOPRO" },
+		{ pose = "REPOUSO", time = 0.22, style = "Quad", dir = "Out", marca = "GOLPE" },
 	},
 
-	-- golpe rápido · 0.92s · 5 passo(s)
+	-- golpe rápido · 0.55s · 3 passo(s), da origem
 	BATIDA_B = {
-		{ pose = "ERGUE_ALTO", time = 0.22, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "ERGUE_ALTO", time = 0.16, style = "Sine", dir = "InOut" },
-		{ pose = "DESCE_ALTO", time = 0.11, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "DESCE_ALTO", time = 0.17, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.26, style = "Quad", dir = "Out" },
-	},
-
-	-- golpe pesado · 1.30s · 5 passo(s)
-	CHAMADA = {
-		{ pose = "GIRA_MAO", time = 0.24, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "GIRA_MAO", time = 0.46, style = "Sine", dir = "InOut", tremor = 0.04, freq = 26, marca = "SEGURA" },
-		{ pose = "BATE_LADO", time = 0.12, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "BATE_LADO", time = 0.2, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out" },
+		{ pose = "BATIDA_B_0", time = 0.15, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "BATIDA_B_1", time = 0.183, style = "Quint", dir = "Out", marca = "SOPRO" },
+		{ pose = "REPOUSO", time = 0.22, style = "Quad", dir = "Out", marca = "GOLPE" },
 	},
 
 }

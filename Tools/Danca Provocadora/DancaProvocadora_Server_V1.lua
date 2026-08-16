@@ -5,16 +5,17 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   danca com a musica, ate mandar parar
---   R    Parar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   danca com a musica (kick dance/SwordScript)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `kick dance`: RequiresHandle = false — ganha um Handle invisivel
---   `KeyframeSequence` `california gurls`: **361 keyframes** em 12.00 s,
---      amostrada em 14 — a maior densidade que ja entrou no repositorio
+--   `KeyframeSequence` `california gurls`: **361 keyframes** em 12.00 s —
+--      INTEIRA, sem corte. A versao anterior entregou 14.
 --   sem som proprio (o `music` veio vazio): empresta 2 do Canhao
---   LOGICA: `Activated` toca a animacao e a musica. `Unequipped` para as
---      duas. **NAO HA MAIS NADA** — sem dano, sem raio, sem puxao.
+--   o SwordScript inteiro cabe em nove linhas: play, music, stop
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -28,7 +29,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -40,7 +40,6 @@ local ARQUETIPO = "SUPORTE"
 
 local CFG = {
 	RECARGA        = 3,
-	RECARGA_EXTRA  = 1,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -48,15 +47,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local dancando = false
 local musica = nil
 local geracao = 0
@@ -317,20 +316,25 @@ end
 --══════════════════════════════════════════════════════════════
 -- A DANÇA, E SÓ A DANÇA
 --
--- O `SwordScript` do `kick dance` inteiro cabe em nove linhas: `Activated` dá
--- `animation:play()` e `music:Play()`, `Unequipped` dá `animation:stop()` e
--- `music:Stop()`. Não existe dano, não existe raio, não existe puxão — a versão
--- anterior tinha aura de 26 studs, 6 de dano por tique e arrasto para o centro,
--- e nada disso está na origem.
+-- O `SwordScript` do `kick dance` inteiro:
 --
--- 14 quadros amostrados de uma `KeyframeSequence` de **361 keyframes** em
--- 12.00 s. É a maior densidade de animação que já entrou aqui.
+--     animation = animator.new(char, script.Parent["california gurls"])
+--     animation:play() ; script.Parent.music:Play()
+--     -- Unequipped: animation:stop() ; music:Stop()
+--
+-- Não existe dano, não existe raio, não existe puxão. A versão anterior tinha
+-- aura de 26 studs, 6 de dano por tique e arrasto para o centro, e nada disso
+-- está na origem.
+--
+-- **361 quadros de 361**, por `PlayTrack`. A versão anterior entregou 14.
+-- `PlayTrack` roda no `Heartbeat` com tempo absoluto: os 12.00 s saem em
+-- 12.00 s, sem a deriva que 361 tweens encadeados teriam.
 --
 -- Ela REPETE: na origem a animação roda até o `Unequipped`, e é por isso que a
--- rodada se re-agenda no `onDone` em vez de parar no fim do ciclo.
+-- rodada se re-agenda no `onDone`.
 --
--- `ocupado` fica FALSO enquanto ela roda, de propósito: se ficasse verdadeiro,
--- o `podeAgir()` barraria a própria tecla de parar.
+-- `ocupado` fica FALSO enquanto ela roda, de propósito: dançar não ocupa o
+-- personagem, e um segundo clique reinicia — que é o que a origem faz.
 --══════════════════════════════════════════════════════════════
 
 local function pararDanca()
@@ -347,9 +351,9 @@ end
 local rodada
 rodada = function(minha)
 	if minha ~= geracao or not dancando or not rig then return end
-	rig:PlaySequence("DANCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GOLPE" and raiz then
+	rig:PlayTrack("DANCA", function(passo)
+		local evento = passo and passo.event
+		if evento == "BATIDA" and raiz then
 			tocarEm("BATIDA", raiz.Position, 1 + jitter(0.6) * 0.12)
 		end
 	end, function()
@@ -360,7 +364,7 @@ rodada = function(minha)
 end
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — dançar
+-- A HABILIDADE — no clique
 --══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
@@ -373,18 +377,6 @@ function primaria(_mira)
 	if musica then musica.Looped = true end
 
 	rodada(minha)
-	ocupado = false
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — parar
---
--- É o `Unequipped` da origem, na tecla.
---══════════════════════════════════════════════════════════════
-
-function extra(_mira)
-	if not dancando then return end
-	pararDanca()
 	ocupado = false
 end
 
@@ -410,15 +402,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -426,7 +409,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityDanca", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityDanca", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio

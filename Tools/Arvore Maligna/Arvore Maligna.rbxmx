@@ -1080,24 +1080,24 @@
 					</Item>
 					</Item>
 			</Item>
-		</Item><Item class="StringValue" referent="RG_Damage_04"><Properties><string name="Name">DamageClass</string><string name="Value">Espectral</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_04"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Arvore</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_04"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_04"><Properties><string name="Name">RecargaGlobal</string><float name="Value">24</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_04"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_ACAO_04"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RG_ArvoreMalign_04"><Properties><string name="Name">ArvoreMaligna_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ArvoreMaligna_Server_V1.lua
+		</Item><Item class="StringValue" referent="RG_Damage_04"><Properties><string name="Name">DamageClass</string><string name="Value">Espectral</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_04"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Arvore</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_04"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_04"><Properties><string name="Name">RecargaGlobal</string><float name="Value">24</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_04"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="Script" referent="RG_ArvoreMalign_04"><Properties><string name="Name">ArvoreMaligna_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ArvoreMaligna_Server_V1.lua
 -- Script de servidor — Arvore Maligna  (conjunto REALITY GUI)
 --
 -- Sai do `reality_tools.rbxmx`, que NÃO é uma Tool: é um Script de 2650
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   planta a arvore, e ela caca
---   R    Derrubar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   planta a arvore, e ela caca (tre/.../Death/Script)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `tre`: Handle 4 x 1 x 2 e o Model `tree` com 5 UnionOperation
 --   som Kill 4817657002
---   LOGICA: a arvore CACA. Ela procura o Humanoid mais perto num raio de
---      200, e **so anda enquanto ninguem esta olhando para ela** — o
---      `canSee` da origem testa FOV mais raycast. A menos de 10 studs,
---      mata. E anjo chorao, nao aura parada.
---   o BodyGyro e a ScreenGui da origem NAO atravessaram
+--   `seen_dist = 200` · `canSee` = FOV (`vec:Dot(lookVector) > 0`) + raycast
+--   `if minply and not beingwatched` -> avanca `unit*-15`
+--   `if minmag < 10` -> Health = 0, BreakJoints, Kill:Play()
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -1111,7 +1111,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
@@ -1133,8 +1132,6 @@ local CFG = {
 	TOMBO          = 2.5,
 	INTERVALO_ALVO = 1.6,
 	ARRASTO_A_CADA = 4,
-
-	RECARGA_EXTRA  = 2,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -1142,15 +1139,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local arvoreId = nil
 local arvoreOnde = nil
 local geracao = 0
@@ -1409,25 +1406,30 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- O ANJO CHORÃO — a mecânica que a versão anterior tinha perdido
+-- O ANJO CHORÃO
 --
 -- O `tre` não é uma aura. Ele é uma peça que persegue: acha o `Humanoid` mais
--- perto num raio de 200 studs, aponta para ele, e **avança 15 studs por volta
--- do laço — mas só enquanto aquele alvo NÃO está olhando para ela**. O teste
--- da origem (`canSee`) é o produto escalar do vetor até a árvore com o
--- `lookVector` da cabeça: positivo = está no campo de visão = ela congela.
+-- perto num raio de 200 studs, aponta para ele, e avança — **mas só enquanto
+-- aquele alvo NÃO está olhando para ela**:
+--
+--     local isInFOV = (vec:Dot(vh.CFrame.lookVector) > 0)
+--     if minply and not beingwatched then ... end
 --
 -- A menos de 10 studs, mata.
 --
 -- O que mudou para caber nas regras: o passo é de 0.35 s (a origem roda com
--- `wait(.000001)`, o que é por quadro e replica picotado), o avanço é de 4.5
+-- `wait(.000001)`, que é por quadro e replica picotado), o avanço é de 4.5
 -- studs por passo em vez de 15, o alcance é 90 em vez de 200, e o abate é
 -- `TakeDamage` pelo Núcleo em vez de `Health = 0` mais `BreakJoints`.
 --
--- O raycast de linha de visão da origem ficou de fora: o teste de FOV é o que
--- dá a leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
+-- O raycast de linha de visão ficou de fora: o teste de FOV é o que dá a
+-- leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
 -- pagaria caro por pouco. Quem se esconder atrás de uma parede e olhar na
 -- direção dela ainda a congela.
+--
+-- E a `ScreenGui` `Popup` que a origem clonava para a `PlayerGui` da vítima não
+-- veio: é proibida dentro de Tool, e mexer na GUI de outro jogador é a
+-- referência fora da Tool que a regra nº 1 fecha.
 --══════════════════════════════════════════════════════════════
 
 local function derrubar()
@@ -1439,7 +1441,7 @@ local function derrubar()
 	arvoreOnde = nil
 end
 
---- O alvo está olhando para o ponto? `> 0` é o teste da origem: meio giro
+--- `vec:Dot(vh.CFrame.lookVector) > 0` — o teste da origem, igual. Meio giro
 --- inteiro conta como "de frente", e é isso que faz a árvore parecer travada
 --- sempre que se vira para ela.
 local function estaOlhando(alvo, ponto)
@@ -1514,10 +1516,11 @@ local function cacar(id)
 end
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — plantar
+-- A HABILIDADE — no clique
 --
--- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Entrou como
--- GEOMETRIA, ancorada e invisível; o clone é que aparece, e é ele que anda.
+-- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Na origem
+-- ele morava em `ReplicatedStorage`; aqui mora em `Tool/Moldes/`, ancorado e
+-- invisível. O clone é que aparece, e é ele que anda.
 --══════════════════════════════════════════════════════════════
 
 function primaria(mira)
@@ -1536,30 +1539,6 @@ function primaria(mira)
 				duracao = CFG.DURACAO, id = arvoreId })
 			tocarEm("GALHO", onde, 0.7)
 			cacar(arvoreId)
-		end
-	end, function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — derrubar
---
--- A origem não tem segunda habilidade: a árvore fica de pé até o fim do round.
--- Esta Extra é o desligar dela, na tecla.
---══════════════════════════════════════════════════════════════
-
-function extra(_mira)
-	if not arvoreId then return end
-	ocupado = true
-	local onde = arvoreOnde
-	rig:PlaySequence("GALHADA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("GALHO", 1.15)
-		elseif marca == "GOLPE" then
-			local centro = onde or frente(CFG.ALCANCE)
-			derrubar()
-			vfx("BURACO_FIM", { posicao = centro, escala = 1.8 })
-			tocarEm("GALHO", centro, 0.55)
 		end
 	end, function() ocupado = false end)
 end
@@ -1586,15 +1565,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -1602,7 +1572,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityArvore", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityArvore", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -1636,24 +1607,20 @@ Tool.Destroying:Connect(desmontar)
 -- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
 -- cliente não replica e os outros jogadores viam o portador parado.
 --
--- MOBILE: `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)`.
--- O terceiro argumento faz o Roblox desenhar o botão de toque sozinho. A origem
--- tinha uma `ScreenGui` chamada `Talk` com dois `TextLabel`; `ScreenGui` dentro
--- de Tool é proibida, e o botão do CAS faz o trabalho sem sair da Tool.
+-- MOBILE: nada a fazer. A habilidade é UMA e ela mora no `Tool.Activated`, que
+-- o Roblox já liga no botão da Tool em toda plataforma. Sem `ContextActionService`,
+-- sem tecla, sem botão desenhado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_reality.py.
 
 local Players = game:GetService("Players")
-local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool       = script.Parent
-local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
-local VFX        = require(Tool:WaitForChild("VFXModule"))
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local VFX       = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Reality_RealityArvore_R"
 local ALCANCE_MIRA = 50
 
 local equipado = false
@@ -1696,22 +1663,6 @@ local function mira()
 	return alvo
 end
 
-local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
-		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipado then return end
-		AcaoRemote:FireServer("R", mira())
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
-
-	ContextActionService:SetTitle(ACAO, "Derrubar")
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
-end
-
-local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
-end
-
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
@@ -1724,12 +1675,10 @@ end)
 Tool.Equipped:Connect(function()
 	if not souODono() then return end
 	equipado = true
-	ligarEntrada()
 end)
 
 local function aoGuardar()
 	equipado = false
-	desligarEntrada()
 	VFX.LimparTudo()
 end
 
@@ -2182,18 +2131,17 @@ return Animator
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RG_Poses_04"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
 -- ModuleScript "Poses" — Arvore Maligna  (conjunto REALITY GUI)
 --
+-- AUTORAL — e aqui isso não é escolha, é falta de original.
+--
+-- A origem NÃO ANIMA O PERSONAGEM nesta Tool. Ver o topo do gerador:
+-- o `Animation` da `SLAP` tem `AnimationId` vazio, e na `tre` e no
+-- `gravity cat` quem se mexe é o modelo invocado, não quem invoca.
+--
 -- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
--- Sequência usa `time` / `style` / `dir` (V2).
---
--- AUTORAL, pela GRAMATICA_R6.md. Nenhum script da origem atravessou a
--- quarentena do `reality_tools.rbxmx` — só geometria, som e malha.
---
 -- JUNTA QUE LIDERA: **RightArm** (regra 6).
 --
---   PLANTAR      golpe pesado     1.50s · 5 passo(s)
---   GALHADA      sustentada       1.30s · 5 passo(s)
---
 -- Gerado por FERRAMENTAS/gerar_poses_reality.py.
+--   PLANTAR      golpe pesado     1.50s · 5 passo(s)
 
 local P = {}
 
@@ -2228,17 +2176,8 @@ P.SEQUENCIAS = {
 		{ pose = "PLANTA", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
 		{ pose = "PLANTA", time = 0.44, style = "Sine", dir = "InOut", tremor = 0.04, freq = 23 },
 		{ pose = "CRESCE", time = 0.16, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "CRESCE", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.05, freq = 27, marca = "SEGURA" },
-		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out" },
-	},
-
-	-- sustentada · 1.30s · 5 passo(s)
-	GALHADA = {
-		{ pose = "CRESCE", time = 0.22, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "CRESCE", time = 0.42, style = "Sine", dir = "InOut", tremor = 0.04, freq = 25, marca = "SEGURA" },
-		{ pose = "PLANTA", time = 0.14, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "PLANTA", time = 0.24, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out" },
+		{ pose = "CRESCE", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.05, freq = 27 },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

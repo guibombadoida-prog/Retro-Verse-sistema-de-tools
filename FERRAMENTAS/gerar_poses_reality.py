@@ -5,35 +5,69 @@ gerar_poses_reality.py — Retro-Verse / Studios
 Escreve o `Poses.lua` das 7 Tools do conjunto REALITY GUI.
 
     python3 FERRAMENTAS/extrair_keyframes_reality.py   # antes
+    python3 FERRAMENTAS/extrair_welds_reality.py       # antes
     python3 FERRAMENTAS/gerar_poses_reality.py
 
-DUAS ORIGENS DE POSE NO MESMO CONJUNTO, E É A PRIMEIRA VEZ
+════════════════════════════════════════════════════════════════════════
+A ANIMAÇÃO É A DA ORIGEM, INTEIRA. NADA DE AMOSTRAGEM.
+════════════════════════════════════════════════════════════════════════
 
-    | Tool | De onde vem a pose |
-    |---|---|
-    | `Trem` | **`KeyframeSequence`** do `a-train` — 40 kf, amostrada em 10 |
-    | `Danca Provocadora` | **`KeyframeSequence`** `california gurls` — **361 kf**, amostrada em 14 |
-    | as outras cinco | autorais, pela `GRAMATICA_R6.md` |
+    A primeira versão deste arquivo amostrou o `a-train` de **40 para 10**
+    quadros e o `kick dance` de **361 para 14**. Isso não é "guardar a
+    silhueta": é jogar a animação fora e desenhar outra por cima. Foi o erro
+    mais grave do conjunto.
 
-    As duas primeiras são a estreia do formato: `Keyframe` datado com `Pose`
-    por junta, que é o que o Animation Editor do Studio produz. Tudo que entrou
-    aqui antes era pose escrita em laço.
+    Agora entra tudo:
 
-    A conversão está no `extrair_keyframes_reality.py`, e o ponto dela é que
-    `Pose.CFrame` NÃO é o `C0` que o animator quer — é um delta sobre a junta em
-    repouso. `C0 = base * Pose.CFrame`.
+    | Tool | De onde vem a pose | Quantos |
+    |---|---|---|
+    | `Trem` | `KeyframeSequence` `a-train` | **40 de 40** |
+    | `Danca Provocadora` | `KeyframeSequence` `california gurls` | **361 de 361** |
+    | `Samsungus` | `Weld.C0` escrito no `LeadpipeServer` | 4 blocos, 2 golpes |
+    | `Canhao Satelite` | `Weld.C0` escrito no Script do LOIC | 6 blocos, 3 tempos |
+    | `Lapada Seca` · `Arvore Maligna` · `Gato Ajudante Boss` | autoral | a origem não anima o personagem |
+
+    Os 361 são todos DISTINTOS entre si, e o passo é uniforme em 1/30 s — não
+    há quadro repetido para descartar. Amostrar era perda pura.
+
+════════════════════════════════════════════════════════════════════════
+`TRACK`, NÃO `SEQUENCE` — E O MOTIVO É DERIVA
+════════════════════════════════════════════════════════════════════════
+
+    `PlaySequence` encadeia um Tween por passo e emenda no `Completed`. Com
+    passo de 1/30 s isso custa um quadro de emenda por keyframe: 361 emendas
+    somariam **~6 s** numa animação de 12 s, e a dança rodaria em câmera lenta.
+
+    `PlayTrack` roda no `Heartbeat` com acumulador `dt` e tempo ABSOLUTO por
+    keyframe. Ele não emenda nada — ele pergunta "que horas são" e interpola o
+    segmento certo. 361 quadros em 12.00 s saem em 12.00 s.
+
+    Por isso `Trem` e `Danca Provocadora` saem em `P.TRACKS`, e as outras cinco
+    — que têm poucos passos e beats nítidos — seguem em `P.SEQUENCIAS`.
+
+════════════════════════════════════════════════════════════════════════
+AS DUAS CONVERSÕES
+════════════════════════════════════════════════════════════════════════
+
+    `KeyframeSequence`  `Pose.CFrame` é um DELTA sobre a junta em repouso, não
+                        o `C0` final. `C0 = base * Pose.CFrame`, com a base
+                        sendo RightArm (1.5,0,0) e companhia.
+
+    `Weld.C0` no script O alvo sai VERBATIM — já é Lua válido, e copiar o texto
+                        não tem erro de arredondamento. Só o C1 da origem entra
+                        como sufixo invertido. Ver `extrair_welds_reality.py`.
 
 QUEM LIDERA (regra 6)
 
-    | Tool | lidera | por quê |
-    |---|---|---|
-    | `Lapada Seca` | RightArm | tapa |
-    | `Canhao Satelite` | RightArm | conjuração — marca o ponto |
-    | `Trem` | **HRP** | investida: o corpo inteiro vai |
-    | `Arvore Maligna` | RightArm | conjuração |
-    | `Gato Ajudante Boss` | RightArm | invocação |
-    | `Samsungus` | RightArm | golpe de mão |
-    | `Danca Provocadora` | **HRP** | dança é do tronco, e a origem concorda |
+    | Tool | lidera |
+    |---|---|
+    | `Lapada Seca` | RightArm — tapa |
+    | `Canhao Satelite` | RightArm — a origem só anima braço e cabeça |
+    | `Trem` | **HRP** — investida: o corpo inteiro vai |
+    | `Arvore Maligna` | RightArm — conjuração |
+    | `Gato Ajudante Boss` | RightArm — invocação |
+    | `Samsungus` | RightArm — golpe de mão |
+    | `Danca Provocadora` | **HRP** — dança é do tronco, e a origem concorda |
 """
 
 import json
@@ -42,7 +76,9 @@ import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(RAIZ, "Tools")
-DADOS = os.path.join(RAIZ, "FERRAMENTAS", "dados", "keyframes_reality.json")
+DADOS = os.path.join(RAIZ, "FERRAMENTAS", "dados")
+KEYFRAMES = os.path.join(DADOS, "keyframes_reality.json")
+WELDS = os.path.join(DADOS, "welds_reality.json")
 
 ORDEM = ("RightArm", "LeftArm", "Head", "HRP", "RightLeg", "LeftLeg")
 
@@ -55,6 +91,18 @@ def P(nome, t, estilo="Quad", direcao="Out", marca=None, tremor=None, freq=None)
     return dict(pose=nome, time=t, style=estilo, dir=direcao, marca=marca,
                 tremor=tremor, freq=freq)
 
+
+# ═══════════════════════════════════════════════════════════════
+# AS TRÊS AUTORAIS — a origem não anima o personagem nelas
+#
+#   `SLAP`         o `Animation` da Tool tem `AnimationId` **VAZIO**: o
+#                  `LoadAnimation` da origem toca nada.
+#   `tre`          quem se mexe é a árvore, não quem planta.
+#   `gravity cat`  quem se mexe é o gato.
+#
+# Nestas três não há o que ser fiel a: o gesto é escrito aqui, curto, só para
+# a habilidade ter um disparo legível.
+# ═══════════════════════════════════════════════════════════════
 
 BASE = {
     "IDLE": {
@@ -76,28 +124,6 @@ BASE = {
         "Head": J(0, 1.5, 0, 6, -30, 0),
         "HRP": J(0, -0.04, 0, 5, 40, 0),
         "RightLeg": J(0.5, -1.9, -0.24, -12, 0, 0),
-    },
-    # marcar o ponto: braço reto para o alvo, palma para baixo
-    "MARCA": {
-        "RightArm": J(1.52, 0.38, -1.2, 92, -4, -3),
-        "LeftArm": J(-1.44, 0.08, -0.28, 26, 8, 10),
-        "Head": J(0, 1.5, 0, -6, -4, 0),
-        "HRP": J(0, 0.02, 0, -4, 8, 0),
-        "RightLeg": J(0.5, -1.88, -0.22, -11, 0, 0),
-    },
-    "CHAMA_CEU": {
-        "RightArm": J(1.42, 0.84, -0.06, 164, -10, -16),
-        "LeftArm": J(-1.42, 0.84, -0.06, 164, 10, 16),
-        "Head": J(0, 1.5, 0, -38, 0, 0),
-        "HRP": J(0, 0.12, 0, -16, 0, 0),
-        "RightLeg": J(0.5, -1.9, 0.14, 8, 0, 0),
-        "LeftLeg": J(-0.5, -1.9, 0.14, 8, 0, 0),
-    },
-    "RECUA": {
-        "RightArm": J(1.3, 0.16, -0.6, 74, 16, 32),
-        "LeftArm": J(-1.3, 0.16, -0.6, 74, -16, -32),
-        "Head": J(0, 1.5, 0, 12, 0, 0),
-        "HRP": J(0, -0.16, 0, 14, 0, 0),
     },
     # a árvore sobe: as duas mãos abrem do chão para cima
     "PLANTA": {
@@ -127,46 +153,8 @@ BASE = {
         "Head": J(0, 1.5, 0, -4, -8, 0),
         "HRP": J(0, 0.02, 0, -3, 12, 0),
     },
-    # o celular: gira na mão e bate de lado
-    "GIRA_MAO": {
-        "RightArm": J(1.44, 0.34, -0.56, 88, -26, -22),
-        "LeftArm": J(-1.46, 0.06, -0.26, 24, 8, 10),
-        "Head": J(0, 1.5, 0, -6, 16, 0),
-        "HRP": J(0, 0.02, 0, -4, -18, 0),
-    },
-    "BATE_LADO": {
-        "RightArm": J(1.5, 0.28, -1.06, 78, -30, -8),
-        "LeftArm": J(-1.4, 0.02, -0.38, 32, 14, 18),
-        "Head": J(0, 1.5, 0, 4, -26, 0),
-        "HRP": J(0, -0.04, 0, 5, 34, 0),
-        "RightLeg": J(0.5, -1.9, -0.24, -12, 0, 0),
-    },
-    # a SEGUNDA batida do leadpipe: vem de cima, braço aberto, corpo para trás
-    "ERGUE_ALTO": {
-        "RightArm": J(1.4, 0.72, -0.18, 152, -14, -22),
-        "LeftArm": J(-1.44, 0.14, -0.34, 36, 12, 16),
-        "Head": J(0, 1.5, 0, -18, 8, 0),
-        "HRP": J(0, 0.06, 0, -10, -12, 0),
-    },
-    "DESCE_ALTO": {
-        "RightArm": J(1.46, -0.1, -0.92, 44, -10, -6),
-        "LeftArm": J(-1.38, -0.02, -0.44, 40, 16, 22),
-        "Head": J(0, 1.5, 0, 16, -8, 0),
-        "HRP": J(0, -0.12, 0, 18, 12, 0),
-        "RightLeg": J(0.5, -1.86, -0.3, -16, 0, 0),
-        "LeftLeg": J(-0.5, -1.92, 0.16, 9, 0, 0),
-    },
-    # a mão aberta e parada, palma para a frente: a "mão quente" da lapada
-    "MAO_ABERTA": {
-        "RightArm": J(1.52, 0.3, -0.86, 84, -18, -6),
-        "LeftArm": J(-1.46, 0.08, -0.3, 26, 8, 12),
-        "Head": J(0, 1.5, 0, -8, -10, 0),
-        "HRP": J(0, 0.02, 0, -5, 14, 0),
-    },
 }
 
-
-#: as cinco autorais. As duas de KeyframeSequence entram por `DA_ORIGEM`.
 AUTORAIS = {
     "Lapada Seca": ("RightArm", {
         "TAPA": ("golpe rápido", [
@@ -174,39 +162,7 @@ AUTORAIS = {
             P("TAPA_ERGUE", 0.14, "Sine", "InOut"),
             P("TAPA_BATE", 0.10, "Quint", "Out", "GOLPE"),
             P("TAPA_BATE", 0.16, "Sine", "InOut"),
-            P("IDLE", 0.24, "Quad", "Out"),
-        ]),
-        # A MÃO QUENTE — sustentada, não combo.
-        #
-        # A origem não tem três tapas: tem a mão ligada no `Touched` enquanto a
-        # Tool estiver equipada. A pose acompanha isso — ergue, ABRE, e fica
-        # parada com a palma para a frente pelos 5 s da janela.
-        "MAO_QUENTE": ("sustentada", [
-            P("TAPA_ERGUE", 0.26, "Back", "In", "CARGA"),
-            P("MAO_ABERTA", 0.30, "Quint", "Out", "SEGURA"),
-            P("MAO_ABERTA", 2.40, "Sine", "InOut", None, 0.03, 19),
-            P("MAO_ABERTA", 2.30, "Sine", "InOut", None, 0.045, 24),
-            P("IDLE", 0.34, "Quad", "Out", "FIM"),
-        ]),
-    }),
-    "Canhao Satelite": ("RightArm", {
-        # ULTIMATE COM CUTSCENE · 7.30 s · 71% de preparação (regra 5)
-        "ORBITA": ("ultimate", [
-            P("MARCA", 0.45, "Back", "In", "CAMERA", 0.02, 15),
-            P("MARCA", 0.90, "Sine", "InOut", "MARCA", 0.03, 20),
-            P("CHAMA_CEU", 0.85, "Quad", "InOut", "CARGA", 0.04, 24),
-            P("CHAMA_CEU", 1.20, "Sine", "InOut", None, 0.055, 29),
-            P("CHAMA_CEU", 1.25, "Sine", "InOut", "SEGURA", 0.07, 34),
-            P("RECUA", 0.30, "Quint", "In", "DESCE"),
-            P("RECUA", 0.30, "Sine", "InOut", "GOLPE"),
-            P("RECUA", 0.85, "Sine", "InOut", None, 0.06, 31),
-            P("IDLE", 1.20, "Quad", "Out", "FIM"),
-        ]),
-        "MIRA": ("conjuração", [
-            P("MARCA", 0.22, "Back", "In", "CARGA"),
-            P("MARCA", 0.34, "Sine", "InOut", None, 0.03, 21),
-            P("MARCA", 0.14, "Quint", "Out", "GOLPE"),
-            P("IDLE", 0.30, "Quad", "Out"),
+            P("IDLE", 0.24, "Quad", "Out", "FIM"),
         ]),
     }),
     "Arvore Maligna": ("RightArm", {
@@ -214,15 +170,8 @@ AUTORAIS = {
             P("PLANTA", 0.26, "Back", "In", "CARGA"),
             P("PLANTA", 0.44, "Sine", "InOut", None, 0.04, 23),
             P("CRESCE", 0.16, "Quint", "Out", "GOLPE"),
-            P("CRESCE", 0.34, "Sine", "InOut", "SEGURA", 0.05, 27),
-            P("IDLE", 0.30, "Quad", "Out"),
-        ]),
-        "GALHADA": ("sustentada", [
-            P("CRESCE", 0.22, "Back", "In", "CARGA"),
-            P("CRESCE", 0.42, "Sine", "InOut", "SEGURA", 0.04, 25),
-            P("PLANTA", 0.14, "Quint", "Out", "GOLPE"),
-            P("PLANTA", 0.24, "Sine", "InOut"),
-            P("IDLE", 0.28, "Quad", "Out"),
+            P("CRESCE", 0.34, "Sine", "InOut", None, 0.05, 27),
+            P("IDLE", 0.30, "Quad", "Out", "FIM"),
         ]),
     }),
     "Gato Ajudante Boss": ("RightArm", {
@@ -231,51 +180,84 @@ AUTORAIS = {
             P("ASSOBIA", 0.40, "Sine", "InOut", None, 0.03, 22),
             P("APONTA_ALVO", 0.14, "Quint", "Out", "GOLPE"),
             P("APONTA_ALVO", 0.22, "Sine", "InOut"),
-            P("IDLE", 0.30, "Quad", "Out"),
-        ]),
-        "MANDAR": ("conjuração", [
-            P("APONTA_ALVO", 0.20, "Back", "In", "CARGA"),
-            P("APONTA_ALVO", 0.28, "Sine", "InOut"),
-            P("APONTA_ALVO", 0.12, "Quint", "Out", "GOLPE"),
-            P("IDLE", 0.28, "Quad", "Out"),
-        ]),
-    }),
-    "Samsungus": ("RightArm", {
-        # O COMBO DE DUAS. `attacknumber` da origem alterna as batidas: a A vem
-        # de lado com o corpo torcido, a B vem de cima com o braço aberto. São
-        # duas animações diferentes, e a versão anterior tinha uma só.
-        "BATIDA": ("golpe rápido", [
-            P("GIRA_MAO", 0.20, "Back", "In", "CARGA"),
-            P("GIRA_MAO", 0.14, "Sine", "InOut"),
-            P("BATE_LADO", 0.10, "Quint", "Out", "GOLPE"),
-            P("BATE_LADO", 0.16, "Sine", "InOut"),
-            P("IDLE", 0.24, "Quad", "Out"),
-        ]),
-        "BATIDA_B": ("golpe rápido", [
-            P("ERGUE_ALTO", 0.22, "Back", "In", "CARGA"),
-            P("ERGUE_ALTO", 0.16, "Sine", "InOut"),
-            P("DESCE_ALTO", 0.11, "Quint", "Out", "GOLPE"),
-            P("DESCE_ALTO", 0.17, "Sine", "InOut"),
-            P("IDLE", 0.26, "Quad", "Out"),
-        ]),
-        "CHAMADA": ("golpe pesado", [
-            P("GIRA_MAO", 0.24, "Back", "In", "CARGA"),
-            P("GIRA_MAO", 0.46, "Sine", "InOut", "SEGURA", 0.04, 26),
-            P("BATE_LADO", 0.12, "Quint", "Out", "GOLPE"),
-            P("BATE_LADO", 0.20, "Sine", "InOut"),
-            P("IDLE", 0.28, "Quad", "Out"),
+            P("IDLE", 0.30, "Quad", "Out", "FIM"),
         ]),
     }),
 }
 
-#: Tool -> (chave no keyframes_reality.json, lidera, nome da sequência,
-#:          natureza, marcas por índice de quadro)
-DA_ORIGEM = {
-    "Trem": ("a-train", "HRP", "INVESTIDA", "golpe pesado",
-             {0: "CARGA", 4: "GOLPE", 9: "FIM"}),
-    "Danca Provocadora": ("kick dance", "HRP", "DANCA", "sustentada",
-                          {0: "CARGA", 3: "GOLPE", 7: "GOLPE", 11: "GOLPE",
-                           13: "FIM"}),
+
+# ═══════════════════════════════════════════════════════════════
+# AS DUAS DE `KeyframeSequence` — track inteira
+# ═══════════════════════════════════════════════════════════════
+
+#: Tool -> (chave no keyframes_reality.json, lidera, nome da track,
+#:          marcas por índice de quadro)
+DE_KEYFRAME = {
+    "Trem": ("a-train", "HRP", "INVESTIDA", {0: "CARGA", 16: "GOLPE"}),
+    "Danca Provocadora": ("kick dance", "HRP", "DANCA",
+                          {0: "CARGA", 90: "BATIDA", 180: "BATIDA",
+                           270: "BATIDA"}),
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# AS DUAS DE `Weld.C0` — os blocos do laço, na ordem em que a origem roda
+# ═══════════════════════════════════════════════════════════════
+
+#: A pose de repouso do `samsung`, tirada do `checkanim` com os termos de
+#: `math.sin(sine/60)` zerados — é o centro do balanço que a origem faz.
+#: Já vem com o C1 invertido aplicado, igual ao que o extrator faz.
+IDLE_SAMSUNG = {
+    "RightArm": ("CFrame.new(1.5,0.5,0)"
+                 " * CFrame.fromEulerAnglesXYZ(math.rad(45), math.rad(-2.5),"
+                 " math.rad(-10)) * CFrame.new(0, -0.5, 0)"),
+    "LeftArm": ("CFrame.new(-1.5,0.5,0)"
+                " * CFrame.fromEulerAnglesXYZ(math.rad(55), 0, math.rad(10))"
+                " * CFrame.new(0, -0.5, 0)"),
+    "Head": "CFrame.new(0,1,0) * CFrame.new(0, 0.5, 0)",
+    "HRP": "CFrame.new(0,0,0)",
+}
+
+#: O repouso do LOIC: `rightarm.C0` e `head.C0` como nascem, antes do primeiro
+#: laço. C1 identidade nos dois, então entram como estão.
+IDLE_LOIC = {
+    "RightArm": ("CFrame.new(1.5,0.5,0) * CFrame.Angles(math.pi/2,0,0)"
+                 " * CFrame.new(0,-0.5,0)"),
+    "Head": "CFrame.new(0,1.5,0)",
+}
+
+#: Tool -> (chave no welds_reality.json, lidera, repouso, sequências)
+#:
+#: Cada sequência é (nome, natureza, [(bloco ou None, tempo, estilo, dir,
+#: marca)]). `None` no bloco = usar o repouso.
+DE_WELD = {
+    "Samsungus": ("samsung", "RightArm", IDLE_SAMSUNG, [
+        # `attacknumber == 0`: ergue (0.150s) · bate (0.183s) · dano
+        ("BATIDA_A", "golpe rápido", [
+            (0, 0.150, "Back", "In", "CARGA"),
+            (1, 0.183, "Quint", "Out", "SOPRO"),
+            (None, 0.220, "Quad", "Out", "GOLPE"),
+        ]),
+        # `attacknumber == 1`: o segundo golpe, com outro alvo de C0
+        ("BATIDA_B", "golpe rápido", [
+            (2, 0.150, "Back", "In", "CARGA"),
+            (3, 0.183, "Quint", "Out", "SOPRO"),
+            (None, 0.220, "Quad", "Out", "GOLPE"),
+        ]),
+    ]),
+    # No LOIC braço e cabeça rodam em duas corrotinas PARALELAS com o mesmo
+    # tempo: bloco 0+3 juntos, `wait(2.5)`, bloco 1+4, `wait(1.5)`, bloco 2+5.
+    # Os pares são fundidos, e as esperas viram a duração do passo.
+    "Canhao Satelite": ("loic", "RightArm", IDLE_LOIC, [
+        ("ORBITA", "ultimate", [
+            ((0, 3), 0.683, "Sine", "InOut", "CAMERA"),
+            ((0, 3), 2.500, "Sine", "InOut", "CARGA"),
+            ((1, 4), 0.683, "Sine", "InOut", "SEGURA"),
+            ((1, 4), 1.500, "Sine", "InOut", "DESCE"),
+            ((2, 5), 0.683, "Quint", "Out", "GOLPE"),
+            (None, 0.900, "Quad", "Out", "FIM"),
+        ]),
+    ]),
 }
 
 
@@ -291,23 +273,28 @@ def linha_junta(nome, j):
             % (nome, x, y, z, rad(rx), rad(ry), rad(rz)))
 
 
+def cabecalho(tool, extra):
+    return ["-- Poses.lua",
+            "-- ModuleScript \"Poses\" — %s  (conjunto REALITY GUI)" % tool,
+            "--"] + extra + [
+            "-- Gerado por FERRAMENTAS/gerar_poses_reality.py.", "",
+            "local P = {}", ""]
+
+
 def escrever_autoral(tool, lidera, poses, sequencias):
-    L = ["-- Poses.lua",
-         "-- ModuleScript \"Poses\" — %s  (conjunto REALITY GUI)" % tool,
-         "--",
-         "-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.",
-         "-- Sequência usa `time` / `style` / `dir` (V2).",
-         "--",
-         "-- AUTORAL, pela GRAMATICA_R6.md. Nenhum script da origem atravessou a",
-         "-- quarentena do `reality_tools.rbxmx` — só geometria, som e malha.",
-         "--",
-         "-- JUNTA QUE LIDERA: **%s** (regra 6)." % lidera, "--"]
+    L = cabecalho(tool, [
+        "-- AUTORAL — e aqui isso não é escolha, é falta de original.",
+        "--",
+        "-- A origem NÃO ANIMA O PERSONAGEM nesta Tool. Ver o topo do gerador:",
+        "-- o `Animation` da `SLAP` tem `AnimationId` vazio, e na `tre` e no",
+        "-- `gravity cat` quem se mexe é o modelo invocado, não quem invoca.",
+        "--",
+        "-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.",
+        "-- JUNTA QUE LIDERA: **%s** (regra 6)." % lidera, "--"])
     for nome, (natureza, passos) in sequencias.items():
         total = sum(p["time"] for p in passos)
-        L.append("--   %-12s %-16s %.2fs · %d passo(s)"
+        L.insert(-3, "--   %-12s %-16s %.2fs · %d passo(s)"
                  % (nome, natureza, total, len(passos)))
-    L += ["--", "-- Gerado por FERRAMENTAS/gerar_poses_reality.py.", "",
-          "local P = {}", ""]
 
     for nome in sorted(poses):
         L.append("")
@@ -338,76 +325,141 @@ def escrever_autoral(tool, lidera, poses, sequencias):
     return "\n".join(L) + "\n"
 
 
-def escrever_da_origem(tool, dados, info, seq_nome, natureza, marcas, lidera):
+def escrever_track(tool, dados, info, lidera, nome_track, marcas):
     quadros = dados["quadros"]
-    L = ["-- Poses.lua",
-         "-- ModuleScript \"Poses\" — %s  (conjunto REALITY GUI)" % tool,
-         "--",
-         "-- ⚠️ ESTAS POSES VÊM DE UMA `KeyframeSequence` DE VERDADE.",
-         "--",
-         "-- Origem: `%s/%s` — **%d Keyframe** em %.2f s, amostrados em %d."
-         % (info, dados["sequencia"], dados["keyframes_na_origem"],
-            dados["duracao"], len(quadros)),
-         "--",
-         "-- É a estreia do formato no repositório: tudo que entrou antes era",
-         "-- pose escrita em laço (`Weld.C0` no Guest e no Xester, `Motor6D.C0`",
-         "-- no Noob). Esta é a coisa que o Animation Editor do Studio produz.",
-         "--",
-         "-- A CONVERSÃO: `Pose.CFrame` não é o `C0` que o animator quer — é um",
-         "-- DELTA sobre a junta em repouso. Por isso `C0 = base * Pose.CFrame`,",
-         "-- com a base sendo o repouso R6 (RightArm 1.5,0,0 e companhia). Sem",
-         "-- multiplicar, o braço nasceria no meio do peito.",
-         "--",
-         "-- A AMOSTRAGEM é por TEMPO, não por índice: o Animation Editor grava",
-         "-- quadro denso onde o movimento é rápido, e amostrar por índice",
-         "-- espremeria a parte lenta. Perde-se o detalhe fino do gesto; guarda-se",
-         "-- a silhueta, o ritmo e a duração.",
-         "--",
-         "-- Nenhum script da origem atravessou a quarentena. `KeyframeSequence`",
-         "-- é DADO, não código.",
-         "--",
-         "-- JUNTA QUE LIDERA: **%s** (regra 6)." % lidera,
-         "--", "-- Gerado por FERRAMENTAS/gerar_poses_reality.py.", "",
-         "local P = {}", ""]
+    L = cabecalho(tool, [
+        "-- ⚠️ A `KeyframeSequence` DA ORIGEM, INTEIRA. SEM AMOSTRAGEM.",
+        "--",
+        "-- Origem: `%s/%s` — **%d Keyframe** em %.2f s, e os %d estão aqui."
+        % (info, dados["sequencia"], dados["keyframes_na_origem"],
+           dados["duracao"], len(quadros)),
+        "--",
+        "-- A primeira versão deste arquivo entregou 10 e 14 quadros. Isso não",
+        "-- guarda a silhueta: joga a animação fora e desenha outra por cima.",
+        "-- Os quadros são todos DISTINTOS e o passo é uniforme — não havia",
+        "-- repetido para descartar, e amostrar era perda pura.",
+        "--",
+        "-- `P.TRACKS`, NÃO `P.SEQUENCIAS`, E O MOTIVO É DERIVA",
+        "--",
+        "--   `PlaySequence` emenda um Tween por passo no `Completed`, e cada",
+        "--   emenda custa um quadro. Com passo de 1/30 s, %d emendas somariam"
+        % len(quadros),
+        "--   segundos de atraso e a animação rodaria em câmera lenta.",
+        "--   `PlayTrack` roda no `Heartbeat` com acumulador `dt` e tempo",
+        "--   ABSOLUTO: ele não emenda, ele pergunta que horas são.",
+        "--",
+        "-- A CONVERSÃO: `Pose.CFrame` não é o `C0` que o animator quer — é um",
+        "-- DELTA sobre a junta em repouso. Por isso `C0 = base * Pose.CFrame`.",
+        "-- Sem multiplicar, o braço nasceria no meio do peito.",
+        "--",
+        "-- `KeyframeSequence` é DADO, não código: nenhum script da origem",
+        "-- atravessou a quarentena do `reality_tools.rbxmx`.",
+        "--",
+        "-- JUNTA QUE LIDERA: **%s** (regra 6)." % lidera, "--"])
 
+    L += ["P.TRACKS = {", "",
+          "\t-- %d quadro(s) · %.2fs · tempo ABSOLUTO por keyframe"
+          % (len(quadros), dados["duracao"]),
+          "\t%s = {" % nome_track]
     for indice, q in enumerate(quadros):
-        L.append("")
-        L.append("P.Q%02d = {" % (indice + 1))
-        for junta in ORDEM:
-            if junta in q["juntas"]:
-                L.append("\t%s = %s," % (junta, q["juntas"][junta]))
-        L.append("}")
-
-    L += ["", "P.SEQUENCIAS = {", "",
-          "\t-- %s · %.2fs · %d passo(s), da KeyframeSequence"
-          % (natureza, dados["duracao"], len(quadros)),
-          "\t%s = {" % seq_nome]
-    for indice, q in enumerate(quadros):
-        if indice == 0:
-            dt = 0.12
-        else:
-            dt = max(round(q["t"] - quadros[indice - 1]["t"], 3), 0.04)
-        campos = ['pose = "Q%02d"' % (indice + 1), "time = %s" % dt,
+        campos = ["t = %s" % round(q["t"], 4),
                   'style = "Sine"', 'dir = "InOut"']
         if indice in marcas:
-            campos.append('marca = "%s"' % marcas[indice])
+            campos.append('event = "%s"' % marcas[indice])
+        for junta in ORDEM:
+            if junta in q["juntas"]:
+                campos.append("%s = %s" % (junta, q["juntas"][junta]))
         L.append("\t\t{ %s }," % ", ".join(campos))
     L += ["\t},", "", "}", "", "return P"]
     return "\n".join(L) + "\n"
 
 
+def escrever_weld(tool, dados, chave, lidera, repouso, sequencias):
+    """Poses de `Weld.C0` lidas do script da origem — alvo verbatim."""
+    blocos = dados[chave]
+
+    #: nome da pose -> {junta: expressão Lua}
+    poses = {"REPOUSO": dict(repouso)}
+    for nome_seq, _natureza, passos in sequencias:
+        for ordem, (qual, _t, _e, _d, _m) in enumerate(passos):
+            if qual is None:
+                continue
+            indices = qual if isinstance(qual, tuple) else (qual,)
+            juntas = {}
+            for i in indices:
+                juntas.update(blocos[i]["juntas"])
+            poses["%s_%d" % (nome_seq, ordem)] = juntas
+
+    L = cabecalho(tool, [
+        "-- ⚠️ A ANIMAÇÃO DA ORIGEM, LIDA DO SCRIPT DELA.",
+        "--",
+        "-- Ela está escrita em laço, no idioma que o Guest já tinha ensinado:",
+        "--",
+        "--     for i = 0,1 , 0.14 do",
+        "--         weld.C0 = weld.C0:lerp(<ALVO>, i)",
+        "--         step:wait()",
+        "--     end",
+        "--",
+        "-- `i` varre até 1, então a pose ESCRITA é a pose ALCANÇADA — dá para",
+        "-- ler o alvo direto. A duração sai do laço: `ceil(1/passo)+1` voltas",
+        "-- de `Stepped`, a 1/60 s cada.",
+        "--",
+        "-- O alvo entra VERBATIM: já é Lua válido, e copiar o texto não tem",
+        "-- erro de arredondamento. Só o C1 da origem entra como sufixo",
+        "-- INVERTIDO — ver a conta em `extrair_welds_reality.py`.",
+        "--",
+        "-- A primeira versão desta Tool inventou pose. Não precisava.",
+        "--",
+        "-- JUNTA QUE LIDERA: **%s** (regra 6)." % lidera, "--"])
+
+    for nome in sorted(poses):
+        L.append("")
+        L.append("P.%s = {" % nome)
+        for junta in ORDEM:
+            if junta in poses[nome]:
+                L.append("\t%s = %s," % (junta, poses[nome][junta]))
+        L.append("}")
+
+    L += ["", "P.SEQUENCIAS = {"]
+    for nome_seq, natureza, passos in sequencias:
+        total = sum(p[1] for p in passos)
+        L.append("")
+        L.append("\t-- %s · %.2fs · %d passo(s), da origem"
+                 % (natureza, total, len(passos)))
+        L.append("\t%s = {" % nome_seq)
+        for ordem, (qual, t, estilo, direcao, marca) in enumerate(passos):
+            alvo = "REPOUSO" if qual is None else "%s_%d" % (nome_seq, ordem)
+            campos = ['pose = "%s"' % alvo, "time = %s" % t,
+                      'style = "%s"' % estilo, 'dir = "%s"' % direcao]
+            if marca:
+                campos.append('marca = "%s"' % marca)
+            L.append("\t\t{ %s }," % ", ".join(campos))
+        L.append("\t},")
+    L += ["", "}", "", "return P"]
+    return "\n".join(L) + "\n"
+
+
+def gravar(tool, texto):
+    pasta = os.path.join(TOOLS, tool)
+    if not os.path.isdir(pasta):
+        print("sem pasta Tools/%s" % tool)
+        return False
+    with open(os.path.join(pasta, "Poses.lua"), "w", encoding="utf-8") as f:
+        f.write(texto)
+    return True
+
+
 def main():
-    if not os.path.exists(DADOS):
-        print("sem %s — rode extrair_keyframes_reality.py antes" % DADOS)
-        return 1
-    with open(DADOS, encoding="utf-8") as f:
-        tabela = json.load(f)
+    for caminho in (KEYFRAMES, WELDS):
+        if not os.path.exists(caminho):
+            print("faltando %s — rode os extratores antes" % caminho)
+            return 1
+    with open(KEYFRAMES, encoding="utf-8") as f:
+        tabela_kf = json.load(f)
+    with open(WELDS, encoding="utf-8") as f:
+        tabela_weld = json.load(f)
 
     for tool, (lidera, sequencias) in AUTORAIS.items():
-        pasta = os.path.join(TOOLS, tool)
-        if not os.path.isdir(pasta):
-            print("sem pasta Tools/%s" % tool)
-            return 1
         poses = {}
         for _n, passos in sequencias.values():
             for p in passos:
@@ -415,26 +467,36 @@ def main():
                     print("pose %r não existe (%s)" % (p["pose"], tool))
                     return 1
                 poses[p["pose"]] = BASE[p["pose"]]
-        with open(os.path.join(pasta, "Poses.lua"), "w", encoding="utf-8") as f:
-            f.write(escrever_autoral(tool, lidera, poses, sequencias))
-        print("%-20s AUTORAL   %d pose(s) · %d sequência(s)"
+        if not gravar(tool, escrever_autoral(tool, lidera, poses, sequencias)):
+            return 1
+        print("%-20s AUTORAL   %d pose(s) · %d sequência(s)  (origem não anima)"
               % (tool, len(poses), len(sequencias)))
 
-    for tool, (chave, lidera, seq, natureza, marcas) in DA_ORIGEM.items():
-        pasta = os.path.join(TOOLS, tool)
-        if not os.path.isdir(pasta):
-            print("sem pasta Tools/%s" % tool)
-            return 1
-        dados = tabela.get(chave)
+    for tool, (chave, lidera, track, marcas) in DE_KEYFRAME.items():
+        dados = tabela_kf.get(chave)
         if not dados:
             print("%s: sem dados de %r" % (tool, chave))
             return 1
-        with open(os.path.join(pasta, "Poses.lua"), "w", encoding="utf-8") as f:
-            f.write(escrever_da_origem(tool, dados, chave, seq, natureza,
-                                       marcas, lidera))
-        print("%-20s ORIGEM    %d quadro(s) de %d keyframes · %.2fs"
+        if len(dados["quadros"]) != dados["keyframes_na_origem"]:
+            print("%s: %d quadros para %d keyframes — o extrator ainda amostra"
+                  % (tool, len(dados["quadros"]), dados["keyframes_na_origem"]))
+            return 1
+        if not gravar(tool, escrever_track(tool, dados, chave, lidera, track,
+                                           marcas)):
+            return 1
+        print("%-20s TRACK     %d de %d keyframes · %.2fs  (INTEIRA)"
               % (tool, len(dados["quadros"]), dados["keyframes_na_origem"],
                  dados["duracao"]))
+
+    for tool, (chave, lidera, repouso, sequencias) in DE_WELD.items():
+        if chave not in tabela_weld:
+            print("%s: sem dados de %r" % (tool, chave))
+            return 1
+        if not gravar(tool, escrever_weld(tool, tabela_weld, chave, lidera,
+                                          repouso, sequencias)):
+            return 1
+        print("%-20s WELD      %d bloco(s) da origem · %d sequência(s)"
+              % (tool, len(tabela_weld[chave]), len(sequencias)))
     return 0
 
 

@@ -358,23 +358,25 @@
 					</Properties>
 				</Item>
 				</Item>
-		<Item class="Folder" referent="RG_MOLDES_02"><Properties><string name="Name">Moldes</string></Properties></Item><Item class="StringValue" referent="RG_Damage_02"><Properties><string name="Name">DamageClass</string><string name="Value">Explosivo</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_02"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Canhao</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_02"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_02"><Properties><string name="Name">RecargaGlobal</string><float name="Value">38</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_02"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_ACAO_02"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_CUTR_02"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RG_CanhaoSateli_02"><Properties><string name="Name">CanhaoSatelite_Server_V1</string><ProtectedString name="Source"><![CDATA[-- CanhaoSatelite_Server_V1.lua
+		<Item class="Folder" referent="RG_MOLDES_02"><Properties><string name="Name">Moldes</string></Properties></Item><Item class="StringValue" referent="RG_Damage_02"><Properties><string name="Name">DamageClass</string><string name="Value">Explosivo</string></Properties></Item><Item class="StringValue" referent="RG_ChaveR_02"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Reality_Canhao</string></Properties></Item><Item class="NumberValue" referent="RG_Energy_02"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RG_Recarg_02"><Properties><string name="Name">RecargaGlobal</string><float name="Value">38</float></Properties></Item><Item class="RemoteEvent" referent="RG_VFXR_02"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RG_CUTR_02"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RG_CanhaoSateli_02"><Properties><string name="Name">CanhaoSatelite_Server_V1</string><ProtectedString name="Source"><![CDATA[-- CanhaoSatelite_Server_V1.lua
 -- Script de servidor — Canhao Satelite  (conjunto REALITY GUI)
 --
 -- Sai do `reality_tools.rbxmx`, que NÃO é uma Tool: é um Script de 2650
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   o feixe de orbita, e a radiacao que fica
---   R    Marcar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   a chamada de orbita (LowOrbitIonCannon/Script)
+--
+-- UMA HABILIDADE, NO CLIQUE. Sem Extra, sem tecla, sem botão de celular: a
+-- Tool faz o que a origem dela faz, e nada além disso.
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `LowOrbitIonCannon`: Handle 0.8 x 2.3 x 0.4, **21 Sound**
 --   Call 88858815 · Big Explosion 814635481 · Electric Explosion 2674547670
---   ja estava no repositorio como CRU desde o lote de 2026-08-13
---   LOGICA: disco de mira que so aceita superficie Top -> Call -> 3 s ->
---      satelite desliza para cima do ponto -> feixe -> bola de 150 studs,
---      tremor em todo mundo a 600 studs, e **radiacao expandindo por 12 s**
+--   `Call:Play()` -> `wait(3)` -> anuncio -> `wait(1)` -> feixe
+--   `energyhit` bola de **150 studs** · tremor em quem esta a **600**
+--   29 esferas Neon + 100 Glass expandindo por **~12 s** depois do tiro
+--   a animacao de braco e cabeca saiu dos 6 lacos de Weld.C0 do Script
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -388,7 +390,6 @@ local Debris  = game:GetService("Debris")
 local Tool       = script.Parent
 local Handle     = Tool:WaitForChild("Handle")
 local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
@@ -414,9 +415,6 @@ local CFG = {
 	DURACAO_RAD    = 10,
 	INTERVALO_RAD  = 1,
 	DANO_RAD       = 9,
-
-	RECARGA_EXTRA  = 6,
-	DURACAO_MARCA  = 8,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -424,17 +422,15 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria = 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
---- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
-local marcaId = nil
-local marcaOnde = nil
+--- Declarada aqui e atribuída mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso ela viraria global.
+local primaria
 local radiacaoId = nil
 local geracao = 0
 
@@ -746,27 +742,26 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o feixe, COM CUTSCENE
+-- A CHAMADA DE ÓRBITA — com cutscene
 --
--- ULTIMATE: 7.30 s com 71 por cento de preparação, dentro da regra 5.
+-- A ANIMAÇÃO É A DA ORIGEM. Os seis laços de `Weld.C0` do Script do LOIC saem
+-- em `Poses.lua` verbatim: braço e cabeça sobem, seguram 2.5 s, ajustam,
+-- seguram 1.5 s, e descem. 6.05 s, que é o que o autor escreveu.
 --
--- O feixe cai no ponto MARCADO se houver um, e à frente se não houver. É o par
--- da Extra, e reproduz o disco de mira da origem: lá o clique só valia sobre
--- uma superfície `Top`, e o disco ficava azul ou vermelho para dizer isso.
+-- Isso fica ABAIXO da faixa de 7–9 s que a regra 5 pede para ultimate. É de
+-- propósito: a animação da origem vale mais que o número da gramática, e o
+-- pedido foi manter a essência.
 --
 -- A RADIAÇÃO É DA ORIGEM, E FALTAVA. Depois que a bola de 150 studs nasce, o
--- LOIC solta 29 esferas `Neon` e 100 esferas `Glass` expandindo por cerca de
--- 12 s — não é decoração, é o que faz o ponto ficar intransitável depois do
--- tiro. Aqui ela cobra por tique, com prazo, e some sozinha.
+-- LOIC solta 29 esferas `Neon` e 100 `Glass` expandindo por ~12 s — não é
+-- decoração, é o que faz o ponto ficar intransitável depois do tiro.
+--
+-- O que não veio: o `v:destroy()` que apagava toda peça num raio de 250 studs
+-- em seis ondas, o `game.Chat:Chat` do anúncio, e o `shakerbreaker` que
+-- escrevia `workspace.CurrentCamera.CFrame` num LocalScript clonado para
+-- dentro do personagem alheio. O tremor da cutscene faz esse trabalho, e mora
+-- dentro da Tool.
 --══════════════════════════════════════════════════════════════
-
-local function apagarMarca()
-	if marcaId then
-		vfx("APAGAR", { id = marcaId })
-		marcaId = nil
-	end
-	marcaOnde = nil
-end
 
 local function apagarRadiacao()
 	geracao = geracao + 1
@@ -804,7 +799,7 @@ end
 
 function primaria(mira)
 	ocupado = true
-	local centro = marcaOnde or mira or frente(CFG.ALCANCE)
+	local centro = mira or frente(CFG.ALCANCE)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
@@ -813,9 +808,9 @@ function primaria(mira)
 		if not marca then return end
 
 		if marca == "CAMERA" then
+			-- `handle.Call:Play()` — a chamada, que é o que abre tudo
 			tocar("CHAMADA", 0.8)
-		elseif marca == "MARCA" then
-			beatCena("MARCA")
+			beatCena("CAMERA")
 			vfx("CONJURA", { posicao = centro, escala = 1.4, duracao = 1.2 })
 		elseif marca == "CARGA" then
 			beatCena("CARGA")
@@ -826,7 +821,6 @@ function primaria(mira)
 			beatCena("DESCE")
 		elseif marca == "GOLPE" then
 			beatCena("GOLPE")
-			apagarMarca()
 			vfx("DISPARO", { origem = centro + Vector3.new(0, CFG.ALTURA_FEIXE, 0),
 				destino = centro, grossura = 7, escala = 2 })
 			vfx("LUA_FIM", { posicao = centro, escala = 2.2 })
@@ -843,37 +837,6 @@ function primaria(mira)
 		rig:LockCharacter(false)
 		ocupado = false
 	end)
-end
-
---══════════════════════════════════════════════════════════════
--- EXTRA — marcar o ponto
---
--- É o disco de mira da origem, na sua própria tecla. Alcance 140 studs, dura
--- 8 s, e **não faz dano**: o disco do LOIC não fere ninguém, ele só diz onde o
--- tiro vai cair. A versão anterior cobrava 12 aqui, o que era invenção.
---══════════════════════════════════════════════════════════════
-
-function extra(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("MIRA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CHAMADA", 1.2)
-		elseif marca == "GOLPE" then
-			apagarMarca()
-			local onde = destino or frente(CFG.ALCANCE)
-			marcaOnde = onde
-			marcaId = novoId("MARCA")
-			vfx("PARAR", { posicao = onde, escala = 1.2,
-				duracao = CFG.DURACAO_MARCA, id = marcaId })
-			tocarEm("CARGA", onde, 1.1)
-			local meu = marcaId
-			task.delay(CFG.DURACAO_MARCA, function()
-				if marcaId == meu then apagarMarca() end
-			end)
-		end
-	end, function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -898,15 +861,6 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
-AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
-end)
-
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
 	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
@@ -914,7 +868,8 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "RealityCanhao", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "RealityCanhao", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -925,7 +880,6 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	apagarMarca()
 	apagarRadiacao()
 	fecharCena()
 	if rig then
@@ -950,24 +904,20 @@ Tool.Destroying:Connect(desmontar)
 -- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
 -- cliente não replica e os outros jogadores viam o portador parado.
 --
--- MOBILE: `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)`.
--- O terceiro argumento faz o Roblox desenhar o botão de toque sozinho. A origem
--- tinha uma `ScreenGui` chamada `Talk` com dois `TextLabel`; `ScreenGui` dentro
--- de Tool é proibida, e o botão do CAS faz o trabalho sem sair da Tool.
+-- MOBILE: nada a fazer. A habilidade é UMA e ela mora no `Tool.Activated`, que
+-- o Roblox já liga no botão da Tool em toda plataforma. Sem `ContextActionService`,
+-- sem tecla, sem botão desenhado.
 --
 -- Gerado por FERRAMENTAS/gerar_servers_reality.py.
 
 local Players = game:GetService("Players")
-local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool       = script.Parent
-local VFXRemote  = Tool:WaitForChild("VFXRemote")
-local AcaoRemote = Tool:WaitForChild("AcaoRemote")
-local VFX        = require(Tool:WaitForChild("VFXModule"))
+local Tool      = script.Parent
+local VFXRemote = Tool:WaitForChild("VFXRemote")
+local VFX       = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Reality_RealityCanhao_R"
 local ALCANCE_MIRA = 140
 
 local equipado = false
@@ -1010,22 +960,6 @@ local function mira()
 	return alvo
 end
 
-local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
-		if estado ~= Enum.UserInputState.Begin then return end
-		if not equipado then return end
-		AcaoRemote:FireServer("R", mira())
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
-
-	ContextActionService:SetTitle(ACAO, "Marcar")
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
-end
-
-local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
-end
-
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
@@ -1038,12 +972,10 @@ end)
 Tool.Equipped:Connect(function()
 	if not souODono() then return end
 	equipado = true
-	ligarEntrada()
 end)
 
 local function aoGuardar()
 	equipado = false
-	desligarEntrada()
 	VFX.LimparTudo()
 end
 
@@ -1496,74 +1428,72 @@ return Animator
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RG_Poses_02"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
 -- ModuleScript "Poses" — Canhao Satelite  (conjunto REALITY GUI)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
--- Sequência usa `time` / `style` / `dir` (V2).
+-- ⚠️ A ANIMAÇÃO DA ORIGEM, LIDA DO SCRIPT DELA.
 --
--- AUTORAL, pela GRAMATICA_R6.md. Nenhum script da origem atravessou a
--- quarentena do `reality_tools.rbxmx` — só geometria, som e malha.
+-- Ela está escrita em laço, no idioma que o Guest já tinha ensinado:
+--
+--     for i = 0,1 , 0.14 do
+--         weld.C0 = weld.C0:lerp(<ALVO>, i)
+--         step:wait()
+--     end
+--
+-- `i` varre até 1, então a pose ESCRITA é a pose ALCANÇADA — dá para
+-- ler o alvo direto. A duração sai do laço: `ceil(1/passo)+1` voltas
+-- de `Stepped`, a 1/60 s cada.
+--
+-- O alvo entra VERBATIM: já é Lua válido, e copiar o texto não tem
+-- erro de arredondamento. Só o C1 da origem entra como sufixo
+-- INVERTIDO — ver a conta em `extrair_welds_reality.py`.
+--
+-- A primeira versão desta Tool inventou pose. Não precisava.
 --
 -- JUNTA QUE LIDERA: **RightArm** (regra 6).
---
---   ORBITA       ultimate         7.30s · 9 passo(s)
---   MIRA         conjuração       1.00s · 4 passo(s)
 --
 -- Gerado por FERRAMENTAS/gerar_poses_reality.py.
 
 local P = {}
 
 
-P.CHAMA_CEU = {
-	RightArm = CFrame.new(1.42, 0.84, -0.06) * CFrame.Angles(math.rad(164), math.rad(-10), math.rad(-16)),
-	LeftArm = CFrame.new(-1.42, 0.84, -0.06) * CFrame.Angles(math.rad(164), math.rad(10), math.rad(16)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-38), math.rad(0), math.rad(0)),
-	HRP = CFrame.new(0, 0.12, 0) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
-	RightLeg = CFrame.new(0.5, -1.9, 0.14) * CFrame.Angles(math.rad(8), math.rad(0), math.rad(0)),
-	LeftLeg = CFrame.new(-0.5, -1.9, 0.14) * CFrame.Angles(math.rad(8), math.rad(0), math.rad(0)),
+P.ORBITA_0 = {
+	RightArm = CFrame.new(1.5,0.5,0) * CFrame.Angles(math.pi/2,0,-math.rad(45)) * CFrame.new(0,-0.6,0),
+	Head = CFrame.new(0,1,0) * CFrame.Angles(math.rad(-10),0,0) * CFrame.new(0,0.5,0),
 }
 
-P.IDLE = {
-	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
-	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
+P.ORBITA_1 = {
+	RightArm = CFrame.new(1.5,0.5,0) * CFrame.Angles(math.pi/2,0,-math.rad(45)) * CFrame.new(0,-0.6,0),
+	Head = CFrame.new(0,1,0) * CFrame.Angles(math.rad(-10),0,0) * CFrame.new(0,0.5,0),
 }
 
-P.MARCA = {
-	RightArm = CFrame.new(1.52, 0.38, -1.2) * CFrame.Angles(math.rad(92), math.rad(-4), math.rad(-3)),
-	LeftArm = CFrame.new(-1.44, 0.08, -0.28) * CFrame.Angles(math.rad(26), math.rad(8), math.rad(10)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-6), math.rad(-4), math.rad(0)),
-	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-4), math.rad(8), math.rad(0)),
-	RightLeg = CFrame.new(0.5, -1.88, -0.22) * CFrame.Angles(math.rad(-11), math.rad(0), math.rad(0)),
+P.ORBITA_2 = {
+	RightArm = CFrame.new(1.5,0.25,0) * CFrame.Angles(math.pi/2+math.rad(40),0,-math.rad(20)) * CFrame.new(0,-0.5,0),
+	Head = CFrame.new(0,1,0) * CFrame.Angles(math.rad(-15),math.rad(15),0) * CFrame.new(0,0.5,0),
 }
 
-P.RECUA = {
-	RightArm = CFrame.new(1.3, 0.16, -0.6) * CFrame.Angles(math.rad(74), math.rad(16), math.rad(32)),
-	LeftArm = CFrame.new(-1.3, 0.16, -0.6) * CFrame.Angles(math.rad(74), math.rad(-16), math.rad(-32)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(12), math.rad(0), math.rad(0)),
-	HRP = CFrame.new(0, -0.16, 0) * CFrame.Angles(math.rad(14), math.rad(0), math.rad(0)),
+P.ORBITA_3 = {
+	RightArm = CFrame.new(1.5,0.25,0) * CFrame.Angles(math.pi/2+math.rad(40),0,-math.rad(20)) * CFrame.new(0,-0.5,0),
+	Head = CFrame.new(0,1,0) * CFrame.Angles(math.rad(-15),math.rad(15),0) * CFrame.new(0,0.5,0),
+}
+
+P.ORBITA_4 = {
+	RightArm = CFrame.new(1.5,0.5,0) * CFrame.Angles(math.pi/2,0,0) * CFrame.new(0,-0.5,0),
+	Head = CFrame.new(0,1.5,0),
+}
+
+P.REPOUSO = {
+	RightArm = CFrame.new(1.5,0.5,0) * CFrame.Angles(math.pi/2,0,0) * CFrame.new(0,-0.5,0),
+	Head = CFrame.new(0,1.5,0),
 }
 
 P.SEQUENCIAS = {
 
-	-- ultimate · 7.30s · 9 passo(s)
+	-- ultimate · 6.95s · 6 passo(s), da origem
 	ORBITA = {
-		{ pose = "MARCA", time = 0.45, style = "Back", dir = "In", tremor = 0.02, freq = 15, marca = "CAMERA" },
-		{ pose = "MARCA", time = 0.9, style = "Sine", dir = "InOut", tremor = 0.03, freq = 20, marca = "MARCA" },
-		{ pose = "CHAMA_CEU", time = 0.85, style = "Quad", dir = "InOut", tremor = 0.04, freq = 24, marca = "CARGA" },
-		{ pose = "CHAMA_CEU", time = 1.2, style = "Sine", dir = "InOut", tremor = 0.055, freq = 29 },
-		{ pose = "CHAMA_CEU", time = 1.25, style = "Sine", dir = "InOut", tremor = 0.07, freq = 34, marca = "SEGURA" },
-		{ pose = "RECUA", time = 0.3, style = "Quint", dir = "In", marca = "DESCE" },
-		{ pose = "RECUA", time = 0.3, style = "Sine", dir = "InOut", marca = "GOLPE" },
-		{ pose = "RECUA", time = 0.85, style = "Sine", dir = "InOut", tremor = 0.06, freq = 31 },
-		{ pose = "IDLE", time = 1.2, style = "Quad", dir = "Out", marca = "FIM" },
-	},
-
-	-- conjuração · 1.00s · 4 passo(s)
-	MIRA = {
-		{ pose = "MARCA", time = 0.22, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "MARCA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.03, freq = 21 },
-		{ pose = "MARCA", time = 0.14, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out" },
+		{ pose = "ORBITA_0", time = 0.683, style = "Sine", dir = "InOut", marca = "CAMERA" },
+		{ pose = "ORBITA_1", time = 2.5, style = "Sine", dir = "InOut", marca = "CARGA" },
+		{ pose = "ORBITA_2", time = 0.683, style = "Sine", dir = "InOut", marca = "SEGURA" },
+		{ pose = "ORBITA_3", time = 1.5, style = "Sine", dir = "InOut", marca = "DESCE" },
+		{ pose = "ORBITA_4", time = 0.683, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "REPOUSO", time = 0.9, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }
