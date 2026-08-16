@@ -5,12 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   ergue a arvore que prende quem chega perto
---   R    Galhada   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   planta a arvore, e ela caca
+--   R    Derrubar   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `tre`: Handle 4 x 1 x 2 e o Model `tree` com 5 UnionOperation
 --   som Kill 4817657002
+--   LOGICA: a arvore CACA. Ela procura o Humanoid mais perto num raio de
+--      200, e **so anda enquanto ninguem esta olhando para ela** — o
+--      `canSee` da origem testa FOV mais raycast. A menos de 10 studs,
+--      mata. E anjo chorao, nao aura parada.
 --   o BodyGyro e a ScreenGui da origem NAO atravessaram
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
@@ -37,18 +41,18 @@ local ARQUETIPO = "ESPECTRAL"
 
 local CFG = {
 	ALCANCE        = 12,
-	RECARGA        = 28,
-	RAIO_ARVORE    = 16,
-	DURACAO        = 7,
-	INTERVALO_TICK = 0.9,
-	DANO_TICK      = 14,
-	LENTIDAO       = 0.45,
+	RECARGA        = 30,
+	DURACAO        = 16,
+	ALCANCE_CACA   = 90,
+	PASSO          = 0.35,
+	PASSO_STUDS    = 4.5,
+	RAIO_MORTE     = 7,
+	DANO_MORTE     = 85,
+	TOMBO          = 2.5,
+	INTERVALO_ALVO = 1.6,
+	ARRASTO_A_CADA = 4,
 
-	RECARGA_EXTRA  = 9,
-	RAIO_GALHO     = 18,
-	DANO_GALHO     = 48,
-	EMPURRAO       = 70,
-	TOMBO          = 1.8,
+	RECARGA_EXTRA  = 2,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -323,10 +327,25 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — plantar
+-- O ANJO CHORÃO — a mecânica que a versão anterior tinha perdido
 --
--- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Entrou como
--- GEOMETRIA, ancorada e invisível; o clone é que aparece.
+-- O `tre` não é uma aura. Ele é uma peça que persegue: acha o `Humanoid` mais
+-- perto num raio de 200 studs, aponta para ele, e **avança 15 studs por volta
+-- do laço — mas só enquanto aquele alvo NÃO está olhando para ela**. O teste
+-- da origem (`canSee`) é o produto escalar do vetor até a árvore com o
+-- `lookVector` da cabeça: positivo = está no campo de visão = ela congela.
+--
+-- A menos de 10 studs, mata.
+--
+-- O que mudou para caber nas regras: o passo é de 0.35 s (a origem roda com
+-- `wait(.000001)`, o que é por quadro e replica picotado), o avanço é de 4.5
+-- studs por passo em vez de 15, o alcance é 90 em vez de 200, e o abate é
+-- `TakeDamage` pelo Núcleo em vez de `Health = 0` mais `BreakJoints`.
+--
+-- O raycast de linha de visão da origem ficou de fora: o teste de FOV é o que
+-- dá a leitura de "ela parou porque eu olhei", e um raycast por alvo por tique
+-- pagaria caro por pouco. Quem se esconder atrás de uma parede e olhar na
+-- direção dela ainda a congela.
 --══════════════════════════════════════════════════════════════
 
 local function derrubar()
@@ -338,25 +357,86 @@ local function derrubar()
 	arvoreOnde = nil
 end
 
-local function manterArvore(onde, id)
+--- O alvo está olhando para o ponto? `> 0` é o teste da origem: meio giro
+--- inteiro conta como "de frente", e é isso que faz a árvore parecer travada
+--- sempre que se vira para ela.
+local function estaOlhando(alvo, ponto)
+	local corpo = alvo and alvo.Parent
+	local cabeca = corpo and (corpo:FindFirstChild("Head")
+		or corpo:FindFirstChild("HumanoidRootPart"))
+	if not cabeca then return false end
+	local para = ponto - cabeca.Position
+	if para.Magnitude < 0.5 then return true end
+	return para.Unit:Dot(cabeca.CFrame.LookVector) > 0
+end
+
+local function cacar(id)
 	geracao = geracao + 1
 	local minha = geracao
-	local ate = os.clock() + CFG.DURACAO
+	local ultimo = {}
+
 	task.spawn(function()
-		while minha == geracao and os.clock() < ate do
-			for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_ARVORE, 12)) do
-				aplicarDano(alvo, CFG.DANO_TICK)
-				afrouxar(alvo, CFG.LENTIDAO, CFG.INTERVALO_TICK * 1.3)
+		local ate = os.clock() + CFG.DURACAO
+		local tique = 0
+		while minha == geracao and os.clock() < ate and arvoreOnde do
+			tique = tique + 1
+
+			local presa, dist = nil, math.huge
+			for _, alvo in ipairs(alvosEm(arvoreOnde, CFG.ALCANCE_CACA, 16)) do
+				local alvoRaiz = raizDe(alvo)
+				if alvoRaiz then
+					local d = (alvoRaiz.Position - arvoreOnde).Magnitude
+					if d < dist then presa, dist = alvo, d end
+				end
 			end
-			task.wait(CFG.INTERVALO_TICK)
+
+			local presaRaiz = presa and raizDe(presa)
+			if presaRaiz then
+				if estaOlhando(presa, arvoreOnde) then
+					-- congelada. É a regra da origem, e é o jogo inteiro dela.
+					if tique % CFG.ARRASTO_A_CADA == 0 then
+						vfx("PARAR", { posicao = arvoreOnde, escala = 0.7,
+							duracao = CFG.PASSO * CFG.ARRASTO_A_CADA })
+					end
+				else
+					local delta = presaRaiz.Position - arvoreOnde
+					local plano = Vector3.new(delta.X, 0, delta.Z)
+					if plano.Magnitude > 0.5 then
+						local anda = math.min(CFG.PASSO_STUDS, plano.Magnitude)
+						arvoreOnde = arvoreOnde + plano.Unit * anda
+						vfx("MOVER", { id = id, posicao = arvoreOnde,
+							tempo = CFG.PASSO, olhar = presaRaiz.Position })
+						if tique % CFG.ARRASTO_A_CADA == 0 then
+							tocarEm("GALHO", arvoreOnde, 1.4,
+								CFG.PASSO * CFG.ARRASTO_A_CADA + 0.3)
+						end
+					end
+				end
+
+				local agora = os.clock()
+				if dist <= CFG.RAIO_MORTE
+						and (not ultimo[presa]
+							or agora - ultimo[presa] >= CFG.INTERVALO_ALVO) then
+					ultimo[presa] = agora
+					aplicarDano(presa, CFG.DANO_MORTE)
+					tombar(presa, CFG.TOMBO)
+					vfx("BURACO_FIM", { posicao = presaRaiz.Position, escala = 1.4 })
+					tocarEm("GALHO", presaRaiz.Position, 0.55)
+				end
+			end
+
+			task.wait(CFG.PASSO)
 		end
-		if minha == geracao then
-			vfx("APAGAR", { id = id })
-			arvoreId = nil
-			arvoreOnde = nil
-		end
+		if minha == geracao then derrubar() end
 	end)
 end
+
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — plantar
+--
+-- O molde é o `Model` `tree` da origem, com as 5 `UnionOperation`. Entrou como
+-- GEOMETRIA, ancorada e invisível; o clone é que aparece, e é ele que anda.
+--══════════════════════════════════════════════════════════════
 
 function primaria(mira)
 	ocupado = true
@@ -373,19 +453,20 @@ function primaria(mira)
 			vfx("BURACO", { posicao = onde, escala = 1.6,
 				duracao = CFG.DURACAO, id = arvoreId })
 			tocarEm("GALHO", onde, 0.7)
-			manterArvore(onde, arvoreId)
+			cacar(arvoreId)
 		end
 	end, function() ocupado = false end)
 end
 
 --══════════════════════════════════════════════════════════════
--- EXTRA — a galhada
+-- EXTRA — derrubar
 --
--- Consome a árvore. Sem uma de pé sai com metade do dano — a Tool nunca fica
--- inerte, mas o par certo rende mais.
+-- A origem não tem segunda habilidade: a árvore fica de pé até o fim do round.
+-- Esta Extra é o desligar dela, na tecla.
 --══════════════════════════════════════════════════════════════
 
 function extra(_mira)
+	if not arvoreId then return end
 	ocupado = true
 	local onde = arvoreOnde
 	rig:PlaySequence("GALHADA", function(passo)
@@ -394,14 +475,9 @@ function extra(_mira)
 			tocar("GALHO", 1.15)
 		elseif marca == "GOLPE" then
 			local centro = onde or frente(CFG.ALCANCE)
-			local cheio = onde ~= nil
 			derrubar()
-			vfx("BURACO_FIM", { posicao = centro, escala = cheio and 1.8 or 1 })
+			vfx("BURACO_FIM", { posicao = centro, escala = 1.8 })
 			tocarEm("GALHO", centro, 0.55)
-			golpearArea(centro, CFG.RAIO_GALHO, CFG.RAIO_GALHO * 0.4,
-				cheio and CFG.DANO_GALHO or CFG.DANO_GALHO * 0.5,
-				cheio and CFG.DANO_GALHO * 0.5 or CFG.DANO_GALHO * 0.25,
-				CFG.EMPURRAO, cheio and CFG.TOMBO or nil)
 		end
 	end, function() ocupado = false end)
 end

@@ -5,12 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   invoca o gato, que briga por voce
---   R    Mandar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   invoca o gato, que bombardeia
+--   R    Chuva   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `gravity cat not amused`: Handle 4 x 1 x 2 e o Model do gato
 --   som theme 1842053299
+--   LOGICA: o gato sobe 12 studs, toca o tema, e faz tres ataques —
+--      attack1: bola preta em cima do alvo, 0.8 s, Explosion raio 7
+--      attack2: **50 bolas** chovendo em volta, uma a cada 0.1 s
+--      attack3: teleporta ate o alvo, espera 1 s, volta, e mata
 --   o Humanoid e os 6 Motor6D NAO atravessaram: o gato entra como
 --      geometria, e quem invoca e dispensa e a Tool (NPC fora de escopo)
 --
@@ -39,16 +43,20 @@ local ARQUETIPO = "ESPECTRAL"
 local CFG = {
 	ALCANCE        = 12,
 	RECARGA        = 34,
-	DURACAO_GATO   = 12,
-	RAIO_GATO      = 16,
-	INTERVALO_TICK = 0.8,
-	DANO_TICK      = 11,
-
-	RECARGA_EXTRA  = 8,
-	RAIO_ENVIO     = 50,
-	RAIO_SALTO     = 13,
-	DANO_SALTO     = 44,
+	ALTURA         = 6,
+	DURACAO_GATO   = 14,
+	RAIO_CACA      = 60,
+	INTERVALO_BOMBA = 1.6,
+	ESPERA_BOMBA   = 0.8,
+	RAIO_BOMBA     = 7,
+	DANO_BOMBA     = 38,
 	EMPURRAO       = 68,
+	TOMBO          = 1.6,
+
+	RECARGA_EXTRA  = 16,
+	BOMBAS         = 12,
+	RAIO_CHUVA     = 30,
+	PASSO_CHUVA    = 0.12,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -323,16 +331,27 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — chamar o gato
+-- A BOMBA — `attack1` da origem, que é o que o gato faz o tempo todo
 --
--- O gato é INVOCAÇÃO, não NPC. O `Humanoid` e os seis `Motor6D` da origem não
--- atravessaram: o que está em `Tool/Moldes/` é o corpo dele como geometria, e
--- quem o invoca, faz brigar e dispensa é esta Tool — com prazo, e solto no
--- `desmontar()`.
+-- Bola preta em cima do alvo, som, 0.8 s de espera, e uma `Explosion` de raio
+-- 7. A espera é o ponto: dá para sair de baixo, e é o que separa o gato de uma
+-- aura que cobra por estar perto (que foi o que a versão anterior fez dele).
 --
--- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é
--- habilidade de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
+-- `Instance.new("Explosion")` é proibido aqui — quem detecta é o Núcleo, por
+-- `golpearArea`. O visual do estouro é do cliente.
 --══════════════════════════════════════════════════════════════
+
+local function soltarBomba(onde, raio, dano)
+	vfx("BOMBA", { posicao = onde, escala = raio / 7,
+		espera = CFG.ESPERA_BOMBA, raio = raio })
+	tocarEm("MIADO", onde, 1.45)
+	task.delay(CFG.ESPERA_BOMBA, function()
+		vfx("LUA_FIM", { posicao = onde, escala = raio / 7 })
+		tocarEm("MIADO", onde, 0.5)
+		golpearArea(onde, raio, raio * 0.5, dano, dano * 0.55,
+			CFG.EMPURRAO, CFG.TOMBO)
+	end)
+end
 
 local function dispensarGato()
 	geracao = geracao + 1
@@ -343,17 +362,21 @@ local function dispensarGato()
 	gatoOnde = nil
 end
 
+--- O gato invocado. Ele não anda: ele fica no lugar e bombardeia o mais perto,
+--- que é o `attack1` em laço da origem.
 local function manterGato(onde, id)
 	geracao = geracao + 1
 	local minha = geracao
-	local ate = os.clock() + CFG.DURACAO_GATO
 	task.spawn(function()
+		local ate = os.clock() + CFG.DURACAO_GATO
 		while minha == geracao and os.clock() < ate do
 			local centro = gatoOnde or onde
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_GATO, 10)) do
-				aplicarDano(alvo, CFG.DANO_TICK)
+			local presa = maisPerto(centro, CFG.RAIO_CACA)
+			local presaRaiz = presa and raizDe(presa)
+			if presaRaiz then
+				soltarBomba(presaRaiz.Position, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
 			end
-			task.wait(CFG.INTERVALO_TICK)
+			task.wait(CFG.INTERVALO_BOMBA)
 		end
 		if minha == geracao then
 			vfx("APAGAR", { id = id })
@@ -363,6 +386,18 @@ local function manterGato(onde, id)
 	end)
 end
 
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — chamar o gato
+--
+-- O gato é INVOCAÇÃO, não NPC. O `Humanoid` e os seis `Motor6D` da origem não
+-- atravessaram: o que está em `Tool/Moldes/` é o corpo dele como geometria, e
+-- quem o invoca, faz bombardear e dispensa é esta Tool — com prazo, e solto no
+-- `desmontar()`.
+--
+-- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é
+-- habilidade de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
+--══════════════════════════════════════════════════════════════
+
 function primaria(_mira)
 	ocupado = true
 	rig:PlaySequence("CHAMAR", function(passo)
@@ -371,7 +406,7 @@ function primaria(_mira)
 			tocar("MIADO", 1.3)
 		elseif marca == "GOLPE" then
 			dispensarGato()
-			local onde = frente(CFG.ALCANCE) + Vector3.new(0, 2, 0)
+			local onde = frente(CFG.ALCANCE) + Vector3.new(0, CFG.ALTURA, 0)
 			gatoOnde = onde
 			gatoId = novoId("GATO")
 			vfx("ENTIDADE", { posicao = onde, escala = 1,
@@ -383,47 +418,30 @@ function primaria(_mira)
 end
 
 --══════════════════════════════════════════════════════════════
--- EXTRA — mandar o gato
+-- EXTRA — a chuva
 --
--- Ele SALTA: uma fala do servidor, e o percurso é desenhado pelo cliente.
+-- `attack2`: a origem solta **50 bolas** em volta do gato, uma a cada 0.1 s,
+-- em `math.random(-35,15)` por `math.random(-35,35)`. Aqui são 12, espalhadas
+-- por ÂNGULO ÁUREO em vez de sorteio — com todos os clientes desenhando, um
+-- sorteio faria cada um ver uma chuva diferente.
+--
+-- Sem gato de pé, ela cai em volta de quem carrega: o `attack2` da origem é do
+-- gato, mas a Tool nunca fica inerte.
 --══════════════════════════════════════════════════════════════
 
 function extra(mira)
-	if not gatoId then
-		tocar("MIADO", 0.7)
-		return
-	end
+	local centro = gatoOnde or mira or frente(CFG.ALCANCE)
+	tocar("MIADO", 0.75)
 
-	ocupado = true
-	rig:PlaySequence("MANDAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("MIADO", 1.5)
-		elseif marca == "GOLPE" then
-			local alvo = maisPerto(mira, CFG.RAIO_ENVIO)
-			local alvoRaiz = alvo and raizDe(alvo)
-			local onde = (alvoRaiz and alvoRaiz.Position) or mira
-				or frente(CFG.ALCANCE)
-
-			local partiu = gatoOnde
-			gatoOnde = onde
-			if partiu then
-				vfx("FEIXE", { origem = partiu, destino = onde,
-					grossura = 1.6, escala = 1 })
-			end
-			vfx("ENTIDADE", { posicao = onde, escala = 1.2, duracao = 2.4 })
-			tocarEm("MIADO", onde, 0.85)
-
-			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_SALTO, 8)) do
-				aplicarDano(perto, CFG.DANO_SALTO)
-				local pertoRaiz = raizDe(perto)
-				if pertoRaiz then
-					empurrar(perto, (pertoRaiz.Position - onde)
-						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO, 0.26)
-				end
-			end
+	task.spawn(function()
+		for i = 1, CFG.BOMBAS do
+			local a = i * 2.399963
+			local r = CFG.RAIO_CHUVA * math.sqrt(i / CFG.BOMBAS)
+			local onde = centro + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			soltarBomba(onde, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
+			task.wait(CFG.PASSO_CHUVA)
 		end
-	end, function() ocupado = false end)
+	end)
 end
 
 --═══════════════════════════════════════════════════════════════

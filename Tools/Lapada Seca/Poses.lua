@@ -10,7 +10,7 @@
 -- JUNTA QUE LIDERA: **RightArm** (regra 6).
 --
 --   TAPA         golpe rápido     0.82s · 5 passo(s)
---   TRIPLA       combo            1.00s · 8 passo(s)
+--   MAO_QUENTE   sustentada       5.60s · 5 passo(s)
 --
 -- Gerado por FERRAMENTAS/gerar_poses_reality.py.
 
@@ -22,6 +22,13 @@ P.IDLE = {
 	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
 	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
 	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
+}
+
+P.MAO_ABERTA = {
+	RightArm = CFrame.new(1.52, 0.3, -0.86) * CFrame.Angles(math.rad(84), math.rad(-18), math.rad(-6)),
+	LeftArm = CFrame.new(-1.46, 0.08, -0.3) * CFrame.Angles(math.rad(26), math.rad(8), math.rad(12)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-8), math.rad(-10), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-5), math.rad(14), math.rad(0)),
 }
 
 P.TAPA_BATE = {
@@ -50,16 +57,13 @@ P.SEQUENCIAS = {
 		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out" },
 	},
 
-	-- combo · 1.00s · 8 passo(s)
-	TRIPLA = {
-		{ pose = "TAPA_ERGUE", time = 0.12, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "TAPA_BATE", time = 0.08, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "TAPA_ERGUE", time = 0.1, style = "Quad", dir = "Out" },
-		{ pose = "TAPA_BATE", time = 0.08, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "TAPA_ERGUE", time = 0.1, style = "Quad", dir = "Out" },
-		{ pose = "TAPA_BATE", time = 0.09, style = "Quint", dir = "Out", marca = "GOLPE" },
-		{ pose = "TAPA_BATE", time = 0.16, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.27, style = "Quad", dir = "Out", marca = "FIM" },
+	-- sustentada · 5.60s · 5 passo(s)
+	MAO_QUENTE = {
+		{ pose = "TAPA_ERGUE", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "MAO_ABERTA", time = 0.3, style = "Quint", dir = "Out", marca = "SEGURA" },
+		{ pose = "MAO_ABERTA", time = 2.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 19 },
+		{ pose = "MAO_ABERTA", time = 2.3, style = "Sine", dir = "InOut", tremor = 0.045, freq = 24 },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

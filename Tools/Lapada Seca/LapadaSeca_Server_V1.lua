@@ -5,12 +5,15 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   tapa seco que gira o alvo
---   R    Tripla   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   o tapa que arremessa
+--   R    Mao Quente   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `SLAP`: Handle 1.76 x 0.1 x 0.1 e a malha `Hand`
 --   sons Smack 511340819 · Boom 1489705211 · slaps 165969964
+--   LOGICA: `Hand.Touched` -> BodyVelocity 900 em -Head.lookVector,
+--      Sit = true, e seis clones de RagdollSCript. Arremesso por CONTATO,
+--      nunca por Activated — o Activated da origem so tocava a animacao.
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -35,17 +38,21 @@ local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 local ARQUETIPO = "MELEE"
 
 local CFG = {
-	ALCANCE         = 6,
-	RAIO_GOLPE      = 6,
-	DANO            = 22,
-	EMPURRAO        = 44,
-	GIRO            = 140,
-	RECARGA         = 0.55,
+	RAIO_MAO        = 5.5,
+	DANO            = 34,
+	EMPURRAO        = 130,
+	ALTURA          = 0.55,
+	TEMPO_VOO       = 0.28,
+	TOMBO           = 2.2,
+	JANELA          = 0.35,
+	PASSO           = 0.07,
+	INTERVALO_ALVO  = 0.5,
+	RECARGA         = 0.7,
 
-	RECARGA_EXTRA   = 7,
-	DANO_TRIPLO     = 18,
-	EMPURRAO_TRIPLO = 62,
-	TOMBO           = 1.3,
+	RECARGA_EXTRA   = 14,
+	DURACAO_QUENTE  = 5,
+	DANO_QUENTE     = 21,
+	EMPURRAO_QUENTE = 165,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -62,7 +69,7 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-
+local geracao = 0
 
 local function proximo()
 	semente = semente + 1
@@ -318,35 +325,82 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o tapa
+-- O ARREMESSO — a assinatura da origem
 --
--- O que faz a lapada ser lapada é o GIRO: quem leva roda 140°, e a leitura de
--- "levou um tapa" vem daí, não do número do dano.
+-- `BodyVelocity` de 900 em `-blender.CFrame.lookVector`: a direção é a do
+-- ALVO, invertida. Quem leva o tapa sai voando **de costas para onde estava
+-- olhando**, não para longe de quem bateu. Essa é a diferença entre a lapada e
+-- um empurrão qualquer, e é por isso que aqui não se usa o `empurrar` com
+-- vetor radial.
+--
+-- A origem matava (`humanoid.Health = 0` dentro do `RagdollSCript`, clonado
+-- seis vezes). Aqui o tombo é `PlatformStand` com prazo, e o dano passa pelo
+-- Núcleo.
 --══════════════════════════════════════════════════════════════
 
-local function girar(alvo, graus)
+local function arremessar(alvo, dano, forca)
 	local alvoRaiz = raizDe(alvo)
-	if not alvoRaiz then return end
-	alvoRaiz.CFrame = alvoRaiz.CFrame * CFrame.Angles(0, math.rad(graus), 0)
+	if not alvoRaiz then return false end
+	aplicarDano(alvo, dano)
+	empurrar(alvo, -alvoRaiz.CFrame.LookVector + Vector3.new(0, CFG.ALTURA, 0),
+		forca, CFG.TEMPO_VOO)
+	tombar(alvo, CFG.TOMBO)
+	vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.4 })
+	tocarEm("TAPA", alvoRaiz.Position, 1 + jitter(0.3) * 0.1)
+	return true
 end
 
-local function bater(dano, forca, escala)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
-		aplicarDano(alvo, dano)
-		girar(alvo, CFG.GIRO)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-				+ Vector3.new(0, 0.4, 0), forca, 0.2)
-			vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = escala })
+--- A MÃO FICA VIVA POR UMA JANELA.
+---
+--- Na origem não existe golpe: existe a mão ligada no `Touched` o tempo todo.
+--- Aqui ela acende na marca `GOLPE` e apaga sozinha, o que dá o mesmo jogo sem
+--- deixar o portador matando por encostar enquanto anda.
+---
+--- `Touched` sozinho não bastaria: o Handle tem 0.1 x 0.1 de seção e escapa
+--- toque em quem passa rápido. A varredura por TIQUE cobre o buraco — 0.07 s,
+--- nunca por quadro.
+local function janelaViva(duracao, dano, forca)
+	geracao = geracao + 1
+	local minha = geracao
+	local ultimo = {}
+
+	local function servir(alvo)
+		if not alvo or alvo.Health <= 0 then return end
+		local agora = os.clock()
+		if ultimo[alvo] and agora - ultimo[alvo] < CFG.INTERVALO_ALVO then
+			return
 		end
-		achou = true
+		ultimo[alvo] = agora
+		arremessar(alvo, dano, forca)
 	end
-	if achou then tocarEm("TAPA", ponto, 1 + jitter(0.3) * 0.1) end
-	return achou
+
+	local toque = guardar(Handle.Touched:Connect(function(parte)
+		if minha ~= geracao then return end
+		local corpo = parte and parte:FindFirstAncestorOfClass("Model")
+		if not corpo or corpo == personagem then return end
+		servir(corpo:FindFirstChildOfClass("Humanoid"))
+	end))
+
+	task.spawn(function()
+		local ate = os.clock() + duracao
+		while minha == geracao and os.clock() < ate do
+			if not (raiz and raiz.Parent) then break end
+			for _, alvo in ipairs(alvosEm(Handle.Position, CFG.RAIO_MAO, 6)) do
+				servir(alvo)
+			end
+			task.wait(CFG.PASSO)
+		end
+		toque:Disconnect()
+	end)
 end
+
+local function apagarMao()
+	geracao = geracao + 1
+end
+
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — o tapa
+--══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
@@ -355,27 +409,27 @@ function primaria(_mira)
 		if marca == "CARGA" then
 			tocar("SEQUENCIA", 1.2)
 		elseif marca == "GOLPE" then
-			bater(CFG.DANO, CFG.EMPURRAO, 1)
+			janelaViva(CFG.JANELA, CFG.DANO, CFG.EMPURRAO)
 		end
 	end, function() ocupado = false end)
 end
 
 --══════════════════════════════════════════════════════════════
--- EXTRA — a tripla
+-- EXTRA — a mão quente
+--
+-- A origem não tem segunda habilidade: tem a mão ligada no `Touched` enquanto
+-- a Tool estiver equipada. Esta Extra é exatamente isso, com prazo — 5 s de
+-- mão acesa, arremessando quem encostar.
 --══════════════════════════════════════════════════════════════
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("TRIPLA", function(passo)
+	rig:PlaySequence("MAO_QUENTE", function(passo)
 		local marca = marcaDe(passo)
-		if marca == "GOLPE" then
-			bater(CFG.DANO_TRIPLO, CFG.EMPURRAO_TRIPLO, 1.2)
-		elseif marca == "FIM" then
+		if marca == "CARGA" then
 			tocar("ESTOURO", 0.9)
-			for _, alvo in ipairs(alvosEm(frente(CFG.ALCANCE),
-					CFG.RAIO_GOLPE, 5)) do
-				tombar(alvo, CFG.TOMBO)
-			end
+		elseif marca == "SEGURA" then
+			janelaViva(CFG.DURACAO_QUENTE, CFG.DANO_QUENTE, CFG.EMPURRAO_QUENTE)
 		end
 	end, function() ocupado = false end)
 end
@@ -429,6 +483,7 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
+	apagarMao()
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()

@@ -5,13 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   o feixe de orbita — ultimate com cutscene
+--   M1   o feixe de orbita, e a radiacao que fica
 --   R    Marcar   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `LowOrbitIonCannon`: Handle 0.8 x 2.3 x 0.4, **21 Sound**
 --   Call 88858815 · Big Explosion 814635481 · Electric Explosion 2674547670
 --   ja estava no repositorio como CRU desde o lote de 2026-08-13
+--   LOGICA: disco de mira que so aceita superficie Top -> Call -> 3 s ->
+--      satelite desliza para cima do ponto -> feixe -> bola de 150 studs,
+--      tremor em todo mundo a 600 studs, e **radiacao expandindo por 12 s**
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -48,9 +51,12 @@ local CFG = {
 	TOMBO          = 2.8,
 	ALTURA_FEIXE   = 400,
 
+	DURACAO_RAD    = 10,
+	INTERVALO_RAD  = 1,
+	DANO_RAD       = 9,
+
 	RECARGA_EXTRA  = 6,
-	DURACAO_MARCA  = 6,
-	DANO_MARCA     = 12,
+	DURACAO_MARCA  = 8,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -69,6 +75,8 @@ local idEfeito = 0
 local primaria, extra
 local marcaId = nil
 local marcaOnde = nil
+local radiacaoId = nil
+local geracao = 0
 
 local function proximo()
 	semente = semente + 1
@@ -380,11 +388,16 @@ end
 --══════════════════════════════════════════════════════════════
 -- PRIMÁRIA — o feixe, COM CUTSCENE
 --
--- ULTIMATE: 7.30 s com 71% de preparação, dentro da regra 5.
+-- ULTIMATE: 7.30 s com 71 por cento de preparação, dentro da regra 5.
 --
 -- O feixe cai no ponto MARCADO se houver um, e à frente se não houver. É o par
--- da Extra: marcar primeiro e disparar depois é o jeito certo de jogar, e rende
--- alcance de 140 studs em vez de 16.
+-- da Extra, e reproduz o disco de mira da origem: lá o clique só valia sobre
+-- uma superfície `Top`, e o disco ficava azul ou vermelho para dizer isso.
+--
+-- A RADIAÇÃO É DA ORIGEM, E FALTAVA. Depois que a bola de 150 studs nasce, o
+-- LOIC solta 29 esferas `Neon` e 100 esferas `Glass` expandindo por cerca de
+-- 12 s — não é decoração, é o que faz o ponto ficar intransitável depois do
+-- tiro. Aqui ela cobra por tique, com prazo, e some sozinha.
 --══════════════════════════════════════════════════════════════
 
 local function apagarMarca()
@@ -393,6 +406,40 @@ local function apagarMarca()
 		marcaId = nil
 	end
 	marcaOnde = nil
+end
+
+local function apagarRadiacao()
+	geracao = geracao + 1
+	if radiacaoId then
+		vfx("APAGAR", { id = radiacaoId })
+		radiacaoId = nil
+	end
+end
+
+--- A cratera que continua cobrando. Tique de 1 s, nunca por quadro.
+local function irradiar(centro)
+	apagarRadiacao()
+	geracao = geracao + 1
+	local minha = geracao
+	radiacaoId = novoId("RADIACAO")
+	local id = radiacaoId
+
+	vfx("RADIACAO", { posicao = centro, raio = CFG.RAIO_FEIXE,
+		duracao = CFG.DURACAO_RAD, id = id })
+
+	task.spawn(function()
+		local ate = os.clock() + CFG.DURACAO_RAD
+		while minha == geracao and os.clock() < ate do
+			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_FEIXE, 16)) do
+				aplicarDano(alvo, CFG.DANO_RAD)
+			end
+			task.wait(CFG.INTERVALO_RAD)
+		end
+		if minha == geracao then
+			vfx("APAGAR", { id = id })
+			radiacaoId = nil
+		end
+	end)
 end
 
 function primaria(mira)
@@ -427,6 +474,7 @@ function primaria(mira)
 			tocarEm("ECO", centro, 0.5)
 			golpearArea(centro, CFG.RAIO_FEIXE, CFG.RAIO_NUCLEO,
 				CFG.DANO_NUCLEO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
+			irradiar(centro)
 		elseif marca == "FIM" then
 			fecharCena()
 		end
@@ -440,8 +488,9 @@ end
 --══════════════════════════════════════════════════════════════
 -- EXTRA — marcar o ponto
 --
--- Alcance 140 studs. A marca dura 6 s e cobra pouco por tique: ela não é o
--- dano, é o ALVO do feixe.
+-- É o disco de mira da origem, na sua própria tecla. Alcance 140 studs, dura
+-- 8 s, e **não faz dano**: o disco do LOIC não fere ninguém, ele só diz onde o
+-- tiro vai cair. A versão anterior cobrava 12 aqui, o que era invenção.
 --══════════════════════════════════════════════════════════════
 
 function extra(mira)
@@ -459,9 +508,6 @@ function extra(mira)
 			vfx("PARAR", { posicao = onde, escala = 1.2,
 				duracao = CFG.DURACAO_MARCA, id = marcaId })
 			tocarEm("CARGA", onde, 1.1)
-			for _, alvo in ipairs(alvosEm(onde, 8, 6)) do
-				aplicarDano(alvo, CFG.DANO_MARCA)
-			end
 			local meu = marcaId
 			task.delay(CFG.DURACAO_MARCA, function()
 				if marcaId == meu then apagarMarca() end
@@ -520,6 +566,7 @@ local function desmontar()
 	table.clear(ativos)
 	ocupado = false
 	apagarMarca()
+	apagarRadiacao()
 	fecharCena()
 	if rig then
 		rig:CancelSequence()

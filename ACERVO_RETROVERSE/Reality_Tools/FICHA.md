@@ -172,3 +172,43 @@ O que sobra como tema plausível: **corpo a corpo** (`Crowbar`, `Bat`, `Bone`, `
 
 Modelo **CRU, em quarentena**: catalogado, triado e com o achado de segurança registrado.
 Falta a licença (§12.12.3) e falta o pedido — quais Tools, com que nomes, de qual família.
+
+---
+
+## 2026-08-16 — a lógica das 7 foi RELIDA da origem, e continua sem código atravessando
+
+O conjunto `Reality Gui` saiu no dia 15 com as habilidades escritas **por tema**: o nome da
+Tool sugeria uma habilidade e a habilidade era inventada em cima do nome. Isso foi corrigido.
+
+O que se fez: ler os scripts das seis Tools de origem — como **texto**, num diretório de
+trabalho fora do repositório — e anotar o que cada uma realmente faz. Depois reescrever a
+habilidade sob as regras daqui.
+
+| Tool | o que a origem faz | o que a versão de 15/08 tinha |
+|---|---|---|
+| `Lapada Seca` | `Hand.Touched` → `BodyVelocity` **900** em `-Head.lookVector`, `Sit`, ragdoll | girava o alvo 140° |
+| `Canhao Satelite` | feixe → bola de 150 studs → **radiação expandindo por ~12 s** | o feixe, sem a radiação |
+| `Trem` | `Activated` põe **`WalkSpeed = 125`** até o `Unequipped` | investida de 0.7 s |
+| `Arvore Maligna` | a árvore **CAÇA**, e **só anda enquanto ninguém olha** | aura parada de 16 studs |
+| `Gato Ajudante Boss` | **bombardeia**: bola preta, 0.8 s, explosão raio 7 · e a chuva de 50 | aura que cobrava por tique |
+| `Samsungus` | leadpipe de R2DA: **duas** batidas alternadas · **concussão** | uma batida · trava no lugar |
+| `Danca Provocadora` | animação + música. **Nada mais.** | aura de 26 studs que puxava e feria |
+
+**A quarentena não foi tocada.** `preparar_reality.py` continua barrando todo `Script`,
+`LocalScript` e `ModuleScript` da origem, e continua varrendo o arquivo escrito atrás de
+`assetimport`, `require(<id>)`, `loadstring`, `getfenv` e `HttpService`. Ler o que um script
+faz e reimplementar é a coisa oposta de copiá-lo: nenhuma linha da origem está no `.rbxm`.
+
+O que a origem faz e **não** atravessou, com o motivo:
+
+| Da origem | Por que ficou de fora |
+|---|---|
+| `Health = 0` · `BreakJoints` · `Foe:Destroy()` | matar por decreto tira o abate do Núcleo — a origem fazia em 6 lugares |
+| `require(ReplicatedFirst.Ragdoll)` | dependência FORA da Tool: é a regra nº 1. O tombo virou `PlatformStand` com prazo |
+| `ScreenGui` branca do leadpipe e do gato | proibida dentro de Tool, e mexe na `PlayerGui` de terceiro |
+| `v:destroy()` num raio de 250 studs (LOIC) | apagaria o cenário do servidor |
+| `game.Chat:Chat` · `Humanoid.Name = "Immunity"` | fora de escopo de Tool |
+| `Instance.new("Explosion")` do gato | proibido: quem detecta é o Núcleo |
+| os 21 `math.random` | com todo cliente desenhando, sorteio faz cada um ver outra cena |
+
+Status do modelo: **segue CRU, em quarentena.** Licença (§12.12.3) continua em aberto.

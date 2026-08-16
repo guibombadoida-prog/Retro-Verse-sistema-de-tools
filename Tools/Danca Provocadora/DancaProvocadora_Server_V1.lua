@@ -5,14 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   a danca de 12 s que puxa a atencao
---   R    —  (esta Tool tem uma habilidade so)   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   danca com a musica, ate mandar parar
+--   R    Parar   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `kick dance`: RequiresHandle = false — ganha um Handle invisivel
 --   `KeyframeSequence` `california gurls`: **361 keyframes** em 12.00 s,
 --      amostrada em 14 — a maior densidade que ja entrou no repositorio
 --   sem som proprio (o `music` veio vazio): empresta 2 do Canhao
+--   LOGICA: `Activated` toca a animacao e a musica. `Unequipped` para as
+--      duas. **NAO HA MAIS NADA** — sem dano, sem raio, sem puxao.
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -37,15 +39,7 @@ local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 local ARQUETIPO = "SUPORTE"
 
 local CFG = {
-	ALCANCE        = 10,
-	RECARGA        = 24,
-	RAIO_PROVOCA   = 26,
-	INTERVALO_TICK = 1.6,
-	DANO_TICK      = 6,
-	PUXAO          = 22,
-	LENTIDAO       = 0.7,
-	DURACAO_AURA   = 12,
-
+	RECARGA        = 3,
 	RECARGA_EXTRA  = 1,
 }
 
@@ -63,7 +57,8 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-local dancaId = nil
+local dancando = false
+local musica = nil
 local geracao = 0
 
 local function proximo()
@@ -320,75 +315,77 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — a dança
+-- A DANÇA, E SÓ A DANÇA
+--
+-- O `SwordScript` do `kick dance` inteiro cabe em nove linhas: `Activated` dá
+-- `animation:play()` e `music:Play()`, `Unequipped` dá `animation:stop()` e
+-- `music:Stop()`. Não existe dano, não existe raio, não existe puxão — a versão
+-- anterior tinha aura de 26 studs, 6 de dano por tique e arrasto para o centro,
+-- e nada disso está na origem.
 --
 -- 14 quadros amostrados de uma `KeyframeSequence` de **361 keyframes** em
--- 12.00 s. É a maior densidade de animação que já entrou aqui, e a estreia do
--- formato: tudo antes era pose escrita em laço.
+-- 12.00 s. É a maior densidade de animação que já entrou aqui.
 --
--- Provocar é PUXAR: quem está no raio é arrastado para perto, desacelera, e
--- paga pouco por tique. A Tool não mata — ela junta gente para outra matar.
+-- Ela REPETE: na origem a animação roda até o `Unequipped`, e é por isso que a
+-- rodada se re-agenda no `onDone` em vez de parar no fim do ciclo.
+--
+-- `ocupado` fica FALSO enquanto ela roda, de propósito: se ficasse verdadeiro,
+-- o `podeAgir()` barraria a própria tecla de parar.
 --══════════════════════════════════════════════════════════════
 
 local function pararDanca()
 	geracao = geracao + 1
-	if dancaId then
-		vfx("APAGAR", { id = dancaId })
-		dancaId = nil
+	dancando = false
+	if musica then
+		musica:Stop()
+		musica.Parent = nil
+		musica = nil
 	end
+	if rig then rig:CancelSequence() end
 end
 
+local rodada
+rodada = function(minha)
+	if minha ~= geracao or not dancando or not rig then return end
+	rig:PlaySequence("DANCA", function(passo)
+		local marca = marcaDe(passo)
+		if marca == "GOLPE" and raiz then
+			tocarEm("BATIDA", raiz.Position, 1 + jitter(0.6) * 0.12)
+		end
+	end, function()
+		if minha == geracao and dancando then
+			rodada(minha)
+		end
+	end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — dançar
+--══════════════════════════════════════════════════════════════
+
 function primaria(_mira)
-	ocupado = true
 	pararDanca()
 	geracao = geracao + 1
 	local minha = geracao
-	dancaId = novoId("DANCA")
-	local id = dancaId
+	dancando = true
 
-	vfx("COROA", { posicao = raiz.Position, escala = 1.2,
-		duracao = CFG.DURACAO_AURA, id = id })
-	tocar("PROVOCA", 1)
+	musica = tocar("PROVOCA", 1, 600)
+	if musica then musica.Looped = true end
 
-	task.spawn(function()
-		local ate = os.clock() + CFG.DURACAO_AURA
-		while minha == geracao and os.clock() < ate do
-			if not (raiz and raiz.Parent) then break end
-			local centro = raiz.Position
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_PROVOCA, 14)) do
-				aplicarDano(alvo, CFG.DANO_TICK)
-				afrouxar(alvo, CFG.LENTIDAO, CFG.INTERVALO_TICK * 1.2)
-				puxar(alvo, centro, CFG.PUXAO, CFG.INTERVALO_TICK * 0.7)
-			end
-			task.wait(CFG.INTERVALO_TICK)
-		end
-		if minha == geracao then
-			vfx("APAGAR", { id = id })
-			dancaId = nil
-		end
-	end)
-
-	rig:PlaySequence("DANCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GOLPE" then
-			tocarEm("BATIDA", raiz.Position, 1 + jitter(0.6) * 0.15)
-			vfx("CONJURA", { posicao = raiz.Position, escala = 0.9,
-				duracao = 0.4 })
-		elseif marca == "FIM" then
-			pararDanca()
-		end
-	end, function()
-		pararDanca()
-		ocupado = false
-	end)
+	rodada(minha)
+	ocupado = false
 end
 
 --══════════════════════════════════════════════════════════════
--- SEM EXTRA — a dança é a Tool inteira
+-- EXTRA — parar
+--
+-- É o `Unequipped` da origem, na tecla.
 --══════════════════════════════════════════════════════════════
 
 function extra(_mira)
-	return
+	if not dancando then return end
+	pararDanca()
+	ocupado = false
 end
 
 --═══════════════════════════════════════════════════════════════

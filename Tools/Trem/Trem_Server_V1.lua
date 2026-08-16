@@ -5,13 +5,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   investida que atropela em linha reta
---   R    —  (esta Tool tem uma habilidade so)   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   entra em corrida e atropela por contato
+--   R    Frear   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `a-train`: RequiresHandle = false, sem Handle — ganha um invisivel
 --   `KeyframeSequence` de **40 keyframes** em 0.59 s, amostrada em 10
 --   som blood 5507830073
+--   LOGICA: `Activated` poe **WalkSpeed = 125**, toca a musica, desliga o
+--      Animate — e o `Touched` mata quem encostar. `Unequipped` devolve
+--      WalkSpeed = 16. E ESTADO DE CORRIDA, nao uma investida de 0.7 s.
 --
 -- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
 -- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
@@ -36,14 +39,15 @@ local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 local ARQUETIPO = "MELEE"
 
 local CFG = {
-	ALCANCE        = 8,
-	RECARGA        = 18,
-	VELOCIDADE     = 96,
-	TEMPO_CORRIDA  = 0.7,
+	RECARGA        = 22,
+	VELOCIDADE     = 110,
+	DURACAO        = 6,
 	RAIO_ATROPELO  = 7,
 	DANO           = 46,
 	EMPURRAO       = 96,
 	TOMBO          = 2,
+	PASSO          = 0.1,
+	RASTRO_A_CADA  = 4,
 
 	RECARGA_EXTRA  = 1,
 }
@@ -62,8 +66,9 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-local impulso = nil
+local velocidadeAntes = nil
 local atropelados = {}
+local geracao = 0
 
 local function proximo()
 	semente = semente + 1
@@ -319,79 +324,104 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — a investida
+-- A CORRIDA — o que a origem realmente faz
 --
--- A pose vem de uma `KeyframeSequence` de verdade: 40 keyframes em 0.59 s. É
--- curta porque a origem é curta — investida longa não é investida.
+-- `humanoid.WalkSpeed = 125` no `Activated`, e volta a 16 no `Unequipped`. Não
+-- há impulso, não há dash: o personagem simplesmente passa a correr, e mata
+-- quem encostar enquanto isso dura. A versão anterior era um `BodyVelocity` de
+-- 0.7 s, que é outra coisa.
 --
--- Cada alvo paga UMA vez por corrida: `atropelados` é a lista, e ela zera a
--- cada uso. E a varredura é por TIQUE de 0.08 s, não por quadro — servidor
--- varrendo por frame replica picotado.
+-- A velocidade guardada é a que o portador TINHA, nunca 16 fixo — ele pode
+-- estar com velocidade própria de outra Tool, e devolver 16 seria roubar.
+--
+-- Cada alvo paga UMA vez por corrida. Na origem isso é automático porque o
+-- alvo é destruído; aqui é a lista `atropelados`, que zera a cada uso.
 --══════════════════════════════════════════════════════════════
 
-local function pararCorrida()
-	if impulso then
-		impulso.Parent = nil
-		impulso = nil
-	end
+local function frear()
+	geracao = geracao + 1
 	table.clear(atropelados)
+	if velocidadeAntes and humanoide and humanoide.Parent
+			and humanoide.Health > 0 then
+		humanoide.WalkSpeed = velocidadeAntes
+	end
+	velocidadeAntes = nil
 end
 
-function primaria(_mira)
-	ocupado = true
+local function correr()
+	if not (humanoide and raiz) then return end
+	geracao = geracao + 1
+	local minha = geracao
 	table.clear(atropelados)
-	rig:PlaySequence("INVESTIDA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("APITO", 0.8)
-		elseif marca == "GOLPE" then
-			tocar("ATROPELA", 1)
-			vfx("CONJURA", { posicao = raiz.Position, escala = 1.4,
-				duracao = 0.5 })
 
-			if impulso then impulso.Parent = nil end
-			impulso = Instance.new("BodyVelocity")
-			impulso.MaxForce = Vector3.new(1e5, 0, 1e5)
-			impulso.Velocity = raiz.CFrame.LookVector * CFG.VELOCIDADE
-			impulso.Parent = raiz
-			Debris:AddItem(impulso, CFG.TEMPO_CORRIDA)
+	if velocidadeAntes == nil then
+		velocidadeAntes = humanoide.WalkSpeed
+	end
+	humanoide.WalkSpeed = CFG.VELOCIDADE
+	tocar("APITO", 0.85)
 
-			task.spawn(function()
-				local ate = os.clock() + CFG.TEMPO_CORRIDA
-				while os.clock() < ate and raiz and raiz.Parent do
-					for _, alvo in ipairs(alvosEm(raiz.Position,
-							CFG.RAIO_ATROPELO, 8)) do
-						if not atropelados[alvo] then
-							atropelados[alvo] = true
-							aplicarDano(alvo, CFG.DANO)
-							tombar(alvo, CFG.TOMBO)
-							local alvoRaiz = raizDe(alvo)
-							if alvoRaiz then
-								empurrar(alvo, raiz.CFrame.LookVector
-									+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO, 0.3)
-								vfx("IMPACTO", { posicao = alvoRaiz.Position,
-									escala = 1.4 })
-							end
-						end
+	task.spawn(function()
+		local ate = os.clock() + CFG.DURACAO
+		local tique = 0
+		while minha == geracao and os.clock() < ate do
+			if not (raiz and raiz.Parent and humanoide
+					and humanoide.Health > 0) then
+				break
+			end
+
+			tique = tique + 1
+			if tique % CFG.RASTRO_A_CADA == 0 then
+				vfx("CONJURA", { posicao = raiz.Position - Vector3.new(0, 2.2, 0),
+					escala = 0.8, duracao = 0.35 })
+			end
+
+			for _, alvo in ipairs(alvosEm(raiz.Position, CFG.RAIO_ATROPELO, 8)) do
+				if not atropelados[alvo] then
+					atropelados[alvo] = true
+					aplicarDano(alvo, CFG.DANO)
+					tombar(alvo, CFG.TOMBO)
+					local alvoRaiz = raizDe(alvo)
+					if alvoRaiz then
+						empurrar(alvo, raiz.CFrame.LookVector
+							+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO, 0.3)
+						vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.6 })
+						tocarEm("ATROPELA", alvoRaiz.Position, 1)
 					end
-					task.wait(0.08)
 				end
-			end)
-		elseif marca == "FIM" then
-			pararCorrida()
+			end
+			task.wait(CFG.PASSO)
 		end
-	end, function()
-		pararCorrida()
-		ocupado = false
+		if minha == geracao then frear() end
 	end)
 end
 
 --══════════════════════════════════════════════════════════════
--- SEM EXTRA — a origem tem uma habilidade só
+-- PRIMÁRIA — entrar em corrida
+--══════════════════════════════════════════════════════════════
+
+function primaria(_mira)
+	ocupado = true
+	rig:PlaySequence("INVESTIDA", function(passo)
+		local marca = marcaDe(passo)
+		if marca == "CARGA" then
+			tocar("APITO", 1.1)
+		elseif marca == "GOLPE" then
+			correr()
+		end
+	end, function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- EXTRA — frear
+--
+-- A origem para a corrida no `Unequipped`, e só. Esta Extra é esse mesmo
+-- desligar, na tecla — não uma segunda habilidade inventada.
 --══════════════════════════════════════════════════════════════
 
 function extra(_mira)
-	return
+	if velocidadeAntes == nil then return end
+	tocar("ATROPELA", 0.7)
+	frear()
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -443,7 +473,7 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	pararCorrida()
+	frear()
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()

@@ -77,7 +77,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Chamada")
+	ContextActionService:SetTitle(ACAO, "Concussao")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 

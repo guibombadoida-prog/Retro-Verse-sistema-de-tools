@@ -902,12 +902,16 @@
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   invoca o gato, que briga por voce
---   R    Mandar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   invoca o gato, que bombardeia
+--   R    Chuva   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
 --   `gravity cat not amused`: Handle 4 x 1 x 2 e o Model do gato
 --   som theme 1842053299
+--   LOGICA: o gato sobe 12 studs, toca o tema, e faz tres ataques —
+--      attack1: bola preta em cima do alvo, 0.8 s, Explosion raio 7
+--      attack2: **50 bolas** chovendo em volta, uma a cada 0.1 s
+--      attack3: teleporta ate o alvo, espera 1 s, volta, e mata
 --   o Humanoid e os 6 Motor6D NAO atravessaram: o gato entra como
 --      geometria, e quem invoca e dispensa e a Tool (NPC fora de escopo)
 --
@@ -936,16 +940,20 @@ local ARQUETIPO = "ESPECTRAL"
 local CFG = {
 	ALCANCE        = 12,
 	RECARGA        = 34,
-	DURACAO_GATO   = 12,
-	RAIO_GATO      = 16,
-	INTERVALO_TICK = 0.8,
-	DANO_TICK      = 11,
-
-	RECARGA_EXTRA  = 8,
-	RAIO_ENVIO     = 50,
-	RAIO_SALTO     = 13,
-	DANO_SALTO     = 44,
+	ALTURA         = 6,
+	DURACAO_GATO   = 14,
+	RAIO_CACA      = 60,
+	INTERVALO_BOMBA = 1.6,
+	ESPERA_BOMBA   = 0.8,
+	RAIO_BOMBA     = 7,
+	DANO_BOMBA     = 38,
 	EMPURRAO       = 68,
+	TOMBO          = 1.6,
+
+	RECARGA_EXTRA  = 16,
+	BOMBAS         = 12,
+	RAIO_CHUVA     = 30,
+	PASSO_CHUVA    = 0.12,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -1220,16 +1228,27 @@ end
 
 
 --══════════════════════════════════════════════════════════════
--- PRIMÁRIA — chamar o gato
+-- A BOMBA — `attack1` da origem, que é o que o gato faz o tempo todo
 --
--- O gato é INVOCAÇÃO, não NPC. O `Humanoid` e os seis `Motor6D` da origem não
--- atravessaram: o que está em `Tool/Moldes/` é o corpo dele como geometria, e
--- quem o invoca, faz brigar e dispensa é esta Tool — com prazo, e solto no
--- `desmontar()`.
+-- Bola preta em cima do alvo, som, 0.8 s de espera, e uma `Explosion` de raio
+-- 7. A espera é o ponto: dá para sair de baixo, e é o que separa o gato de uma
+-- aura que cobra por estar perto (que foi o que a versão anterior fez dele).
 --
--- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é
--- habilidade de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
+-- `Instance.new("Explosion")` é proibido aqui — quem detecta é o Núcleo, por
+-- `golpearArea`. O visual do estouro é do cliente.
 --══════════════════════════════════════════════════════════════
+
+local function soltarBomba(onde, raio, dano)
+	vfx("BOMBA", { posicao = onde, escala = raio / 7,
+		espera = CFG.ESPERA_BOMBA, raio = raio })
+	tocarEm("MIADO", onde, 1.45)
+	task.delay(CFG.ESPERA_BOMBA, function()
+		vfx("LUA_FIM", { posicao = onde, escala = raio / 7 })
+		tocarEm("MIADO", onde, 0.5)
+		golpearArea(onde, raio, raio * 0.5, dano, dano * 0.55,
+			CFG.EMPURRAO, CFG.TOMBO)
+	end)
+end
 
 local function dispensarGato()
 	geracao = geracao + 1
@@ -1240,17 +1259,21 @@ local function dispensarGato()
 	gatoOnde = nil
 end
 
+--- O gato invocado. Ele não anda: ele fica no lugar e bombardeia o mais perto,
+--- que é o `attack1` em laço da origem.
 local function manterGato(onde, id)
 	geracao = geracao + 1
 	local minha = geracao
-	local ate = os.clock() + CFG.DURACAO_GATO
 	task.spawn(function()
+		local ate = os.clock() + CFG.DURACAO_GATO
 		while minha == geracao and os.clock() < ate do
 			local centro = gatoOnde or onde
-			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_GATO, 10)) do
-				aplicarDano(alvo, CFG.DANO_TICK)
+			local presa = maisPerto(centro, CFG.RAIO_CACA)
+			local presaRaiz = presa and raizDe(presa)
+			if presaRaiz then
+				soltarBomba(presaRaiz.Position, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
 			end
-			task.wait(CFG.INTERVALO_TICK)
+			task.wait(CFG.INTERVALO_BOMBA)
 		end
 		if minha == geracao then
 			vfx("APAGAR", { id = id })
@@ -1260,6 +1283,18 @@ local function manterGato(onde, id)
 	end)
 end
 
+--══════════════════════════════════════════════════════════════
+-- PRIMÁRIA — chamar o gato
+--
+-- O gato é INVOCAÇÃO, não NPC. O `Humanoid` e os seis `Motor6D` da origem não
+-- atravessaram: o que está em `Tool/Moldes/` é o corpo dele como geometria, e
+-- quem o invoca, faz bombardear e dispensa é esta Tool — com prazo, e solto no
+-- `desmontar()`.
+--
+-- Mesmo desenho do `Xester Invocacao` e do `Faker Entity`. Invocar é
+-- habilidade de Tool; manter sistema de NPC é que o CLAUDE.md põe fora.
+--══════════════════════════════════════════════════════════════
+
 function primaria(_mira)
 	ocupado = true
 	rig:PlaySequence("CHAMAR", function(passo)
@@ -1268,7 +1303,7 @@ function primaria(_mira)
 			tocar("MIADO", 1.3)
 		elseif marca == "GOLPE" then
 			dispensarGato()
-			local onde = frente(CFG.ALCANCE) + Vector3.new(0, 2, 0)
+			local onde = frente(CFG.ALCANCE) + Vector3.new(0, CFG.ALTURA, 0)
 			gatoOnde = onde
 			gatoId = novoId("GATO")
 			vfx("ENTIDADE", { posicao = onde, escala = 1,
@@ -1280,47 +1315,30 @@ function primaria(_mira)
 end
 
 --══════════════════════════════════════════════════════════════
--- EXTRA — mandar o gato
+-- EXTRA — a chuva
 --
--- Ele SALTA: uma fala do servidor, e o percurso é desenhado pelo cliente.
+-- `attack2`: a origem solta **50 bolas** em volta do gato, uma a cada 0.1 s,
+-- em `math.random(-35,15)` por `math.random(-35,35)`. Aqui são 12, espalhadas
+-- por ÂNGULO ÁUREO em vez de sorteio — com todos os clientes desenhando, um
+-- sorteio faria cada um ver uma chuva diferente.
+--
+-- Sem gato de pé, ela cai em volta de quem carrega: o `attack2` da origem é do
+-- gato, mas a Tool nunca fica inerte.
 --══════════════════════════════════════════════════════════════
 
 function extra(mira)
-	if not gatoId then
-		tocar("MIADO", 0.7)
-		return
-	end
+	local centro = gatoOnde or mira or frente(CFG.ALCANCE)
+	tocar("MIADO", 0.75)
 
-	ocupado = true
-	rig:PlaySequence("MANDAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("MIADO", 1.5)
-		elseif marca == "GOLPE" then
-			local alvo = maisPerto(mira, CFG.RAIO_ENVIO)
-			local alvoRaiz = alvo and raizDe(alvo)
-			local onde = (alvoRaiz and alvoRaiz.Position) or mira
-				or frente(CFG.ALCANCE)
-
-			local partiu = gatoOnde
-			gatoOnde = onde
-			if partiu then
-				vfx("FEIXE", { origem = partiu, destino = onde,
-					grossura = 1.6, escala = 1 })
-			end
-			vfx("ENTIDADE", { posicao = onde, escala = 1.2, duracao = 2.4 })
-			tocarEm("MIADO", onde, 0.85)
-
-			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_SALTO, 8)) do
-				aplicarDano(perto, CFG.DANO_SALTO)
-				local pertoRaiz = raizDe(perto)
-				if pertoRaiz then
-					empurrar(perto, (pertoRaiz.Position - onde)
-						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO, 0.26)
-				end
-			end
+	task.spawn(function()
+		for i = 1, CFG.BOMBAS do
+			local a = i * 2.399963
+			local r = CFG.RAIO_CHUVA * math.sqrt(i / CFG.BOMBAS)
+			local onde = centro + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+			soltarBomba(onde, CFG.RAIO_BOMBA, CFG.DANO_BOMBA)
+			task.wait(CFG.PASSO_CHUVA)
 		end
-	end, function() ocupado = false end)
+	end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -1463,7 +1481,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Mandar")
+	ContextActionService:SetTitle(ACAO, "Chuva")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -2009,42 +2027,33 @@ return P
 --   com `RunContext = Client`, que roda em TODO cliente. Quem desenha é quem
 --   vê — e todos veem.
 --
--- ESTE CONJUNTO TEM EMISSOR DE VERDADE, E ISSO MUDA A REGRA
+-- OS MOLDES DESTE CONJUNTO, E O QUE CADA TOOL REALMENTE TRAZ
 --
---   Os outros `VFXModule` daqui desenham com `Part` primitiva esticada, e o
---   FAKER com malha de modelo. Este é o primeiro com **`ParticleEmitter`
---   autorado**: 13 deles, em 9 moldes, vindos do `noob_despertado.rbxmx`.
+--   | Tool | `Tool/Moldes/` | classe |
+--   |---|---|---|
+--   | `Lapada Seca` | `Hand` | `MeshPart` |
+--   | `Arvore Maligna` | `tree` | **`Model`** — 5 `UnionOperation` |
+--   | `Gato Ajudante Boss` | `Gravity Cat Not Amused` | **`Model`** |
+--   | as outras quatro | — | desenham só com primitiva |
 --
---   Emissor autorado se liga por **`Enabled` + `Rate`**, nunca por `:Emit()`.
+--   `molde(nome)` devolve `nil` para tudo que a Tool não trouxer, e cada efeito
+--   cai no seu desenho primitivo. É de propósito: a Regra nº 1 diz que a Tool
+--   sozinha num place vazio funciona por inteiro, e uma Tool que ficasse muda
+--   por não achar um molde estaria dependendo de coisa de fora.
+--
+--   ⚠️ DOIS DOS TRÊS SÃO `Model`. Ver o comentário de `molde()`: `Model` não
+--      tem `Anchored`, `Transparency` nem `CFrame`, e a versão anterior
+--      escrevia os três. O `pcall` do `VFX.Executar` engolia o erro, e o gato
+--      nunca aparecia.
+--
+-- EMISSOR AUTORADO SE LIGA POR `Enabled` + `Rate`, NUNCA POR `:Emit()`
+--
 --   `:Emit(n)` dispara uma leva fixa e IGNORA o `Rate` que o autor escreveu —
 --   a curva de emissão se perde e o efeito fica com outra cara. É a regra que
---   o `_INDICE.md` fixou para os 10 emissores do Acervo, e vale igual aqui.
+--   o `_INDICE.md` fixou para os 10 emissores do Acervo, e vale aqui para todo
+--   `ParticleEmitter` que vier dentro de um molde.
 --
 --   O molde fica com `Enabled = false` dentro da Tool. Quem acende é o clone.
---
--- OS MOLDES
---
---     VoidCrystal        cristal 2.2 × 14.9 × 2.2   o pilar
---     SmallVoidCrystal   1.34 × 9.1 × 1.34          o médio
---     MiniVoidCrystal    0.4 × 2.7 × 0.4            o estilhaço
---     VoidMagic          Attachment · 2 emissores   conjuração
---     VoidExplode        Attachment · 2 emissores   estouro
---     VoidExplode2       Attachment · 2 emissores   estouro grande
---     Stun               Attachment · 1 emissor     atordoamento
---     Bomb               13.7³                       a lua
---     Lava               900 × 20 × 900 -> 24        a laje
---
---   Os três cristais são o MESMO molde em três tamanhos. É escala pronta — o
---   tipo de coisa que este repositório vinha resolvendo com `Size` no tween.
---
---   A `Lava` da origem tem 900 studs de lado, o mesmo 900 do
---   `ApplyAoE(..., 900, ...)`: a peça É o raio. Ela entrou cortada em 24, e o
---   raio de dano foi trazido para a faixa junto — os dois eram o mesmo número.
---
--- PALETA: ROXO DE VAZIO COM BORDA BRANCA
---
---   O FAKER é preto com contorno branco; este é roxo. Os dois são "vazio", e
---   precisam se distinguir de longe: o Faker é buraco, o Noob é nebulosa.
 --
 -- Zero math.random: a origem tinha 21. Aqui é ângulo áureo e jitter senoidal
 -- por contador — com todos os clientes desenhando, um sorteio faria cada um ver
@@ -2154,22 +2163,87 @@ local function apagar(peca)
 	end
 end
 
+local function assentar(peca)
+	peca.Anchored = true
+	peca.CanCollide = false
+	peca.CanTouch = false
+	peca.CanQuery = false
+	peca.Massless = true
+	peca.CastShadow = false
+end
+
 --- Clona um molde e o torna visível. `nil` se a Tool não trouxer aquele.
+---
+--- ⚠️ MOLDE PODE SER `Model`, E ISSO NÃO É DETALHE.
+---
+---     Dois dos três moldes deste conjunto são `Model`: a `tree` da
+---     `Arvore Maligna` (5 `UnionOperation`) e o corpo do gato. `Model` não tem
+---     `Anchored`, não tem `Transparency` e não tem `CFrame` — escrever
+---     qualquer um dos três nele **lança**, e o `pcall` do `VFX.Executar`
+---     engolia o erro em silêncio. O resultado era um `warn` no console e
+---     nenhum gato na tela.
+---
+---     Num `Model`, quem recebe as propriedades são as `BasePart` de dentro, e
+---     quem posiciona é `PivotTo`. E as propriedades de APARÊNCIA (`Color`,
+---     `Material`, `Transparency`) são ignoradas de propósito: pintar a árvore
+---     inteira de uma cor só apagaria o modelo que se quis usar.
 local function molde(nome, props, visivel)
 	local pasta = moldes()
 	local base = pasta and pasta:FindFirstChild(nome)
 	if not base then return nil end
 	local copia = base:Clone()
-	copia.Anchored = true
-	copia.CanCollide = false
-	copia.CanTouch = false
-	copia.CanQuery = false
+
+	if copia:IsA("Model") then
+		for _, parte in ipairs(copia:GetDescendants()) do
+			if parte:IsA("BasePart") then
+				assentar(parte)
+				if visivel == false then parte.Transparency = 1 end
+			end
+		end
+		copia.Parent = workspace
+		if props and props.CFrame then
+			copia:PivotTo(props.CFrame)
+		end
+		return copia
+	end
+
+	assentar(copia)
 	if visivel ~= false then copia.Transparency = 0 end
 	for chave, valor in pairs(props or {}) do
 		copia[chave] = valor
 	end
 	copia.Parent = workspace
 	return copia
+end
+
+--- Leva uma peça OU um `Model` até um `CFrame`, com tween.
+---
+--- `TweenService` não anima `Model`: ela não tem a propriedade. O jeito é
+--- tweenar um `CFrameValue` e repicar o `PivotTo` no `Changed` — uma alocação
+--- por movimento, contra um `PivotTo` por quadro escrito à mão.
+local function levar(inst, destino, tempo, estilo)
+	if not (inst and inst.Parent) then return end
+	if inst:IsA("BasePart") then
+		tween(inst, tempo, { CFrame = destino },
+			estilo or Enum.EasingStyle.Linear)
+		return
+	end
+	if not inst:IsA("Model") then return end
+
+	local proxy = Instance.new("CFrameValue")
+	proxy.Value = inst:GetPivot()
+	local conexao
+	conexao = proxy.Changed:Connect(function(valor)
+		if inst and inst.Parent then
+			inst:PivotTo(valor)
+		end
+	end)
+	local t = tween(proxy, tempo, { Value = destino },
+		estilo or Enum.EasingStyle.Linear)
+	t.Completed:Connect(function()
+		if conexao then conexao:Disconnect() end
+		proxy.Parent = nil
+	end)
 end
 
 --- Solta um sopro de emissor no ponto, com prazo.
@@ -2368,16 +2442,25 @@ function Efeitos.RELOGIO(d)
 	camadaCristais(p, "MiniVoidCrystal", 8, 4 * e, e, 0.8)
 end
 
---- O buraco: o pilar de cristal com o sopro em volta. Some por `Parar`.
+--- A ÁRVORE que caça. Some por `Parar`, e ANDA por `MOVER`.
+---
+--- O molde certo é a `tree` da origem — o `Model` com as 5 `UnionOperation`.
+--- A versão anterior pedia `VoidCrystal`, que esta Tool não traz: `molde`
+--- devolvia `nil`, o fallback desenhava uma bola roxa, e o modelo que se tinha
+--- carregado para dentro da Tool nunca aparecia.
 function Efeitos.BURACO(d)
 	local p, e = pos(d), escala(d)
 	local reg = registroDe(d)
+	local vida = (d and d.duracao) or 4
 
-	local nucleo = molde("VoidCrystal", {
-		CFrame = CFrame.new(p),
-		Color = CFG.COR_VAZIO,
-		Transparency = 0.05,
-	})
+	local nucleo = molde("tree", { CFrame = CFrame.new(p) })
+	if not nucleo then
+		nucleo = molde("VoidCrystal", {
+			CFrame = CFrame.new(p),
+			Color = CFG.COR_VAZIO,
+			Transparency = 0.05,
+		})
+	end
 	if not nucleo then
 		nucleo = novaParte({
 			Shape = Enum.PartType.Ball,
@@ -2388,13 +2471,40 @@ function Efeitos.BURACO(d)
 		})
 	end
 	acender(nucleo)
-	tween(nucleo, (d and d.duracao) or 4, {
-		CFrame = CFrame.new(p) * CFrame.Angles(0, math.rad(1080), 0),
-	}, Enum.EasingStyle.Linear)
-	registrar(nucleo, (d and d.duracao) or 4)
+	if nucleo:IsA("BasePart") then
+		tween(nucleo, vida, {
+			CFrame = CFrame.new(p) * CFrame.Angles(0, math.rad(1080), 0),
+		}, Enum.EasingStyle.Linear)
+	end
+	registrar(nucleo, vida)
 	if reg then table.insert(reg, nucleo) end
 
-	sopro("VoidMagic", p, (d and d.duracao) or 4, 1.2)
+	sopro("VoidMagic", p, vida, 1.2)
+end
+
+--- MOVER — o servidor mandou a coisa registrada mudar de lugar.
+---
+--- É como a árvore anda. O passo vem por TIQUE de 0.35 s, nunca por quadro: o
+--- servidor manda a posição nova e o cliente faz o meio do caminho com tween.
+--- Uma mensagem a cada 0.35 s no lugar de trinta por segundo.
+function Efeitos.MOVER(d)
+	local reg = d and d.id and PorId[d.id]
+	if not reg then return end
+	local destino = pos(d)
+	local tempo = (d and d.tempo) or 0.35
+	local olhar = d and d.olhar
+
+	local alvo = CFrame.new(destino)
+	if olhar then
+		local plano = Vector3.new(olhar.X, destino.Y, olhar.Z)
+		if (plano - destino).Magnitude > 0.1 then
+			alvo = CFrame.lookAt(destino, plano)
+		end
+	end
+
+	for _, inst in ipairs(reg.partes) do
+		levar(inst, alvo, tempo)
+	end
 end
 
 function Efeitos.BURACO_FIM(d)
@@ -2518,27 +2628,119 @@ end
 function Efeitos.ENTIDADE(d)
 	local p, e = pos(d), escala(d)
 	local reg = registroDe(d)
+	local vida = (d and d.duracao) or 10
 
-	local corpo = molde("Gravity Cat Not Amused", {
-		CFrame = CFrame.new(p),
-		Transparency = 0,
-	})
+	-- ele SOBE ao ser chamado, como na origem (12 passos de 1 stud). Nasce
+	-- embaixo e é levado para o ponto.
+	local baixo = p - Vector3.new(0, 6, 0)
+
+	local corpo = molde("Gravity Cat Not Amused", { CFrame = CFrame.new(baixo) })
 	if not corpo then
 		corpo = novaParte({
 			Shape = Enum.PartType.Ball,
 			Size = Vector3.new(3.4, 3.4, 3.4) * e,
 			Color = CFG.COR_VAZIO,
 			Transparency = 0.1,
-			CFrame = CFrame.new(p),
+			CFrame = CFrame.new(baixo),
 		})
 	end
-	tween(corpo, 0.3, { CFrame = CFrame.new(p) * CFrame.Angles(0, math.rad(360), 0) },
-		Enum.EasingStyle.Back)
-	registrar(corpo, (d and d.duracao) or 10)
+	levar(corpo, CFrame.new(p), 0.6, Enum.EasingStyle.Back)
+	registrar(corpo, vida)
 	if reg then table.insert(reg, corpo) end
 
-	sopro("VoidMagic", p, (d and d.duracao) or 10, 1)
+	sopro("VoidMagic", p, vida, 1)
 	camadaFlash(p, CFG.COR_BORDA, 3 * e)
+end
+
+--- A BOMBA do gato: a bola preta que espera antes de estourar.
+---
+--- `attack1` da origem — `Part` bola cor 0.192157 (RGB 49), som, 0.8 s, e só
+--- então a `Explosion`. A espera é a mecânica: dá para sair de baixo. O anel
+--- que cresce é a leitura do raio, para saber DE ONDE sair.
+function Efeitos.BOMBA(d)
+	local p, e = pos(d), escala(d)
+	local espera = (d and d.espera) or 0.8
+	local raio = (d and d.raio) or 7
+
+	local bola = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(1, 1, 1),
+		Color = Color3.fromRGB(49, 49, 49),
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0,
+		CFrame = CFrame.new(p + Vector3.new(0, raio * 0.5, 0)),
+	})
+	tween(bola, espera, {
+		Size = Vector3.new(3.4, 3.4, 3.4) * e,
+		CFrame = CFrame.new(p),
+	}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	registrar(bola, espera + 0.05)
+
+	local anel = novaParte({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 1, 1),
+		Color = CFG.COR_BRASA,
+		Transparency = 0.55,
+		CFrame = CFrame.new(p) * CFrame.Angles(0, 0, math.rad(90)),
+	})
+	tween(anel, espera, {
+		Size = Vector3.new(0.2, raio * 2, raio * 2),
+		Transparency = 0.9,
+	}, Enum.EasingStyle.Linear)
+	registrar(anel, espera + 0.05)
+
+	sopro("VoidMagic", p, espera, 0.8)
+end
+
+--- A RADIAÇÃO do canhão: a cratera que continua queimando.
+---
+--- O LOIC solta 29 esferas `Neon` e 100 esferas `Glass` expandindo pelos ~12 s
+--- que seguem o tiro. Não é decoração: é o que faz o ponto ficar intransitável
+--- depois do feixe, e o servidor cobra por tique enquanto ela está de pé.
+---
+--- As levas são agendadas de uma vez, e cada uma desiste se o domo já foi
+--- apagado por `Parar` — assim a Tool guardada leva a radiação junto.
+function Efeitos.RADIACAO(d)
+	local p = pos(d)
+	local raio = (d and d.raio) or 26
+	local duracao = (d and d.duracao) or 10
+	local reg = registroDe(d)
+
+	local domo = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(raio, raio, raio) * 0.4,
+		Color = CFG.COR_BRASA,
+		Material = Enum.Material.Glass,
+		Transparency = 0.78,
+		CFrame = CFrame.new(p),
+	})
+	tween(domo, 1.2, {
+		Size = Vector3.new(raio, raio, raio) * 2,
+		Transparency = 0.88,
+	}, Enum.EasingStyle.Quint)
+	registrar(domo, duracao)
+	if reg then table.insert(reg, domo) end
+
+	local levas = math.max(1, math.floor(duracao / 0.8))
+	for i = 1, levas do
+		task.delay(i * 0.8, function()
+			if not (domo and domo.Parent) then return end
+			local onda = novaParte({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(2, 2, 2),
+				Color = CFG.COR_BRASA,
+				Transparency = 0.45,
+				CFrame = CFrame.new(p),
+			})
+			tween(onda, 1.4, {
+				Size = Vector3.new(raio, raio, raio) * 2,
+				Transparency = 1,
+			}, Enum.EasingStyle.Quad)
+			registrar(onda, 1.6)
+		end)
+	end
+
+	sopro("VoidExplode2", p, duracao, 0.7)
 end
 
 --═══════════════════════════════════════════════════════════════

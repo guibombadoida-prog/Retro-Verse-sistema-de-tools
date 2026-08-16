@@ -141,6 +141,28 @@ BASE = {
         "HRP": J(0, -0.04, 0, 5, 34, 0),
         "RightLeg": J(0.5, -1.9, -0.24, -12, 0, 0),
     },
+    # a SEGUNDA batida do leadpipe: vem de cima, braço aberto, corpo para trás
+    "ERGUE_ALTO": {
+        "RightArm": J(1.4, 0.72, -0.18, 152, -14, -22),
+        "LeftArm": J(-1.44, 0.14, -0.34, 36, 12, 16),
+        "Head": J(0, 1.5, 0, -18, 8, 0),
+        "HRP": J(0, 0.06, 0, -10, -12, 0),
+    },
+    "DESCE_ALTO": {
+        "RightArm": J(1.46, -0.1, -0.92, 44, -10, -6),
+        "LeftArm": J(-1.38, -0.02, -0.44, 40, 16, 22),
+        "Head": J(0, 1.5, 0, 16, -8, 0),
+        "HRP": J(0, -0.12, 0, 18, 12, 0),
+        "RightLeg": J(0.5, -1.86, -0.3, -16, 0, 0),
+        "LeftLeg": J(-0.5, -1.92, 0.16, 9, 0, 0),
+    },
+    # a mão aberta e parada, palma para a frente: a "mão quente" da lapada
+    "MAO_ABERTA": {
+        "RightArm": J(1.52, 0.3, -0.86, 84, -18, -6),
+        "LeftArm": J(-1.46, 0.08, -0.3, 26, 8, 12),
+        "Head": J(0, 1.5, 0, -8, -10, 0),
+        "HRP": J(0, 0.02, 0, -5, 14, 0),
+    },
 }
 
 
@@ -154,15 +176,17 @@ AUTORAIS = {
             P("TAPA_BATE", 0.16, "Sine", "InOut"),
             P("IDLE", 0.24, "Quad", "Out"),
         ]),
-        "TRIPLA": ("combo", [
-            P("TAPA_ERGUE", 0.12, "Back", "In", "CARGA"),
-            P("TAPA_BATE", 0.08, "Quint", "Out", "GOLPE"),
-            P("TAPA_ERGUE", 0.10, "Quad", "Out"),
-            P("TAPA_BATE", 0.08, "Quint", "Out", "GOLPE"),
-            P("TAPA_ERGUE", 0.10, "Quad", "Out"),
-            P("TAPA_BATE", 0.09, "Quint", "Out", "GOLPE"),
-            P("TAPA_BATE", 0.16, "Sine", "InOut"),
-            P("IDLE", 0.27, "Quad", "Out", "FIM"),
+        # A MÃO QUENTE — sustentada, não combo.
+        #
+        # A origem não tem três tapas: tem a mão ligada no `Touched` enquanto a
+        # Tool estiver equipada. A pose acompanha isso — ergue, ABRE, e fica
+        # parada com a palma para a frente pelos 5 s da janela.
+        "MAO_QUENTE": ("sustentada", [
+            P("TAPA_ERGUE", 0.26, "Back", "In", "CARGA"),
+            P("MAO_ABERTA", 0.30, "Quint", "Out", "SEGURA"),
+            P("MAO_ABERTA", 2.40, "Sine", "InOut", None, 0.03, 19),
+            P("MAO_ABERTA", 2.30, "Sine", "InOut", None, 0.045, 24),
+            P("IDLE", 0.34, "Quad", "Out", "FIM"),
         ]),
     }),
     "Canhao Satelite": ("RightArm", {
@@ -217,12 +241,22 @@ AUTORAIS = {
         ]),
     }),
     "Samsungus": ("RightArm", {
+        # O COMBO DE DUAS. `attacknumber` da origem alterna as batidas: a A vem
+        # de lado com o corpo torcido, a B vem de cima com o braço aberto. São
+        # duas animações diferentes, e a versão anterior tinha uma só.
         "BATIDA": ("golpe rápido", [
             P("GIRA_MAO", 0.20, "Back", "In", "CARGA"),
             P("GIRA_MAO", 0.14, "Sine", "InOut"),
             P("BATE_LADO", 0.10, "Quint", "Out", "GOLPE"),
             P("BATE_LADO", 0.16, "Sine", "InOut"),
             P("IDLE", 0.24, "Quad", "Out"),
+        ]),
+        "BATIDA_B": ("golpe rápido", [
+            P("ERGUE_ALTO", 0.22, "Back", "In", "CARGA"),
+            P("ERGUE_ALTO", 0.16, "Sine", "InOut"),
+            P("DESCE_ALTO", 0.11, "Quint", "Out", "GOLPE"),
+            P("DESCE_ALTO", 0.17, "Sine", "InOut"),
+            P("IDLE", 0.26, "Quad", "Out"),
         ]),
         "CHAMADA": ("golpe pesado", [
             P("GIRA_MAO", 0.24, "Back", "In", "CARGA"),
