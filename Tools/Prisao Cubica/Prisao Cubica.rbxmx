@@ -1048,31 +1048,26 @@ function primaria(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("PRENDE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FORMA" then
-			tocar("AGUDO", 1.2)
-		elseif marca == "PRENDE" then
+	rig:PlaySequence("PRENDE", despachar({
+		FORMA = { sfx = { "AGUDO", 1.2 } },
+		PRENDE = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if not alvoRaiz then return end
 			soltarPrisao()
-
 			presoCentro = alvoRaiz.Position
 			presoId = novoId("PRISAO")
 			vfx("PRISAO", { posicao = presoCentro, escala = 1,
 				raio = CFG.RAIO_PRISAO, duracao = CFG.DURACAO_PRISAO,
 				id = presoId })
 			tocarEm("DISPARO", presoCentro, 0.7)
-
 			aplicarDano(alvo, CFG.DANO_PRISAO)
 			prender(alvo, CFG.DURACAO_PRISAO)
-
 			local meu = presoId
 			task.delay(CFG.DURACAO_PRISAO, function()
 				if presoId == meu then soltarPrisao() end
 			end)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1088,17 +1083,14 @@ end
 function extra(_mira)
 	ocupado = true
 	local centro = presoCentro
-	rig:PlaySequence("ESTILHACA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "APERTA" then
-			tocar("AGUDO", 0.85)
-		elseif marca == "ESTILHACA" then
+	rig:PlaySequence("ESTILHACA", despachar({
+		APERTA = { sfx = { "AGUDO", 0.85 } },
+		ESTILHACA = { faz = function()
 			local onde = centro or frente(CFG.ALCANCE)
 			local cheio = centro ~= nil
 			soltarPrisao()
 			vfx("PRISAO_FIM", { posicao = onde, escala = cheio and 1.5 or 0.9 })
 			tocarEm("DISPARO", onde, 0.5)
-
 			local dano = cheio and CFG.DANO_ESTILHACO or CFG.DANO_ESTILHACO * 0.5
 			for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_ESTILHACO, 10)) do
 				aplicarDano(alvo, dano)
@@ -1109,8 +1101,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ESTIL, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

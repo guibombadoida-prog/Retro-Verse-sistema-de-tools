@@ -628,11 +628,9 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("CORTE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("PREPARA", 1)
-		elseif marca == "CORTA" then
+	rig:PlaySequence("CORTE", despachar({
+		ERGUE = { sfx = { "PREPARA", 1 } },
+		CORTA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocar("GOLPE", 1 + jitter(0.7) * 0.08)
 			vfx("CORTE", { cframe = raiz.CFrame
@@ -646,8 +644,8 @@ function primaria(_mira)
 				end
 				tocarEm("IMPACTO", alvoRaiz and alvoRaiz.Position or ponto, 1.2)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -671,24 +669,17 @@ function extra(mira)
 	rig:LockCharacter(true)
 	abrirCena(alvo, "CAMERA")
 
-	rig:PlaySequence("EXECUCAO", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("CARGA", 0.85)
-		elseif marca == "ENCARA" then
-			beatCena("ENCARA")
+	rig:PlaySequence("EXECUCAO", despachar({
+		CAMERA = { sfx = { "CARGA", 0.85 } },
+		ENCARA = { cam = true, faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				vfx("EXECUCAO", { posicao = alvoRaiz.Position, escala = 1,
 					duracao = CFG.DURACAO_GELO, id = id })
 			end
-		elseif marca == "AVANCA" then
-			beatCena("AVANCA")
-			tocar("PREPARA", 0.7)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
+		end },
+		AVANCA = { cam = true, sfx = { "PREPARA", 0.7 } },
+		SEGURA = { cam = true, faz = function()
 			-- o gelo segura: quem está sendo executado não sai andando
 			if alvo.Health > 0 then
 				alvo.WalkSpeed = alvo.WalkSpeed * CFG.LENTIDAO
@@ -697,8 +688,8 @@ function extra(mira)
 					if alvo and alvo.Parent then alvo.WalkSpeed = antes end
 				end)
 			end
-		elseif marca == "CORTA" then
-			beatCena("CORTA")
+		end },
+		CORTA = { cam = true, faz = function()
 			local alvoRaiz = raizDe(alvo)
 			local onde = alvoRaiz and alvoRaiz.Position or frente()
 			vfx("PARAR", { id = id })
@@ -706,10 +697,11 @@ function extra(mira)
 			tocarEm("IMPACTO", onde, 0.7)
 			aplicarDano(alvo, CFG.DANO_EXECUCAO)
 			tombar(alvo, 2)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false

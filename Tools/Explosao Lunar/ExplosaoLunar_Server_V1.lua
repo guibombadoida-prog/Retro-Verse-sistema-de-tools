@@ -334,16 +334,13 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("LUA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 0.85)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("LUA", despachar({
+		CARGA = { sfx = { "CARGA", 0.85 } },
+		GOLPE = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("LUA", { posicao = onde, escala = 1,
 				altura = CFG.ALTURA_LUA, queda = CFG.QUEDA })
 			tocarEm("LUA", onde + Vector3.new(0, CFG.ALTURA_LUA * 0.5, 0), 1)
-
 			-- o impacto cai quando a lua chega, não quando ela sai
 			task.delay(CFG.QUEDA, function()
 				vfx("LUA_FIM", { posicao = onde, escala = 1.3 })
@@ -351,8 +348,8 @@ function primaria(mira)
 				golpearArea(onde, CFG.RAIO_LUA, CFG.RAIO_NUCLEO,
 					CFG.DANO_LUA, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
 			end)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

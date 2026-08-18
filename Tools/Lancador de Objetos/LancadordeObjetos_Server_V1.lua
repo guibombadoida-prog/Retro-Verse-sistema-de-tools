@@ -341,19 +341,19 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("ARREMESSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "AGARRA" then
+	rig:PlaySequence("ARREMESSO", despachar({
+		AGARRA = { faz = function()
 			tocar("ClawsClose", 1)
 			vfx("AGARRA", { origem = Handle.Position,
 				destino = frente(CFG.ALCANCE) })
-		elseif marca == "SOLTA" then
+		end },
+		SOLTA = { faz = function()
 			tocar("Launch2", 1)
 			local origem = Handle.Position + raiz.CFrame.LookVector * 2.5
 				+ Vector3.new(0, 1.5, 0)
 			lancar(novoDestroco(origem, CFG.TAMANHO), mira, CFG.DANO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -367,15 +367,16 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("RAJADA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "REUNE" then
+	rig:PlaySequence("RAJADA", despachar({
+		REUNE = { faz = function()
 			tocar("Pull", 0.85)
 			vfx("CACOS", { posicao = raiz.Position + Vector3.new(0, 3, 0),
 				escala = 1.2, quantos = CFG.QUANTOS, duracao = 0.9 })
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			tocar("Holding", 1)
-		elseif marca == "SALVA" then
+		end },
+		SALVA = { faz = function()
 			for i = 1, CFG.QUANTOS do
 				local a = angulo(i)
 				local origem = raiz.Position + Vector3.new(0, 3, 0)
@@ -385,8 +386,8 @@ function extra(mira)
 					mira, CFG.DANO_RAJADA)
 			end
 			tocarEm("Launch3", raiz.Position, 1)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

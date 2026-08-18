@@ -317,13 +317,13 @@ function extra(_mira)
 	local esteId = "PEDRA_" .. tostring(idPedra)
 
 	rig:LockCharacter(true)
-	rig:PlaySequence("PEDRA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FECHA" then
+	rig:PlaySequence("PEDRA", despachar({
+		FECHA = { faz = function()
 			tocarEm("Smack", raiz.Position, 0.55)
 			vfx("PEDRA", { posicao = raiz.Position, escala = 1,
 				duracao = CFG.DURACAO_PEDRA, id = esteId })
-		elseif marca == "ABRE" then
+		end },
+		ABRE = { faz = function()
 			local onde = raiz.Position
 			vfx("PARAR", { id = esteId })
 			vfx("PEDRA_FIM", { posicao = onde, escala = 1.2 })
@@ -337,8 +337,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ABERTURA, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		rig:LockCharacter(false)
 		ocupado = false
 	end)

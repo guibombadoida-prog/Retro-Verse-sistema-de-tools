@@ -312,11 +312,11 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("ESMAGAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
+	rig:PlaySequence("ESMAGAR", despachar({
+		ERGUE = { faz = function()
 			tocar("Shift", 0.7)
-		elseif marca == "ESMAGA" then
+		end },
+		ESMAGA = { faz = function()
 			vfx("ESMAGA", { posicao = mira, escala = 1.3 })
 			tocarEm("Beep", mira, 0.72)
 			for _, alvo in ipairs(alvosEm(mira, CFG.RAIO_ESMAGA, 12)) do
@@ -324,8 +324,8 @@ function extra(mira)
 				empurrar(alvo, Vector3.new(0, -1, 0), CFG.FORCA_ESMAGA, 0.3)
 				tombar(alvo, 1.6)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

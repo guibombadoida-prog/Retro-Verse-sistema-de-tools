@@ -283,22 +283,23 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("BEBER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
+	rig:PlaySequence("BEBER", despachar({
+		ERGUE = { faz = function()
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
-		elseif marca == "ULTIMO_GOLE" then
+		end },
+		ULTIMO_GOLE = { faz = function()
 			vfx("RESPINGO", { posicao = Handle.Position, escala = 0.6 })
-		elseif marca == "CURA" then
+		end },
+		CURA = { faz = function()
 			Tool.Grip = GRIP_NORMAL
 			local ganho = curar(humanoide, CFG.CURA)
 			if ganho > 0 then
 				vfx("CURA", { posicao = raiz.Position, escala = 1.1 })
 			end
 			acelerar()
-		end
-	end, function()
+		end },
+	}), function()
 		Tool.Grip = GRIP_NORMAL
 		ocupado = false
 	end)
@@ -327,11 +328,11 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("LATA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "AMASSA" then
+	rig:PlaySequence("LATA", despachar({
+		AMASSA = { faz = function()
 			tocar("OpenSound", 0.7)
-		elseif marca == "JOGA" then
+		end },
+		JOGA = { faz = function()
 			local origem = Handle.Position + raiz.CFrame.LookVector * 1.5
 			local lata = novaLata(origem)
 			local dist = math.min((origem - mira).Magnitude, CFG.ALCANCE_MAX)
@@ -341,7 +342,6 @@ function extra(mira)
 				* math.max(dist, CFG.FORCA_MIN) + Vector3.new(0, CFG.ARCO_TIRO, 0)
 			impulso.Parent = lata
 			Debris:AddItem(impulso, 0.1)
-
 			local bateu = false
 			guardar(lata.Touched:Connect(function(atingido)
 				if bateu then return end
@@ -362,8 +362,8 @@ function extra(mira)
 				lata.CanTouch = false
 				Debris:AddItem(lata, 0.15)
 			end))
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

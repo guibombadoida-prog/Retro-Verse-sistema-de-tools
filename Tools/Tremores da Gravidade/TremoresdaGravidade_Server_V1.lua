@@ -311,11 +311,11 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("SUSTENTO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
+	rig:PlaySequence("SUSTENTO", despachar({
+		ABRE = { faz = function()
 			tocar("Press", 0.8)
-		elseif marca == "PULSO" then
+		end },
+		PULSO = { faz = function()
 			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("PULSO", { posicao = chao, escala = 1 })
 			tocarEm("Hit", chao, 1.15 + jitter(0.6) * 0.1)
@@ -323,8 +323,8 @@ function extra(_mira)
 				aplicarDano(alvo, CFG.DANO_PULSO)
 				tombar(alvo, CFG.TOMBO)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

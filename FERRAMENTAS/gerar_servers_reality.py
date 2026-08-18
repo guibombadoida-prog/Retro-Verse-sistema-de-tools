@@ -45,6 +45,47 @@ VFX_REALITY = os.path.join(DADOS, "VFXModule_Reality.lua")
 CAM_REALITY = os.path.join(DADOS, "CutsceneCam_Reality.lua")
 
 
+DESPACHANTE = '''
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
+--
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
+--
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
+--          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
+-- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
+-- repositório não declara licença. Ver
+-- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+'''
+
 PREAMBULO = '''-- {objeto}.lua
 -- Script de servidor — {tool}  (conjunto REALITY GUI)
 --
@@ -576,7 +617,7 @@ def escrever(tool, d):
     d["extra_require"] = ("local CutsceneRemote = Tool:WaitForChild(\"CutsceneRemote\")\n"
                           if d["cutscene"] else "")
     d["origem"] = "".join("--   %s\n" % linha for linha in d["origem"])
-    corpo = (CUTSCENE if d["cutscene"] else "") + d["corpo"]
+    corpo = (CUTSCENE if d["cutscene"] else "") + DESPACHANTE + d["corpo"]
     servidor = PREAMBULO.format(tool=tool, **d) + corpo + RODAPE.format(**d)
 
     with open(os.path.join(pasta, "%s.lua" % d["objeto"]), "w",

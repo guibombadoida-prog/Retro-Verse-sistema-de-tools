@@ -1100,31 +1100,18 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 16), "CAMERA")
 
-	rig:PlaySequence("FIM_DA_ERA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.5)
-		elseif marca == "ERGUE" then
-			beatCena("ERGUE")
-			tocar("AGUDO", 0.6)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("GRAVE", 0.4)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
-			tocar("DISPARO", 0.7)
-		elseif marca == "DETONA" then
-			beatCena("DETONA")
+	rig:PlaySequence("FIM_DA_ERA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.5 } },
+		ERGUE = { cam = true, sfx = { "AGUDO", 0.6 } },
+		CARGA = { cam = true, sfx = { "GRAVE", 0.4 } },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, sfx = { "DISPARO", 0.7 } },
+		DETONA = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			vfx("COGUMELO", { posicao = onde, escala = 1 })
 			vfx("ANEL", { posicao = onde, escala = 1.4, duracao = 1.6 })
 			tocarEm("GRAVE", onde, 0.35)
 			tocarEm("DISPARO", onde, 0.45)
-
 			-- quem está no núcleo paga o cheio; quem está na borda paga menos.
 			-- Dois raios, não um: uma explosão de 58 studs com dano chapado
 			-- mataria meio servidor por estar por perto.
@@ -1143,10 +1130,11 @@ function primaria(_mira)
 						+ Vector3.new(0, 0.8, 0), CFG.EMPURRAO_FIM, 0.4)
 				end
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false
@@ -1162,11 +1150,9 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("ONDA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
-			tocar("AGUDO", 0.75)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("ONDA", despachar({
+		ABRE = { sfx = { "AGUDO", 0.75 } },
+		SOLTA = { faz = function()
 			local centro = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("ANEL", { posicao = centro, escala = 1,
 				duracao = CFG.DURACAO_ONDA })
@@ -1179,8 +1165,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ONDA, 0.34)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

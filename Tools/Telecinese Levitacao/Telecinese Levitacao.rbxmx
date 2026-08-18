@@ -1028,25 +1028,22 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("ERGUER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ALCANCA" then
+	rig:PlaySequence("ERGUER", despachar({
+		ALCANCA = { faz = function()
 			tocar("ScifiLiftSound", 1)
 			vfx("AGARRA", { origem = Handle.Position, destino = mira })
-
-		elseif marca == "ERGUE" then
+		end },
+		ERGUE = { faz = function()
 			local alvo = maisPerto(mira, CFG.RAIO_ALVO)
 			if not alvo then return end
 			local alvoRaiz = raizDe(alvo)
 			if not alvoRaiz then return end
-
 			local id = novoId("LEVITA")
 			aplicarDano(alvo, CFG.DANO)
 			suspender(alvo, CFG.ALTURA, CFG.DURACAO, 14000)
 			tombar(alvo, CFG.DURACAO + 0.6)
 			vfx("LEVITA", { posicao = alvoRaiz.Position + Vector3.new(0, CFG.ALTURA, 0),
 				escala = 1, duracao = CFG.DURACAO, id = id })
-
 			-- a queda cobra o resto: quem foi erguido volta com o chão
 			task.delay(CFG.DURACAO, function()
 				vfx("PARAR", { id = id })
@@ -1059,11 +1056,11 @@ function primaria(mira)
 					end
 				end
 			end)
-
-		elseif marca == "SOLTA" then
+		end },
+		SOLTA = { faz = function()
 			tocar("ScifiBlastSound", 1.1)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1078,9 +1075,8 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("SUBIR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "SOBE" then
+	rig:PlaySequence("SUBIR", despachar({
+		SOBE = { faz = function()
 			tocar("ScifiLiftSound", 1.25)
 			if presoProprio then presoProprio.Parent = nil end
 			presoProprio = Instance.new("BodyPosition")
@@ -1092,11 +1088,11 @@ function extra(_mira)
 			presoProprio.Parent = raiz
 			Debris:AddItem(presoProprio, CFG.DURACAO_PROPRIA)
 			vfx("FLUTUA", { posicao = raiz.Position, escala = 1 })
-
-		elseif marca == "DESCE" then
+		end },
+		DESCE = { faz = function()
 			tocar("Bam", 0.9)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

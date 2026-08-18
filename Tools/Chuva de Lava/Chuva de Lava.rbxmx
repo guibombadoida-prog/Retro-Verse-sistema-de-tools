@@ -627,42 +627,34 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
-	rig:PlaySequence("LAVA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.55)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("ESTOURO", 0.6)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
+	rig:PlaySequence("LAVA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.55 } },
+		CARGA = { cam = true, sfx = { "ESTOURO", 0.6 } },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, faz = function()
 			apagarLaje()
 			local onde = raiz and raiz.Position or centro
 			lajeId = novoId("LAJE")
 			vfx("LAVA", { posicao = onde, escala = 1, raio = CFG.RAIO_LAVA,
 				duracao = CFG.DURACAO_LAJE, id = lajeId })
 			tocarEm("GRAVE", onde, 0.5)
-		elseif marca == "GOLPE" then
-			beatCena("GOLPE")
+		end },
+		GOLPE = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			vfx("LAVA_FIM", { posicao = onde, escala = 1.6 })
 			tocarEm("ESTOURO", onde, 0.7)
 			tocarEm("ECO", onde, 0.6)
-
 			golpearArea(onde, CFG.RAIO_LAVA, CFG.RAIO_NUCLEO,
 				CFG.DANO_NUCLEO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
 			for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_LAVA, 16)) do
 				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_LENTO)
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			apagarLaje()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		apagarLaje()
 		fecharCena()
 		rig:LockCharacter(false)

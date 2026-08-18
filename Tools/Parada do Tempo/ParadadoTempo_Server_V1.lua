@@ -338,17 +338,15 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("PARAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("TEMPO", 1.1)
+	rig:PlaySequence("PARAR", despachar({
+		CARGA = { sfx = { "TEMPO", 1.1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1,
 				duracao = 0.45 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local centro = raiz.Position
 			tocarEm("TEMPO", centro, 0.85)
 			tocarEm("ZUMBIDO", centro, 1)
-
 			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_PARADA, 16)) do
 				aplicarDano(alvo, CFG.DANO_PARADA)
 				prender(alvo, CFG.DURACAO_TRAVA)
@@ -359,8 +357,8 @@ function primaria(_mira)
 						duracao = CFG.DURACAO_TRAVA })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -377,19 +375,16 @@ end
 function extra(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("RELOGIO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("ZUMBIDO", 0.9)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("RELOGIO", despachar({
+		CARGA = { sfx = { "ZUMBIDO", 0.9 } },
+		GOLPE = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("RELOGIO", { posicao = onde, escala = 1.2 })
 			tocarEm("ESTOURO", onde, 1.15)
-
 			golpearArea(onde, CFG.RAIO_RELOGIO, CFG.RAIO_NUCLEO,
 				CFG.DANO_RELOGIO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

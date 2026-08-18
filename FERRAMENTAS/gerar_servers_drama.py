@@ -594,13 +594,12 @@ function primaria(_mira)
 	local dano = ({ CFG.DANO_A, CFG.DANO_B, CFG.DANO_C })[passoCombo]
 	tocar("GOLPE", 1 + passoCombo * 0.06)
 
-	rig:PlaySequence(seq, function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(seq, despachar({
+		BATE = { faz = function()
 			bater(dano, passoCombo == 3 and "GANCHO" or "SOCO",
 				passoCombo == 3 and CFG.EMPURRAO * 2 or CFG.EMPURRAO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -612,11 +611,9 @@ end
 function extra(_mira)
 	ocupado = true
 	passoCombo = 0
-	rig:PlaySequence("CHUTE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GIRA" then
-			tocar("PREPARA", 0.9)
-		elseif marca == "CHUTA" then
+	rig:PlaySequence("CHUTE", despachar({
+		GIRA = { sfx = { "PREPARA", 0.9 } },
+		CHUTA = { faz = function()
 			local ponto = frente(CFG.ALCANCE * 0.8)
 			vfx("CHUTE", { cframe = raiz.CFrame
 				* CFrame.new(0, -0.4, -CFG.ALCANCE * 0.5), escala = 1.2 })
@@ -631,8 +628,8 @@ function extra(_mira)
 					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1.3 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -669,11 +666,9 @@ CONJUNTO["Desviar e Empurrar"] = dict(
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("EMPURRAO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("PREPARA", 1.1)
-		elseif marca == "EMPURRA" then
+	rig:PlaySequence("EMPURRAO", despachar({
+		CARGA = { sfx = { "PREPARA", 1.1 } },
+		EMPURRA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			vfx("EMPURRAO", { cframe = raiz.CFrame, escala = 1.2 })
 			tocarEm("GOLPE", ponto, 0.85)
@@ -686,8 +681,8 @@ function primaria(_mira)
 						CFG.EMPURRAO, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -704,27 +699,24 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("ESQUIVA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ENTRA" then
-			tocar("PREPARA", 1.5)
+	rig:PlaySequence("ESQUIVA", despachar({
+		ENTRA = { sfx = { "PREPARA", 1.5 }, faz = function()
 			vfx("ESQUIVA", { posicao = raiz.Position, cframe = raiz.CFrame,
 				escala = 1 })
-
 			if impulsoEsq then impulsoEsq.Parent = nil end
 			impulsoEsq = Instance.new("BodyVelocity")
 			impulsoEsq.MaxForce = Vector3.new(1e5, 0, 1e5)
 			impulsoEsq.Velocity = -raiz.CFrame.LookVector * CFG.DISTANCIA_ESQ
 			impulsoEsq.Parent = raiz
 			Debris:AddItem(impulsoEsq, CFG.TEMPO_ESQ)
-
-		elseif marca == "IMUNE" then
+		end },
+		IMUNE = { faz = function()
 			local escudo = Instance.new("ForceField")
 			escudo.Visible = false
 			escudo.Parent = personagem
 			Debris:AddItem(escudo, CFG.TEMPO_IMUNE)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -764,11 +756,9 @@ CONJUNTO["Corte Frio"] = dict(
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("CORTE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("PREPARA", 1)
-		elseif marca == "CORTA" then
+	rig:PlaySequence("CORTE", despachar({
+		ERGUE = { sfx = { "PREPARA", 1 } },
+		CORTA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocar("GOLPE", 1 + jitter(0.7) * 0.08)
 			vfx("CORTE", { cframe = raiz.CFrame
@@ -782,8 +772,8 @@ function primaria(_mira)
 				end
 				tocarEm("IMPACTO", alvoRaiz and alvoRaiz.Position or ponto, 1.2)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -807,24 +797,17 @@ function extra(mira)
 	rig:LockCharacter(true)
 	abrirCena(alvo, "CAMERA")
 
-	rig:PlaySequence("EXECUCAO", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("CARGA", 0.85)
-		elseif marca == "ENCARA" then
-			beatCena("ENCARA")
+	rig:PlaySequence("EXECUCAO", despachar({
+		CAMERA = { sfx = { "CARGA", 0.85 } },
+		ENCARA = { cam = true, faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				vfx("EXECUCAO", { posicao = alvoRaiz.Position, escala = 1,
 					duracao = CFG.DURACAO_GELO, id = id })
 			end
-		elseif marca == "AVANCA" then
-			beatCena("AVANCA")
-			tocar("PREPARA", 0.7)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
+		end },
+		AVANCA = { cam = true, sfx = { "PREPARA", 0.7 } },
+		SEGURA = { cam = true, faz = function()
 			-- o gelo segura: quem está sendo executado não sai andando
 			if alvo.Health > 0 then
 				alvo.WalkSpeed = alvo.WalkSpeed * CFG.LENTIDAO
@@ -833,8 +816,8 @@ function extra(mira)
 					if alvo and alvo.Parent then alvo.WalkSpeed = antes end
 				end)
 			end
-		elseif marca == "CORTA" then
-			beatCena("CORTA")
+		end },
+		CORTA = { cam = true, faz = function()
 			local alvoRaiz = raizDe(alvo)
 			local onde = alvoRaiz and alvoRaiz.Position or frente()
 			vfx("PARAR", { id = id })
@@ -842,10 +825,11 @@ function extra(mira)
 			tocarEm("IMPACTO", onde, 0.7)
 			aplicarDano(alvo, CFG.DANO_EXECUCAO)
 			tombar(alvo, 2)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false
@@ -885,13 +869,10 @@ CONJUNTO["Impacto Forte"] = dict(
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("SOCO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 1.1)
-		elseif marca == "SEGURA" then
-			tocar("PREPARA", 0.8)
-		elseif marca == "BATE" then
+	rig:PlaySequence("SOCO", despachar({
+		CARGA = { sfx = { "CARGA", 1.1 } },
+		SEGURA = { sfx = { "PREPARA", 0.8 } },
+		BATE = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocarEm("IMPACTO", ponto, 0.75)
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
@@ -904,8 +885,8 @@ function primaria(_mira)
 					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1.6 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -916,13 +897,10 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("RACHA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("CARGA", 0.75)
-		elseif marca == "SEGURA" then
-			tocar("PREPARA", 0.6)
-		elseif marca == "RACHA" then
+	rig:PlaySequence("RACHA", despachar({
+		ERGUE = { sfx = { "CARGA", 0.75 } },
+		SEGURA = { sfx = { "PREPARA", 0.6 } },
+		RACHA = { faz = function()
 			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("RACHA", { posicao = chao, escala = 1.5 })
 			tocarEm("IMPACTO", chao, 0.55)
@@ -935,8 +913,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.6, 0), CFG.EMPURRAO_RACHA, 0.32)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1016,9 +994,8 @@ function primaria(_mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("LIGAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "LIGA" then
+	rig:PlaySequence("LIGAR", despachar({
+		LIGA = { faz = function()
 			auraLigada = true
 			idAura = novoId("AURA")
 			tocar("CARGA", 1)
@@ -1029,10 +1006,9 @@ function primaria(_mira)
 			task.delay(CFG.INTERVALO, function()
 				pulsarAura(CFG.PULSOS)
 			end)
-		elseif marca == "SUSTENTA" then
-			tocar("CARGA", 0.8)
-		end
-	end, function()
+		end },
+		SUSTENTA = { sfx = { "CARGA", 0.8 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1047,11 +1023,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local reforcado = auraLigada
-	rig:PlaySequence("PULSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "RECOLHE" then
-			tocar("PREPARA", 1.2)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("PULSO", despachar({
+		RECOLHE = { sfx = { "PREPARA", 1.2 } },
+		SOLTA = { faz = function()
 			local onde = raiz.Position
 			local escala = reforcado and 1.6 or 1
 			local dano = reforcado and CFG.DANO_PULSO * 1.6 or CFG.DANO_PULSO
@@ -1067,8 +1041,8 @@ function extra(_mira)
 				end
 			end
 			if reforcado then desligarAura() end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1136,18 +1110,16 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("FEIXE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("CARGA", 1.4)
-		elseif marca == "ATIRA" then
+	rig:PlaySequence("FEIXE", despachar({
+		MIRA = { sfx = { "CARGA", 1.4 } },
+		ATIRA = { faz = function()
 			local cf = olhos()
 			local direcao = (mira - cf.Position)
 			if direcao.Magnitude < 0.01 then direcao = cf.LookVector end
 			tocarEm("GOLPE", cf.Position, 1.5)
 			disparar(cf.Position, direcao.Unit, CFG.DANO, 1)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1161,13 +1133,10 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("VARREDURA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("CARGA", 1.1)
-		elseif marca == "ABRE" then
-			tocar("GOLPE", 1.2)
-		elseif marca == "VARRE" then
+	rig:PlaySequence("VARREDURA", despachar({
+		MIRA = { sfx = { "CARGA", 1.1 } },
+		ABRE = { sfx = { "GOLPE", 1.2 } },
+		VARRE = { faz = function()
 			local cf = olhos()
 			local base = (mira - cf.Position)
 			if base.Magnitude < 0.01 then base = cf.LookVector end
@@ -1179,10 +1148,11 @@ function extra(mira)
 				local direcao = (CFrame.Angles(0, desvio, 0) * base)
 				disparar(cf.Position, direcao.Unit, CFG.DANO_LEQUE, 0.7)
 			end
-		elseif marca == "FECHA" then
+		end },
+		FECHA = { faz = function()
 			tocarEm("IMPACTO", olhos().Position, 1.3)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1259,18 +1229,19 @@ function primaria(_mira)
 	local quarto = passoCombo == 4
 	tocar("GOLPE", 1 + passoCombo * 0.07)
 
-	rig:PlaySequence(ORDEM_COMBO[passoCombo], function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(ORDEM_COMBO[passoCombo], despachar({
+		BATE = { faz = function()
 			bater(dano, passoCombo == 3 and "GANCHO" or "SOCO", CFG.EMPURRAO)
-		elseif marca == "BATE_FORTE" then
+		end },
+		BATE_FORTE = { faz = function()
 			bater(dano, "CHUTE", CFG.EMPURRAO_4)
 			vfx("CHUTE", { cframe = raiz.CFrame
 				* CFrame.new(0, -0.4, -CFG.ALCANCE * 0.5), escala = 1.3 })
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			passoCombo = 0
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1298,34 +1269,26 @@ function extra(mira)
 	rig:LockCharacter(true)
 	abrirCena(alvo, "CAMERA")
 
-	rig:PlaySequence("FINALIZADOR", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("CARGA", 0.7)
-		elseif marca == "ERGUE" then
+	rig:PlaySequence("FINALIZADOR", despachar({
+		CAMERA = { sfx = { "CARGA", 0.7 } },
+		ERGUE = { faz = function()
 			beatCena("ENCARA")
 			tocar("PREPARA", 0.65)
-		elseif marca == "CARGA" then
+		end },
+		CARGA = { faz = function()
 			beatCena("ENCARA")
 			tocar("CARGA", 0.9)
-		elseif marca == "AVANCA" then
-			beatCena("AVANCA")
-			tocar("GOLPE", 0.8)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "EXECUTA" then
-			beatCena("EXECUTA")
+		end },
+		AVANCA = { cam = true, sfx = { "GOLPE", 0.8 } },
+		SEGURA = { cam = true },
+		EXECUTA = { cam = true, faz = function()
 			local alvoRaiz = raizDe(alvo)
 			local onde = alvoRaiz and alvoRaiz.Position or frente()
 			vfx("ESTILHACO", { posicao = onde, escala = 1.8 })
 			vfx("RACHA", { posicao = onde - Vector3.new(0, 2.6, 0), escala = 1.6 })
 			tocarEm("IMPACTO", onde, 0.5)
-
 			aplicarDano(alvo, CFG.DANO_FINAL)
 			tombar(alvo, 3)
-
 			-- quem estava perto paga o respingo, mas bem menos: o golpe é DELE
 			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_FINAL, 12)) do
 				if perto ~= alvo then
@@ -1337,10 +1300,11 @@ function extra(mira)
 					end
 				end
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false

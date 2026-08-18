@@ -299,12 +299,11 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar("Swoosh", 1 + jitter(0.7) * 0.1)
-	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", despachar({
+		BATE = { faz = function()
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -369,25 +368,25 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("REBATER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
+	rig:PlaySequence("REBATER", despachar({
+		CARGA = { faz = function()
 			tocar("Equip", 1.1)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2),
 				escala = 1.1 })
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			-- a janela: varre uma vez por quadro segurado, não por frame
 			local direcao = raiz.CFrame.LookVector
 			if rebaterPerto(direcao) > 0 then
 				tocar("Swoosh", 0.9)
 			end
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocarEm("Hit", ponto, 0.9)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2.4),
 				escala = 1.3 })
 			rebaterPerto(raiz.CFrame.LookVector)
-
 			-- e quem estiver ao alcance leva o taco, rebatendo ou não
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_REBATE)
@@ -399,8 +398,8 @@ function extra(_mira)
 					vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.2 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

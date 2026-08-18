@@ -403,22 +403,12 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 12), "CAMERA")
 
-	rig:PlaySequence("INVOCA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.55)
-		elseif marca == "CHAMA" then
-			beatCena("CHAMA")
-			tocar("AGUDO", 0.7)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("GRAVE", 0.45)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "NASCE" then
-			beatCena("NASCE")
+	rig:PlaySequence("INVOCA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.55 } },
+		CHAMA = { cam = true, sfx = { "AGUDO", 0.7 } },
+		CARGA = { cam = true, sfx = { "GRAVE", 0.45 } },
+		SEGURA = { cam = true },
+		NASCE = { cam = true, faz = function()
 			dispensarEntidade()
 			local onde = frente(CFG.ALCANCE) + Vector3.new(0, 3, 0)
 			entidadeOnde = onde
@@ -428,10 +418,11 @@ function primaria(_mira)
 			tocarEm("DISPARO", onde, 0.6)
 			tocarEm("GRAVE", onde, 0.4)
 			manterEntidade(onde, entidadeId)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false
@@ -453,16 +444,13 @@ function extra(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("ENVIA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("AGUDO", 1.1)
-		elseif marca == "ENVIA" then
+	rig:PlaySequence("ENVIA", despachar({
+		MIRA = { sfx = { "AGUDO", 1.1 } },
+		ENVIA = { faz = function()
 			local alvo = maisPerto(mira, CFG.RAIO_ENVIO)
 			local alvoRaiz = alvo and raizDe(alvo)
 			local onde = (alvoRaiz and alvoRaiz.Position) or mira
 				or frente(CFG.ALCANCE)
-
 			local partiu = entidadeOnde
 			entidadeOnde = onde
 			if partiu then
@@ -471,7 +459,6 @@ function extra(mira)
 			end
 			vfx("ENTIDADE", { posicao = onde, escala = 1.2, duracao = 2.4 })
 			tocarEm("DISPARO", onde, 0.75)
-
 			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_SALTO, 10)) do
 				aplicarDano(perto, CFG.DANO_ENVIO)
 				local pertoRaiz = raizDe(perto)
@@ -480,8 +467,8 @@ function extra(mira)
 						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_ENVIO, 0.28)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

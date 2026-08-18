@@ -897,11 +897,9 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ESPIRAL", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GIRA" then
-			tocar("AGUDO", 1.3)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("ESPIRAL", despachar({
+		GIRA = { sfx = { "AGUDO", 1.3 } },
+		SOLTA = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("ESPIRAL", { posicao = onde, escala = 1,
 				duracao = CFG.DURACAO_GIRO })
@@ -910,8 +908,8 @@ function primaria(mira)
 				aplicarDano(alvo, CFG.DANO_ESPIRAL)
 				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_LENTO)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -935,13 +933,13 @@ function extra(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("TROCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "SOME" then
+	rig:PlaySequence("TROCA", despachar({
+		SOME = { faz = function()
 			vfx("ESPIRAL", { posicao = raiz.Position, escala = 0.5,
 				duracao = 0.5 })
 			tocarEm("AGUDO", raiz.Position, 1.6)
-		elseif marca == "TROCA" then
+		end },
+		TROCA = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				local meu = raiz.CFrame
@@ -954,8 +952,8 @@ function extra(mira)
 				afrouxar(alvo, CFG.LENTIDAO_TROCA, CFG.TEMPO_TROCA)
 				tocarEm("GRAVE", meu.Position, 1.1)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

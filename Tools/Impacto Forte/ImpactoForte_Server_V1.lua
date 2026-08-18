@@ -248,13 +248,10 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("SOCO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 1.1)
-		elseif marca == "SEGURA" then
-			tocar("PREPARA", 0.8)
-		elseif marca == "BATE" then
+	rig:PlaySequence("SOCO", despachar({
+		CARGA = { sfx = { "CARGA", 1.1 } },
+		SEGURA = { sfx = { "PREPARA", 0.8 } },
+		BATE = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocarEm("IMPACTO", ponto, 0.75)
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
@@ -267,8 +264,8 @@ function primaria(_mira)
 					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1.6 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -279,13 +276,10 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("RACHA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("CARGA", 0.75)
-		elseif marca == "SEGURA" then
-			tocar("PREPARA", 0.6)
-		elseif marca == "RACHA" then
+	rig:PlaySequence("RACHA", despachar({
+		ERGUE = { sfx = { "CARGA", 0.75 } },
+		SEGURA = { sfx = { "PREPARA", 0.6 } },
+		RACHA = { faz = function()
 			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("RACHA", { posicao = chao, escala = 1.5 })
 			tocarEm("IMPACTO", chao, 0.55)
@@ -298,8 +292,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.6, 0), CFG.EMPURRAO_RACHA, 0.32)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

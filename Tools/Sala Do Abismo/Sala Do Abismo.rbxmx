@@ -931,9 +931,8 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("FECHA_SALA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FECHA" then
+	rig:PlaySequence("FECHA_SALA", despachar({
+		FECHA = { faz = function()
 			fecharSala()
 			local centro = raiz.Position
 			salaCentro = centro
@@ -943,10 +942,9 @@ function primaria(_mira)
 				id = salaId })
 			tocarEm("GRAVE", centro, 0.5)
 			manterSala(centro, salaId)
-		elseif marca == "SUSTENTA" then
-			tocar("AGUDO", 0.8)
-		end
-	end, function()
+		end },
+		SUSTENTA = { sfx = { "AGUDO", 0.8 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -961,11 +959,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local centro = salaCentro
-	rig:PlaySequence("IMPLODE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("AGUDO", 0.7)
-		elseif marca == "IMPLODE" then
+	rig:PlaySequence("IMPLODE", despachar({
+		ERGUE = { sfx = { "AGUDO", 0.7 } },
+		IMPLODE = { faz = function()
 			local onde = centro or raiz.Position
 			fecharSala()
 			vfx("SALA_FIM", { posicao = onde, escala = centro and 1.6 or 0.9 })
@@ -977,8 +973,8 @@ function extra(_mira)
 					puxar(alvo, onde, CFG.FORCA_IMPLODE, 0.32)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

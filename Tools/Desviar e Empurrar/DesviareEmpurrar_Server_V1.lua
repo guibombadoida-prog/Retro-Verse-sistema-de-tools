@@ -247,11 +247,9 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("EMPURRAO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("PREPARA", 1.1)
-		elseif marca == "EMPURRA" then
+	rig:PlaySequence("EMPURRAO", despachar({
+		CARGA = { sfx = { "PREPARA", 1.1 } },
+		EMPURRA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			vfx("EMPURRAO", { cframe = raiz.CFrame, escala = 1.2 })
 			tocarEm("GOLPE", ponto, 0.85)
@@ -264,8 +262,8 @@ function primaria(_mira)
 						CFG.EMPURRAO, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -282,27 +280,24 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("ESQUIVA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ENTRA" then
-			tocar("PREPARA", 1.5)
+	rig:PlaySequence("ESQUIVA", despachar({
+		ENTRA = { sfx = { "PREPARA", 1.5 }, faz = function()
 			vfx("ESQUIVA", { posicao = raiz.Position, cframe = raiz.CFrame,
 				escala = 1 })
-
 			if impulsoEsq then impulsoEsq.Parent = nil end
 			impulsoEsq = Instance.new("BodyVelocity")
 			impulsoEsq.MaxForce = Vector3.new(1e5, 0, 1e5)
 			impulsoEsq.Velocity = -raiz.CFrame.LookVector * CFG.DISTANCIA_ESQ
 			impulsoEsq.Parent = raiz
 			Debris:AddItem(impulsoEsq, CFG.TEMPO_ESQ)
-
-		elseif marca == "IMUNE" then
+		end },
+		IMUNE = { faz = function()
 			local escudo = Instance.new("ForceField")
 			escudo.Visible = false
 			escudo.Parent = personagem
 			Debris:AddItem(escudo, CFG.TEMPO_IMUNE)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

@@ -661,11 +661,11 @@ function primaria(_mira)
 
 	local dano = ({ CFG.DANO_1, CFG.DANO_2, CFG.DANO_3, CFG.DANO_4 })[passoCombo]
 
-	rig:PlaySequence(ORDEM_COMBO[passoCombo], function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(ORDEM_COMBO[passoCombo], despachar({
+		BATE = { faz = function()
 			bater(dano, CFG.EMPURRAO, 0.9)
-		elseif marca == "BATE_FORTE" then
+		end },
+		BATE_FORTE = { faz = function()
 			-- o quarto é o giro: pega em volta, não só à frente
 			local ponto = raiz.Position
 			tocarEm("AGUDO", ponto, 0.8)
@@ -679,10 +679,11 @@ function primaria(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_4, 0.3)
 				end
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			passoCombo = 0
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -698,11 +699,9 @@ end
 function extra(_mira)
 	ocupado = true
 	passoCombo = 0
-	rig:PlaySequence("SELO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("AGUDO", 0.7)
-		elseif marca == "FECHA" then
+	rig:PlaySequence("SELO", despachar({
+		ERGUE = { sfx = { "AGUDO", 0.7 } },
+		FECHA = { faz = function()
 			local centro = raiz.Position - Vector3.new(0, 2.4, 0)
 			vfx("IMPACTO", { posicao = centro, escala = 2.8 })
 			tocarEm("DISPARO", centro, 0.55)
@@ -715,8 +714,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_SELO, 0.28)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -768,31 +767,18 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 16), "CAMERA")
 
-	rig:PlaySequence("FIM_DA_ERA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.5)
-		elseif marca == "ERGUE" then
-			beatCena("ERGUE")
-			tocar("AGUDO", 0.6)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("GRAVE", 0.4)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
-			tocar("DISPARO", 0.7)
-		elseif marca == "DETONA" then
-			beatCena("DETONA")
+	rig:PlaySequence("FIM_DA_ERA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.5 } },
+		ERGUE = { cam = true, sfx = { "AGUDO", 0.6 } },
+		CARGA = { cam = true, sfx = { "GRAVE", 0.4 } },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, sfx = { "DISPARO", 0.7 } },
+		DETONA = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			vfx("COGUMELO", { posicao = onde, escala = 1 })
 			vfx("ANEL", { posicao = onde, escala = 1.4, duracao = 1.6 })
 			tocarEm("GRAVE", onde, 0.35)
 			tocarEm("DISPARO", onde, 0.45)
-
 			-- quem está no núcleo paga o cheio; quem está na borda paga menos.
 			-- Dois raios, não um: uma explosão de 58 studs com dano chapado
 			-- mataria meio servidor por estar por perto.
@@ -811,10 +797,11 @@ function primaria(_mira)
 						+ Vector3.new(0, 0.8, 0), CFG.EMPURRAO_FIM, 0.4)
 				end
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false
@@ -830,11 +817,9 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("ONDA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
-			tocar("AGUDO", 0.75)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("ONDA", despachar({
+		ABRE = { sfx = { "AGUDO", 0.75 } },
+		SOLTA = { faz = function()
 			local centro = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("ANEL", { posicao = centro, escala = 1,
 				duracao = CFG.DURACAO_ONDA })
@@ -847,8 +832,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ONDA, 0.34)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -924,9 +909,8 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("FECHA_SALA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FECHA" then
+	rig:PlaySequence("FECHA_SALA", despachar({
+		FECHA = { faz = function()
 			fecharSala()
 			local centro = raiz.Position
 			salaCentro = centro
@@ -936,10 +920,9 @@ function primaria(_mira)
 				id = salaId })
 			tocarEm("GRAVE", centro, 0.5)
 			manterSala(centro, salaId)
-		elseif marca == "SUSTENTA" then
-			tocar("AGUDO", 0.8)
-		end
-	end, function()
+		end },
+		SUSTENTA = { sfx = { "AGUDO", 0.8 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -954,11 +937,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local centro = salaCentro
-	rig:PlaySequence("IMPLODE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("AGUDO", 0.7)
-		elseif marca == "IMPLODE" then
+	rig:PlaySequence("IMPLODE", despachar({
+		ERGUE = { sfx = { "AGUDO", 0.7 } },
+		IMPLODE = { faz = function()
 			local onde = centro or raiz.Position
 			fecharSala()
 			vfx("SALA_FIM", { posicao = onde, escala = centro and 1.6 or 0.9 })
@@ -970,8 +951,8 @@ function extra(_mira)
 					puxar(alvo, onde, CFG.FORCA_IMPLODE, 0.32)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1015,11 +996,9 @@ CONJUNTO["Ilusao da Alucinacao"] = dict(
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ESPIRAL", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GIRA" then
-			tocar("AGUDO", 1.3)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("ESPIRAL", despachar({
+		GIRA = { sfx = { "AGUDO", 1.3 } },
+		SOLTA = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("ESPIRAL", { posicao = onde, escala = 1,
 				duracao = CFG.DURACAO_GIRO })
@@ -1028,8 +1007,8 @@ function primaria(mira)
 				aplicarDano(alvo, CFG.DANO_ESPIRAL)
 				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_LENTO)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1053,13 +1032,13 @@ function extra(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("TROCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "SOME" then
+	rig:PlaySequence("TROCA", despachar({
+		SOME = { faz = function()
 			vfx("ESPIRAL", { posicao = raiz.Position, escala = 0.5,
 				duracao = 0.5 })
 			tocarEm("AGUDO", raiz.Position, 1.6)
-		elseif marca == "TROCA" then
+		end },
+		TROCA = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				local meu = raiz.CFrame
@@ -1072,8 +1051,8 @@ function extra(mira)
 				afrouxar(alvo, CFG.LENTIDAO_TROCA, CFG.TEMPO_TROCA)
 				tocarEm("GRAVE", meu.Position, 1.1)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1131,31 +1110,26 @@ function primaria(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("PRENDE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FORMA" then
-			tocar("AGUDO", 1.2)
-		elseif marca == "PRENDE" then
+	rig:PlaySequence("PRENDE", despachar({
+		FORMA = { sfx = { "AGUDO", 1.2 } },
+		PRENDE = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if not alvoRaiz then return end
 			soltarPrisao()
-
 			presoCentro = alvoRaiz.Position
 			presoId = novoId("PRISAO")
 			vfx("PRISAO", { posicao = presoCentro, escala = 1,
 				raio = CFG.RAIO_PRISAO, duracao = CFG.DURACAO_PRISAO,
 				id = presoId })
 			tocarEm("DISPARO", presoCentro, 0.7)
-
 			aplicarDano(alvo, CFG.DANO_PRISAO)
 			prender(alvo, CFG.DURACAO_PRISAO)
-
 			local meu = presoId
 			task.delay(CFG.DURACAO_PRISAO, function()
 				if presoId == meu then soltarPrisao() end
 			end)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1171,17 +1145,14 @@ end
 function extra(_mira)
 	ocupado = true
 	local centro = presoCentro
-	rig:PlaySequence("ESTILHACA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "APERTA" then
-			tocar("AGUDO", 0.85)
-		elseif marca == "ESTILHACA" then
+	rig:PlaySequence("ESTILHACA", despachar({
+		APERTA = { sfx = { "AGUDO", 0.85 } },
+		ESTILHACA = { faz = function()
 			local onde = centro or frente(CFG.ALCANCE)
 			local cheio = centro ~= nil
 			soltarPrisao()
 			vfx("PRISAO_FIM", { posicao = onde, escala = cheio and 1.5 or 0.9 })
 			tocarEm("DISPARO", onde, 0.5)
-
 			local dano = cheio and CFG.DANO_ESTILHACO or CFG.DANO_ESTILHACO * 0.5
 			for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_ESTILHACO, 10)) do
 				aplicarDano(alvo, dano)
@@ -1192,8 +1163,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ESTIL, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1275,22 +1246,12 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 12), "CAMERA")
 
-	rig:PlaySequence("INVOCA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.55)
-		elseif marca == "CHAMA" then
-			beatCena("CHAMA")
-			tocar("AGUDO", 0.7)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("GRAVE", 0.45)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "NASCE" then
-			beatCena("NASCE")
+	rig:PlaySequence("INVOCA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.55 } },
+		CHAMA = { cam = true, sfx = { "AGUDO", 0.7 } },
+		CARGA = { cam = true, sfx = { "GRAVE", 0.45 } },
+		SEGURA = { cam = true },
+		NASCE = { cam = true, faz = function()
 			dispensarEntidade()
 			local onde = frente(CFG.ALCANCE) + Vector3.new(0, 3, 0)
 			entidadeOnde = onde
@@ -1300,10 +1261,11 @@ function primaria(_mira)
 			tocarEm("DISPARO", onde, 0.6)
 			tocarEm("GRAVE", onde, 0.4)
 			manterEntidade(onde, entidadeId)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		fecharCena()
 		rig:LockCharacter(false)
 		ocupado = false
@@ -1325,16 +1287,13 @@ function extra(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("ENVIA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("AGUDO", 1.1)
-		elseif marca == "ENVIA" then
+	rig:PlaySequence("ENVIA", despachar({
+		MIRA = { sfx = { "AGUDO", 1.1 } },
+		ENVIA = { faz = function()
 			local alvo = maisPerto(mira, CFG.RAIO_ENVIO)
 			local alvoRaiz = alvo and raizDe(alvo)
 			local onde = (alvoRaiz and alvoRaiz.Position) or mira
 				or frente(CFG.ALCANCE)
-
 			local partiu = entidadeOnde
 			entidadeOnde = onde
 			if partiu then
@@ -1343,7 +1302,6 @@ function extra(mira)
 			end
 			vfx("ENTIDADE", { posicao = onde, escala = 1.2, duracao = 2.4 })
 			tocarEm("DISPARO", onde, 0.75)
-
 			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_SALTO, 10)) do
 				aplicarDano(perto, CFG.DANO_ENVIO)
 				local pertoRaiz = raizDe(perto)
@@ -1352,8 +1310,8 @@ function extra(mira)
 						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_ENVIO, 0.28)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1428,11 +1386,9 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ABRE_POCO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("GRAVE", 0.6)
-		elseif marca == "ABRE" then
+	rig:PlaySequence("ABRE_POCO", despachar({
+		ERGUE = { sfx = { "GRAVE", 0.6 } },
+		ABRE = { faz = function()
 			fecharPoco()
 			local onde = (destino or frente(CFG.ALCANCE)) - Vector3.new(0, 1.6, 0)
 			pocoOnde = onde
@@ -1442,10 +1398,9 @@ function primaria(mira)
 			tocarEm("GRAVE", onde, 0.4)
 			tocarEm("DISPARO", onde, 0.55)
 			manterPoco(onde, pocoId)
-		elseif marca == "SEGURA" then
-			tocar("DISPARO", 0.9)
-		end
-	end, function()
+		end },
+		SEGURA = { sfx = { "DISPARO", 0.9 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1460,11 +1415,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local onde = pocoOnde
-	rig:PlaySequence("PUXA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
-			tocar("DISPARO", 1.2)
-		elseif marca == "PUXA" then
+	rig:PlaySequence("PUXA", despachar({
+		ABRE = { sfx = { "DISPARO", 1.2 } },
+		PUXA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			local cheio = onde ~= nil
 			vfx("ANEL", { posicao = centro, escala = cheio and 1.1 or 0.7,
@@ -1476,13 +1429,14 @@ function extra(_mira)
 				puxar(alvo, centro, CFG.FORCA_PUXAO, 0.34)
 				if cheio then tombar(alvo, CFG.TOMBO_PUXAO) end
 			end
-		elseif marca == "SOLTA" then
+		end },
+		SOLTA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			vfx("POCO", { posicao = centro, escala = 0.6, raio = 10,
 				duracao = 1.2 })
 			tocarEm("DISPARO", centro, 0.7)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

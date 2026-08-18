@@ -1276,39 +1276,30 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
-	rig:PlaySequence("COROA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.5)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("COROA", 0.8)
+	rig:PlaySequence("COROA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.5 } },
+		CARGA = { cam = true, sfx = { "COROA", 0.8 }, faz = function()
 			apagarAura()
 			auraId = novoId("AURA")
 			vfx("COROA", { posicao = raiz.Position, escala = 1,
 				duracao = CFG.DURACAO_AURA, id = auraId })
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
-			tocar("COLAPSO", 0.7)
-		elseif marca == "GOLPE" then
-			beatCena("GOLPE")
+		end },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, sfx = { "COLAPSO", 0.7 } },
+		GOLPE = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			apagarAura()
 			vfx("COROA_FIM", { posicao = onde, escala = 1.8 })
 			tocarEm("COROA", onde, 0.6)
 			tocarEm("GRAVE", onde, 0.45)
-
 			golpearArea(onde, CFG.RAIO_COROA, CFG.RAIO_NUCLEO,
 				CFG.DANO_NUCLEO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			apagarAura()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		apagarAura()
 		fecharCena()
 		rig:LockCharacter(false)

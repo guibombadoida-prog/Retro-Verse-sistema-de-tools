@@ -1065,11 +1065,9 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ABRE_POCO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("GRAVE", 0.6)
-		elseif marca == "ABRE" then
+	rig:PlaySequence("ABRE_POCO", despachar({
+		ERGUE = { sfx = { "GRAVE", 0.6 } },
+		ABRE = { faz = function()
 			fecharPoco()
 			local onde = (destino or frente(CFG.ALCANCE)) - Vector3.new(0, 1.6, 0)
 			pocoOnde = onde
@@ -1079,10 +1077,9 @@ function primaria(mira)
 			tocarEm("GRAVE", onde, 0.4)
 			tocarEm("DISPARO", onde, 0.55)
 			manterPoco(onde, pocoId)
-		elseif marca == "SEGURA" then
-			tocar("DISPARO", 0.9)
-		end
-	end, function()
+		end },
+		SEGURA = { sfx = { "DISPARO", 0.9 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1097,11 +1094,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local onde = pocoOnde
-	rig:PlaySequence("PUXA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
-			tocar("DISPARO", 1.2)
-		elseif marca == "PUXA" then
+	rig:PlaySequence("PUXA", despachar({
+		ABRE = { sfx = { "DISPARO", 1.2 } },
+		PUXA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			local cheio = onde ~= nil
 			vfx("ANEL", { posicao = centro, escala = cheio and 1.1 or 0.7,
@@ -1113,13 +1108,14 @@ function extra(_mira)
 				puxar(alvo, centro, CFG.FORCA_PUXAO, 0.34)
 				if cheio then tombar(alvo, CFG.TOMBO_PUXAO) end
 			end
-		elseif marca == "SOLTA" then
+		end },
+		SOLTA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			vfx("POCO", { posicao = centro, escala = 0.6, raio = 10,
 				duracao = 1.2 })
 			tocarEm("DISPARO", centro, 0.7)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

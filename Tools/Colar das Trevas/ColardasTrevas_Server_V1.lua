@@ -376,11 +376,9 @@ function primaria(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("AGARRAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CORRENTE", 1.1)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("AGARRAR", despachar({
+		CARGA = { sfx = { "CORRENTE", 1.1 } },
+		GOLPE = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if not alvoRaiz then return end
 			soltarColar()
@@ -391,7 +389,8 @@ function primaria(mira)
 			prender(alvo, CFG.DURACAO_COLAR)
 			afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_COLAR + 1)
 			manterColar(alvo, colarId)
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				tocarEm("DRENO", alvoRaiz.Position, 0.85)
@@ -400,8 +399,8 @@ function primaria(mira)
 				empurrar(alvo, (alvoRaiz.Position - raiz.Position)
 					+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO, 0.28)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

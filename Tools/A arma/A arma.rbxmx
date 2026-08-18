@@ -401,23 +401,25 @@ end
 function extra(_mira)
 	if tambor >= CFG.CAPACIDADE then return end
 	ocupado = true
-	rig:PlaySequence("RECARGA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
+	rig:PlaySequence("RECARGA", despachar({
+		ABRE = { faz = function()
 			tocar("Tambor", 1.1)
-		elseif marca == "EJETA" then
+		end },
+		EJETA = { faz = function()
 			local cano = bocaDoCano()
 			for i = 1, CFG.CAPACIDADE - tambor do
 				vfx("CASQUINHA", { posicao = cano.Position
 					- cano.LookVector * (0.4 + i * 0.12) })
 			end
-		elseif marca == "ENCHE" then
+		end },
+		ENCHE = { faz = function()
 			tocar("Tambor", 0.85)
-		elseif marca == "FECHA" then
+		end },
+		FECHA = { faz = function()
 			tambor = CFG.CAPACIDADE
 			tocar("Fecha", 1.15)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

@@ -326,25 +326,23 @@ function extra(_mira)
 	rig:LockCharacter(true)
 	local id = novoId("COLAPSO")
 
-	rig:PlaySequence("COLAPSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CAMERA" then
+	rig:PlaySequence("COLAPSO", despachar({
+		CAMERA = { faz = function()
 			tocar("Swing", 0.55)
 			vfx("COLAPSO_CARGA", { posicao = raiz.Position, escala = 1.4,
 				raio = CFG.RAIO_COLAPSO, duracao = CFG.CARGA, id = id })
-
-		elseif marca == "CARGA" then
+		end },
+		CARGA = { faz = function()
 			tocarEm("Press", raiz.Position, 0.7)
-
-		elseif marca == "AUGE" then
+		end },
+		AUGE = { faz = function()
 			tocarEm("Press", raiz.Position, 1.4)
-
-		elseif marca == "COLAPSO" then
+		end },
+		COLAPSO = { faz = function()
 			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
 			vfx("PARAR", { id = id })
 			vfx("COLAPSO", { posicao = chao, escala = 1.8 })
 			tocarEm("Hit", chao, 0.55)
-
 			for _, alvo in ipairs(alvosEm(chao, CFG.RAIO_COLAPSO, 20)) do
 				aplicarDano(alvo, CFG.DANO_COLAPSO)
 				tombar(alvo, 2.6)
@@ -354,8 +352,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.6, 0), CFG.EMPURRAO_COLAPSO, 0.4)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		rig:LockCharacter(false)
 		ocupado = false
 	end)

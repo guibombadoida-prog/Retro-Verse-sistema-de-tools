@@ -665,18 +665,16 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("TIRO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 1.1)
+	rig:PlaySequence("TIRO", despachar({
+		CARGA = { sfx = { "CARGA", 1.1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 0.8,
 				duracao = 0.4 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local origem, destino = mirarPonto(mira)
 			vfx("FEIXE", { origem = origem, destino = destino,
 				grossura = 1.2, escala = 1 })
 			tocarEm("TIRO", origem, 1 + jitter(0.3) * 0.08)
-
 			for _, alvo in ipairs(alvosEm(destino, CFG.RAIO_FEIXE, 4)) do
 				aplicarDano(alvo, CFG.DANO)
 				local alvoRaiz = raizDe(alvo)
@@ -684,8 +682,8 @@ function primaria(mira)
 					empurrar(alvo, destino - origem, CFG.EMPURRAO, 0.18)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -703,29 +701,26 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("DISPARO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 0.75)
+	rig:PlaySequence("DISPARO", despachar({
+		CARGA = { sfx = { "CARGA", 0.75 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1.4,
 				duracao = 0.55 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local origem = Handle.Position
 			local destino = mira or frente(CFG.ALCANCE_TIRO)
 			local delta = destino - origem
 			if delta.Magnitude > CFG.ALCANCE_TIRO then
 				destino = origem + delta.Unit * CFG.ALCANCE_TIRO
 			end
-
 			vfx("DISPARO", { origem = origem, destino = destino,
 				grossura = 3.4, escala = 1.4 })
 			tocarEm("VAZIO", destino, 0.8)
 			tocarEm("TIRO", origem, 0.7)
-
 			golpearArea(destino, CFG.RAIO_TIRO, CFG.RAIO_NUCLEO,
 				CFG.DANO_TIRO, CFG.DANO_BORDA, CFG.EMPURRAO_TIRO, CFG.TOMBO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -786,42 +781,34 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
-	rig:PlaySequence("LAVA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.55)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("ESTOURO", 0.6)
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
+	rig:PlaySequence("LAVA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.55 } },
+		CARGA = { cam = true, sfx = { "ESTOURO", 0.6 } },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, faz = function()
 			apagarLaje()
 			local onde = raiz and raiz.Position or centro
 			lajeId = novoId("LAJE")
 			vfx("LAVA", { posicao = onde, escala = 1, raio = CFG.RAIO_LAVA,
 				duracao = CFG.DURACAO_LAJE, id = lajeId })
 			tocarEm("GRAVE", onde, 0.5)
-		elseif marca == "GOLPE" then
-			beatCena("GOLPE")
+		end },
+		GOLPE = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			vfx("LAVA_FIM", { posicao = onde, escala = 1.6 })
 			tocarEm("ESTOURO", onde, 0.7)
 			tocarEm("ECO", onde, 0.6)
-
 			golpearArea(onde, CFG.RAIO_LAVA, CFG.RAIO_NUCLEO,
 				CFG.DANO_NUCLEO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
 			for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_LAVA, 16)) do
 				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_LENTO)
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			apagarLaje()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		apagarLaje()
 		fecharCena()
 		rig:LockCharacter(false)
@@ -892,17 +879,15 @@ CONJUNTO["Parada do Tempo"] = dict(
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("PARAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("TEMPO", 1.1)
+	rig:PlaySequence("PARAR", despachar({
+		CARGA = { sfx = { "TEMPO", 1.1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1,
 				duracao = 0.45 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local centro = raiz.Position
 			tocarEm("TEMPO", centro, 0.85)
 			tocarEm("ZUMBIDO", centro, 1)
-
 			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_PARADA, 16)) do
 				aplicarDano(alvo, CFG.DANO_PARADA)
 				prender(alvo, CFG.DURACAO_TRAVA)
@@ -913,8 +898,8 @@ function primaria(_mira)
 						duracao = CFG.DURACAO_TRAVA })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -931,19 +916,16 @@ end
 function extra(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("RELOGIO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("ZUMBIDO", 0.9)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("RELOGIO", despachar({
+		CARGA = { sfx = { "ZUMBIDO", 0.9 } },
+		GOLPE = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("RELOGIO", { posicao = onde, escala = 1.2 })
 			tocarEm("ESTOURO", onde, 1.15)
-
 			golpearArea(onde, CFG.RAIO_RELOGIO, CFG.RAIO_NUCLEO,
 				CFG.DANO_RELOGIO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1024,13 +1006,12 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ABRIR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("VAZIO", 1)
+	rig:PlaySequence("ABRIR", despachar({
+		CARGA = { sfx = { "VAZIO", 1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1.2,
 				duracao = 0.5 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			fecharBuraco()
 			local onde = (destino or frente(CFG.ALCANCE)) + Vector3.new(0, 3, 0)
 			buracoOnde = onde
@@ -1039,8 +1020,8 @@ function primaria(mira)
 				duracao = CFG.DURACAO, id = buracoId })
 			tocarEm("VAZIO", onde, 0.75)
 			manterBuraco(onde, buracoId)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1055,29 +1036,27 @@ end
 function extra(_mira)
 	ocupado = true
 	local onde = buracoOnde
-	rig:PlaySequence("COLAPSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("COLAPSO", 1.1)
-		elseif marca == "SEGURA" then
+	rig:PlaySequence("COLAPSO", despachar({
+		CARGA = { sfx = { "COLAPSO", 1.1 } },
+		SEGURA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_BURACO, 14)) do
 				puxar(alvo, centro, CFG.SUGA * 1.6, 0.3)
 			end
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			local cheio = onde ~= nil
 			fecharBuraco()
 			vfx("BURACO_FIM", { posicao = centro, escala = cheio and 1.6 or 0.9 })
 			tocarEm("COLAPSO", centro, 0.7)
 			tocarEm("ECO", centro, 0.65)
-
 			golpearArea(centro, CFG.RAIO_BURACO, CFG.RAIO_NUCLEO,
 				cheio and CFG.DANO_COLAPSO or CFG.DANO_COLAPSO * 0.5,
 				cheio and CFG.DANO_BORDA or CFG.DANO_BORDA * 0.5,
 				CFG.EMPURRAO, cheio and CFG.TOMBO or nil)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1167,11 +1146,9 @@ function primaria(mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("AGARRAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CORRENTE", 1.1)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("AGARRAR", despachar({
+		CARGA = { sfx = { "CORRENTE", 1.1 } },
+		GOLPE = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if not alvoRaiz then return end
 			soltarColar()
@@ -1182,7 +1159,8 @@ function primaria(mira)
 			prender(alvo, CFG.DURACAO_COLAR)
 			afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_COLAR + 1)
 			manterColar(alvo, colarId)
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			local alvoRaiz = raizDe(alvo)
 			if alvoRaiz then
 				tocarEm("DRENO", alvoRaiz.Position, 0.85)
@@ -1191,8 +1169,8 @@ function primaria(mira)
 				empurrar(alvo, (alvoRaiz.Position - raiz.Position)
 					+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO, 0.28)
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1252,16 +1230,13 @@ CONJUNTO["Explosao Lunar"] = dict(
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("LUA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 0.85)
-		elseif marca == "GOLPE" then
+	rig:PlaySequence("LUA", despachar({
+		CARGA = { sfx = { "CARGA", 0.85 } },
+		GOLPE = { faz = function()
 			local onde = destino or frente(CFG.ALCANCE)
 			vfx("LUA", { posicao = onde, escala = 1,
 				altura = CFG.ALTURA_LUA, queda = CFG.QUEDA })
 			tocarEm("LUA", onde + Vector3.new(0, CFG.ALTURA_LUA * 0.5, 0), 1)
-
 			-- o impacto cai quando a lua chega, não quando ela sai
 			task.delay(CFG.QUEDA, function()
 				vfx("LUA_FIM", { posicao = onde, escala = 1.3 })
@@ -1269,8 +1244,8 @@ function primaria(mira)
 				golpearArea(onde, CFG.RAIO_LUA, CFG.RAIO_NUCLEO,
 					CFG.DANO_LUA, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
 			end)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1343,39 +1318,30 @@ function primaria(_mira)
 	rig:LockCharacter(true)
 	abrirCena(alvosEm(centro, CFG.RAIO_CENA, 14), "CAMERA")
 
-	rig:PlaySequence("COROA", function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-
-		if marca == "CAMERA" then
-			tocar("GRAVE", 0.5)
-		elseif marca == "CARGA" then
-			beatCena("CARGA")
-			tocar("COROA", 0.8)
+	rig:PlaySequence("COROA", despachar({
+		CAMERA = { sfx = { "GRAVE", 0.5 } },
+		CARGA = { cam = true, sfx = { "COROA", 0.8 }, faz = function()
 			apagarAura()
 			auraId = novoId("AURA")
 			vfx("COROA", { posicao = raiz.Position, escala = 1,
 				duracao = CFG.DURACAO_AURA, id = auraId })
-		elseif marca == "SEGURA" then
-			beatCena("SEGURA")
-		elseif marca == "DESCE" then
-			beatCena("DESCE")
-			tocar("COLAPSO", 0.7)
-		elseif marca == "GOLPE" then
-			beatCena("GOLPE")
+		end },
+		SEGURA = { cam = true },
+		DESCE = { cam = true, sfx = { "COLAPSO", 0.7 } },
+		GOLPE = { cam = true, faz = function()
 			local onde = raiz and raiz.Position or centro
 			apagarAura()
 			vfx("COROA_FIM", { posicao = onde, escala = 1.8 })
 			tocarEm("COROA", onde, 0.6)
 			tocarEm("GRAVE", onde, 0.45)
-
 			golpearArea(onde, CFG.RAIO_COROA, CFG.RAIO_NUCLEO,
 				CFG.DANO_NUCLEO, CFG.DANO_BORDA, CFG.EMPURRAO, CFG.TOMBO)
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			apagarAura()
 			fecharCena()
-		end
-	end, function()
+		end },
+	}), function()
 		apagarAura()
 		fecharCena()
 		rig:LockCharacter(false)

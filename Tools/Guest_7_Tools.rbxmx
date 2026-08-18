@@ -372,12 +372,11 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar("Swoosh", 1 + jitter(0.7) * 0.1)
-	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", despachar({
+		BATE = { faz = function()
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -442,25 +441,25 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("REBATER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
+	rig:PlaySequence("REBATER", despachar({
+		CARGA = { faz = function()
 			tocar("Equip", 1.1)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2),
 				escala = 1.1 })
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			-- a janela: varre uma vez por quadro segurado, não por frame
 			local direcao = raiz.CFrame.LookVector
 			if rebaterPerto(direcao) > 0 then
 				tocar("Swoosh", 0.9)
 			end
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocarEm("Hit", ponto, 0.9)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2.4),
 				escala = 1.3 })
 			rebaterPerto(raiz.CFrame.LookVector)
-
 			-- e quem estiver ao alcance leva o taco, rebatendo ou não
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_REBATE)
@@ -472,8 +471,8 @@ function extra(_mira)
 					vfx("IMPACTO", { posicao = alvoRaiz.Position, escala = 1.2 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -5328,12 +5327,11 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar(segundo and "Swoosh2" or "Swoosh", 1 + jitter(0.9) * 0.1)
-	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", despachar({
+		BATE = { faz = function()
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -5361,18 +5359,16 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("CEGAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
+	rig:PlaySequence("CEGAR", despachar({
+		CARGA = { faz = function()
 			tocar("Swoosh2", 0.72)
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
 			tocarEm("MetalHit", ponto, 0.8)
-
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_EXTRA)
 				afrouxar(alvo, CFG.LENTIDAO, CFG.DURACAO_CEGO)
-
 				local corpo = alvo.Parent
 				local cabeca = corpo and corpo:FindFirstChild("Head")
 				local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
@@ -5386,13 +5382,11 @@ function extra(_mira)
 						vfx("PARAR", { id = id })
 					end)
 				end
-
 				-- a cabeça virada: é o gesto do original, e ele fica
 				if cabeca and personagem and personagem:FindFirstChild("Head") then
 					cabeca.CFrame = CFrame.new(cabeca.Position,
 						personagem.Head.Position)
 				end
-
 				-- e o que a origem não fazia: tirar a mira
 				alvo.AutoRotate = false
 				task.delay(CFG.DURACAO_CEGO, function()
@@ -5400,17 +5394,17 @@ function extra(_mira)
 						alvo.AutoRotate = true
 					end
 				end)
-
 				if alvoRaiz then
 					empurrar(alvo, (alvoRaiz.Position - raiz.Position)
 						+ Vector3.new(0, 0.3, 0), CFG.EMPURRAO_EXTRA, 0.22)
 					vfx("IMPACTO_METAL", { posicao = alvoRaiz.Position, escala = 1.2 })
 				end
 			end
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			tocar("Swoosh", 0.66)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -10781,22 +10775,24 @@ local GRIP_BOCA = CFrame.new(1.5, -0.5, 0.3)
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("COMER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "LEVA" then
+	rig:PlaySequence("COMER", despachar({
+		LEVA = { faz = function()
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
-		elseif marca == "MORDE" then
+		end },
+		MORDE = { faz = function()
 			vfx("RESPINGO", { posicao = Handle.Position, escala = 0.7 })
-		elseif marca == "ENGOLE" then
+		end },
+		ENGOLE = { faz = function()
 			Tool.Grip = GRIP_NORMAL
-		elseif marca == "CURA" then
+		end },
+		CURA = { faz = function()
 			local ganho = curar(humanoide, CFG.CURA)
 			if ganho > 0 then
 				vfx("CURA", { posicao = raiz.Position, escala = 1 })
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		Tool.Grip = GRIP_NORMAL
 		ocupado = false
 	end)
@@ -18420,22 +18416,23 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("BEBER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
+	rig:PlaySequence("BEBER", despachar({
+		ERGUE = { faz = function()
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
-		elseif marca == "ULTIMO_GOLE" then
+		end },
+		ULTIMO_GOLE = { faz = function()
 			vfx("RESPINGO", { posicao = Handle.Position, escala = 0.6 })
-		elseif marca == "CURA" then
+		end },
+		CURA = { faz = function()
 			Tool.Grip = GRIP_NORMAL
 			local ganho = curar(humanoide, CFG.CURA)
 			if ganho > 0 then
 				vfx("CURA", { posicao = raiz.Position, escala = 1.1 })
 			end
 			acelerar()
-		end
-	end, function()
+		end },
+	}), function()
 		Tool.Grip = GRIP_NORMAL
 		ocupado = false
 	end)
@@ -18464,11 +18461,11 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("LATA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "AMASSA" then
+	rig:PlaySequence("LATA", despachar({
+		AMASSA = { faz = function()
 			tocar("OpenSound", 0.7)
-		elseif marca == "JOGA" then
+		end },
+		JOGA = { faz = function()
 			local origem = Handle.Position + raiz.CFrame.LookVector * 1.5
 			local lata = novaLata(origem)
 			local dist = math.min((origem - mira).Magnitude, CFG.ALCANCE_MAX)
@@ -18478,7 +18475,6 @@ function extra(mira)
 				* math.max(dist, CFG.FORCA_MIN) + Vector3.new(0, CFG.ARCO_TIRO, 0)
 			impulso.Parent = lata
 			Debris:AddItem(impulso, 0.1)
-
 			local bateu = false
 			guardar(lata.Touched:Connect(function(atingido)
 				if bateu then return end
@@ -18499,8 +18495,8 @@ function extra(mira)
 				lata.CanTouch = false
 				Debris:AddItem(lata, 0.15)
 			end))
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -23293,13 +23289,12 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("PROVOCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "SPRITE" then
+	rig:PlaySequence("PROVOCA", despachar({
+		SPRITE = { faz = function()
 			tocarEm("Provoca", pontoDaCabeca(), 1)
 			vfx("ZOMBARIA", { posicao = pontoDaCabeca(), escala = 1 })
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -23313,11 +23308,11 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("RODA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GIRA" then
+	rig:PlaySequence("RODA", despachar({
+		GIRA = { faz = function()
 			tocarEm("Provoca", pontoDaCabeca(), 0.85)
-		elseif marca == "PULSO" then
+		end },
+		PULSO = { faz = function()
 			local onde = raiz.Position
 			vfx("ZOMBARIA_RODA", { posicao = onde, escala = 1.4 })
 			tocarEm("Provoca", onde, 1.25)
@@ -23330,8 +23325,8 @@ function extra(_mira)
 						escala = 0.7 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -28733,13 +28728,13 @@ function extra(_mira)
 	local esteId = "PEDRA_" .. tostring(idPedra)
 
 	rig:LockCharacter(true)
-	rig:PlaySequence("PEDRA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "FECHA" then
+	rig:PlaySequence("PEDRA", despachar({
+		FECHA = { faz = function()
 			tocarEm("Smack", raiz.Position, 0.55)
 			vfx("PEDRA", { posicao = raiz.Position, escala = 1,
 				duracao = CFG.DURACAO_PEDRA, id = esteId })
-		elseif marca == "ABRE" then
+		end },
+		ABRE = { faz = function()
 			local onde = raiz.Position
 			vfx("PARAR", { id = esteId })
 			vfx("PEDRA_FIM", { posicao = onde, escala = 1.2 })
@@ -28753,8 +28748,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_ABERTURA, 0.3)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		rig:LockCharacter(false)
 		ocupado = false
 	end)
@@ -33230,23 +33225,25 @@ end
 function extra(_mira)
 	if tambor >= CFG.CAPACIDADE then return end
 	ocupado = true
-	rig:PlaySequence("RECARGA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
+	rig:PlaySequence("RECARGA", despachar({
+		ABRE = { faz = function()
 			tocar("Tambor", 1.1)
-		elseif marca == "EJETA" then
+		end },
+		EJETA = { faz = function()
 			local cano = bocaDoCano()
 			for i = 1, CFG.CAPACIDADE - tambor do
 				vfx("CASQUINHA", { posicao = cano.Position
 					- cano.LookVector * (0.4 + i * 0.12) })
 			end
-		elseif marca == "ENCHE" then
+		end },
+		ENCHE = { faz = function()
 			tocar("Tambor", 0.85)
-		elseif marca == "FECHA" then
+		end },
+		FECHA = { faz = function()
 			tambor = CFG.CAPACIDADE
 			tocar("Fecha", 1.15)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

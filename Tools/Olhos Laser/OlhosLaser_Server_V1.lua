@@ -278,18 +278,16 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("FEIXE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("CARGA", 1.4)
-		elseif marca == "ATIRA" then
+	rig:PlaySequence("FEIXE", despachar({
+		MIRA = { sfx = { "CARGA", 1.4 } },
+		ATIRA = { faz = function()
 			local cf = olhos()
 			local direcao = (mira - cf.Position)
 			if direcao.Magnitude < 0.01 then direcao = cf.LookVector end
 			tocarEm("GOLPE", cf.Position, 1.5)
 			disparar(cf.Position, direcao.Unit, CFG.DANO, 1)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -303,13 +301,10 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("VARREDURA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "MIRA" then
-			tocar("CARGA", 1.1)
-		elseif marca == "ABRE" then
-			tocar("GOLPE", 1.2)
-		elseif marca == "VARRE" then
+	rig:PlaySequence("VARREDURA", despachar({
+		MIRA = { sfx = { "CARGA", 1.1 } },
+		ABRE = { sfx = { "GOLPE", 1.2 } },
+		VARRE = { faz = function()
 			local cf = olhos()
 			local base = (mira - cf.Position)
 			if base.Magnitude < 0.01 then base = cf.LookVector end
@@ -321,10 +316,11 @@ function extra(mira)
 				local direcao = (CFrame.Angles(0, desvio, 0) * base)
 				disparar(cf.Position, direcao.Unit, CFG.DANO_LEQUE, 0.7)
 			end
-		elseif marca == "FECHA" then
+		end },
+		FECHA = { faz = function()
 			tocarEm("IMPACTO", olhos().Position, 1.3)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

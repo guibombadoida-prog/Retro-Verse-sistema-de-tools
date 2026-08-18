@@ -275,13 +275,12 @@ end
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("PROVOCA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "SPRITE" then
+	rig:PlaySequence("PROVOCA", despachar({
+		SPRITE = { faz = function()
 			tocarEm("Provoca", pontoDaCabeca(), 1)
 			vfx("ZOMBARIA", { posicao = pontoDaCabeca(), escala = 1 })
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -295,11 +294,11 @@ end
 
 function extra(_mira)
 	ocupado = true
-	rig:PlaySequence("RODA", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "GIRA" then
+	rig:PlaySequence("RODA", despachar({
+		GIRA = { faz = function()
 			tocarEm("Provoca", pontoDaCabeca(), 0.85)
-		elseif marca == "PULSO" then
+		end },
+		PULSO = { faz = function()
 			local onde = raiz.Position
 			vfx("ZOMBARIA_RODA", { posicao = onde, escala = 1.4 })
 			tocarEm("Provoca", onde, 1.25)
@@ -312,8 +311,8 @@ function extra(_mira)
 						escala = 0.7 })
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

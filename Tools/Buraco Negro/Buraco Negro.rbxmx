@@ -971,13 +971,12 @@ end
 function primaria(mira)
 	ocupado = true
 	local destino = mira
-	rig:PlaySequence("ABRIR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("VAZIO", 1)
+	rig:PlaySequence("ABRIR", despachar({
+		CARGA = { sfx = { "VAZIO", 1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1.2,
 				duracao = 0.5 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			fecharBuraco()
 			local onde = (destino or frente(CFG.ALCANCE)) + Vector3.new(0, 3, 0)
 			buracoOnde = onde
@@ -986,8 +985,8 @@ function primaria(mira)
 				duracao = CFG.DURACAO, id = buracoId })
 			tocarEm("VAZIO", onde, 0.75)
 			manterBuraco(onde, buracoId)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -1002,29 +1001,27 @@ end
 function extra(_mira)
 	ocupado = true
 	local onde = buracoOnde
-	rig:PlaySequence("COLAPSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("COLAPSO", 1.1)
-		elseif marca == "SEGURA" then
+	rig:PlaySequence("COLAPSO", despachar({
+		CARGA = { sfx = { "COLAPSO", 1.1 } },
+		SEGURA = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_BURACO, 14)) do
 				puxar(alvo, centro, CFG.SUGA * 1.6, 0.3)
 			end
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local centro = onde or frente(CFG.ALCANCE)
 			local cheio = onde ~= nil
 			fecharBuraco()
 			vfx("BURACO_FIM", { posicao = centro, escala = cheio and 1.6 or 0.9 })
 			tocarEm("COLAPSO", centro, 0.7)
 			tocarEm("ECO", centro, 0.65)
-
 			golpearArea(centro, CFG.RAIO_BURACO, CFG.RAIO_NUCLEO,
 				cheio and CFG.DANO_COLAPSO or CFG.DANO_COLAPSO * 0.5,
 				cheio and CFG.DANO_BORDA or CFG.DANO_BORDA * 0.5,
 				CFG.EMPURRAO, cheio and CFG.TOMBO or nil)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

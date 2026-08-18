@@ -346,18 +346,16 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("TIRO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 1.1)
+	rig:PlaySequence("TIRO", despachar({
+		CARGA = { sfx = { "CARGA", 1.1 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 0.8,
 				duracao = 0.4 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local origem, destino = mirarPonto(mira)
 			vfx("FEIXE", { origem = origem, destino = destino,
 				grossura = 1.2, escala = 1 })
 			tocarEm("TIRO", origem, 1 + jitter(0.3) * 0.08)
-
 			for _, alvo in ipairs(alvosEm(destino, CFG.RAIO_FEIXE, 4)) do
 				aplicarDano(alvo, CFG.DANO)
 				local alvoRaiz = raizDe(alvo)
@@ -365,8 +363,8 @@ function primaria(mira)
 					empurrar(alvo, destino - origem, CFG.EMPURRAO, 0.18)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -384,29 +382,26 @@ end
 
 function extra(mira)
 	ocupado = true
-	rig:PlaySequence("DISPARO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "CARGA" then
-			tocar("CARGA", 0.75)
+	rig:PlaySequence("DISPARO", despachar({
+		CARGA = { sfx = { "CARGA", 0.75 }, faz = function()
 			vfx("CONJURA", { posicao = Handle.Position, escala = 1.4,
 				duracao = 0.55 })
-		elseif marca == "GOLPE" then
+		end },
+		GOLPE = { faz = function()
 			local origem = Handle.Position
 			local destino = mira or frente(CFG.ALCANCE_TIRO)
 			local delta = destino - origem
 			if delta.Magnitude > CFG.ALCANCE_TIRO then
 				destino = origem + delta.Unit * CFG.ALCANCE_TIRO
 			end
-
 			vfx("DISPARO", { origem = origem, destino = destino,
 				grossura = 3.4, escala = 1.4 })
 			tocarEm("VAZIO", destino, 0.8)
 			tocarEm("TIRO", origem, 0.7)
-
 			golpearArea(destino, CFG.RAIO_TIRO, CFG.RAIO_NUCLEO,
 				CFG.DANO_TIRO, CFG.DANO_BORDA, CFG.EMPURRAO_TIRO, CFG.TOMBO)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

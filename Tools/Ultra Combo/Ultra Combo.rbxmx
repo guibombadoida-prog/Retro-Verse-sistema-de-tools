@@ -932,11 +932,11 @@ function primaria(_mira)
 
 	local dano = ({ CFG.DANO_1, CFG.DANO_2, CFG.DANO_3, CFG.DANO_4 })[passoCombo]
 
-	rig:PlaySequence(ORDEM_COMBO[passoCombo], function(passo)
-		local marca = marcaDe(passo)
-		if marca == "BATE" then
+	rig:PlaySequence(ORDEM_COMBO[passoCombo], despachar({
+		BATE = { faz = function()
 			bater(dano, CFG.EMPURRAO, 0.9)
-		elseif marca == "BATE_FORTE" then
+		end },
+		BATE_FORTE = { faz = function()
 			-- o quarto é o giro: pega em volta, não só à frente
 			local ponto = raiz.Position
 			tocarEm("AGUDO", ponto, 0.8)
@@ -950,10 +950,11 @@ function primaria(_mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_4, 0.3)
 				end
 			end
-		elseif marca == "FIM" then
+		end },
+		FIM = { faz = function()
 			passoCombo = 0
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -969,11 +970,9 @@ end
 function extra(_mira)
 	ocupado = true
 	passoCombo = 0
-	rig:PlaySequence("SELO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ERGUE" then
-			tocar("AGUDO", 0.7)
-		elseif marca == "FECHA" then
+	rig:PlaySequence("SELO", despachar({
+		ERGUE = { sfx = { "AGUDO", 0.7 } },
+		FECHA = { faz = function()
 			local centro = raiz.Position - Vector3.new(0, 2.4, 0)
 			vfx("IMPACTO", { posicao = centro, escala = 2.8 })
 			tocarEm("DISPARO", centro, 0.55)
@@ -986,8 +985,8 @@ function extra(_mira)
 						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_SELO, 0.28)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

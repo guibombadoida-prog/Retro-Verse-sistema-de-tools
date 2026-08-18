@@ -273,22 +273,24 @@ local GRIP_BOCA = CFrame.new(1.5, -0.5, 0.3)
 
 function primaria(_mira)
 	ocupado = true
-	rig:PlaySequence("COMER", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "LEVA" then
+	rig:PlaySequence("COMER", despachar({
+		LEVA = { faz = function()
 			Tool.Grip = GRIP_BOCA
 			tocar("DrinkSound", 1)
-		elseif marca == "MORDE" then
+		end },
+		MORDE = { faz = function()
 			vfx("RESPINGO", { posicao = Handle.Position, escala = 0.7 })
-		elseif marca == "ENGOLE" then
+		end },
+		ENGOLE = { faz = function()
 			Tool.Grip = GRIP_NORMAL
-		elseif marca == "CURA" then
+		end },
+		CURA = { faz = function()
 			local ganho = curar(humanoide, CFG.CURA)
 			if ganho > 0 then
 				vfx("CURA", { posicao = raiz.Position, escala = 1 })
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		Tool.Grip = GRIP_NORMAL
 		ocupado = false
 	end)

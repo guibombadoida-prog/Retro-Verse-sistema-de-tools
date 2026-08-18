@@ -290,9 +290,8 @@ function primaria(_mira)
 	end
 
 	ocupado = true
-	rig:PlaySequence("LIGAR", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "LIGA" then
+	rig:PlaySequence("LIGAR", despachar({
+		LIGA = { faz = function()
 			auraLigada = true
 			idAura = novoId("AURA")
 			tocar("CARGA", 1)
@@ -303,10 +302,9 @@ function primaria(_mira)
 			task.delay(CFG.INTERVALO, function()
 				pulsarAura(CFG.PULSOS)
 			end)
-		elseif marca == "SUSTENTA" then
-			tocar("CARGA", 0.8)
-		end
-	end, function()
+		end },
+		SUSTENTA = { sfx = { "CARGA", 0.8 } },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -321,11 +319,9 @@ end
 function extra(_mira)
 	ocupado = true
 	local reforcado = auraLigada
-	rig:PlaySequence("PULSO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "RECOLHE" then
-			tocar("PREPARA", 1.2)
-		elseif marca == "SOLTA" then
+	rig:PlaySequence("PULSO", despachar({
+		RECOLHE = { sfx = { "PREPARA", 1.2 } },
+		SOLTA = { faz = function()
 			local onde = raiz.Position
 			local escala = reforcado and 1.6 or 1
 			local dano = reforcado and CFG.DANO_PULSO * 1.6 or CFG.DANO_PULSO
@@ -341,8 +337,8 @@ function extra(_mira)
 				end
 			end
 			if reforcado then desligarAura() end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end

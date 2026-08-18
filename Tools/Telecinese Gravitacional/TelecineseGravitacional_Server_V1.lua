@@ -280,24 +280,23 @@ end
 
 function primaria(mira)
 	ocupado = true
-	rig:PlaySequence("PUXAO", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ALCANCA" then
+	rig:PlaySequence("PUXAO", despachar({
+		ALCANCA = { faz = function()
 			tocar("SendOut", 1.1)
 			vfx("AGARRA", { origem = Handle.Position, destino = mira })
-
-		elseif marca == "PUXA" then
+		end },
+		PUXA = { faz = function()
 			tocarEm("InitialHit", mira, 0.9)
 			vfx("PUXAO", { posicao = mira, escala = 1.3, raio = CFG.RAIO_PUXAO })
 			for _, alvo in ipairs(alvosEm(mira, CFG.RAIO_PUXAO, 14)) do
 				aplicarDano(alvo, CFG.DANO_PUXAO)
 				atrair(alvo, mira, CFG.TEMPO_PUXAO, 11000)
 			end
-
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			tocar("Whack", 0.8)
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
@@ -313,12 +312,11 @@ function extra(mira)
 	ocupado = true
 	local id = novoId("SING")
 
-	rig:PlaySequence("SINGULARIDADE", function(passo)
-		local marca = marcaDe(passo)
-		if marca == "ABRE" then
+	rig:PlaySequence("SINGULARIDADE", despachar({
+		ABRE = { faz = function()
 			tocar("SendOut", 0.8)
-
-		elseif marca == "REUNE" then
+		end },
+		REUNE = { faz = function()
 			tocarEm("InitialHit", mira, 0.75)
 			vfx("SINGULARIDADE", { posicao = mira, escala = 1.4,
 				duracao = CFG.TEMPO_SING, id = id })
@@ -326,11 +324,11 @@ function extra(mira)
 				aplicarDano(alvo, CFG.DANO_SING)
 				atrair(alvo, mira, CFG.TEMPO_SING, 14000)
 			end
-
-		elseif marca == "SEGURA" then
+		end },
+		SEGURA = { faz = function()
 			tocarEm("Whack", mira, 0.6)
-
-		elseif marca == "COLAPSA" then
+		end },
+		COLAPSA = { faz = function()
 			vfx("PARAR", { id = id })
 			vfx("COLAPSO", { posicao = mira, escala = 1.2 })
 			tocarEm("Hit", mira, 0.7)
@@ -344,8 +342,8 @@ function extra(mira)
 						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_SING, 0.32)
 				end
 			end
-		end
-	end, function()
+		end },
+	}), function()
 		ocupado = false
 	end)
 end
