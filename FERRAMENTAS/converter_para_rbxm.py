@@ -32,9 +32,14 @@ O AJUSTE DO `Tags`
     String/Content/Tags/Attributes/MaterialColors/BinaryString, e recusa
     SharedString. A conversão troca por `BinaryString`.
 
-    E SÓ TROCA SE O VALOR COMPARTILHADO FOR VAZIO. Tag de CollectionService é
-    comportamento de jogo: se alguma vier com conteúdo, este script PARA e
-    avisa, em vez de descartar em silêncio.
+    A CARGA VAI JUNTO. A `SharedString` guarda base64, e o `BinaryString`
+    também: copiar o texto de um para o outro troca o invólucro e preserva a
+    tag. Tag de CollectionService é comportamento de jogo, e agora ela
+    atravessa em vez de derrubar a conversão.
+
+    O que ainda PARA tudo é md5 citada sem entrada na tabela `<SharedStrings>`:
+    aí não existe valor para carregar, e escrever vazio seria justamente a
+    perda silenciosa que este guarda existe para impedir.
 """
 
 import base64
@@ -70,7 +75,18 @@ def preparar(entrada, temporario):
         if e.get("md5"):
             tabela[e.get("md5")] = e.text or ""
 
-    perigosas = []
+    # Tag COM conteúdo não para mais a conversão: ela ATRAVESSA.
+    #
+    # Antes este bloco abortava, porque descartar tag de CollectionService é
+    # mudar comportamento de jogo. Só que descartar nunca foi a única saída — o
+    # `rbx-dom` aceita `Tags` como `BinaryString`, e a carga de uma
+    # `SharedString` é o mesmo base64 que um `BinaryString` guarda. Copiar o
+    # texto de um para o outro é troca de INVÓLUCRO, não de valor.
+    #
+    # O que continua parando a conversão é md5 citada sem entrada na tabela:
+    # aí não há valor para carregar, e escrever vazio seria a perda silenciosa
+    # que este guarda existe para impedir.
+    orfas = []
     for item in raiz.iter("Item"):
         props = item.find("Properties")
         if props is None:
@@ -79,19 +95,14 @@ def preparar(entrada, temporario):
             if e.tag != "SharedString" or e.get("name") != "Tags":
                 continue
             md5 = (e.text or "").strip()
-            bruto = tabela.get(md5, "")
-            try:
-                conteudo = base64.b64decode(bruto) if bruto else b""
-            except Exception:
-                conteudo = b"?"
-            if conteudo:
-                perigosas.append((item.get("class"), md5, conteudo[:40]))
+            if md5 and md5 not in tabela:
+                orfas.append((item.get("class"), md5))
 
-    if perigosas:
-        print("PAREI: há Tags de CollectionService COM CONTEÚDO.")
-        print("Descartar tag é mudar comportamento de jogo — não faço isso calado.")
-        for classe, md5, amostra in perigosas[:6]:
-            print("  %-16s %s  %r" % (classe, md5, amostra))
+    if orfas:
+        print("PAREI: Tags citando SharedString que a tabela não resolve.")
+        print("Sem valor para carregar, escrever vazio seria perder a tag calado.")
+        for classe, md5 in orfas[:6]:
+            print("  %-16s %s" % (classe, md5))
         return None
 
     # `<Content name="X"></Content>` SEM filho derruba o rbx_xml em
@@ -107,16 +118,21 @@ def preparar(entrada, temporario):
     if remendados:
         print("   %d Content vazio(s) fechado(s) com <null/>" % remendados)
 
-    trocadas = 0
+    trocadas, com_carga = 0, 0
     for item in raiz.iter("Item"):
         props = item.find("Properties")
         if props is None:
             continue
         for e in list(props):
             if e.tag == "SharedString" and e.get("name") == "Tags":
+                md5 = (e.text or "").strip()
+                carga = tabela.get(md5, "") if md5 else ""
                 props.remove(e)
-                ET.SubElement(props, "BinaryString", {"name": "Tags"}).text = ""
+                ET.SubElement(props, "BinaryString",
+                              {"name": "Tags"}).text = carga
                 trocadas = trocadas + 1
+                if carga:
+                    com_carga = com_carga + 1
 
     ET.ElementTree(raiz).write(temporario, encoding="utf-8", xml_declaration=False)
 
@@ -135,7 +151,7 @@ def preparar(entrada, temporario):
     with open(temporario, "w", encoding="utf-8") as f:
         f.write(texto)
 
-    return trocadas
+    return (trocadas, com_carga)
 
 
 def main():
@@ -159,8 +175,8 @@ def main():
         return 1
 
     temporario = saida + ".preparado.rbxmx"
-    trocadas = preparar(entrada, temporario)
-    if trocadas is None:
+    contagem = preparar(entrada, temporario)
+    if contagem is None:
         if os.path.exists(temporario):
             os.remove(temporario)
         return 1
@@ -182,6 +198,10 @@ def main():
 
     print("%s  —  %d bytes" % (os.path.relpath(saida, RAIZ),
                                os.path.getsize(saida)))
+    trocadas, com_carga = contagem
+    if com_carga:
+        print("   %d Tags de CollectionService COM conteúdo, carregada(s) "
+              "inteira(s)" % com_carga)
     print("   %d propriedade(s) Tags trocada(s) de SharedString para BinaryString"
           % trocadas)
     return 0

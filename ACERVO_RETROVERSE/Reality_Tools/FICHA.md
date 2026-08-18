@@ -175,7 +175,7 @@ Falta a licença (§12.12.3) e falta o pedido — quais Tools, com que nomes, de
 
 ---
 
-## 2026-08-16 — a auditoria, e a lógica que atravessa
+## 2026-08-16 — a entrega é o SCRIPT DA ORIGEM, com dois consertos
 
 ### As 6 Tools que o conjunto usa NÃO têm veneno
 
@@ -184,61 +184,56 @@ entra no `Reality Gui`. Varredura nas seis usadas — `SLAP`, `a-train`, `tre`,
 `gravity cat not amused`, `samsung`, `kick dance` — atrás de `assetimport`, `loadstring`,
 `getfenv`, `setfenv`, `HttpService`, `GetAsync`, `PostAsync` e `require(<id>)`: **zero**.
 
-A primeira entrega tratou o arquivo inteiro como se todo script fosse a `Pistol`, e reescreveu
-as sete habilidades do zero. Estava errado. O que a origem tem de problema nestas seis é isto,
-e é tudo substituição mecânica:
+Por isso a entrega mudou de forma. Ela não é mais um conjunto reescrito no padrão da casa: é o
+**script da origem, byte por byte**, com exatamente 15 remendos, e nada mais.
 
-| Da origem | Vira | Quantos |
+### Os 15 remendos, e só eles
+
+Duas coisas mudam. **1** — não ferir quem carrega a Tool. **2** — o dano valer.
+
+| Tool | remendos | o quê |
 |---|---|---|
-| `wait(` · `spawn(` | `task.wait` · `task.spawn` | 57 · 10 |
-| `math.random` em gameplay | `jitter` / `naFaixa` determinísticos | 36 |
-| `:Destroy()` · `:remove()` | `Parent = nil` / `Debris` | 11 · 3 |
-| `Health = 0` | `TakeDamage` pelo Núcleo | 8 |
-| `BreakJoints` | `PlatformStand` com prazo | 2 |
-| `Instance.new("Explosion")` | `detectarHumanoides` | 2 |
-| `ReplicatedStorage` · `ServerStorage` · `ReplicatedFirst` | asset dentro da Tool | 9 |
-| `ScreenGui` · `PlayerGui` | caem — proibido dentro de Tool | 4 |
+| `Lapada Seca` | 2 | o `Touched` pegava quem a carrega · `humanoid.Health = 0` |
+| `Canhao Satelite` | 1 | `v:destroy()` num raio de 250 apagava o próprio atirador |
+| `Trem` | 2 | o `Touched` pegava o próprio corredor · `Health = 0` |
+| `Arvore Maligna` | 3 | marca de dono · quem plantou era presa · `Health = 0` |
+| `Gato Ajudante Boss` | 5 | marca de dono · `findTorso` escolhia o dono · 3× `Health = 0` |
+| `Samsungus` | 2 | `Health - math.random(20,25)` ignorava ForceField e não creditava |
+| `Danca Provocadora` | 0 | **não faz dano nenhum — atravessou intacta** |
 
-### A animação da origem entra INTEIRA
+`Health = 0` e `Health - X` viram `__RV_dano`, que passa pelo Núcleo quando ele existe, usa
+`TakeDamage` (respeita `ForceField`) e deixa tag de `creator` para o abate contar.
 
-Quatro das sete têm animação de verdade na origem, e ela foi recuperada quadro a quadro:
+O que **não** foi tocado, de propósito: `wait`, `spawn`, `math.random`, `:Destroy()`,
+`BreakJoints` em cadáver clonado, `Instance.new("Explosion")`, as `ScreenGui`, o `Popup`, o
+`shakerbreaker`, o `Humanoid.Name = "Immunity"`, e a animação (`CFAv3` + as duas
+`KeyframeSequence`, inteiras, como a origem as tem).
 
-| Tool | Fonte da animação | Antes | Agora |
-|---|---|---|---|
-| `Trem` | `KeyframeSequence` `a-train` | 10 quadros | **40 de 40** |
-| `Danca Provocadora` | `KeyframeSequence` `california gurls` | 14 quadros | **361 de 361** |
-| `Samsungus` | laços de `Weld.C0` no `LeadpipeServer` | pose inventada | 4 blocos, verbatim |
-| `Canhao Satelite` | laços de `Weld.C0` no Script do LOIC | pose inventada | 6 blocos, verbatim |
+### O que isto quebra, e está declarado
 
-As outras três não têm o que recuperar: o `Animation` da `SLAP` tem `AnimationId` **vazio**, e
-na `tre` e no `gravity cat` quem se mexe é o modelo invocado, não quem invoca.
+`require(game:GetService("ReplicatedFirst").Ragdoll)` aparece em **5 lugares** (a-train, tre, e
+três no gato). O módulo não vem junto e **não se auto-instala**: num place vazio a linha erra e
+o resto daquele handler para. É violação da regra nº 1, mantida porque o pedido foi não mexer
+em mais nada.
 
-Duas descobertas que valem para o próximo modelo deste tipo:
+Os outros dois caminhos de fora **se auto-instalam**: `script.tree.Parent =
+game.ReplicatedStorage` e `script[...].Parent = game.ServerStorage` — o próprio script põe o
+asset lá no carregamento, então funcionam sozinhos.
 
-1. **`PlayTrack`, não `PlaySequence`, para animação densa.** `PlaySequence` emenda um Tween por
-   passo no `Completed`, e cada emenda custa um quadro: 361 emendas somariam segundos e a dança
-   rodaria em câmera lenta. `PlayTrack` roda no `Heartbeat` com tempo ABSOLUTO.
-2. **O C1 da origem entra INVERTIDO.** `Part1.CFrame = Part0.CFrame * C0 * C1:Inverse()`, e o
-   animator canônico solda com C1 identidade — logo `C0_canonico = alvo * C1⁻¹`. A conferência é
-   o repouso: o braço do `samsung` é `CFrame.new(1.5,0.5,0)`, e `(1.5,0.5,0) * (0,-0.5,0)` dá
-   `(1.5,0,0)`, que é a base do `R6CFrameAnimator`. Com o sinal trocado a animação inteira sai
-   um stud acima do ombro.
+### Três coisas que a barreira e o conversor aprenderam
 
-### Uma habilidade por Tool, no clique
-
-Sem Extra, sem tecla, sem `AcaoRemote`, sem botão de celular. O `AcaoRemote` saiu também da
-instância: RemoteEvent que nenhum script cita é asset depositado e mudo, e ainda é porta aberta
-de graça.
-
-### O que a origem faz e não atravessou
-
-| Da origem | Por que ficou de fora |
-|---|---|
-| `require(ReplicatedFirst.Ragdoll)` | dependência FORA da Tool: é a regra nº 1 |
-| `ScreenGui` branca do leadpipe · `Popup` da `tre` | proibida dentro de Tool, e mexe na `PlayerGui` de terceiro |
-| `v:destroy()` num raio de 250 studs (LOIC) | apagaria o cenário do servidor |
-| `game.Chat:Chat` · `Humanoid.Name = "Immunity"` | fora de escopo de Tool |
-| `shakerbreaker` (LocalScript clonado no personagem alheio) | o tremor da cutscene faz isso de dentro da Tool |
-| `attack2` e `attack3` do gato | são o boss em laço infinito, não uma habilidade de clique |
+1. **`getfenv`/`setfenv` agora exigem PROVA, não perdão.** O LOIC carrega o boilerplate
+   "model to script v4" do ttyyuu12345. Liberar por nome seria buraco permanente; a barreira
+   verifica as três condições que fazem o trecho ser código morto — `sandbox` definida e nunca
+   chamada, `cors` só recebendo `{}`, e nenhum `getfenv` fora do corpo dela. Se a origem mudar,
+   a entrega para.
+2. **A tabela `<SharedStrings>` tem que viajar junto.** `MeshPart.AeroMeshData` é uma CITAÇÃO
+   de md5; o bloco que a resolve é irmão dos `Item` e não vem quando se copia só a Tool. Sem
+   ele o `rbx-dom` lê a propriedade como `BinaryString` e a conversão morre com
+   `PropTypeMismatch`.
+3. **Tag de `CollectionService` com conteúdo atravessa.** O conversor abortava; só que
+   descartar nunca foi a única saída — `SharedString` e `BinaryString` guardam o mesmo base64,
+   e copiar o texto troca o invólucro sem tocar no valor. Duas `KeyframeSequence` passaram
+   inteiras. O que ainda para tudo é md5 citada que a tabela não resolve.
 
 Status do modelo: **segue CRU, em quarentena.** Licença (§12.12.3) continua em aberto.
