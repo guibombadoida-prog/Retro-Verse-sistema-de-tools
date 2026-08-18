@@ -562,6 +562,19 @@ CONJUNTOS = [
     # Aqui o script da origem ATRAVESSA, e é o único conjunto assim: a entrega
     # é o script original com remendos contados, não uma reescrita. `Trem` e
     # `Danca Provocadora` saíram a pedido.
+    # 7 Tools AUTORAIS de meme — o primeiro conjunto com TRÊS habilidades
+    # por Tool (M1 + R + T). Sem modelo de origem: Handle, som, pose e
+    # habilidade são escritos no repositório.
+    ("jodro.rbxmx", "Jodro", [
+        "Bonk",
+        "Chinelo Voador",
+        "Sussy",
+        "Caixa de Som",
+        "Privada Sonora",
+        "Pombo Correio",
+        "Deu Ruim",
+    ]),
+
     ("Reality Gui.rbxmx", "Reality_Gui", [
         "Lapada Seca",
         "Canhao Satelite",
