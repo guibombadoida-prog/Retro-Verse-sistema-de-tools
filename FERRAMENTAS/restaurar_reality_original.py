@@ -121,11 +121,9 @@ def provar_inerte(texto):
 CONJUNTO = (
     (REALITY, "SLAP", "Lapada Seca"),
     (CANHAO, "LowOrbitIonCannon", "Canhao Satelite"),
-    (REALITY, "a-train", "Trem"),
     (REALITY, "tre", "Arvore Maligna"),
     (REALITY, "gravity cat not amused", "Gato Ajudante Boss"),
     (REALITY, "samsung", "Samsungus"),
-    (REALITY, "kick dance", "Danca Provocadora"),
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -201,6 +199,59 @@ local function __RV_dano(hum, quanto)
 	return true
 end
 
+--- Substitui `Instance.new("Explosion")`.
+---
+--- A `Explosion` do Roblox nao so machuca: com `BlastPressure` ela arrebenta
+--- junta e desmonta peca solta no raio inteiro — inclusive as de quem invocou,
+--- e inclusive cenario que nao tem nada a ver. Isto aqui faz o DANO e mais
+--- nada.
+---
+--- Devolve um objeto com a mesma cara que o codigo da origem ja usa:
+--- `.Position`, `.BlastRadius`, `.Hit:Connect(fn)` e uma ancora para o som.
+--- Assim o resto do script da origem continua como estava.
+local function __RV_estourar(posicao, raio)
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored = true
+	ancora.CanCollide = false
+	ancora.CanQuery = false
+	ancora.CanTouch = false
+	ancora.CFrame = CFrame.new(posicao)
+	ancora.Parent = workspace
+	__RV_Debris:AddItem(ancora, 6)
+
+	local atingidos, vistos = {}, {}
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	local d = __RV_dono()
+	if d then filtro.FilterDescendantsInstances = { d } end
+
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] then
+			vistos[hum] = true
+			table.insert(atingidos,
+				modelo:FindFirstChild("HumanoidRootPart") or parte)
+		end
+	end
+
+	local objeto = { Position = posicao, BlastRadius = raio, ancora = ancora }
+	objeto.Hit = {
+		-- `pcall` porque o callback da origem chama
+		-- `require(ReplicatedFirst.Ragdoll)`, que erra em place vazio. Sem o
+		-- pcall, a primeira vitima derrubava o laco e as outras nao levavam
+		-- nada.
+		Connect = function(_, fn)
+			for _, parte in ipairs(atingidos) do
+				pcall(fn, parte)
+			end
+		end,
+	}
+	return objeto
+end
+
 --- Planta a marca de dono num modelo invocado, para os scripts de dentro dele
 --- saberem de quem e. E o mecanismo do conserto 1, nao um conserto novo.
 local function __RV_marcar(modelo, quem)
@@ -235,16 +286,6 @@ REMENDOS = (
   "humanoid.Health = 0",
   "__RV_dano(humanoid, 100)",
   "2 — Health = 0 ignora ForceField e nao deixa tag de abate"),
-
- ("a-train", "SwordScript/Script",
-  'if hit.Parent:FindFirstChildOfClass("Humanoid") ~= nil then',
-  'if hit.Parent:FindFirstChildOfClass("Humanoid") ~= nil and not __RV_ehDono(hit.Parent) then',
-  "1 — o Touched pegava o proprio corredor"),
-
- ("a-train", "SwordScript/Script",
-  'hit.Parent:FindFirstChildOfClass("Humanoid").Health = 0',
-  '__RV_dano(hit.Parent:FindFirstChildOfClass("Humanoid"), 100)',
-  "2"),
 
  ("tre", "Script",
   "clone.Parent = workspace",
@@ -294,15 +335,94 @@ REMENDOS = (
  ("LowOrbitIonCannon", "Script",
   # 13 tabs no `if`, 14 no `v:destroy()` — indentação contada, não chutada
   "if (v.Position - energyhit.Position).magnitude < 250 then\n"
-  + "\t" * 14 + "v:destroy()",
+  + "\t" * 14 + "v:destroy()\n"
+  + "\t" * 13 + "end",
   "if (v.Position - energyhit.Position).magnitude < 250 then\n"
+  + "\t" * 14 + "-- RV: `v:destroy()` apagava TODA peca num raio de 250 studs,\n"
+  + "\t" * 14 + "-- em seis ondas. Isso some com o cenario do servidor e com o\n"
+  + "\t" * 14 + "-- corpo de quem atirou. Ficou so o dano.\n"
   + "\t" * 14 + 'local __hum = v.Parent and v.Parent:FindFirstChildOfClass("Humanoid")\n'
-  + "\t" * 14 + "if __hum then\n"
-  + "\t" * 15 + "__RV_dano(__hum, 100)\n"
-  + "\t" * 14 + "elseif not __RV_ehDono(v.Parent) then\n"
-  + "\t" * 15 + "v:destroy()\n"
-  + "\t" * 14 + "end",
-  "1 e 2 — apagar peca por peca matava o proprio atirador e nao creditava nada"),
+  + "\t" * 14 + "if __hum then __RV_dano(__hum, 100) end\n"
+  + "\t" * 13 + "end",
+  "1, 2 e 3 — apagava peca por peca, matava o proprio atirador, nao creditava"),
+
+ # ── NAO DESTRUIR PARTE ────────────────────────────────────────────────
+ #
+ # A separacao e: lixo da PROPRIA Tool pode sumir; parte de mundo e de
+ # personagem, nao. `bv:Destroy()` no BodyVelocity dela, `bobm:Destroy()` na
+ # bomba dela, os welds que ela mesma criou — tudo isso fica. O que sai e o
+ # que apaga o que nao e dela.
+
+ ("SLAP", "Hand/Script/RagdollSCript",
+  "joint:Destroy()",
+  "-- joint:Destroy()  -- RV: desmembrava a vitima sem volta. O\n"
+  "\t\t\t-- BallSocketConstraint acima ja da o ragdoll; destruir o\n"
+  "\t\t\t-- Motor6D e permanente e nao volta nem no respawn do membro.",
+  "3 — apagava os Motor6D da vitima: desmembramento sem volta"),
+
+ ("tre", "Script/tree/Death/Script",
+  "minply.Parent:BreakJoints()",
+  "-- minply.Parent:BreakJoints()  -- RV: desmontava o personagem inteiro",
+  "3 — BreakJoints desmonta o personagem da vitima"),
+
+ ("tre", "Script/tree/Death/Script",
+  "local clone = minply.Parent:Clone()",
+  "local clone = nil  -- RV: o cadaver clonado so existia porque a linha\n"
+  "\t\t\t\t\t-- `minply.Parent:Destroy()` apagava o original. Sem destruir o\n"
+  "\t\t\t\t\t-- personagem, nao ha o que repor.\n"
+  "\t\t\t\t\tif true then wait(3) c:Destroy() return end",
+  "3 — o bloco do cadaver dependia de destruir o personagem"),
+
+ ("tre", "Script/tree/Death/Script",
+  "x.Anchored = false\n\ty.Anchored = false",
+  "x.Anchored = true   -- RV: a arvore fica ANCORADA...\n"
+  "\ty.Anchored = false  -- ...e o que esta soldado nela segue junto",
+  "4 — ancorar a tre. Part0 ancorada e Part1 solta: o Weld arrasta"),
+
+ ("gravity cat not amused", "spawner/Gravity Cat Not Amused/gravitycatMAIN.",
+  'local e = Instance.new("Explosion")\n\t\te.Position = bobm.Position\n'
+  '\t\te.BlastRadius = 7\n\t\te.BlastPressure = 2\n\t\te.Parent = workspace',
+  '-- RV: `Explosion` com BlastPressure arrebenta junta de tudo em volta,\n'
+  '\t\t-- inclusive de quem invocou. Raio e posicao sao os mesmos.\n'
+  '\t\tlocal e = __RV_estourar(bobm.Position, 7)',
+  "3 — Explosion destroi parte e junta de mundo e de personagem"),
+
+ ("gravity cat not amused", "spawner/Gravity Cat Not Amused/gravitycatMAIN./bobm",
+  'local e = Instance.new("Explosion")\ne.Position = script.Parent.Position\n'
+  'e.BlastRadius = 7\ne.BlastPressure = 2\ne.Parent = workspace',
+  '-- RV: mesma troca do attack1 — raio 7, sem arrebentar parte.\n'
+  'local e = __RV_estourar(script.Parent.Position, 7)',
+  "3 — Explosion na bomba da chuva"),
+
+ ("gravity cat not amused", "spawner/Gravity Cat Not Amused/gravitycatMAIN.",
+  "CreateSound(7990171197, e, 1, 1, false)",
+  "CreateSound(7990171197, e.ancora, 1, 1, false)",
+  "3 — `e` deixou de ser Instance; o som vai na ancora"),
+
+ ("gravity cat not amused", "spawner/Gravity Cat Not Amused/gravitycatMAIN./bobm",
+  "CreateSound(7990171197, e, 1, 1, false)",
+  "CreateSound(7990171197, e.ancora, 1, 1, false)",
+  "3 — idem na bomba da chuva"),
+
+ # As tres linhas abaixo ja ficam INALCANCAVEIS pelo `return` do remendo do
+ # cadaver — mas linha morta que LE como viva engana quem audita depois.
+ # Comentadas de verdade.
+
+ ("tre", "Script/tree/Death/Script",
+  "clone.Health:Destroy()",
+  "-- clone.Health:Destroy()  -- RV: inalcancavel, e destruia parte alheia",
+  "3 — honestidade de leitura"),
+
+ ("tre", "Script/tree/Death/Script",
+  "clone:BreakJoints()",
+  "-- clone:BreakJoints()  -- RV: inalcancavel",
+  "3 — honestidade de leitura"),
+
+ ("tre", "Script/tree/Death/Script",
+  "minply.Parent:Destroy()",
+  "-- minply.Parent:Destroy()  -- RV: APAGAVA O PERSONAGEM DA VITIMA.\n"
+  "\t\t\t\t\t-- Inalcancavel agora, e comentada para nao voltar por descuido.",
+  "3 — apagava o personagem da vitima"),
 )
 
 #: quais scripts levam o preambulo (os que citam __RV_)
