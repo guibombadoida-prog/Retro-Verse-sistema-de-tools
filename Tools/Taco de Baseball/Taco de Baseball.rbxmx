@@ -112,6 +112,7 @@ local CFG = {
 	JANELA_REBATE = 0.9,
 	RAIO_REBATE   = 12,
 	FORCA_REBATE  = 2.4,
+	TETO_REBATE   = 220,
 	MINIMO_REBATE = 8,
 	DANO_REBATE   = 26,
 	DANO_EXTRA    = 55,
@@ -404,7 +405,35 @@ end
 -- rebatido leva dano creditado a quem rebateu — não a quem atirou.
 --═══════════════════════════════════════════════════════════════
 
-local function rebaterPerto(direcao)
+--- O QUE CONTA COMO OBJETO REBATÍVEL.
+---
+--- ⚠️ ESTE É O CONSERTO DO EMPURRÃO INFINITO.
+---
+--- A versão anterior tirava do teste só o personagem do PORTADOR. Corpo de
+--- jogador é feito de `BasePart` SOLTA, e quem anda já vai a 16 studs/s — bem
+--- acima do mínimo de 8. Então cada golpe pegava quem estivesse perto e
+--- multiplicava a velocidade dele por 2.4.
+---
+--- E compunha três vezes: o `SEGURA` e o `GOLPE` da MESMA sequência chamam
+--- `rebaterPerto` (2.4 × 2.4 = 5.76 num aperto só), e o golpe seguinte pegava
+--- a velocidade já inflada e multiplicava de novo. Dois ou três swings e a
+--- pessoa saía do mapa.
+---
+--- Rebater é para OBJETO. Gente leva o taco, que é o outro caminho logo abaixo
+--- — com dano creditado e `BodyVelocity` de prazo curto, que acaba sozinho.
+local function rebativel(peca)
+	if not peca:IsA("BasePart") then return false end
+	if peca.Anchored then return false end
+
+	-- qualquer peça de personagem sai: rebater gente ERA o bug
+	local modelo = peca:FindFirstAncestorOfClass("Model")
+	if modelo and modelo:FindFirstChildOfClass("Humanoid") then return false end
+	if peca:FindFirstAncestorOfClass("Accessory") then return false end
+	if peca:FindFirstAncestorOfClass("Tool") then return false end
+	return true
+end
+
+local function rebaterPerto(direcao, jaBatidos)
 	local centro = raiz.Position
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
@@ -413,13 +442,20 @@ local function rebaterPerto(direcao)
 	local rebatidos = 0
 	for _, peca in ipairs(workspace:GetPartBoundsInRadius(centro,
 			CFG.RAIO_REBATE, filtro)) do
-		if peca:IsA("BasePart") and not peca.Anchored then
+		if rebativel(peca) and not (jaBatidos and jaBatidos[peca]) then
 			local v = peca.AssemblyLinearVelocity
 			if v.Magnitude >= CFG.MINIMO_REBATE then
-				-- volta na direção em que o portador olha, com a energia dele
-				-- somada: rebater não é só espelhar, é devolver com juros
-				peca.AssemblyLinearVelocity =
-					direcao.Unit * (v.Magnitude * CFG.FORCA_REBATE)
+				if jaBatidos then jaBatidos[peca] = true end
+
+				-- devolve com juros, mas COM TETO. Sem o teto, dois tacos
+				-- trocando a mesma peça multiplicavam sem fim.
+				local nova = math.min(v.Magnitude * CFG.FORCA_REBATE,
+					CFG.TETO_REBATE)
+				peca.AssemblyLinearVelocity = direcao.Unit * nova
+
+				vfx("REBOTE", { posicao = peca.Position,
+					direcao = direcao.Unit, forca = nova / CFG.TETO_REBATE,
+					escala = 1 })
 				vfx("IMPACTO_METAL", { posicao = peca.Position, escala = 1 })
 				tocarEm("Hit2", peca.Position, 1 + jitter(0.5) * 0.1)
 
@@ -441,6 +477,9 @@ end
 
 function extra(_mira)
 	ocupado = true
+	-- uma lista POR USO: a mesma peça não é rebatida no SEGURA e de novo no
+	-- GOLPE. Era 2.4 x 2.4 = 5.76 num aperto só.
+	local jaBatidos = {}
 	rig:PlaySequence("REBATER", despachar({
 		CARGA = { faz = function()
 			tocar("Equip", 1.1)
@@ -450,7 +489,7 @@ function extra(_mira)
 		SEGURA = { faz = function()
 			-- a janela: varre uma vez por quadro segurado, não por frame
 			local direcao = raiz.CFrame.LookVector
-			if rebaterPerto(direcao) > 0 then
+			if rebaterPerto(direcao, jaBatidos) > 0 then
 				tocar("Swoosh", 0.9)
 			end
 		end },
@@ -459,7 +498,10 @@ function extra(_mira)
 			tocarEm("Hit", ponto, 0.9)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2.4),
 				escala = 1.3 })
-			rebaterPerto(raiz.CFrame.LookVector)
+			vfx("FAISCA_TACO", { posicao = ponto, escala = 1.1 })
+			vfx("ONDA", { posicao = raiz.Position, raio = CFG.RAIO_EXTRA,
+				escala = 1 })
+			rebaterPerto(raiz.CFrame.LookVector, jaBatidos)
 			-- e quem estiver ao alcance leva o taco, rebatendo ou não
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_REBATE)
@@ -2151,6 +2193,70 @@ function Efeitos.CEGUEIRA(d)
 		PorId[d.id] = PorId[d.id] or { partes = {}, conexoes = {} }
 		table.insert(PorId[d.id].partes, nuvem)
 	end
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- EFEITOS NOVOS — 2026-08-18
+--═══════════════════════════════════════════════════════════════
+
+--- O REBOTE: o rastro de saída da peça rebatida.
+---
+--- O `IMPACTO_METAL` já dava o clarão do contato, mas nada mostrava PARA ONDE
+--- a coisa foi. Sem isso o rebate lia como "a peça sumiu". Aqui sai um risco na
+--- direção da saída, com o comprimento proporcional à força — e como o teto do
+--- servidor limita a velocidade, o risco também tem tamanho máximo.
+function Efeitos.REBOTE(d)
+	local p, e = pos(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+	local forca = math.clamp((d and d.forca) or 0.5, 0.1, 1)
+	local c = cor(d, CFG.COR_METAL)
+	local comprimento = 6 + 26 * forca
+
+	local risco = novaParte({
+		Size = Vector3.new(0.5 * e, 0.5 * e, comprimento),
+		Color = branco(c, 0.5),
+		Transparency = 0.1,
+		CFrame = CFrame.lookAt(p + dir * (comprimento * 0.5), p + dir * comprimento),
+	})
+	tween(risco, 0.2 + 0.14 * forca, {
+		Size = Vector3.new(0.03, 0.03, comprimento * 1.5),
+		Transparency = 1,
+	}, Enum.EasingStyle.Quint)
+	registrar(risco, 0.5)
+
+	camadaFaiscas(p, c, 0.9 * e * (0.5 + forca), 10 + math.floor(forca * 14))
+	pk("Small_Nova", p, 0.22, 0, 4.5 * e * forca, branco(c, 0.7), c)
+end
+
+--- A ONDA: o anel raso no chão do golpe pesado.
+---
+--- Serve para ler o ALCANCE do golpe de fora, que antes só dava para descobrir
+--- levando. O anel nasce na altura do pé, não no peito.
+function Efeitos.ONDA(d)
+	local p, e = pos(d), escala(d)
+	local raio = (d and d.raio) or 10
+	local c = cor(d, CFG.COR_IMPACTO)
+	camadaAnel(p - Vector3.new(0, 2.4, 0), c, raio * e, 0.34)
+	camadaPoeira(p - Vector3.new(0, 2.6, 0), CFG.COR_PEDRA, 0.7 * e, 14)
+	pk("Shockwave_Explosion", p - Vector3.new(0, 2.2, 0), 0.4,
+		1.5 * e, raio * e, c, branco(c, 0.6))
+end
+
+--- A FAÍSCA DE TACO: o risco de metal ao longo do arco da batida.
+---
+--- Diferente do `ARCO`, que é o desenho do movimento. Esta é a raspagem: sai
+--- do ponto de contato e acompanha o giro, curta e seca.
+function Efeitos.FAISCA_TACO(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_METAL)
+	for i = 1, 5 do
+		local a = i * 1.2566 + jitter(i) * 0.25
+		local onde = p + Vector3.new(math.cos(a), jitter(i + 3) * 0.4,
+			math.sin(a)) * (1.4 * e)
+		camadaFaiscas(onde, c, 0.5 * e, 5)
+	end
+	camadaFlash(p, branco(c, 0.4), 1.6 * e)
 end
 
 --═══════════════════════════════════════════════════════════════

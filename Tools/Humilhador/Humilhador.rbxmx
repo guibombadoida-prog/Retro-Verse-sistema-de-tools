@@ -1985,6 +1985,70 @@ function Efeitos.CEGUEIRA(d)
 	end
 end
 
+
+--═══════════════════════════════════════════════════════════════
+-- EFEITOS NOVOS — 2026-08-18
+--═══════════════════════════════════════════════════════════════
+
+--- O REBOTE: o rastro de saída da peça rebatida.
+---
+--- O `IMPACTO_METAL` já dava o clarão do contato, mas nada mostrava PARA ONDE
+--- a coisa foi. Sem isso o rebate lia como "a peça sumiu". Aqui sai um risco na
+--- direção da saída, com o comprimento proporcional à força — e como o teto do
+--- servidor limita a velocidade, o risco também tem tamanho máximo.
+function Efeitos.REBOTE(d)
+	local p, e = pos(d), escala(d)
+	local dir = (d and d.direcao) or Vector3.new(0, 0, -1)
+	local forca = math.clamp((d and d.forca) or 0.5, 0.1, 1)
+	local c = cor(d, CFG.COR_METAL)
+	local comprimento = 6 + 26 * forca
+
+	local risco = novaParte({
+		Size = Vector3.new(0.5 * e, 0.5 * e, comprimento),
+		Color = branco(c, 0.5),
+		Transparency = 0.1,
+		CFrame = CFrame.lookAt(p + dir * (comprimento * 0.5), p + dir * comprimento),
+	})
+	tween(risco, 0.2 + 0.14 * forca, {
+		Size = Vector3.new(0.03, 0.03, comprimento * 1.5),
+		Transparency = 1,
+	}, Enum.EasingStyle.Quint)
+	registrar(risco, 0.5)
+
+	camadaFaiscas(p, c, 0.9 * e * (0.5 + forca), 10 + math.floor(forca * 14))
+	pk("Small_Nova", p, 0.22, 0, 4.5 * e * forca, branco(c, 0.7), c)
+end
+
+--- A ONDA: o anel raso no chão do golpe pesado.
+---
+--- Serve para ler o ALCANCE do golpe de fora, que antes só dava para descobrir
+--- levando. O anel nasce na altura do pé, não no peito.
+function Efeitos.ONDA(d)
+	local p, e = pos(d), escala(d)
+	local raio = (d and d.raio) or 10
+	local c = cor(d, CFG.COR_IMPACTO)
+	camadaAnel(p - Vector3.new(0, 2.4, 0), c, raio * e, 0.34)
+	camadaPoeira(p - Vector3.new(0, 2.6, 0), CFG.COR_PEDRA, 0.7 * e, 14)
+	pk("Shockwave_Explosion", p - Vector3.new(0, 2.2, 0), 0.4,
+		1.5 * e, raio * e, c, branco(c, 0.6))
+end
+
+--- A FAÍSCA DE TACO: o risco de metal ao longo do arco da batida.
+---
+--- Diferente do `ARCO`, que é o desenho do movimento. Esta é a raspagem: sai
+--- do ponto de contato e acompanha o giro, curta e seca.
+function Efeitos.FAISCA_TACO(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_METAL)
+	for i = 1, 5 do
+		local a = i * 1.2566 + jitter(i) * 0.25
+		local onde = p + Vector3.new(math.cos(a), jitter(i + 3) * 0.4,
+			math.sin(a)) * (1.4 * e)
+		camadaFaiscas(onde, c, 0.5 * e, 5)
+	end
+	camadaFlash(p, branco(c, 0.4), 1.6 * e)
+end
+
 --═══════════════════════════════════════════════════════════════
 -- API
 --═══════════════════════════════════════════════════════════════

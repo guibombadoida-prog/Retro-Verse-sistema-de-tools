@@ -542,6 +542,7 @@ CONJUNTO["Taco de Baseball"] = dict(
 	JANELA_REBATE = 0.9,
 	RAIO_REBATE   = 12,
 	FORCA_REBATE  = 2.4,
+	TETO_REBATE   = 220,
 	MINIMO_REBATE = 8,
 	DANO_REBATE   = 26,
 	DANO_EXTRA    = 55,
@@ -619,7 +620,35 @@ end
 -- rebatido leva dano creditado a quem rebateu — não a quem atirou.
 --═══════════════════════════════════════════════════════════════
 
-local function rebaterPerto(direcao)
+--- O QUE CONTA COMO OBJETO REBATÍVEL.
+---
+--- ⚠️ ESTE É O CONSERTO DO EMPURRÃO INFINITO.
+---
+--- A versão anterior tirava do teste só o personagem do PORTADOR. Corpo de
+--- jogador é feito de `BasePart` SOLTA, e quem anda já vai a 16 studs/s — bem
+--- acima do mínimo de 8. Então cada golpe pegava quem estivesse perto e
+--- multiplicava a velocidade dele por 2.4.
+---
+--- E compunha três vezes: o `SEGURA` e o `GOLPE` da MESMA sequência chamam
+--- `rebaterPerto` (2.4 × 2.4 = 5.76 num aperto só), e o golpe seguinte pegava
+--- a velocidade já inflada e multiplicava de novo. Dois ou três swings e a
+--- pessoa saía do mapa.
+---
+--- Rebater é para OBJETO. Gente leva o taco, que é o outro caminho logo abaixo
+--- — com dano creditado e `BodyVelocity` de prazo curto, que acaba sozinho.
+local function rebativel(peca)
+	if not peca:IsA("BasePart") then return false end
+	if peca.Anchored then return false end
+
+	-- qualquer peça de personagem sai: rebater gente ERA o bug
+	local modelo = peca:FindFirstAncestorOfClass("Model")
+	if modelo and modelo:FindFirstChildOfClass("Humanoid") then return false end
+	if peca:FindFirstAncestorOfClass("Accessory") then return false end
+	if peca:FindFirstAncestorOfClass("Tool") then return false end
+	return true
+end
+
+local function rebaterPerto(direcao, jaBatidos)
 	local centro = raiz.Position
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
@@ -628,13 +657,20 @@ local function rebaterPerto(direcao)
 	local rebatidos = 0
 	for _, peca in ipairs(workspace:GetPartBoundsInRadius(centro,
 			CFG.RAIO_REBATE, filtro)) do
-		if peca:IsA("BasePart") and not peca.Anchored then
+		if rebativel(peca) and not (jaBatidos and jaBatidos[peca]) then
 			local v = peca.AssemblyLinearVelocity
 			if v.Magnitude >= CFG.MINIMO_REBATE then
-				-- volta na direção em que o portador olha, com a energia dele
-				-- somada: rebater não é só espelhar, é devolver com juros
-				peca.AssemblyLinearVelocity =
-					direcao.Unit * (v.Magnitude * CFG.FORCA_REBATE)
+				if jaBatidos then jaBatidos[peca] = true end
+
+				-- devolve com juros, mas COM TETO. Sem o teto, dois tacos
+				-- trocando a mesma peça multiplicavam sem fim.
+				local nova = math.min(v.Magnitude * CFG.FORCA_REBATE,
+					CFG.TETO_REBATE)
+				peca.AssemblyLinearVelocity = direcao.Unit * nova
+
+				vfx("REBOTE", { posicao = peca.Position,
+					direcao = direcao.Unit, forca = nova / CFG.TETO_REBATE,
+					escala = 1 })
 				vfx("IMPACTO_METAL", { posicao = peca.Position, escala = 1 })
 				tocarEm("Hit2", peca.Position, 1 + jitter(0.5) * 0.1)
 
@@ -656,6 +692,9 @@ end
 
 function extra(_mira)
 	ocupado = true
+	-- uma lista POR USO: a mesma peça não é rebatida no SEGURA e de novo no
+	-- GOLPE. Era 2.4 x 2.4 = 5.76 num aperto só.
+	local jaBatidos = {}
 	rig:PlaySequence("REBATER", despachar({
 		CARGA = { faz = function()
 			tocar("Equip", 1.1)
@@ -665,7 +704,7 @@ function extra(_mira)
 		SEGURA = { faz = function()
 			-- a janela: varre uma vez por quadro segurado, não por frame
 			local direcao = raiz.CFrame.LookVector
-			if rebaterPerto(direcao) > 0 then
+			if rebaterPerto(direcao, jaBatidos) > 0 then
 				tocar("Swoosh", 0.9)
 			end
 		end },
@@ -674,7 +713,10 @@ function extra(_mira)
 			tocarEm("Hit", ponto, 0.9)
 			vfx("ARCO", { cframe = raiz.CFrame * CFrame.new(0, 1, -2.4),
 				escala = 1.3 })
-			rebaterPerto(raiz.CFrame.LookVector)
+			vfx("FAISCA_TACO", { posicao = ponto, escala = 1.1 })
+			vfx("ONDA", { posicao = raiz.Position, raio = CFG.RAIO_EXTRA,
+				escala = 1 })
+			rebaterPerto(raiz.CFrame.LookVector, jaBatidos)
 			-- e quem estiver ao alcance leva o taco, rebatendo ou não
 			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_EXTRA, 6)) do
 				aplicarDano(alvo, CFG.DANO_REBATE)
