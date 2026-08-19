@@ -562,6 +562,21 @@ CONJUNTOS = [
     # Aqui o script da origem ATRAVESSA, e é o único conjunto assim: a entrega
     # é o script original com remendos contados, não uma reescrita. `Trem` e
     # `Danca Provocadora` saíram a pedido.
+    # 7 cajados. A origem tem OITO Tool com uma habilidade cada; `Curador` e
+    # `Roubador de Hp` são o mesmo feixe espelhado, então o Roubar virou Extra
+    # do Curador e 8 viraram 7 — o teto da REGRA_DISTRIBUICAO.
+    #
+    # QUATRO habilidades por Tool: a da origem mais três Extras (R, T, Y).
+    ("Maria_7_Tools.rbxmx", "Maria_Tools", [
+        "Cajado Curador",
+        "Cajado da Escuridao",
+        "Cajado da Ilusao",
+        "Cajado das Estrelas",
+        "Cajado de Gelo",
+        "Cajado do Meteoro",
+        "Cajado Relampago",
+    ]),
+
     # 7 Tools AUTORAIS de meme — o primeiro conjunto com TRÊS habilidades
     # por Tool (M1 + R + T). Sem modelo de origem: Handle, som, pose e
     # habilidade são escritos no repositório.

@@ -1,83 +1,95 @@
-# Modelo: Maria Tools — 8 cajados
+# Modelo: Maria Tools — 8 cajados, entregues como 7
 
 - Autor original:            **a confirmar** ⚠️
-- Origem:                    `mariatools.rbxmx`
+- Origem:                    `mariatools.rbxmx`, enviado em 2026-08-13
 - Licença / permissão:       **a confirmar** ⚠️
 - Data de entrada:           2026-08-13
-- Status:                    **CRU**
-- Onde vive:                 `MODELOS_ENTRADA/Maria_Tools/`
+- Conversão:                 2026-08-18
+- Status:                    **APROVADO** (licença §12.12.3 segue em aberto)
+- Onde vive:                 `Tools/Maria_7_Tools.rbxm`
 
 ---
 
-## O que é
+## 8 → 7: qual par se funde, e por que não foi escolha de gosto
 
-**Oito `Tool` prontas**, na raiz do arquivo. É o único modelo que já entrou aqui como
-conjunto de Tools em vez de um modelo para fatiar.
+A `REGRA_DISTRIBUICAO_DE_TOOLS` dá teto 7 e a origem tem 8 `Tool`. Lendo os dois
+`MainAttack`, a resposta é única:
 
-| Tool | Instâncias | VFX próprio |
-|---|---|---|
-| `Cajado Curador` | 32 | — |
-| `Cajado Da Escuridão` | 41 | `ParticleEmitter` *Shadows* · `Trail` · `SpecialMesh` *Orb* |
-| `Cajado Da Ilusão` | 83 | — (mas leva um `Animate` completo, 505 linhas) |
-| `Cajado Das Estrelas` | 34 | `ParticleEmitter` *Particle* · `SpecialMesh` |
-| `Cajado De Gelo` | 41 | — |
-| `Cajado Do Meteoro` | 31 | `ParticleEmitter` *Particle* |
-| `Cajado Relâmpago` | 33 | `SpecialMesh` |
-| `Cajado Roubador de Hp` | 32 | — |
-
-Estrutura repetida em todas: `Handle`, `LocalScript`, `Script`, `Sound` `Atk`,
-`Folder` `ExtraTHICK`, `RemoteEvent` `GetMouse`, `Folder` `Animation`, `Folder` `Scripts`.
-
-**Uma habilidade cada, no clique.** O scan não achou um único `KeyCode` nas oito.
-
-## Isto é remaster, não Tool nova
-
-Pela `DIRETRIZES/REGRA_REMASTER_VS_NOVA.md`, o teste é: *"existe um `.rbxmx` de origem que
-alguém mandou converter?"* Existe, e ele já vem em formato `Tool`. Então **a estrutura é
-lei**: cajado é cajado, o tema de cada um se mantém, e o que muda é a habilidade — melhorada.
-
-## O choque com a regra de distribuição
-
-São **oito temas** e o teto é **sete Tools**. Pela regra, saem 7 Tools e o oitavo tema vira
-habilidade **Extra** na Tool de tema mais próximo. Os dois pares que mais se aproximam:
-
-- `Cajado Curador` + `Cajado Roubador de Hp` — os dois mexem em vida, um dando e outro tirando
-- `Cajado Das Estrelas` + `Cajado Do Meteoro` — os dois chamam coisa do céu
-
-Qual dos dois pares se funde é escolha de quem manda converter.
-
-## O que precisa ser jogado fora
-
-| Achado | Quantos | Por quê |
-|---|---|---|
-| `LoadAnimation` | 18 | proibido — tabela de poses CFrame sob `R6CFrameAnimator` |
-| `Animation` (instância) | 40 | idem |
-| `wait()` | 71 | proibido — `task.wait` |
-| `:Destroy()` | 33 | proibido — `Parent = nil` / `Debris` |
-| `math.random` | 21 | proibido em gameplay |
-| `Instance.new("Explosion")` | 1 | proibido — `_G.Combate.detectarHumanoides` |
-| `tick()` | 1 | proibido |
-
-### As 40 `Animation` não valem nada
-
-É o achado que decide o trabalho. Os oito cajados compartilham **os mesmos três ids**:
-
-| Papel | id |
+| | |
 |---|---|
-| `Main` | `846744780` |
-| `Main` (segunda) | `218504594` |
-| `Idle` | `5333675877` |
+| `Cajado Curador` | feixe no alvo, `Health + 2` **dez vezes** = cura 20 |
+| `Cajado Roubador de Hp` | feixe no alvo, `TakeDamage(faltante/10)` **dez vezes**, e a mesma quantia entra na sua vida |
 
-Ou seja: **a animação não é do cajado, é genérica.** O `Cajado De Gelo` e o
-`Cajado Relâmpago` fazem o mesmo gesto. Não há silhueta própria para preservar — e como
-`Animation` é proibida de qualquer jeito, as oito precisam de **pose R6 autoral escrita do
-zero**, pela gramática de `_AUTORAL_RetroVerse/R6_CFRAME/GRAMATICA_R6.md`.
+Mesmo feixe, mesma cadência de dez tiques, mesma `Attachment` no
+`HumanoidRootPart` do alvo. Um dá, o outro tira — são a mesma Tool espelhada.
+O Roubar virou a Extra `R` do Curador.
 
-Pela regra 6 da gramática, conjuração sai do **braço** (`RightArm`), não do tronco — os oito
-são conjuração.
+O detalhe bonito do Roubador foi mantido: ele drena **exatamente a sua vida
+faltante**. Cheio de vida, não rouba nada. É a única mecânica do repositório
+onde o dano depende do estado de quem ataca.
 
-O `Cajado Da Ilusão` carrega ainda um `Animate` de 505 linhas com as 8 animações padrão de
-locomoção do Roblox (`WalkAnim`, `RunAnim`, `JumpAnim`, `FallAnim`, `ClimbAnim`…). Isso é
-sistema de personagem, **não entra em Tool**.
+---
 
-## Passe de conformidade §12.12.2 — NÃO EXECUTADO
+## As 28 habilidades
+
+| Cajado | M1 (da origem) | R | T | Y |
+|---|---|---|---|---|
+| **Curador** | cura 20 em dez tiques | Roubar | Bênção (área) | Ressurgir (cura 45 + ForceField 6 s) |
+| **da Escuridão** | orbe teleguiado, 26 | Enxame (3 orbes) | Cegueira | Manto (aura que segue) |
+| **da Ilusão** | isca por 10 s | Trocar com a isca | Multiplicar (3) | Dispersar (estouram) |
+| **das Estrelas** | estrela, dano 10 | Chuva (6) | Constelação (marca ×1.5) | Estrela-guia (persegue) |
+| **de Gelo** | congela 3.5 s | Prisão (área) | Trilha (chão, 6 s) | Estilhaçar (**×2.2 em congelado**) |
+| **do Meteoro** | meteoro, dano 50 | Chuva (5) | Cratera (6 s) | Impacto (puxa e estoura) |
+| **Relâmpago** | 4 raios + estouro raio 10 | Tempestade (6 s) | Corrente (5 saltos) | Para-raios (marca ×1.6) |
+
+Os números da origem foram mantidos onde faziam sentido: a cura de 20, o dano
+10 da estrela, o 50 do meteoro, os 4 raios e o raio 10 do relâmpago.
+
+Três pares se encaixam de propósito: **congelar → estilhaçar**, **marcar →
+estrela**, **para-raios → raios**. Quem joga na ordem certa rende mais.
+
+---
+
+## Cinco proibições da origem, resolvidas
+
+| Da origem | Vira | Por quê |
+|---|---|---|
+| `Health = Health + x` | `math.min(MaxHealth, ...)` | a origem estourava o teto e o valor vazava para quem lesse no meio |
+| `HumanoidRootPart.Anchored = true` | `prender()` | com `Anchored`, a Tool sumindo no meio deixava o jogador preso **para sempre** |
+| `Instance.new("Explosion")` | `golpearArea` | quem detecta alvo é o Núcleo |
+| `math.random` em gameplay | `naFaixa` / ângulo áureo | sorteio faria cada cliente ver outra cena |
+| `LoadAnimation` + `Animation` | `R6CFrameAnimator` | proibidos em Tool; e não havia `KeyframeSequence` para converter — o conteúdo mora atrás do id, no servidor da Roblox |
+
+E a isca da `Ilusão`: a origem **clonava o personagem**, com `Animate` de 505
+linhas, `Wander` e `ControlFollow` — um `Humanoid` a mais no servidor por uso.
+Virou geometria do cliente com prazo. NPC segue fora de escopo; invocar com
+prazo, não.
+
+---
+
+## `aliadosEm` — o primeiro do repositório, e como ele não quebra o invariante
+
+O Curador é a primeira Tool que precisa saber em quem **não** bater. O
+`CLAUDE.md` é explícito: `IsTeamMate` só existe dentro do `NucleoCombate.lua`.
+
+Então a pergunta é feita ao Núcleo (`detectarAliados`), e o **fallback não
+inventa regra de time: ele deriva**. Quem está no raio e não está na lista de
+inimigos que o próprio `alvosEm` devolveu é aliado, mais o portador. Sem Núcleo
+e sem time configurado, a cura vira auto-cura — que é o certo para uma Tool
+sozinha num place vazio.
+
+## A armadilha que o verificador pegou
+
+`preparar_maria.py` copiava a Tool e **não levava a tabela `<SharedStrings>`**.
+`MeshPart.AeroMeshData` é uma citação de md5 e o bloco que a resolve é irmão dos
+`Item` — não viaja junto. Os sete `_ORIGEM.rbxmx` saíram com citação pendurada, e
+o Studio chamaria os arquivos de corrompidos. Mesmo defeito do
+`restaurar_reality_original.py`, e o verificador de estrutura pegou os dois.
+
+## Delta do Acervo
+
+Entrou: 24 efeitos autorais em `VFXModule_Maria.lua`, 28 sequências de pose R6,
+e os helpers `aliadosEm` / `maisPertoAliado`. Reusado: o andaime de VFX do Jodro
+(que veio do Guest), o `R6CFrameAnimator` canônico e o pack Stella. Da origem
+atravessaram Handle, `ExtraTHICK`, o `Sound` `Atk` e os moldes `Beam`, `Orb`,
+`Shadows`, `Trail`, `Mesh` e `Particle` — geometria e som, nunca código.
