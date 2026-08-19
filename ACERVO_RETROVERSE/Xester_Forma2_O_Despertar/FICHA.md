@@ -221,3 +221,31 @@ atingido, e deixar a hitbox no cliente seria deixá-la com quem pode mentir.
 ### O que continua verdadeiro
 
 Nada rodou no Studio. A verificação é toda estática.
+
+---
+
+## Correção do empacotamento, 2026-08-19 — 6 Tools nesta forma
+
+A seção acima dizia que esta forma tinha virado "metade de uma Tool". Estava
+errado quanto ao empacotamento: são **6 Tools**, uma por habilidade, num
+arquivo próprio — `Tools/Xester_Forma2_6_Tools.rbxm`.
+
+| Tool | Habilidade | Entrada |
+|---|---|---|
+| `Xester Wyrm Sparks` | `G` três cabeças de fogo que perseguem e marcam | clique |
+| `Xester Crown of Cinders` | `H` sol de Coringa | clique ergue, clique de novo estilhaça |
+| `Xester Dragons Requiem` | `J` sopro curvado | **segurar** carrega, soltar dispara |
+| `Xester Prism` | `K` três máscaras com feixes cruzados | clique; a mira segue o mouse |
+| `Xester Final Page` | `L` a ultimate | clique para o tempo, três cliques marcam |
+| `Xester Curtain Reversal` | `F` a volta ao baralho | clique |
+
+De 3 a 7 habilidades a regra manda uma Tool por habilidade — nenhum
+agrupamento, nenhuma Extra. `Curtain Reversal` divide a `ChaveRecarga`
+`Xester_TrocaDeForma` com o `Eclipse Deck` da Forma 1: a virada é uma só, e
+trocar de Tool na mochila não pode burlar a espera dela.
+
+O porquê de `F` não precisar alcançar a outra Tool, o Cajado que viaja no
+Character e os números verificados estão em
+`ACERVO_RETROVERSE/Xester_Forma1/FICHA.md`.
+
+Nada rodou no Studio. A verificação é toda estática.

@@ -534,12 +534,30 @@ CONJUNTOS = [
         "Diamond",
         "A arma",
     ]),
-    # O Xester era DOIS arquivos de 7 Tools. Agora é UMA Tool com duas formas:
-    # `F` troca entre elas, e com duas Tools uma teria de alcançar a outra —
-    # o que a Regra nº 1 proíbe, e ela vence a de distribuição na ordem de
-    # precedência. As 14 saíram do repositório; a lista acompanha.
-    ("Xester.rbxmx", "Xester_Forma1", [
-        "Xester",
+    # O Xester sai em DOIS arquivos, um por forma, pela regra de distribuição:
+    # a Forma 1 tem OITO habilidades e vira 7 Tools (o `F` entra como Extra no
+    # `Eclipse Deck`, que é o outro clímax dela); a Forma 2 tem SEIS e vira 6,
+    # uma por habilidade.
+    #
+    # `F` troca de forma sem nenhuma Tool alcançar a outra: ela escreve o
+    # Attribute `XesterForma` no Character, que é estado — mesma categoria do
+    # `_G.Combate` —, não caminho de instância.
+    ("Xester_Forma1_7_Tools.rbxmx", "Xester_Forma1", [
+        "Xester Curtain Call",
+        "Xester Four Suits Arsenal",
+        "Xester Jokers Labyrinth",
+        "Xester Ace Gate",
+        "Xester House Collapse",
+        "Xester Eclipse Deck",
+        "Xester Royal Guard",
+    ]),
+    ("Xester_Forma2_6_Tools.rbxmx", "Xester_Forma2", [
+        "Xester Wyrm Sparks",
+        "Xester Crown of Cinders",
+        "Xester Dragons Requiem",
+        "Xester Prism",
+        "Xester Final Page",
+        "Xester Curtain Reversal",
     ]),
     # 5 Tools de DUAS fontes: quatro do `reality_tools.rbxmx` (que está em
     # QUARENTENA por causa do backdoor, que mora na `Pistol` — nenhuma destas

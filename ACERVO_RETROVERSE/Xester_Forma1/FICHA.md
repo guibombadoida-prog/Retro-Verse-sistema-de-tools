@@ -307,3 +307,81 @@ transparência **anterior** de cada peça e devolve aquela.
 
 Nada rodou no Studio. A verificação é toda estática — que os beats casam está
 provado pelo arquivo; que a cutscene **fica bonita** só o jogo diz.
+
+---
+
+## Correção do empacotamento, 2026-08-19 — 7 Tools + 6 Tools, dois arquivos
+
+A seção acima descreve o kit certo e um **empacotamento errado**. Ela entregou
+**uma Tool só** com as duas formas dentro; o pedido era 7 Tools na Forma 1 e 6
+na Forma 2, em dois arquivos com as Tools dentro. Esta seção substitui aquela
+no que toca a empacotamento — o kit, as cutscenes e a nota sobre o título
+continuam valendo.
+
+### A distribuição, pela regra
+
+| Forma | Habilidades | Tools | O que fez o excedente |
+|---|---|---|---|
+| 1 — Mestre do Baralho | 8 (`Q E R T Y U P F`) | **7** | `F The Final Deal` virou **Extra** em `Xester Eclipse Deck` |
+| 2 — Heavenbreaker | 6 (`G H J K L F`) | **6** | nenhum — uma Tool por habilidade |
+
+É a `REGRA_DISTRIBUICAO_DE_TOOLS` ao pé da letra: 8 ou mais → 7 Tools com o
+excedente como Extra na Tool de tema mais próximo; de 3 a 7 → uma por
+habilidade. O agrupamento fica declarado, como a regra exige: `The Final Deal`
+foi para o `Eclipse Deck` porque os dois são o **clímax** da Forma 1.
+
+### Como `F` troca de forma sem alcançar outra Tool
+
+Era este o argumento que me levou a empacotar tudo numa Tool só, e ele estava
+mal resolvido, não certo.
+
+`F` **não procura** a Tool da outra forma. Ela escreve um **Attribute no
+Character**: `XesterForma = 2`. Quem lê, lê sob guarda e com padrão.
+
+Isso é a mesma categoria do `_G.Combate` que a Regra nº 1 já admite: **estado
+opcional compartilhado**, não caminho de instância, não depósito de asset. O
+teste que decide continua passando — arraste **qualquer uma das 13** sozinha
+para um place vazio e ela funciona por inteiro: o atributo não existe, a Tool o
+cria com o padrão dela, e a habilidade sai igual.
+
+A passiva atravessa as sete pelo mesmo caminho (`XesterUsos`,
+`XesterCoringa`). Numa Tool sozinha o contador conta só os usos dela, e a Carta
+Coringa nasce do mesmo jeito: o comportamento **degrada, não quebra**.
+
+### O que carrega a forma entre as Tools
+
+O **Cajado** é clonado para o **Character**, não para a Tool. É por isso que
+ele sobrevive à troca de Tool na mochila — vira dragão com o `Eclipse Deck`,
+saca o `Wyrm Sparks` e continua de cajado —, e é por isso que ele não precisa
+de limpeza: morre com o respawn, junto do personagem. O `Weld` é criado no
+**servidor**; no cliente não replicaria, e os outros veriam o Xester de mãos
+vazias.
+
+### As três entradas, e nenhum botão fazendo o papel da primária
+
+| Canal | Quem usa | Para quê |
+|---|---|---|
+| `Tool.Activated` | as 13 | a primária. §9: nunca em botão |
+| segundo clique | 5 delas | a metade de trás da mesma habilidade — o portão do Ás, o desabamento, o naipe, o Rei, o estilhaço. **Não paga recarga nova** |
+| `Tool.Deactivated` | `Dragons Requiem` | o lado de SOLTAR do sopro carregado |
+| `AcaoRemote` + botão | `Eclipse Deck`, `Royal Guard` | a Extra de verdade, com botão de celular |
+
+A mira móvel do `Prism` viaja pelo `VFXRemote` com a fase `MIRA` — não é
+habilidade, não paga recarga, e o servidor só a aceita com o prisma de pé.
+
+### O molde entrou magro
+
+A versão de uma Tool só carregava as subárvores `cards`, `staff`, `energb` e
+`Effects` inteiras: 76 instâncias e 430 KB. O `VFXModule` procura molde **por
+nome**, e os nomes que ele procura são treze — `Carta1..4`, os quatro `As*`,
+`Mascara`, `Anel`, `Onda`, `Tempestade`, `Orbe` — mais o `Cajado`. É isso que
+viaja agora. Cada Tool ficou em ~318 KB com o pack Stella dentro.
+
+### Verificado
+
+13 Tools ✓ no `verificar_rbxmx`, os dois conjuntos ✓, poses ✓, estrutura ✓,
+pack ✓, chamadas de VFX ✓, beats ✓ (88 Tools, zero erro). Cruzado por Tool:
+todo `Sound` depositado é citado, todo VFX transmitido tem definição, toda
+sequência tocada existe. Zero global acidental nos 13 Servers.
+
+Nada rodou no Studio. A verificação é toda estática.
