@@ -1,32 +1,22 @@
 -- Client.lua
 -- Script com RunContext = Client — Terremoto  (conjunto GRAVIDADE)
 --
--- POR QUE NÃO É LocalScript
+-- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+-- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
+-- mundo — mas o único ouvinte seria o de quem está segurando. `RunContext =
+-- Client` roda em TODO cliente, e nada saiu de dentro da Tool.
 --
---   LocalScript dentro de uma Tool só roda para o jogador cujo Character a
---   contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
---   mundo — mas o único ouvinte que existe é o de quem está segurando.
+-- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
+-- cliente não replica e os outros jogadores viam o portador parado.
 --
---   `Script` com `RunContext = Client` roda em TODO cliente, onde quer que
---   esteja na árvore, inclusive dentro da Tool de outro jogador. Nada saiu de
---   dentro da Tool, então a Regra nº 1 continua de pé.
+-- DOIS BOTÕES DE CELULAR, EM ALTURAS DIFERENTES
 --
---   A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
---   cliente não replica e os outros jogadores viam o portador parado.
+--   `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)` — o
+--   terceiro argumento faz o Roblox desenhar o botão sozinho. São duas Extras,
+--   então são dois `BindAction`, e as posições são separadas de propósito: com
+--   a mesma altura os dois botões empilham e o de baixo fica inalcançável.
 --
--- MOBILE
---
---   `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...teclas)`.
---   O terceiro argumento é o que resolve o celular: o Roblox desenha o botão
---   sozinho, no tamanho e na área de acerto que o jogador espera.
---
---   O modelo de origem resolvia isso com **cinco `ScreenGui`** dentro das
---   Tools, e o `Gravitron 1000` ainda clonava a dele para o `PlayerGui` de
---   todo mundo. `ScreenGui` dentro de Tool é proibida, e `PlayerGui` alheio é
---   depósito fora da Tool. `ContextActionService` é serviço de comportamento:
---   não traz asset de fora e some sozinho no `Unbind`.
---
--- Gerado por FERRAMENTAS/gerar_servers_gravidade.py.
+-- Gerado por FERRAMENTAS/gerar_servers_gravidade_v2.py.
 
 local Players = game:GetService("Players")
 local ContextActionService = game:GetService("ContextActionService")
@@ -38,27 +28,29 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local VFX        = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Gravidade_GravTerremoto_R"
+local ACAO_R = "Gravidade_GravTerremoto_R"
+local ACAO_T = "Gravidade_GravTerremoto_T"
+local ACAO_Y = "Gravidade_GravTerremoto_Y"
 local ALCANCE_MIRA = 70
 
 local equipado = false
 local rato = nil
 
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 -- DESENHO — este trecho roda em TODOS os clientes
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 
 VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-	if tipo == "PARAR" then
+	if tipo == "APAGAR" then
 		VFX.Parar(dados and dados.id)
 		return
 	end
 	VFX.Executar(tipo, dados or {})
 end)
 
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 -- MIRA E ENTRADA — só o dono
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 
 local function souODono()
 	local pai = Tool.Parent
@@ -82,25 +74,44 @@ local function mira()
 end
 
 local function ligarEntrada()
-	ContextActionService:BindAction(ACAO, function(_nome, estado)
+	ContextActionService:BindAction(ACAO_R, function(_nome, estado)
 		if estado ~= Enum.UserInputState.Begin then return end
 		if not equipado then return end
 		AcaoRemote:FireServer("R", mira())
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
+	ContextActionService:SetTitle(ACAO_R, "Colapso")
+	ContextActionService:SetPosition(ACAO_R, UDim2.new(1, -150, 1, -190))
 
-	ContextActionService:SetTitle(ACAO, "Colapso")
-	-- Em escala, não em pixel: celular pequeno e tablet dividem a mesma conta.
-	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
+	ContextActionService:BindAction(ACAO_T, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("T", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.T, Enum.KeyCode.ButtonL1)
+	ContextActionService:SetTitle(ACAO_T, "Estaca")
+	-- 70 px acima do R: com a mesma altura eles empilham e o de baixo some
+	ContextActionService:SetPosition(ACAO_T, UDim2.new(1, -150, 1, -260))
+
+	ContextActionService:BindAction(ACAO_Y, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("Y", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.Y, Enum.KeyCode.ButtonL2)
+	ContextActionService:SetTitle(ACAO_Y, "Ruina")
+	ContextActionService:SetPosition(ACAO_Y, UDim2.new(1, -150, 1, -330))
 end
 
 local function desligarEntrada()
-	ContextActionService:UnbindAction(ACAO)
+	ContextActionService:UnbindAction(ACAO_R)
+	ContextActionService:UnbindAction(ACAO_T)
+	ContextActionService:UnbindAction(ACAO_Y)
 end
 
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 -- CICLO
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
 
 Tool.Activated:Connect(function()
 	if not souODono() then return end

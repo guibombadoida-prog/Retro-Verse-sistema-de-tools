@@ -14,6 +14,8 @@
 --
 --   BATIDA         conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
 --   MERGULHO       conjuração pesada  1.20s · 6 passo(s), 2 segurado(s)
+--   PLANAR         sustentada         1.60s · 5 passo(s), 2 segurado(s)
+--   VENDAVAL       conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -52,6 +54,15 @@ P.BATE_CHAO = {
 	LeftLeg = CFrame.new(-0.5, -1.94, 0.16) * CFrame.Angles(math.rad(9), math.rad(0), 0),
 }
 
+P.FLUTUA = {
+	RightArm = CFrame.new(1.52, 0.18, 0.22) * CFrame.Angles(math.rad(-12), math.rad(-8), math.rad(-22)),
+	LeftArm = CFrame.new(-1.52, 0.18, 0.22) * CFrame.Angles(math.rad(-12), math.rad(8), math.rad(22)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-14), math.rad(0), 0),
+	HRP = CFrame.new(0, 0.2, 0) * CFrame.Angles(math.rad(-6), math.rad(0), 0),
+	RightLeg = CFrame.new(0.5, -1.82, 0.22) * CFrame.Angles(math.rad(14), math.rad(0), 0),
+	LeftLeg = CFrame.new(-0.5, -1.86, 0.1) * CFrame.Angles(math.rad(8), math.rad(0), 0),
+}
+
 P.IDLE = {
 	RightArm = CFrame.new(1.46, 0.08, -0.36) * CFrame.Angles(math.rad(32), math.rad(6), math.rad(4)),
 	LeftArm = CFrame.new(-1.48, 0.02, -0.16) * CFrame.Angles(math.rad(14), math.rad(-4), math.rad(-5)),
@@ -87,6 +98,24 @@ P.SEQUENCIAS = {
 		{ pose = "BATE_CHAO", time = 0.12, style = "Quint", dir = "Out", marca = "IMPACTO" },
 		{ pose = "BATE_CHAO", time = 0.16, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 0.22, style = "Quad", dir = "Out" },
+	},
+
+	-- sustentada · 1.60s · 5 passo(s), 2 segurado(s)
+	PLANAR = {
+		{ pose = "ASA_ABRE", time = 0.26, style = "Back", dir = "Out", marca = "ABRE" },
+		{ pose = "ASA_ABRE", time = 0.38, style = "Sine", dir = "InOut", tremor = 0.02, freq = 15, marca = "PLANA" },
+		{ pose = "FLUTUA", time = 0.36, style = "Sine", dir = "InOut", tremor = 0.02, freq = 19 },
+		{ pose = "FLUTUA", time = 0.3, style = "Quad", dir = "Out" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração pesada · 1.20s · 5 passo(s), 2 segurado(s)
+	VENDAVAL = {
+		{ pose = "ASA_ABRE", time = 0.24, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "ASA_ABRE", time = 0.5, style = "Sine", dir = "InOut", tremor = 0.04, freq = 22, marca = "SEGURA" },
+		{ pose = "ASA_BATE", time = 0.12, style = "Quint", dir = "Out", marca = "SOPRA" },
+		{ pose = "ASA_BATE", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

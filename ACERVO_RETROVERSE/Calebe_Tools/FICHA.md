@@ -167,3 +167,70 @@ continua permitido — as Tools de gravidade fazem isso para calcular impulso.
 
 Falta a **licença** e o teste em jogo. Nada aqui rodou no Studio — a verificação
 é toda estática.
+
+---
+
+## Refazimento de 2026-08-19 — de 14 habilidades para 28
+
+As sete saíram com **M1 mais uma Extra**. Agora são **M1 mais três** — `R`,
+`T` e `Y` —, no mesmo padrão da Maria e do Jodro. 7 Tools × 4 = **28
+habilidades**.
+
+### A M1 e a Extra antiga entraram intactas
+
+O corpo das catorze habilidades que já existiam é o mesmo, **byte a byte**; só
+o nome de `extra` virou `extraR`, porque agora são três. Reescrever habilidade
+que já estava conformada e verificada é convite a introduzir um erro num lugar
+que não tinha nenhum.
+
+| Tool | M1 (a de sempre) | `R` (a de sempre) | `T` (nova) | `Y` (nova) |
+|---|---|---|---|---|
+| Tremores da Gravidade | onda que corre pelo chão | Sustentar | **Falha** — linha de fendas que afrouxa | **Réplica** — três anéis, do menor ao maior |
+| Controlador da Gravidade | campo invertido no ponto | Esmagar | **Campo Leve** — gravidade baixa por área | **Pulso Radial** — empurra tudo para fora |
+| Telecinese Levitacao | ergue o alvo | Levitar | **Corrente** — prende no ar quem já subiu | **Queda** — derruba tudo com impacto |
+| Lancador de Objetos | agarra destroço e arremessa | Rajada | **Prender** — a garra fecha no ALVO | **Despejo** — sete destroços em leque |
+| Asas Telecineticas | bate as asas e sobe | Mergulho | **Planar** — queda lenta e passo rápido | **Vendaval** — corredor que empurra |
+| Terremoto | rachadura à frente | Colapso | **Estaca** — pilares em linha | **Ruína** — a maior área do conjunto |
+| Telecinese Gravitacional | puxa todos ao ponto | Singularidade | **Órbita** — os alvos giram no anel | **Expulsar** — o contrário do puxão |
+
+### Dois defeitos que o refazimento pegou
+
+**1. `vfx("PARAR")` nunca fez nada.** Quatro habilidades — o colapso do
+`Terremoto`, o campo do `Controlador`, a levitação e o puxão — mandavam
+`vfx("PARAR", { id = … })` para cancelar o efeito antes da hora. O `Client` só
+entende `"APAGAR"`, e `VFX.Executar` devolve `false` calado quando o tipo não
+existe. **O cancelamento nunca acontecia**: o efeito só morria pelo próprio
+prazo do `Debris`. Trocado nas quatro.
+
+**2. Nove `Sound` depositados e mudos.** `EquipSound` (Levitacao e Asas),
+`Press` (Controlador), e seis do `Lancador` — `ClawsOpen`, `Drop`, `DryFire`,
+`Launch4`, `Pickup`, `sfx`. Eram som da origem viajando dentro da Tool sem
+ninguém tocá-los; o `verificar_rbxmx` avisava em quatro Tools. As Extras novas
+lhes deram papel, e `equip`/`unequip` foram para `Tool.Equipped`/`Unequipped`,
+que é o que a origem lhes dava. **Os 35 sons das sete estão citados.**
+
+### A regra do conjunto continua valendo nas 28
+
+**Ninguém toca em `workspace.Gravity`.** Os dois lugares onde a tentação
+voltaria são justamente novos — o `Campo Leve` do `Controlador` e o `Planar`
+das `Asas`, que são "gravidade baixa" — e nenhum dos dois encosta na
+propriedade global. Os dois são empurrão fraco e repetido, **por alvo**, com
+prazo no `Debris`. `verificar_autocontencao.sh` cobra isso por nome e continua
+passando.
+
+O `Prender` do `Lancador` é a única do conjunto que segura uma **pessoa** no ar
+por conta própria, e usa `suspender` — `BodyPosition` com prazo. Nunca
+`Anchored`: com ele, a Tool sumindo no meio deixaria o jogador preso para
+sempre.
+
+### Verificado
+
+7 Tools ✓ · o conjunto ✓ · poses ✓ (28 sequências) · estrutura ✓ · pack ✓ ·
+chamadas de VFX ✓ · beats ✓ (87 Tools, zero erro). Cruzado por Tool: os 35
+`Sound` citados, todo VFX transmitido com definição, toda sequência tocada
+existente. Zero `math.random`, zero `wait`, zero `:Destroy()` de peça.
+
+Os avisos de asset mudo do repositório caíram de **20 Tools para 16** — as
+quatro que saíram são destas sete.
+
+Nada rodou no Studio. A verificação é toda estática.

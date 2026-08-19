@@ -14,6 +14,8 @@
 --
 --   RACHADURA      conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --   COLAPSO        ultimate           7.20s · 9 passo(s), 4 segurado(s)
+--   ESTACA         conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
+--   RUINA          conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -77,6 +79,24 @@ P.SEQUENCIAS = {
 		{ pose = "BATE_CHAO", time = 0.2, style = "Quint", dir = "Out", marca = "COLAPSO" },
 		{ pose = "BATE_CHAO", time = 0.9, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 1.0, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração rápida · 0.90s · 5 passo(s), 2 segurado(s)
+	ESTACA = {
+		{ pose = "ERGUE", time = 0.2, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "ERGUE", time = 0.24, style = "Sine", dir = "InOut", tremor = 0.03, freq = 23 },
+		{ pose = "BATE_CHAO", time = 0.12, style = "Quint", dir = "Out", marca = "CRAVA" },
+		{ pose = "BATE_CHAO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração pesada · 1.20s · 5 passo(s), 2 segurado(s)
+	RUINA = {
+		{ pose = "ERGUE", time = 0.24, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "ERGUE", time = 0.5, style = "Sine", dir = "InOut", tremor = 0.06, freq = 28, marca = "SEGURA" },
+		{ pose = "BATE_CHAO", time = 0.12, style = "Quint", dir = "Out", marca = "DESABA" },
+		{ pose = "BATE_CHAO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

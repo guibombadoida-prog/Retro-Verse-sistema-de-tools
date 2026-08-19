@@ -262,7 +262,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `GRAMATICA_R6.md` | **medida no Saitama** | as 7 regras de timing | **APROVADO** | Escudos, Bombas |
 | poses do `Cano De Rua` e do `Taco` | **Guest_Tools** | 78 escritas em `Weld.C0` | **CRU** — medidas, não copiadas | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 39 poses · 17 sequências | **LIMPO** | as 7 Tools do conjunto GUEST |
-| `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · 14 sequências | **LIMPO** | as 7 Tools do conjunto GRAVIDADE |
+| `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · **28 sequências** | **LIMPO** | as 7 Tools do conjunto GRAVIDADE |
 | poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
 | poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** — medida, não copiada | a gramática |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
@@ -382,7 +382,7 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `NPC_For_Tools/` | **CRU** — **fora do escopo**: é bancada de teste, não vira Tool | [FICHA.md](NPC_For_Tools/FICHA.md) |
 | `Guest_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GUEST | [FICHA.md](Guest_Tools/FICHA.md) |
 | `Dano_Verdadeiro/` | **CRU** — ⚠️ o payload apaga o servidor; a carga e os `SoundEffect` valem | [FICHA.md](Dano_Verdadeiro/FICHA.md) |
-| `Calebe_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GRAVIDADE | [FICHA.md](Calebe_Tools/FICHA.md) |
+| `Calebe_Tools/` | **LIMPO** — base das **7 Tools** do conjunto GRAVIDADE, 28 habilidades desde 2026-08-19 | [FICHA.md](Calebe_Tools/FICHA.md) |
 | `Drama/` | **LIMPO** — base das **7 Tools** do conjunto DRAMA, duas com cutscene | [FICHA.md](Drama/FICHA.md) |
 | `Faker_Tools/` | **LIMPO** — base das **7 Tools** do conjunto FAKER, duas com cutscene | [FICHA.md](Faker_Tools/FICHA.md) |
 | **lote de 2026-08-14** | | |

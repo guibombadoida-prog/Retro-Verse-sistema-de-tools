@@ -1,19 +1,34 @@
 -- TelecineseLevitacao_Server_V1.lua
 -- Script de servidor — Telecinese Levitacao  (conjunto GRAVIDADE)
 --
--- Sai das 5 Tools do `calebe_tools.rbxmx`: o **Handle é da origem**, a
--- habilidade é escrita aqui. Duas do conjunto clonam o Handle de uma irmã —
--- ver `FERRAMENTAS/preparar_gravidade.py`.
+-- Sai do `reality_tools.rbxmx`, que NÃO é uma Tool: é um Script de 2650
+-- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
+-- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   ergue o alvo mirado e o deixa indefeso
---   R    Levitar   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   ergue o alvo mirado e o deixa indefeso   (a habilidade que a origem ja tinha)
+--   R    Levitar   (Extra 1)
+--   T    Corrente   (Extra 2)
+--   Y    Queda   (Extra 3)
 --
--- ⚠️ ESTA TOOL NÃO ESCREVE `workspace.Gravity`, E NENHUMA DAS SETE ESCREVE.
---    Gravidade é propriedade global do servidor; o original a trocava e não
---    devolvia. Aqui o efeito é sempre por ALVO, com prazo no `Debris`.
+-- TRÊS HABILIDADES, E UM `AcaoRemote` SÓ
 --
--- Gerado por FERRAMENTAS/gerar_servers_gravidade.py. Editar aqui à mão faz as
--- sete derivarem; edite o gerador.
+--   Os conjuntos anteriores tinham M1 mais uma Extra. Estas têm DUAS, e a
+--   tentação seria dois `RemoteEvent`. Não: quem separa é o NOME DA TECLA no
+--   payload, conferido aqui antes de qualquer coisa. Dois remotes seriam duas
+--   portas para o mesmo cômodo, e duas superfícies para validar.
+--
+-- CONJUNTO SEM MODELO DE ORIGEM
+--
+--   Ninguém mandou um modelo de meme: Handle, som e pose são autorais. O
+--   `SoundId` de cada um já toca em outra Tool entregue deste repositório —
+--   nenhum id foi inventado, porque id chutado é som mudo que nenhum
+--   verificador pega.
+--
+-- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
+-- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_gravidade_v2.py. Editar aqui à mão faz as sete
+-- derivarem; edite o gerador.
 
 local Players = game:GetService("Players")
 local Debris  = game:GetService("Debris")
@@ -40,9 +55,22 @@ local CFG = {
 	DANO_QUEDA    = 22,
 	RECARGA       = 8,
 
-	RECARGA_EXTRA = 10,
+	RECARGA_R     = 10,
 	ALTURA_PROPRIA = 26,
 	DURACAO_PROPRIA = 4,
+	RECARGA_T      = 15,
+	ALCANCE_PRENDE = 60,
+	RAIO_PRENDE    = 16,
+	DURACAO_PRENDE = 4,
+	ALTURA_PRENDE  = 3,
+	DANO_PRENDE    = 9,
+	PASSO_PRENDE   = 0.5,
+
+	RECARGA_Y      = 18,
+	RAIO_QUEDA     = 20,
+	DANO_QUEDA     = 40,
+	FORCA_QUEDA    = 150,
+	TOMBO_QUEDA    = 2,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -50,16 +78,17 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoPrimaria, ultimoExtra = 0, 0
+local ultimoPrimaria, ultimoR, ultimoT, ultimoY = 0, 0, 0, 0
 local ocupado = false
 local ativos = {}
 local semente = 0
 local idEfeito = 0
 
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
---- `function x()` atribui ao local, e sem isso as duas virariam globais.
-local primaria, extra
+--- `function x()` atribui ao local, e sem isso as quatro virariam globais.
+local primaria, extraR, extraT, extraY
 local presoProprio = nil
+local presos = {}
 
 local function proximo()
 	semente = semente + 1
@@ -67,15 +96,17 @@ local function proximo()
 	return semente
 end
 
---- Jitter determinístico em [-1,1]. No lugar dos 18 `math.random` da origem:
---- mesma variedade, e os dois clientes veem a mesma coisa.
+--- Jitter determinístico em [-1,1]. No lugar dos 18 `math.random` que o
+--- `calebe_tools.rbxmx` tinha — e com todos os clientes desenhando, um sorteio
+--- faria cada um ver uma cena diferente, o que lê como lag.
 local function jitter(fase)
 	return math.sin(proximo() * 2.399963 + (fase or 0))
 end
 
---- Ângulo áureo por índice — dispersão que não repete e não sorteia.
-local function angulo(i)
-	return i * 2.399963
+--- Faixa determinística no lugar de `math.random(minimo, maximo)`.
+local function naFaixa(minimo, maximo)
+	local onda = (jitter(0.7) + 1) * 0.5
+	return minimo + (maximo - minimo) * onda
 end
 
 local function vfx(tipo, dados)
@@ -96,9 +127,18 @@ end
 ---
 --- Um `Sound` só toca enquanto tem pai no DataModel. Pendurar o som na peça que
 --- some no quadro seguinte mata o som no quadro em que ele nasce.
+--- No JODRO o som mora em `Tool/SFX/`, não pendurado no Handle: são três por
+--- Tool e a pasta deixa claro que são irmãos.
+local function somDe(nome)
+	local pasta = Tool:FindFirstChild("SFX")
+	local achado = pasta and pasta:FindFirstChild(nome)
+	if achado and achado:IsA("Sound") then return achado end
+	return nil
+end
+
 local function tocarEm(nome, posicao, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 
 	local ancora = Instance.new("Part")
 	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
@@ -119,10 +159,9 @@ local function tocarEm(nome, posicao, pitch, corte)
 	return som
 end
 
---- Versão presa ao Handle — só para som que acompanha a mão.
 local function tocar(nome, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 	local som = base:Clone()
 	som.PlaybackSpeed = pitch or 1
 	som.Parent = Handle
@@ -135,10 +174,8 @@ end
 ---
 --- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
 --- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
---- string nunca dá verdadeiro, e o efeito é silencioso: a animação roda inteira
---- e o dano, o VFX e o som do beat simplesmente não acontecem.
----
---- Foi o bug relatado como "o dano não está funcionando em npcs e jogadores".
+--- string nunca dá verdadeiro, e falha em SILÊNCIO: a animação roda inteira e o
+--- dano não acontece. Custou os 14 Tools de dois conjuntos.
 local function marcaDe(passo)
 	return type(passo) == "table" and passo.marca or nil
 end
@@ -148,6 +185,11 @@ end
 --
 -- Toda chamada ao Núcleo é OPCIONAL. A Tool sozinha num place vazio funciona
 -- por inteiro — é o teste que decide a Regra nº 1.
+--
+-- A FAVOR DESTA ORIGEM: as cinco Tools do `calebe_tools.rbxmx` já usavam
+-- `TakeDamage`, e isso ficou. O que saiu foi o `BreakJoints` do `GravityHammer`
+-- — destruição permanente não é dano — e o `IsTeamMate` que ele fazia por
+-- conta própria, porque regra de time só existe dentro do Núcleo.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
@@ -173,8 +215,8 @@ local function aplicarDano(alvoHum, bruto)
 	return final
 end
 
---- Alvos num raio. O filtro de time é do Núcleo — o `IsTeamMate` que o
---- `GravityHammer` original tinha dentro de si não veio junto.
+--- Alvos num raio. Quem filtra time é o Núcleo; o fallback é consulta espacial
+--- sob demanda, nunca varredura do mundo por assinatura.
 local function alvosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarHumanoides then
 		return _G.Combate.detectarHumanoides(
@@ -197,6 +239,72 @@ local function alvosEm(posicao, raio, limite)
 	return achados
 end
 
+
+--═══════════════════════════════════════════════════════════════
+-- ALIADO — o espelho de `alvosEm`, e o primeiro do repositório
+--
+-- O `Cajado Curador` é a primeira Tool que precisa saber em quem NÃO bater. E
+-- o `CLAUDE.md` é explícito: `IsTeamMate` só existe dentro do
+-- `NucleoCombate.lua`. Chamar aqui seria abrir uma segunda porta para a regra
+-- de time, e é exatamente o que o invariante proíbe.
+--
+-- Então a pergunta é feita ao Núcleo. E o FALLBACK não inventa regra de time:
+-- ele DERIVA. Quem está no raio e NÃO está na lista de inimigos que o próprio
+-- `alvosEm` devolveu é aliado — mais o portador, que nunca é inimigo de si.
+--
+-- Sem Núcleo e sem time configurado, `alvosEm` devolve todo mundo, a subtração
+-- devolve só o portador, e a cura vira auto-cura. Que é o comportamento certo
+-- para uma Tool sozinha num place vazio.
+--═══════════════════════════════════════════════════════════════
+
+local function aliadosEm(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarAliados then
+		return _G.Combate.detectarAliados(
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+	end
+
+	local inimigos = {}
+	for _, hostil in ipairs(alvosEm(posicao, raio, limite or 12)) do
+		inimigos[hostil] = true
+	end
+
+	local achados, vistos = {}, {}
+	if humanoide and humanoide.Health > 0 then
+		vistos[humanoide] = true
+		table.insert(achados, humanoide)
+	end
+
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] and not inimigos[hum] then
+			vistos[hum] = true
+			table.insert(achados, hum)
+			if limite and #achados >= limite then break end
+		end
+	end
+	return achados
+end
+
+local function maisPertoAliado(ponto, raio)
+	local melhor, dist = nil, math.huge
+	for _, amigo in ipairs(aliadosEm(ponto, raio or 24, 12)) do
+		local corpo = amigo.Parent
+		local amigoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+		local onde = amigoRaiz and amigoRaiz.Position
+			or (corpo and corpo:FindFirstChild("Head")
+				and corpo.Head.Position)
+		if onde then
+			local d = (onde - ponto).Magnitude
+			if d < dist then melhor, dist = amigo, d end
+		end
+	end
+	return melhor or humanoide
+end
+
 local function raizDe(alvoHum)
 	local corpo = alvoHum and alvoHum.Parent
 	return corpo and corpo:FindFirstChild("HumanoidRootPart") or nil
@@ -207,17 +315,19 @@ local function frente(distancia)
 	return raiz.Position + raiz.CFrame.LookVector * (distancia or CFG.ALCANCE)
 end
 
---═══════════════════════════════════════════════════════════════
--- GRAVIDADE POR ALVO
---
--- ISTO É O CORAÇÃO DO CONJUNTO, E O MOTIVO DE ELE EXISTIR ASSIM.
---
--- O modelo de origem trocava `workspace.Gravity`. Aqui cada alvo ganha o SEU
--- corpo de força, com prazo no `Debris` — e o `Debris` limpa mesmo se o script
--- morrer no meio. Não há estado global para vazar.
---═══════════════════════════════════════════════════════════════
+--- O alvo mais perto de um ponto.
+local function maisPerto(ponto, raio)
+	local melhor, dist = nil, math.huge
+	for _, alvo in ipairs(alvosEm(ponto, raio, 12)) do
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			local d = (alvoRaiz.Position - ponto).Magnitude
+			if d < dist then melhor, dist = alvo, d end
+		end
+	end
+	return melhor
+end
 
---- Empurra um alvo numa direção, por um prazo.
 local function empurrar(alvoHum, direcao, forca, tempo)
 	local alvoRaiz = raizDe(alvoHum)
 	if not alvoRaiz or direcao.Magnitude < 0.01 then return end
@@ -228,8 +338,17 @@ local function empurrar(alvoHum, direcao, forca, tempo)
 	Debris:AddItem(impulso, tempo or 0.2)
 end
 
---- Suspende um alvo no ar. É a "gravidade invertida" sem tocar em nada global:
---- um `BodyPosition` mira acima da posição atual e o `Debris` desfaz.
+--═══════════════════════════════════════════════════════════════
+-- AS DUAS QUE SÓ ESTE CONJUNTO PRECISA
+--
+-- `suspender` segura um alvo NO AR, a uma altura acima de onde ele estava.
+-- `atrair` o puxa PARA um ponto. As duas por `BodyPosition` com prazo no
+-- `Debris` — nunca por `Anchored`, que travaria o personagem inteiro e
+-- deixaria o jogador preso se a Tool sumisse no meio.
+--
+-- E nenhuma das duas encosta em `workspace.Gravity`, que é global.
+--═══════════════════════════════════════════════════════════════
+
 local function suspender(alvoHum, altura, tempo, rigidez)
 	local alvoRaiz = raizDe(alvoHum)
 	if not alvoRaiz then return nil end
@@ -257,7 +376,36 @@ local function atrair(alvoHum, ponto, tempo, rigidez)
 	return prender
 end
 
---- Tombo com prazo, sem ragdoll de fora.
+local function puxar(alvoHum, centro, forca, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return end
+	local delta = centro - alvoRaiz.Position
+	if delta.Magnitude < 0.5 then return end
+	local impulso = Instance.new("BodyVelocity")
+	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	impulso.Velocity = delta.Unit * forca
+	impulso.Parent = alvoRaiz
+	Debris:AddItem(impulso, tempo or 0.3)
+end
+
+--- Prender no lugar com prazo. `BodyPosition` no ponto onde o alvo já está —
+--- não é teleporte, é âncora. Nunca `Anchored`, que travaria o personagem
+--- inteiro e deixaria o jogador preso se a Tool sumisse no meio.
+local function prender(alvoHum, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return nil end
+	local ancora = Instance.new("BodyPosition")
+	ancora.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	ancora.P = 12000
+	ancora.D = 900
+	ancora.Position = alvoRaiz.Position
+	ancora.Parent = alvoRaiz
+	Debris:AddItem(ancora, tempo or 3)
+	return ancora
+end
+
+--- Tombo com prazo. Nunca `BreakJoints`, que desmonta personagem sem volta —
+--- a origem chamava seis.
 local function tombar(alvoHum, tempo)
 	if not alvoHum or alvoHum.Health <= 0 then return end
 	alvoHum.PlatformStand = true
@@ -266,6 +414,85 @@ local function tombar(alvoHum, tempo)
 			alvoHum.PlatformStand = false
 		end
 	end)
+end
+
+--- Lentidão com volta garantida. Guarda a velocidade ANTES de mexer, e devolve
+--- essa — nunca um número fixo, porque o alvo pode ter velocidade própria.
+local function afrouxar(alvoHum, fator, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	local antes = alvoHum.WalkSpeed
+	alvoHum.WalkSpeed = antes * (fator or 0.5)
+	task.delay(tempo or 3, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.WalkSpeed = antes
+		end
+	end)
+end
+
+--- Dano em área com NÚCLEO e BORDA.
+---
+--- A origem fazia `ApplyAoE(pos, RAIO, MIN, MAX, FLING, INSTAKILL)` com um raio
+--- só e dano chapado — e quatro das nove marcavam INSTAKILL. Dois raios é o que
+--- impede uma explosão grande de matar meio servidor por estar por perto.
+local function golpearArea(centro, raio, raioNucleo, danoNucleo, danoBorda,
+		forca, tombo, limite)
+	local pegos = 0
+	for _, alvo in ipairs(alvosEm(centro, raio, limite or 16)) do
+		local alvoRaiz = raizDe(alvo)
+		local d = alvoRaiz and (alvoRaiz.Position - centro).Magnitude or raio
+		if d <= raioNucleo then
+			aplicarDano(alvo, danoNucleo)
+			if tombo then tombar(alvo, tombo) end
+		else
+			aplicarDano(alvo, danoBorda)
+			if tombo then tombar(alvo, tombo * 0.5) end
+		end
+		if alvoRaiz and forca then
+			empurrar(alvo, (alvoRaiz.Position - centro) + Vector3.new(0, 0.6, 0),
+				forca, 0.32)
+		end
+		pegos = pegos + 1
+	end
+	return pegos
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
+--
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
+--
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
+--          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
+-- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
+-- repositório não declara licença. Ver
+-- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
 end
 
 
@@ -308,7 +535,7 @@ function primaria(mira)
 				escala = 1, duracao = CFG.DURACAO, id = id })
 			-- a queda cobra o resto: quem foi erguido volta com o chão
 			task.delay(CFG.DURACAO, function()
-				vfx("PARAR", { id = id })
+				vfx("APAGAR", { id = id })
 				if alvo and alvo.Parent and alvo.Health > 0 then
 					aplicarDano(alvo, CFG.DANO_QUEDA)
 					local ondeCaiu = raizDe(alvo)
@@ -335,7 +562,7 @@ end
 -- `desmontar()` o desfaz — nas duas portas.
 --═══════════════════════════════════════════════════════════════
 
-function extra(_mira)
+function extraR(_mira)
 	ocupado = true
 	rig:PlaySequence("SUBIR", despachar({
 		SOBE = { faz = function()
@@ -359,11 +586,85 @@ function extra(_mira)
 	end)
 end
 
+--- T — CORRENTE: prende no ar quem já está erguido, e segura mais tempo.
+---
+--- `presos` guarda os Humanoids, não posições: quem foi preso fica preso onde
+--- estiver, e a `QUEDA` os derruba de lá. Guardar a posição faria a habilidade
+--- premiar quem não se mexeu.
+function extraT(mira)
+	ocupado = true
+	local destino = mira
+	rig:PlaySequence("CORRENTE", despachar({
+		ABRE   = { sfx = { "EquipSound", 1.1 } },
+		PRENDE = { faz = function()
+			if not (raiz and raiz.Parent) then return end
+			local centro = destino or frente(CFG.ALCANCE_PRENDE * 0.5)
+			presos = alvosEm(centro, CFG.RAIO_PRENDE, 12)
+			vfx("LEVITA", { posicao = centro, raio = CFG.RAIO_PRENDE,
+				duracao = CFG.DURACAO_PRENDE })
+			tocarEm("ScifiLiftSound", centro, 1)
+
+			local minha = novaGeracao("T")
+			for _, alvo in ipairs(presos) do
+				suspender(alvo, CFG.ALTURA_PRENDE, CFG.DURACAO_PRENDE)
+			end
+			task.spawn(function()
+				local ate = os.clock() + CFG.DURACAO_PRENDE
+				while geracao.T == minha and os.clock() < ate do
+					if not personagem then break end
+					for _, alvo in ipairs(presos) do
+						if alvo and alvo.Parent and alvo.Health > 0 then
+							aplicarDano(alvo, CFG.DANO_PRENDE)
+						end
+					end
+					task.wait(CFG.PASSO_PRENDE)
+				end
+			end)
+		end },
+	}), function() ocupado = false end)
+end
+
+--- Y — QUEDA: derruba TUDO que está no ar, com impacto no chão.
+---
+--- Quem foi preso pela `CORRENTE` cai primeiro e leva o dano cheio; quem está
+--- por perto e no chão leva metade. É o par que faz as duas Extras valerem
+--- juntas.
+function extraY(_mira)
+	ocupado = true
+	rig:PlaySequence("QUEDA", despachar({
+		ERGUE  = { sfx = { "Bam", 0.9 } },
+		SEGURA = { sfx = { "ScifiLiftSound", 0.75 } },
+		LARGA  = { faz = function()
+			if not (raiz and raiz.Parent) then return end
+			novaGeracao("T")
+			local centro = raiz.Position
+			vfx("ESMAGA", { posicao = centro, raio = CFG.RAIO_QUEDA })
+			tocarEm("ScifiBlastSound", centro, 0.85)
+
+			local jaCaiu = {}
+			for _, alvo in ipairs(presos) do
+				if alvo and alvo.Parent and alvo.Health > 0 then
+					jaCaiu[alvo] = true
+					aplicarDano(alvo, CFG.DANO_QUEDA)
+					empurrar(alvo, Vector3.new(0, -1, 0), CFG.FORCA_QUEDA, 0.3)
+					tombar(alvo, CFG.TOMBO_QUEDA)
+				end
+			end
+			presos = {}
+
+			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_QUEDA, 14)) do
+				if not jaCaiu[alvo] then
+					aplicarDano(alvo, CFG.DANO_QUEDA * 0.5)
+					empurrar(alvo, Vector3.new(0, -1, 0),
+						CFG.FORCA_QUEDA * 0.6, 0.26)
+				end
+			end
+		end },
+	}), function() ocupado = false end)
+end
+
 --═══════════════════════════════════════════════════════════════
--- CICLO DE VIDA
---
--- Recarga por TIMESTAMP: sobrevive a desequipar/equipar, e por isso não dá
--- para zerar a recarga guardando e sacando a Tool.
+-- CICLO DE VIDA — uma primária e DUAS Extras
 --═══════════════════════════════════════════════════════════════
 
 local function pronto(quando, recarga)
@@ -384,13 +685,28 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	primaria(mira)
 end)
 
+--- As TRÊS Extras chegam pelo MESMO remote. A tecla vem no payload e é
+--- conferida aqui: qualquer coisa fora de "R", "T" e "Y" é descartada sem
+--- resposta.
+--- Confiar no cliente para dizer qual habilidade rodar seria dar a ele a
+--- escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
 	if quem ~= jogador or not podeAgir() then return end
-	if tecla ~= "R" then return end
 	if typeof(mira) ~= "Vector3" then mira = frente() end
-	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
-	ultimoExtra = os.clock()
-	extra(mira)
+
+	if tecla == "R" then
+		if not pronto(ultimoR, CFG.RECARGA_R) then return end
+		ultimoR = os.clock()
+		extraR(mira)
+	elseif tecla == "T" then
+		if not pronto(ultimoT, CFG.RECARGA_T) then return end
+		ultimoT = os.clock()
+		extraT(mira)
+	elseif tecla == "Y" then
+		if not pronto(ultimoY, CFG.RECARGA_Y) then return end
+		ultimoY = os.clock()
+		extraY(mira)
+	end
 end)
 
 Tool.Equipped:Connect(function()
@@ -400,22 +716,18 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "GravLevitacao", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "GravLevitacao", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
---- de uma sequência — e foi assim que o `Gravitron 1000` original deixava a
---- gravidade do servidor trocada para sempre.
+--- de uma sequência.
 local function desmontar()
 	for _, c in ipairs(ativos) do
 		if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
 	end
 	table.clear(ativos)
 	ocupado = false
-	if presoProprio then
-		presoProprio.Parent = nil
-		presoProprio = nil
-	end
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()

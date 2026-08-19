@@ -14,6 +14,8 @@
 --
 --   PUXAO          conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --   SINGULARIDADE  sustentada         1.60s · 7 passo(s), 3 segurado(s)
+--   ORBITA         sustentada         1.60s · 5 passo(s), 2 segurado(s)
+--   EXPULSAR       conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -30,6 +32,15 @@ P.ABRE_MAO = {
 	LeftArm = CFrame.new(-1.42, 0.14, -0.4) * CFrame.Angles(math.rad(38), math.rad(8), math.rad(10)),
 	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-8), math.rad(-6), 0),
 	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-4), math.rad(12), 0),
+}
+
+P.ESMAGA = {
+	RightArm = CFrame.new(1.48, -0.42, -0.62) * CFrame.Angles(math.rad(16), math.rad(-6), math.rad(-10)),
+	LeftArm = CFrame.new(-1.48, -0.4, -0.6) * CFrame.Angles(math.rad(15), math.rad(6), math.rad(9)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(26), math.rad(0), 0),
+	HRP = CFrame.new(0, -0.36, 0) * CFrame.Angles(math.rad(22), math.rad(0), 0),
+	RightLeg = CFrame.new(0.56, -1.78, -0.36) * CFrame.Angles(math.rad(-22), math.rad(0), 0),
+	LeftLeg = CFrame.new(-0.56, -1.78, -0.36) * CFrame.Angles(math.rad(-22), math.rad(0), 0),
 }
 
 P.FECHA = {
@@ -80,6 +91,24 @@ P.SEQUENCIAS = {
 		{ pose = "FECHA", time = 0.12, style = "Quint", dir = "Out", marca = "COLAPSA" },
 		{ pose = "FECHA", time = 0.18, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+	-- sustentada · 1.60s · 5 passo(s), 2 segurado(s)
+	ORBITA = {
+		{ pose = "PUXA", time = 0.26, style = "Back", dir = "Out", marca = "ABRE" },
+		{ pose = "PUXA", time = 0.38, style = "Sine", dir = "InOut", tremor = 0.03, freq = 20, marca = "GIRA" },
+		{ pose = "SUSTENTA", time = 0.36, style = "Sine", dir = "InOut", tremor = 0.03, freq = 24 },
+		{ pose = "SUSTENTA", time = 0.3, style = "Quad", dir = "Out" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração pesada · 1.20s · 5 passo(s), 2 segurado(s)
+	EXPULSAR = {
+		{ pose = "PUXA", time = 0.24, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "PUXA", time = 0.5, style = "Sine", dir = "InOut", tremor = 0.05, freq = 27, marca = "SEGURA" },
+		{ pose = "ESMAGA", time = 0.12, style = "Quint", dir = "Out", marca = "EXPULSA" },
+		{ pose = "ESMAGA", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

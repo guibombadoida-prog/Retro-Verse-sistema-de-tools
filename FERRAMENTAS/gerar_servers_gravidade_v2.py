@@ -1,14 +1,127 @@
--- TremoresdaGravidade_Server_V1.lua
--- Script de servidor — Tremores da Gravidade  (conjunto GRAVIDADE)
+#!/usr/bin/env python3
+"""
+gerar_servers_gravidade_v2.py — Retro-Verse / Studios
+
+Escreve o `Server` e o `Client` das 7 Tools do conjunto GRAVIDADE —
+**QUATRO habilidades cada**, 28 no conjunto.
+
+    python3 FERRAMENTAS/gerar_servers_gravidade_v2.py
+
+REFEITAS: DE 14 HABILIDADES PARA 28
+
+    As sete saíram com M1 mais UMA Extra. Agora são M1 mais TRÊS — `R`, `T` e
+    `Y` —, no mesmo padrão da Maria e do Jodro. A M1 de cada Tool é a que ela
+    já tinha: é a habilidade pela qual a Tool tem nome, e as três Extras
+    estendem o mesmo assunto.
+
+    De quebra, os NOVE `Sound` que estavam depositados e mudos ganharam papel:
+    `EquipSound` (×2), `Press`, `ClawsOpen`, `Drop`, `DryFire`, `Launch4`,
+    `Pickup` e `sfx`. Eram som da origem viajando dentro da Tool sem ninguém
+    tocá-los — o `verificar_rbxmx` avisava, e agora não avisa mais.
+
+A REGRA QUE MANDA NESTE CONJUNTO: NINGUÉM TOCA EM `workspace.Gravity`
+
+    O `Gravitron 1000` do modelo de origem ciclava `workspace.Gravity` entre
+    21.2, 471.2 e 196.2 — e o `Unequipped` dele parava dois sons, apagava um
+    rótulo, e NÃO devolvia a gravidade. Não havia `Tool.Destroying`. Equipar,
+    clicar uma vez e guardar deixava o servidor inteiro em gravidade 21.2, para
+    sempre.
+
+    Gravidade é propriedade GLOBAL. A Regra nº 1 vale nos dois sentidos: a Tool
+    não lê de fora, e não sequestra o que é de fora. Aqui todo efeito de
+    gravidade é POR ALVO — `BodyVelocity` e `BodyPosition` com prazo no
+    `Debris`, num `HumanoidRootPart` por vez. O visual é o mesmo; o estrago
+    quando algo dá errado é zero.
+
+    `TESTES/verificar_autocontencao.sh` cobra isso por nome, e continua
+    cobrando nas 28.
+
+O QUE MAIS SAIU DOS ORIGINAIS, E CONTINUA FORA
+
+    `IsTeamMate` dentro do `GravityHammer`  regra de combate só no Núcleo
+    5 `ScreenGui` (Gravitron, Quake)        proibida — efeito só no mundo 3D
+    UI clonada no PlayerGui de todos        depósito fora da Tool. E o clone era
+                                            UM só, reparentado num laço: só o
+                                            último jogador da lista recebia
+    6 `Animation` + 4 `LoadAnimation`       pose CFrame sob R6CFrameAnimator
+    `BreakJoints`                           destruição permanente não é dano
+    35 `wait` · 18 `math.random` · 9 `:Destroy` · 5 `spawn`
+
+    A favor da origem: as cinco já usavam `TakeDamage`. Isso ficou.
+
+O ANDAIME VEIO DA MARIA
+
+    O preâmbulo — `despachar`, dano, alvos, empurrão, tombo, `golpearArea` —
+    é o mesmo, já verificado e em uso. O que este conjunto acrescenta são as
+    duas funções que só ele precisa: `suspender`, que segura um alvo NO AR a
+    uma altura, e `atrair`, que o puxa PARA um ponto. As duas por
+    `BodyPosition` com prazo, nunca por `Anchored`.
+"""
+
+import os
+import shutil
+import sys
+
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS = os.path.join(RAIZ, "Tools")
+DADOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dados")
+
+ANIMATOR = os.path.join(TOOLS, "Bomba Nuclear", "R6CFrameAnimator.lua")
+VFX_GRAV = os.path.join(DADOS, "VFXModule_Gravidade.lua")
+
+
+DESPACHANTE = '''
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
+--
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
+--
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
+--          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
+-- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
+-- repositório não declara licença. Ver
+-- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+'''
+
+PREAMBULO = '''-- {objeto}.lua
+-- Script de servidor — {tool}  (conjunto GRAVIDADE)
 --
 -- Sai do `reality_tools.rbxmx`, que NÃO é uma Tool: é um Script de 2650
 -- linhas solto na raiz. Handle, moldes e sons vêm de lá; a habilidade é escrita
 -- aqui. Ver `FERRAMENTAS/preparar_reality.py` para o mapa.
 --
---   M1   onda de tremor que corre pelo chão   (a habilidade que a origem ja tinha)
---   R    Sustentar   (Extra 1)
---   T    Falha   (Extra 2)
---   Y    Replica   (Extra 3)
+--   M1   {rotulo_m1}   (a habilidade que a origem ja tinha)
+--   R    {rotulo_r}   (Extra 1)
+--   T    {rotulo_t}   (Extra 2)
+--   Y    {rotulo_y}   (Extra 3)
 --
 -- TRÊS HABILIDADES, E UM `AcaoRemote` SÓ
 --
@@ -39,41 +152,16 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
-
+{extra_require}
 --═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação
 --═══════════════════════════════════════════════════════════════
 
-local ARQUETIPO = "GRAVIDADE"
+local ARQUETIPO = "{arquetipo}"
 
-local CFG = {
-	ALCANCE       = 8,
-	RAIO_ONDA     = 22,
-	DANO          = 18,
-	EMPURRAO      = 42,
-	SUBIDA        = 14,
-	RECARGA       = 4,
-
-	RECARGA_R     = 14,
-	PULSOS        = 3,
-	RAIO_PULSO    = 16,
-	DANO_PULSO    = 11,
-	TOMBO         = 1.4,
-	RECARGA_T      = 11,
-	ALCANCE_FALHA  = 46,
-	PASSOS_FALHA   = 8,
-	ESPACO_FALHA   = 5.5,
-	INTERVALO_FALHA = 0.06,
-	RAIO_FALHA     = 6,
-	DANO_FALHA     = 15,
-	LENTIDAO_FALHA = 0.55,
-
-	RECARGA_Y      = 20,
-	RAIO_REPLICA   = 9,
-	LARGURA_REPLICA = 7,
-	DANO_REPLICA   = 16,
-	TOMBO_REPLICA  = 1.2,
-}
+local CFG = {{
+{cfg}
+}}
 
 --═══════════════════════════════════════════════════════════════
 -- ESTADO
@@ -82,14 +170,14 @@ local CFG = {
 local jogador, personagem, humanoide, raiz, rig
 local ultimoPrimaria, ultimoR, ultimoT, ultimoY = 0, 0, 0, 0
 local ocupado = false
-local ativos = {}
+local ativos = {{}}
 local semente = 0
 local idEfeito = 0
 
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as quatro virariam globais.
 local primaria, extraR, extraT, extraY
-local anelDaVez = 0
+{estado}
 
 local function proximo()
 	semente = semente + 1
@@ -221,13 +309,13 @@ end
 local function alvosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarHumanoides then
 		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {{}}
 	end
 
-	local achados, vistos = {}, {}
+	local achados, vistos = {{}}, {{}}
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
-	filtro.FilterDescendantsInstances = { personagem }
+	filtro.FilterDescendantsInstances = {{ personagem }}
 	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
 		local modelo = parte:FindFirstAncestorOfClass("Model")
 		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
@@ -261,15 +349,15 @@ end
 local function aliadosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarAliados then
 		return _G.Combate.detectarAliados(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {{}}
 	end
 
-	local inimigos = {}
+	local inimigos = {{}}
 	for _, hostil in ipairs(alvosEm(posicao, raio, limite or 12)) do
 		inimigos[hostil] = true
 	end
 
-	local achados, vistos = {}, {}
+	local achados, vistos = {{}}, {{}}
 	if humanoide and humanoide.Health > 0 then
 		vistos[humanoide] = true
 		table.insert(achados, humanoide)
@@ -277,7 +365,7 @@ local function aliadosEm(posicao, raio, limite)
 
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
-	filtro.FilterDescendantsInstances = { personagem }
+	filtro.FilterDescendantsInstances = {{ personagem }}
 	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
 		local modelo = parte:FindFirstAncestorOfClass("Model")
 		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
@@ -457,170 +545,9 @@ local function golpearArea(centro, raio, raioNucleo, danoNucleo, danoBorda,
 	return pegos
 end
 
+'''
 
---═══════════════════════════════════════════════════════════════
--- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
---
--- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
--- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
--- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
--- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
---
--- Agora cada sequência tem uma TABELA, um registro por keyframe:
---
---     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
---
---   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
---          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
---   `sfx`  toca um som: `{ nome, pitch }`
---   `faz`  o trabalho que não cabe em dado
---
--- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
--- vem com nome em vez de posição na escada.
---
--- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
--- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
--- repositório não declara licença. Ver
--- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
---═══════════════════════════════════════════════════════════════
-
-local function despachar(quadros)
-	return function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-		local kf = quadros and quadros[marca]
-		if not kf then return end
-		if kf.cam and beatCena then beatCena(marca) end
-		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
-		if kf.faz then kf.faz(passo) end
-	end
-end
-
-
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — a onda
---
--- O `Quake Hammer` original varria `workspace:GetDescendants()` para achar
--- alvo. Aqui é consulta espacial num raio, e quem filtra time é o Núcleo.
---═══════════════════════════════════════════════════════════════
-
-function primaria(_mira)
-	ocupado = true
-	tocar("Swing", 1 + jitter(0.4) * 0.08)
-	rig:PlaySequence("TREMOR", function(passo)
-		local marca = marcaDe(passo)
-		if marca ~= "BATE" then return end
-		local chao = raiz.Position - Vector3.new(0, 2.6, 0)
-		vfx("ONDA", { posicao = chao, escala = 1.2 })
-		tocarEm("Hit", chao, 0.9 + jitter(1.1) * 0.08)
-
-		for _, alvo in ipairs(alvosEm(chao, CFG.RAIO_ONDA, 12)) do
-			aplicarDano(alvo, CFG.DANO)
-			local alvoRaiz = raizDe(alvo)
-			if alvoRaiz then
-				empurrar(alvo, (alvoRaiz.Position - chao)
-					+ Vector3.new(0, CFG.SUBIDA / CFG.EMPURRAO, 0),
-					CFG.EMPURRAO, 0.24)
-			end
-		end
-	end, function()
-		ocupado = false
-	end)
-end
-
---═══════════════════════════════════════════════════════════════
--- EXTRA — o tremor sustentado
---
--- Três pulsos, um por beat do animator. Quem encadeia é o animator, não
--- `task.wait(passo.duracao)` — é a regra que existe porque o oposto já
--- dessincronizou animação e dano neste repositório.
---═══════════════════════════════════════════════════════════════
-
-function extraR(_mira)
-	ocupado = true
-	rig:PlaySequence("SUSTENTO", despachar({
-		ABRE = { faz = function()
-			tocar("Press", 0.8)
-		end },
-		PULSO = { faz = function()
-			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
-			vfx("PULSO", { posicao = chao, escala = 1 })
-			tocarEm("Hit", chao, 1.15 + jitter(0.6) * 0.1)
-			for _, alvo in ipairs(alvosEm(chao, CFG.RAIO_PULSO, 12)) do
-				aplicarDano(alvo, CFG.DANO_PULSO)
-				tombar(alvo, CFG.TOMBO)
-			end
-		end },
-	}), function()
-		ocupado = false
-	end)
-end
-
---- T — a FALHA: uma linha de fendas que corre à frente e afrouxa quem pisa.
---- Ela não empurra: quem quer empurrão usa a M1. Esta prende no chão.
-function extraT(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("FALHA", despachar({
-		ABRE  = { sfx = { "Swing", 1.05 } },
-		CORTE = { faz = function()
-			if not (raiz and raiz.Parent) then return end
-			local origem = raiz.Position - Vector3.new(0, 2.6, 0)
-			local ponto = destino or frente(CFG.ALCANCE_FALHA)
-			local delta = Vector3.new(ponto.X - origem.X, 0, ponto.Z - origem.Z)
-			local dir = (delta.Magnitude > 0.5) and delta.Unit
-				or raiz.CFrame.LookVector
-			local i = 1
-			while i <= CFG.PASSOS_FALHA do
-				local indice = i
-				task.delay(indice * CFG.INTERVALO_FALHA, function()
-					if not personagem then return end
-					local onde = origem + dir * (indice * CFG.ESPACO_FALHA)
-					vfx("RACHADURA", { posicao = onde, escala = 1 })
-					if indice % 3 == 1 then
-						tocarEm("Hit", onde, 1.2)
-					end
-					for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_FALHA, 8)) do
-						aplicarDano(alvo, CFG.DANO_FALHA)
-						afrouxar(alvo, CFG.LENTIDAO_FALHA, 2)
-					end
-				end)
-				i = i + 1
-			end
-		end },
-	}), function() ocupado = false end)
-end
-
---- Y — a RÉPLICA: três anéis, do menor para o maior, um por beat.
----
---- Só o anel DA VEZ machuca. Sem o recorte pela largura, o terceiro anel
---- pegaria de novo quem o primeiro já pegou, e a habilidade seria três vezes
---- o mesmo dano em quem estivesse colado.
-function extraY(_mira)
-	ocupado = true
-	anelDaVez = 0
-	rig:PlaySequence("REPLICA", despachar({
-		ABRE = { sfx = { "Press", 0.85 } },
-		ANEL = { faz = function()
-			if not (raiz and raiz.Parent) then return end
-			anelDaVez = anelDaVez + 1
-			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
-			local raio = CFG.RAIO_REPLICA * anelDaVez
-			vfx("ONDA", { posicao = chao, escala = 0.7 * anelDaVez })
-			tocarEm("Hit", chao, 1.3 - anelDaVez * 0.12)
-			for _, alvo in ipairs(alvosEm(chao, raio, 14)) do
-				local alvoRaiz = raizDe(alvo)
-				local d = alvoRaiz and (alvoRaiz.Position - chao).Magnitude
-					or raio
-				if d > raio - CFG.LARGURA_REPLICA then
-					aplicarDano(alvo, CFG.DANO_REPLICA)
-					tombar(alvo, CFG.TOMBO_REPLICA)
-				end
-			end
-		end },
-	}), function() ocupado = false end)
-end
-
+RODAPE = '''
 --═══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA — uma primária e DUAS Extras
 --═══════════════════════════════════════════════════════════════
@@ -674,9 +601,9 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "GravTremores", Poses,
+	rig = Animator.new(personagem, "{sufixo}", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
-end)
+{ao_equipar}end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
 --- de uma sequência.
@@ -686,7 +613,7 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	if rig then
+{ao_guardar}	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()
 		rig:LockCharacter(false)
@@ -697,3 +624,190 @@ end
 
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
+'''
+
+
+CLIENTE = '''-- Client.lua
+-- Script com RunContext = Client — {tool}  (conjunto GRAVIDADE)
+--
+-- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+-- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
+-- mundo — mas o único ouvinte seria o de quem está segurando. `RunContext =
+-- Client` roda em TODO cliente, e nada saiu de dentro da Tool.
+--
+-- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
+-- cliente não replica e os outros jogadores viam o portador parado.
+--
+-- DOIS BOTÕES DE CELULAR, EM ALTURAS DIFERENTES
+--
+--   `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)` — o
+--   terceiro argumento faz o Roblox desenhar o botão sozinho. São duas Extras,
+--   então são dois `BindAction`, e as posições são separadas de propósito: com
+--   a mesma altura os dois botões empilham e o de baixo fica inalcançável.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_gravidade_v2.py.
+
+local Players = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+
+local jogador = Players.LocalPlayer
+
+local Tool       = script.Parent
+local VFXRemote  = Tool:WaitForChild("VFXRemote")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local VFX        = require(Tool:WaitForChild("VFXModule"))
+
+local ACAO_R = "Gravidade_{sufixo}_R"
+local ACAO_T = "Gravidade_{sufixo}_T"
+local ACAO_Y = "Gravidade_{sufixo}_Y"
+local ALCANCE_MIRA = {alcance_mira}
+
+local equipado = false
+local rato = nil
+
+--══════════════════════════════════════════════════════════════
+-- DESENHO — este trecho roda em TODOS os clientes
+--══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	if tipo == "APAGAR" then
+		VFX.Parar(dados and dados.id)
+		return
+	end
+	VFX.Executar(tipo, dados or {{}})
+end)
+
+--══════════════════════════════════════════════════════════════
+-- MIRA E ENTRADA — só o dono
+--══════════════════════════════════════════════════════════════
+
+local function souODono()
+	local pai = Tool.Parent
+	if not pai then return false end
+	if not pai:FindFirstChildOfClass("Humanoid") then return false end
+	return Players:GetPlayerFromCharacter(pai) == jogador
+end
+
+local function mira()
+	local personagem = jogador.Character
+	local origem = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	rato = rato or jogador:GetMouse()
+	local alvo = rato and rato.Hit and rato.Hit.Position
+	if not origem then return alvo or Vector3.new() end
+	if not alvo then return origem.Position + origem.CFrame.LookVector * 20 end
+	local delta = alvo - origem.Position
+	if delta.Magnitude > ALCANCE_MIRA then
+		return origem.Position + delta.Unit * ALCANCE_MIRA
+	end
+	return alvo
+end
+
+local function ligarEntrada()
+	ContextActionService:BindAction(ACAO_R, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("R", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
+	ContextActionService:SetTitle(ACAO_R, "{rotulo_r}")
+	ContextActionService:SetPosition(ACAO_R, UDim2.new(1, -150, 1, -190))
+
+	ContextActionService:BindAction(ACAO_T, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("T", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.T, Enum.KeyCode.ButtonL1)
+	ContextActionService:SetTitle(ACAO_T, "{rotulo_t}")
+	-- 70 px acima do R: com a mesma altura eles empilham e o de baixo some
+	ContextActionService:SetPosition(ACAO_T, UDim2.new(1, -150, 1, -260))
+
+	ContextActionService:BindAction(ACAO_Y, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("Y", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.Y, Enum.KeyCode.ButtonL2)
+	ContextActionService:SetTitle(ACAO_Y, "{rotulo_y}")
+	ContextActionService:SetPosition(ACAO_Y, UDim2.new(1, -150, 1, -330))
+end
+
+local function desligarEntrada()
+	ContextActionService:UnbindAction(ACAO_R)
+	ContextActionService:UnbindAction(ACAO_T)
+	ContextActionService:UnbindAction(ACAO_Y)
+end
+
+--══════════════════════════════════════════════════════════════
+-- CICLO
+--══════════════════════════════════════════════════════════════
+
+Tool.Activated:Connect(function()
+	if not souODono() then return end
+	VFXRemote:FireServer(mira())
+end)
+
+Tool.Equipped:Connect(function()
+	if not souODono() then return end
+	equipado = true
+	ligarEntrada()
+end)
+
+local function aoGuardar()
+	equipado = false
+	desligarEntrada()
+	VFX.LimparTudo()
+end
+
+Tool.Unequipped:Connect(aoGuardar)
+Tool.Destroying:Connect(aoGuardar)
+'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# AS 7 TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+sys.path.insert(0, DADOS)
+from servers_gravidade import CONJUNTO  # noqa: E402
+
+
+def escrever(tool, d):
+    pasta = os.path.join(TOOLS, tool)
+    if not os.path.isdir(pasta):
+        print("sem pasta Tools/%s" % tool)
+        return False
+
+    d = dict(d)
+    d["extra_require"] = ""
+    d["origem"] = "".join("--   %s\n" % linha for linha in d["origem"])
+    corpo = DESPACHANTE + d["corpo"]
+    servidor = PREAMBULO.format(tool=tool, **d) + corpo + RODAPE.format(**d)
+
+    with open(os.path.join(pasta, "%s.lua" % d["objeto"]), "w",
+              encoding="utf-8") as f:
+        f.write(servidor)
+    with open(os.path.join(pasta, "Client.lua"), "w", encoding="utf-8") as f:
+        f.write(CLIENTE.format(tool=tool, **d))
+
+    shutil.copyfile(ANIMATOR, os.path.join(pasta, "R6CFrameAnimator.lua"))
+    shutil.copyfile(VFX_GRAV, os.path.join(pasta, "VFXModule.lua"))
+
+    print("%-22s %5d linhas de Server · M1 + R + T + Y"
+          % (tool, servidor.count("\n") + 1))
+    return True
+
+
+def main():
+    for caminho in (ANIMATOR, VFX_GRAV):
+        if not os.path.exists(caminho):
+            print("faltando: %s" % caminho)
+            return 1
+    for tool, d in CONJUNTO.items():
+        if not escrever(tool, d):
+            return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

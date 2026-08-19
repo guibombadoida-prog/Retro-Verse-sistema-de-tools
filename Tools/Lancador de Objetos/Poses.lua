@@ -14,6 +14,8 @@
 --
 --   ARREMESSO      conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
 --   RAJADA         conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
+--   PRENDER        conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
+--   DESPEJO        conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -32,6 +34,13 @@ P.ABRE_MAO = {
 	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-4), math.rad(12), 0),
 }
 
+P.FECHA = {
+	RightArm = CFrame.new(1.5, 0.2, -0.68) * CFrame.Angles(math.rad(66), math.rad(-6), math.rad(-4)),
+	LeftArm = CFrame.new(-1.5, 0.16, -0.6) * CFrame.Angles(math.rad(60), math.rad(6), math.rad(4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(6), math.rad(0), 0),
+	HRP = CFrame.new(0, -0.1, 0) * CFrame.Angles(math.rad(7), math.rad(0), 0),
+}
+
 P.IDLE = {
 	RightArm = CFrame.new(1.46, 0.08, -0.36) * CFrame.Angles(math.rad(32), math.rad(6), math.rad(4)),
 	LeftArm = CFrame.new(-1.48, 0.02, -0.16) * CFrame.Angles(math.rad(14), math.rad(-4), math.rad(-5)),
@@ -44,6 +53,13 @@ P.PUXA = {
 	LeftArm = CFrame.new(-1.24, 0.4, -0.32) * CFrame.Angles(math.rad(82), math.rad(-26), math.rad(-33)),
 	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-12), math.rad(0), 0),
 	HRP = CFrame.new(0, 0.04, 0) * CFrame.Angles(math.rad(-6), math.rad(0), 0),
+}
+
+P.SUSTENTA = {
+	RightArm = CFrame.new(1.4, 0.7, -0.78) * CFrame.Angles(math.rad(124), math.rad(-14), math.rad(-10)),
+	LeftArm = CFrame.new(-1.4, 0.7, -0.78) * CFrame.Angles(math.rad(124), math.rad(14), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-22), math.rad(0), 0),
+	HRP = CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-9), math.rad(0), 0),
 }
 
 P.SEQUENCIAS = {
@@ -64,6 +80,24 @@ P.SEQUENCIAS = {
 		{ pose = "ABRE_MAO", time = 0.12, style = "Quint", dir = "Out", marca = "SALVA" },
 		{ pose = "ABRE_MAO", time = 0.18, style = "Sine", dir = "InOut", marca = "SALVA" },
 		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out" },
+	},
+
+	-- conjuração rápida · 0.90s · 5 passo(s), 2 segurado(s)
+	PRENDER = {
+		{ pose = "ABRE_MAO", time = 0.22, style = "Back", dir = "Out", marca = "ABRE" },
+		{ pose = "ABRE_MAO", time = 0.24, style = "Sine", dir = "InOut", tremor = 0.02, freq = 20 },
+		{ pose = "FECHA", time = 0.12, style = "Quint", dir = "Out", marca = "PEGA" },
+		{ pose = "FECHA", time = 0.12, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração pesada · 1.20s · 5 passo(s), 2 segurado(s)
+	DESPEJO = {
+		{ pose = "SUSTENTA", time = 0.24, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "SUSTENTA", time = 0.5, style = "Sine", dir = "InOut", tremor = 0.05, freq = 25, marca = "SEGURA" },
+		{ pose = "ABRE_MAO", time = 0.12, style = "Quint", dir = "Out", marca = "SOLTA" },
+		{ pose = "ABRE_MAO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

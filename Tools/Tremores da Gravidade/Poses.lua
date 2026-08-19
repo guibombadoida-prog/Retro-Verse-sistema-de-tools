@@ -14,6 +14,8 @@
 --
 --   TREMOR         conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
 --   SUSTENTO       sustentada         1.60s · 5 passo(s), 3 segurado(s)
+--   FALHA          conjuração rápida  0.90s · 5 passo(s), 2 segurado(s)
+--   REPLICA        sustentada         1.60s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -72,6 +74,24 @@ P.SEQUENCIAS = {
 		{ pose = "SUSTENTA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.04, freq = 18, marca = "PULSO" },
 		{ pose = "SUSTENTA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.05, freq = 24, marca = "PULSO" },
 		{ pose = "SUSTENTA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.06, freq = 29, marca = "PULSO" },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração rápida · 0.90s · 5 passo(s), 2 segurado(s)
+	FALHA = {
+		{ pose = "ERGUE", time = 0.2, style = "Back", dir = "In", marca = "ABRE" },
+		{ pose = "ERGUE", time = 0.24, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "BATE_CHAO", time = 0.12, style = "Quint", dir = "Out", marca = "CORTE" },
+		{ pose = "BATE_CHAO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- sustentada · 1.60s · 5 passo(s), 2 segurado(s)
+	REPLICA = {
+		{ pose = "SUSTENTA", time = 0.24, style = "Back", dir = "Out", marca = "ABRE" },
+		{ pose = "SUSTENTA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.04, freq = 19, marca = "ANEL" },
+		{ pose = "SUSTENTA", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.05, freq = 25, marca = "ANEL" },
+		{ pose = "BATE_CHAO", time = 0.34, style = "Sine", dir = "InOut", tremor = 0.06, freq = 30, marca = "ANEL" },
 		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 

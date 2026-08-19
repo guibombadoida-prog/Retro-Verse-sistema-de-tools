@@ -14,6 +14,8 @@
 --
 --   INVERTE        conjuração rápida  0.90s · 4 passo(s), 1 segurado(s)
 --   ESMAGAR        conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
+--   CAMPO_LEVE     sustentada         1.60s · 5 passo(s), 2 segurado(s)
+--   PULSO_RADIAL   conjuração pesada  1.20s · 5 passo(s), 2 segurado(s)
 --
 -- O VOCABULÁRIO É COMPARTILHADO. As sete Tools do conjunto dividem as
 -- mesmas poses de base (ABRE_MAO, SUSTENTA, FECHA, PUXA, ESMAGA…) porque
@@ -72,6 +74,24 @@ P.SEQUENCIAS = {
 		{ pose = "ESMAGA", time = 0.12, style = "Quint", dir = "Out", marca = "ESMAGA" },
 		{ pose = "ESMAGA", time = 0.14, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out" },
+	},
+
+	-- sustentada · 1.60s · 5 passo(s), 2 segurado(s)
+	CAMPO_LEVE = {
+		{ pose = "ABRE_MAO", time = 0.26, style = "Back", dir = "Out", marca = "ABRE" },
+		{ pose = "ABRE_MAO", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 17, marca = "SEGURA" },
+		{ pose = "SUSTENTA", time = 0.36, style = "Sine", dir = "InOut", tremor = 0.02, freq = 21 },
+		{ pose = "SUSTENTA", time = 0.3, style = "Quad", dir = "Out" },
+		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração pesada · 1.20s · 5 passo(s), 2 segurado(s)
+	PULSO_RADIAL = {
+		{ pose = "SUSTENTA", time = 0.24, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "SUSTENTA", time = 0.5, style = "Sine", dir = "InOut", tremor = 0.04, freq = 24, marca = "SEGURA" },
+		{ pose = "ABRE_MAO", time = 0.12, style = "Quint", dir = "Out", marca = "SOLTA" },
+		{ pose = "ABRE_MAO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }
