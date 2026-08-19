@@ -232,8 +232,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `R6CFrameAnimator_V2` | **autoral** (superset do V1) | infra | **APROVADO** | toda Tool nova nasce nele |
 | `R6CFrameAnimator_V1` | **His Cube** (produção) | infra | APROVADO | referência histórica |
 | `SaitamaAnimacoes_Originais_V1` | Saitama_Animacoes_Referencia | 2417 kf · 9 seq + 1 câmera | **CRU** | nada — é consulta |
-| `Poses_Xester_Forma1_V1` | Xester_Forma1 (extraída) | 12 seq · guarda + ação | **LIMPO** | 7 Tools da Forma 1 |
-| `Poses_Xester_Forma2_V1` | Xester_Forma2 (extraída) | 8 seq · guarda de cajado | **LIMPO** | 7 Tools da Forma 2 |
+| `Poses_Xester_V2` | **autoral**, sobre o vocabulário extraído | 24 seq · 13 habilidades + 3 cutscenes | **LIMPO** | Tool `Xester` (as duas formas) |
 | `PORTAL_DO_CAJADO` | **autoral**, pela gramática | conjuração 1.14 s · impacto a 53% · lidera RightArm | **LIMPO** | `Xester Portal do Cajado` |
 | `california gurls` · `a-train` | **Reality_Tools** | **5 `KeyframeSequence`, 801 keyframes** — a maior densidade que já entrou | ⛔ **CRU/QUARENTENA** | — |
 
@@ -370,9 +369,9 @@ Ver [`_AUTORAL_RetroVerse/CAMERA/NOTAS.md`](_AUTORAL_RetroVerse/CAMERA/NOTAS.md)
 | `VFX_Pack_Meshes/` | **CRU** — só malha, sem script | [FICHA.md](VFX_Pack_Meshes/FICHA.md) |
 | `His_Cube/` | **CRU** — referência de CFrame R6, nada extraído | [FICHA.md](His_Cube/FICHA.md) |
 | `YorrSlayer/` | **CRU** — a câmera dele já conformada; ver GRAMATICA_CUTSCENE | [FICHA.md](YorrSlayer/FICHA.md) |
-| `Xester_Forma1/` | **LIMPO** — base das 7 Tools da Forma 1; animação e SFX ligados em 2026-08-14 | [FICHA.md](Xester_Forma1/FICHA.md) |
+| `Xester_Forma1/` | **LIMPO** — base da Tool `Xester`, forma 1 de 2; kit refeito em 2026-08-19 | [FICHA.md](Xester_Forma1/FICHA.md) |
 | ↳ o baralho `cards` | serve **as duas** formas: Handle e moldes de carta da Forma 1 saem dele | — |
-| `Xester_Forma2_O_Despertar/` | **LIMPO** — base das 7 Tools da Forma 2; animação e SFX ligados em 2026-08-14 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
+| `Xester_Forma2_O_Despertar/` | **LIMPO** — base da Tool `Xester`, forma 2 de 2; kit refeito em 2026-08-19 | [FICHA.md](Xester_Forma2_O_Despertar/FICHA.md) |
 | `_AUTORAL_RetroVerse/` | APROVADO | [FICHA.md](_AUTORAL_RetroVerse/FICHA.md) |
 | `_MODELO_DE_PASTA/` | molde | — |
 | **lote de 2026-08-13** | | |

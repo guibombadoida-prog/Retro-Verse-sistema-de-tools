@@ -128,7 +128,35 @@ def main():
         print(CINZA % ("    %-22s %s" % (efeito, marcas[:88])))
     print("")
 
-    RE_CHAMADA = re.compile(r'pk\(\s*"(\w+)"\s*,(.*?)\)\s*then', re.S)
+    # ⚠️ ESTE PADRÃO JÁ FOI `pk\(\s*"(\w+)"\s*,(.*?)\)\s*then`.
+    #
+    #     Ele só enxergava a chamada quando ela morava dentro de um
+    #     `if not pk(...) then <fallback> end`. Chamada SOLTA — `pk(...)` como
+    #     comando, que é a forma quando o pack é camada EXTRA por cima de um
+    #     desenho que sempre acontece — não casava com o `) then`, e o `.*?`
+    #     com `re.S` varria o arquivo para a frente até achar um `) then` de
+    #     outra função, quilômetros abaixo.
+    #
+    #     O resultado não era "não confere": era conferir LIXO. A lista de
+    #     argumentos virava tudo que houvesse no caminho, e o verificador
+    #     acusava "arg 7 espera Enum, recebe Vector3" numa chamada de seis
+    #     argumentos perfeitamente correta.
+    #
+    # Agora o corpo é lido com CONTADOR DE PARÊNTESES, do `pk(` até o fecha que
+    # é dele. Não depende de o que vem depois, e pega as duas formas.
+    def chamadas(texto):
+        for m in re.finditer(r'pk\(\s*"(\w+)"\s*,', texto):
+            nivel, i = 1, m.end()
+            while i < len(texto) and nivel > 0:
+                if texto[i] in "([":
+                    nivel = nivel + 1
+                elif texto[i] in ")]":
+                    nivel = nivel - 1
+                    if nivel == 0:
+                        break
+                i = i + 1
+            if nivel == 0:
+                yield m.group(1), texto[m.end():i]
     problemas = 0
     conferidas = 0
     for pasta in sorted(os.listdir(TOOLS)):
@@ -137,7 +165,7 @@ def main():
             continue
         texto = open(caminho, encoding="utf-8").read()
         achados = []
-        for efeito, corpo in RE_CHAMADA.findall(texto):
+        for efeito, corpo in chamadas(texto):
             if efeito not in esperado:
                 achados.append("chama %r, que não existe no pack" % efeito)
                 continue

@@ -192,3 +192,118 @@ Server da própria Tool.
 ### O que continua verdadeiro
 
 Nada rodou no Studio. A verificação é toda estática.
+
+---
+
+## Refazimento de 2026-08-19 — o kit novo, e UMA Tool no lugar de catorze
+
+As 14 Tools do Xester saíram do repositório. No lugar delas entrou **uma Tool
+`Xester`, com duas formas e 13 habilidades**, pelo desenho que o autor do
+projeto especificou tecla a tecla.
+
+### Por que uma Tool, contra a regra de distribuição
+
+`F` troca de forma: `The Final Deal` leva do baralho ao dragão, `Curtain
+Reversal` traz de volta. Com duas Tools, uma teria de **alcançar a outra** —
+procurá-la na mochila, no `ReplicatedStorage`, num depósito. É exatamente o que
+a **Regra nº 1** proíbe, e ela vence a `REGRA_DISTRIBUICAO_DE_TOOLS` na ordem
+de precedência do `CLAUDE.md` (autocontenção é 1, distribuição é 3).
+
+Então a forma virou **estado**, dentro da Tool. O teste do place vazio continua
+passando: `Xester` sozinho num place funciona nas duas formas, com as três
+cutscenes.
+
+São 13 habilidades — abaixo do teto real da regra de distribuição
+(7 Tools × 2 = 14). O que mudou foi o **empacotamento**, não a quantidade.
+
+### O kit
+
+| Tecla | Forma 1 — Mestre do Baralho | Tecla | Forma 2 — Heavenbreaker |
+|---|---|---|---|
+| `Q` | Curtain Call | `G` | Wyrm Sparks |
+| `E` | Four Suits Arsenal | `H` | Crown of Cinders |
+| `R` | Joker's Labyrinth | `J` | Dragon's Requiem (segurar) |
+| `T` | Ace Gate | `K` | Xester Prism |
+| `Y` | House Collapse | `L` | The Final Page of Heaven |
+| `U` | Eclipse Deck | `F` | Curtain Reversal |
+| `P` | Royal Guard | | |
+| `F` | The Final Deal | | |
+
+**Passiva:** a cada três habilidades da Forma 1, nasce a Carta Coringa. A
+próxima habilidade a gasta e sai com dano × 1.6 e raio × 1.25. O contador mora
+no servidor, que é quem aplica o dano.
+
+**O clique é contextual.** §9 manda a primária ficar em `Tool.Activated`, nunca
+em botão. Cinco das treze pedem "clicar para confirmar" no desenho — o naipe, o
+desabamento, o Rei, as brasas e os três pontos da ultimate. Então o clique
+despacha para o que está armado e cai num golpe simples quando não há nada.
+
+### O título escrito não existe, e o motivo é regra
+
+O roteiro pede **"XESTER — HEAVENBREAKER"** na tela no sexto beat. Texto em 3D
+no Roblox só existe por `BillboardGui` ou `SurfaceGui`, e a diretriz base
+proíbe as duas **dentro de uma Tool**.
+
+O beat `TITULO` existe e é o clímax: a máscara nasce grande, um anel dourado
+abre atrás dela e a luz estoura com o FOV em 62 num contra-plongée. O que não
+existe é a **letra**. Se o título escrito for obrigatório, ele tem de morar no
+sistema de UI do jogo, do lado de fora, ouvindo o `CutsceneRemote` — que já
+manda os seis beats nomeados para o cliente do dono.
+
+### As três cutscenes
+
+| Cena | Duração | Beats |
+|---|---|---|
+| `TRANSFORMAR` (`F`, ida) | 3.00 s | MAO · NAIPES · CORINGA · CONGELA · RASGA · TITULO |
+| `REVERTER` (`F`, volta) | 1.80 s | ABSORVE · APAGA · FECHA |
+| `CENA_PAGINA` (`L`) | 1.80 s | PARA · RELOGIO · QUEBRA · VOLTA |
+
+As durações são as pedidas: 3 s e 1.8 s. **A cutscene É a sequência de
+animação** — os beats saem do `Poses.lua` e viram beat de câmera pelo
+`cam = true`. Quem manda o `FIM` é o callback do fim da sequência, não um
+`task.wait` paralelo que poderia dessincronizar dela.
+
+A câmera é **100 % cliente e só do dono**: `CutsceneRemote:FireClient(jogador,
+…)`, como pedido — a cutscene não é forçada nos outros jogadores. O VFX dela
+continua indo para todo mundo por `FireAllClients`: quem está por perto vê o
+Xester virar dragão sem perder o controle da própria visão.
+
+Seis portas devolvem a câmera: `Unequipped`, `Destroying`,
+`CharacterRemoving`, `Died`, prazo estourado e o pulo (segurar `E` por 1.5 s —
+só visual, não encurta a timeline do servidor).
+
+### O que a forma carrega
+
+O **Handle não troca**: `RequiresHandle` exige que ele exista o tempo todo, e
+mexer na geometria dele desmonta o `Grip` do `Humanoid`. Quem carrega a forma é
+o **Cajado** — `staff/t` da origem, clonado e soldado ao braço direito por um
+`Weld` criado no SERVIDOR (no cliente ele não replicaria, e os outros jogadores
+veriam o Xester de mãos vazias) — mais a aura de brasas, que tem `id` e é
+apagada na volta e nas duas portas de saída.
+
+### Nenhuma fere o portador, nenhuma destrói peça do mundo
+
+`alvosEm` exclui o `personagem` da consulta espacial, e o Núcleo filtra time.
+Nenhuma das 13 chama `Destroy`, `Remove`, `BreakJoints` ou
+`Instance.new("Explosion")`. A invisibilidade do Curtain Call guarda a
+transparência **anterior** de cada peça e devolve aquela.
+
+### Dois verificadores novos, e um consertado
+
+- **`TESTES/verificar_beats.py`** (novo) — confere o fio entre o Server, o
+  `Poses.lua` e o `CutsceneCam.lua`: sequência tocada que existe, beat
+  despachado que a sequência tem, e beat de câmera com enquadramento. É o
+  defeito que custou 14 Tools entregues com dano zero, e que era invisível para
+  os cinco verificadores da época. **75 Tools conferidas, zero erro.**
+
+- **`TESTES/verificar_pack_vfx.py`** (consertado) — o padrão de chamada era
+  `pk\(\s*"(\w+)"\s*,(.*?)\)\s*then`, e só enxergava `pk` dentro de um
+  `if … then`. Chamada solta não casava, e o `.*?` com `re.S` varria o arquivo
+  para a frente até achar um `) then` de outra função — conferindo LIXO em vez
+  de não conferir. Agora o corpo é lido com contador de parênteses:
+  **779 chamadas conferidas contra 267 antes**, todas OK.
+
+### O que continua verdadeiro
+
+Nada rodou no Studio. A verificação é toda estática — que os beats casam está
+provado pelo arquivo; que a cutscene **fica bonita** só o jogo diz.

@@ -728,7 +728,34 @@ def montar(conjunto, fonte, forma, relatorio, compartilhadas):
     return True
 
 
+# ═══════════════════════════════════════════════════════════════
+# SUPERADO COMO SCRIPT — CONTINUA VIVO COMO BIBLIOTECA
+#
+# As 14 Tools que este arquivo montava saíram do repositório: o desenho novo do
+# Xester é UMA Tool com duas formas, e quem a monta é `preparar_xester_v2.py`.
+#
+# O que ficou é o que tem valor independente das 14: `achar`, `podar`,
+# `apagar`, `definir`, `renomear_referentes`, `parte`, `novo_item` e as tabelas
+# `MALHAS` e `TAMANHO_CARTA`. O `v2` importa tudo isso daqui.
+#
+# `main` foi trocado por um aviso. Rodá-lo recriaria catorze pastas de Tool que
+# ninguém monta mais, e um `Tools/` com Tool morta é pior do que um a menos.
+# ═══════════════════════════════════════════════════════════════
+
 def main():
+    print("preparar_xester.py virou BIBLIOTECA — não monta mais nada.")
+    print("")
+    print("  As 14 Tools que ele montava saíram do repositório. O Xester")
+    print("  agora é UMA Tool com duas formas:")
+    print("")
+    print("      python3 FERRAMENTAS/preparar_xester_v2.py")
+    print("")
+    print("  Os helpers de extração continuam aqui, e o v2 os importa.")
+    return 1
+
+
+def _antigo_main():
+    
     f2 = os.path.join(ENTRADA, "Xester_Forma2_O_Despertar.rbxmx")
     if not os.path.exists(f2):
         print("origem da Forma 2 não encontrada: %s" % f2)

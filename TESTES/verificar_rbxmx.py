@@ -534,26 +534,12 @@ CONJUNTOS = [
         "Diamond",
         "A arma",
     ]),
-    # O Xester sai em DOIS arquivos, um por forma — e por isso ficou três
-    # levas fora desta lista. Sem registro aqui, ninguém conferia se as 7 de
-    # cada forma continuavam sendo as 7 certas.
-    ("Xester_Forma1_7_Tools.rbxmx", "Xester_Forma1", [
-        "Xester Ato de Desaparecer",
-        "Xester Full House",
-        "Xester Cardnado",
-        "Xester Teleporte",
-        "Xester Carta Colossal",
-        "Xester Buraco Negro",
-        "Xester Escudo de Cartas",
-    ]),
-    ("Xester_Forma2_7_Tools.rbxmx", "Xester_Forma2", [
-        "Xester Carta Ceifeira",
-        "Xester Esfera do Fim",
-        "Xester Baralho Espectral",
-        "Xester Invocacao",
-        "Xester Furia do Machado",
-        "Xester Procissao de Cartas",
-        "Xester Portal do Cajado",
+    # O Xester era DOIS arquivos de 7 Tools. Agora é UMA Tool com duas formas:
+    # `F` troca entre elas, e com duas Tools uma teria de alcançar a outra —
+    # o que a Regra nº 1 proíbe, e ela vence a de distribuição na ordem de
+    # precedência. As 14 saíram do repositório; a lista acompanha.
+    ("Xester.rbxmx", "Xester_Forma1", [
+        "Xester",
     ]),
     # 5 Tools de DUAS fontes: quatro do `reality_tools.rbxmx` (que está em
     # QUARENTENA por causa do backdoor, que mora na `Pistol` — nenhuma destas

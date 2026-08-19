@@ -181,3 +181,43 @@ fileira, mesmo desenho, e o servidor respira entre um e outro.
 ### O que continua verdadeiro
 
 Nada rodou no Studio. A verificação é toda estática.
+
+---
+
+## Refazimento de 2026-08-19 — esta forma virou metade de uma Tool
+
+As 7 Tools desta forma saíram do repositório junto com as 7 da outra. O Xester
+agora é **uma Tool só**, e esta forma é o estado em que `F` a coloca.
+
+O porquê, o kit inteiro, as três cutscenes e a nota sobre o título escrito
+estão em `ACERVO_RETROVERSE/Xester_Forma1/FICHA.md` — a ficha não foi duplicada
+porque o assunto é um só.
+
+### O que ESTE material continua fornecendo
+
+| Peça | De onde | Para quê |
+|---|---|---|
+| `staff/t` | origem | o **Cajado**, soldado ao braço quando a Forma 2 entra |
+| `cards/card1..4` | origem | o Handle e toda carta que o VFX clona |
+| `energb` | origem | o núcleo do sol da Coroa e do Requiem |
+| `Effects` | origem | os moldes de brasa e faísca |
+| ids de som | origem | 27 `Sound`, um por habilidade e por beat de cutscene |
+
+Tudo entra **apagado** (`Transparency = 1`, `Enabled = false`) e acende só na
+execução da habilidade, que foi pedido explícito. Nenhum script da origem
+entrou: `podar` tira Script, LocalScript, ModuleScript, classe proibida e Sound
+sem disparador.
+
+### As cinco habilidades desta forma
+
+`G` Wyrm Sparks · `H` Crown of Cinders · `J` Dragon's Requiem (segurar carrega,
+soltar dispara o sopro curvado) · `K` Xester Prism (o ponto de impacto anda com
+o mouse) · `L` The Final Page of Heaven (para o tempo, três pontos, dano
+acumulado) — mais `F`, Curtain Reversal.
+
+A curva do sopro do `J` é calculada **no servidor**: é ela que define quem é
+atingido, e deixar a hitbox no cliente seria deixá-la com quem pode mentir.
+
+### O que continua verdadeiro
+
+Nada rodou no Studio. A verificação é toda estática.

@@ -37,6 +37,7 @@ python3 FERRAMENTAS/converter_para_rbxm.py <x.rbxmx> <x.rbxm>   # o binário da 
 python3 TESTES/verificar_rbxmx.py       # confere fonte byte a byte
 python3 TESTES/verificar_poses.py       # poses × animator V2
 python3 TESTES/verificar_vfx_chamadas.py # chamada de VFX sem definição
+python3 TESTES/verificar_beats.py        # beat despachado que a sequência não tem
 ```
 
 ## Quantas Tools saem de um modelo

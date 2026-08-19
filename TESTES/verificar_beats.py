@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""
+verificar_beats.py — Retro-Verse / Studios
+
+Confere o FIO entre o Server, o `Poses.lua` e o `CutsceneCam.lua`.
+
+    python3 TESTES/verificar_beats.py
+
+Sai com 1 se qualquer Tool falhar.
+
+POR QUE ESTE VERIFICADOR EXISTE
+
+    O nome de um beat é escrito em DOIS lugares: no `marca = "GOLPE"` do
+    `Poses.lua` e de novo na tabela do `despachar` do Server. Errar o segundo
+    não é erro de sintaxe, não é erro de runtime, e não aparece em log nenhum:
+    a animação roda inteira, bonita, e o golpe simplesmente não acontece.
+
+    Já custou catorze Tools de dois conjuntos, que foram entregues com dano
+    zero. É o defeito mais caro que este repositório teve, e era invisível para
+    os cinco verificadores que existiam na época.
+
+O QUE ELE CONFERE
+
+    1. Toda sequência que o Server toca EXISTE no `Poses.lua`.
+       `PlaySequence("CULHEITA")` com um erro de digitação não faz nada — o
+       animator não acha a sequência e volta calado.
+
+    2. Todo beat que o Server despacha EXISTE naquela sequência.
+       Despachar `SEGURA` numa sequência que só tem `CARGA`, `GOLPE` e `FIM` é
+       trabalho escrito que nunca roda.
+
+    3. Todo beat marcado `cam = true` tem ENQUADRAMENTO no `CutsceneCam.lua`.
+       Beat de câmera sem quadro é uma cutscene que não corta: a câmera prende
+       e fica parada no primeiro enquadramento até o `FIM`.
+
+O QUE ELE NÃO CONFERE
+
+    Sequência definida e nunca tocada é AVISO, não erro: uma Tool pode trazer
+    uma pose de reserva de propósito. Mas ela é impressa, porque na prática
+    quase sempre é uma habilidade que ficou pelo caminho.
+"""
+
+import os
+import re
+import sys
+
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS = os.path.join(RAIZ, "Tools")
+
+VERMELHO = "\033[31m%s\033[0m"
+VERDE = "\033[32m%s\033[0m"
+AMARELO = "\033[33m%s\033[0m"
+CINZA = "\033[90m%s\033[0m"
+
+#: `SEQ = {` no topo de um bloco de sequências
+RE_SEQ_DEF = re.compile(r"(?m)^\t([A-Z][A-Z0-9_]*) = \{\n((?:\t\t\{[^\n]*\n)+)\t\},")
+#: `PlaySequence("NOME"` e `PlayTrack("NOME"`
+RE_TOCA = re.compile(r'Play(?:Sequence|Track)\(\s*"([A-Z][A-Z0-9_]*)"')
+#: o M1 que escolhe a sequência pela forma, na mesma expressão
+RE_TOCA_TERNARIO = re.compile(
+    r'Play(?:Sequence|Track)\(\s*\w+ and "([A-Z][A-Z0-9_]*)"'
+    r'\s+or\s+"([A-Z][A-Z0-9_]*)"')
+#: um bloco `PlaySequence(<alvo>, despachar({ … }))`.
+#:
+#: `<alvo>` pode ser literal (`"COLHEITA"`) ou uma expressão — o `TryHard`
+#: chama `PlaySequence(ORDEM_COMBO[passo], …)`, com o nome vindo de uma tabela.
+#: Quando não é literal, o beat é conferido contra a UNIÃO das sequências: não
+#: dá para saber qual delas vai tocar, mas dá para saber se aquele beat não
+#: existe em nenhuma.
+RE_DESPACHO = re.compile(
+    r'PlaySequence\(\s*([^,\n]+?)\s*,\s*despachar\(\{(.*?)\n\t\}\)\)',
+    re.S)
+
+#: qualquer literal MAIÚSCULO no Server. Serve só para o AVISO de sequência não
+#: tocada: um nome guardado em tabela e chamado por índice é invisível para o
+#: padrão do `PlaySequence`, e acusá-lo de morto seria mentira.
+RE_LITERAL = re.compile(r'"([A-Z][A-Z0-9_]*)"')
+#: as chaves de primeiro nível da tabela do despachar
+RE_BEAT = re.compile(r"(?m)^\t\t([A-Z][A-Z0-9_]*)\s*=\s*\{")
+#: um beat que manda a câmera cortar
+RE_BEAT_CAM = re.compile(r"(?m)^\t\t([A-Z][A-Z0-9_]*)\s*=\s*\{[^\n]*cam = true")
+#: as cenas do CutsceneCam: `NOME = {` com beats dentro
+RE_CENA = re.compile(r"(?m)^\t([A-Z][A-Z0-9_]*) = \{\n(.*?)\n\t\},", re.S)
+RE_QUADRO = re.compile(r"(?m)^\t\t([A-Z][A-Z0-9_]*)\s*=\s*\{")
+
+
+def sem_comentario(texto):
+    return "\n".join(l for l in texto.split("\n")
+                     if not l.lstrip().startswith("--"))
+
+
+def servidores(pasta):
+    saida = []
+    for arq in sorted(os.listdir(pasta)):
+        if arq.endswith(".lua") and "_Server_V" in arq:
+            saida.append(os.path.join(pasta, arq))
+    return saida
+
+
+def verificar(pasta):
+    """(erros, avisos) de uma pasta de Tool."""
+    erros, avisos = [], []
+
+    caminho_poses = None
+    for arq in sorted(os.listdir(pasta)):
+        if arq.startswith("Poses") and arq.endswith(".lua"):
+            caminho_poses = os.path.join(pasta, arq)
+            break
+    fontes = servidores(pasta)
+    if not (caminho_poses and fontes):
+        return erros, avisos
+
+    poses = open(caminho_poses, encoding="utf-8").read()
+    # só o que vem DEPOIS de `SEQUENCIAS = {`: as poses soltas do topo têm a
+    # mesma forma e virariam sequências fantasma
+    corte = poses.find("SEQUENCIAS")
+    bloco = poses[corte:] if corte >= 0 else poses
+    marcas_por_seq = {}
+    for nome, corpo in RE_SEQ_DEF.findall(bloco):
+        marcas_por_seq[nome] = set(re.findall(r'marca = "([A-Z_]+)"', corpo))
+    if not marcas_por_seq:
+        return erros, avisos
+
+    cenas = {}
+    caminho_cam = os.path.join(pasta, "CutsceneCam.lua")
+    if os.path.exists(caminho_cam):
+        cam = sem_comentario(open(caminho_cam, encoding="utf-8").read())
+        for nome, corpo in RE_CENA.findall(cam):
+            quadros = set(RE_QUADRO.findall(corpo))
+            if quadros:
+                cenas[nome] = quadros
+
+    tocadas = set()
+    for caminho in fontes:
+        fonte = sem_comentario(open(caminho, encoding="utf-8").read())
+        rotulo = os.path.basename(caminho)
+
+        # 1. a sequência tocada existe
+        nomes = set(RE_TOCA.findall(fonte))
+        for a, b in RE_TOCA_TERNARIO.findall(fonte):
+            nomes.update((a, b))
+        tocadas.update(nomes)
+        for nome in sorted(nomes - set(marcas_por_seq)):
+            erros.append("%s toca a sequência %r, que o Poses não define — "
+                         "o animator não acha e volta calado" % (rotulo, nome))
+
+        # o nome pode estar guardado numa tabela e vir por índice
+        tocadas.update(set(RE_LITERAL.findall(fonte)) & set(marcas_por_seq))
+
+        # 2. o beat despachado existe naquela sequência
+        todas = set()
+        for conjunto in marcas_por_seq.values():
+            todas.update(conjunto)
+        for alvo, corpo in RE_DESPACHO.findall(fonte):
+            literal = re.fullmatch(r'"([A-Z][A-Z0-9_]*)"', alvo.strip())
+            if literal:
+                seq = literal.group(1)
+                tem = marcas_por_seq.get(seq)
+                se_qual = "%s" % seq
+            else:
+                seq, tem = None, todas
+                se_qual = "a sequência que %s escolher" % alvo.strip()
+            if tem is None:
+                continue
+            for beat in sorted(set(RE_BEAT.findall(corpo)) - tem):
+                erros.append("%s: %s despacha o beat %r, que a sequência não "
+                             "tem — o trabalho está escrito e nunca roda"
+                             % (rotulo, se_qual, beat))
+
+            # 3. beat de câmera tem enquadramento
+            com_cam = set(RE_BEAT_CAM.findall(corpo))
+            if com_cam and cenas:
+                if not any(com_cam <= quadros for quadros in cenas.values()):
+                    faltando = sorted(com_cam)
+                    erros.append("%s: %s manda a câmera cortar em %s, e "
+                                 "nenhuma cena do CutsceneCam tem esses "
+                                 "quadros" % (rotulo, seq, ", ".join(faltando)))
+            elif com_cam and not cenas:
+                erros.append("%s: %s manda a câmera cortar, e a Tool não tem "
+                             "CutsceneCam.lua" % (rotulo, seq))
+
+    for nome in sorted(set(marcas_por_seq) - tocadas):
+        avisos.append("sequência %r definida e nunca tocada" % nome)
+
+    return erros, avisos
+
+
+def main():
+    print("")
+    print("VERIFICAÇÃO DO BEAT")
+    print(CINZA % "O fio entre o Server, o Poses.lua e o CutsceneCam.lua")
+    print("")
+
+    problemas, alertas, olhadas = 0, 0, 0
+    for nome in sorted(os.listdir(TOOLS)):
+        pasta = os.path.join(TOOLS, nome)
+        if not os.path.isdir(pasta):
+            continue
+        erros, avisos = verificar(pasta)
+        if not (erros or avisos):
+            continue
+        olhadas = olhadas + 1
+        if erros:
+            problemas = problemas + len(erros)
+            print(VERMELHO % ("✗ %s" % nome))
+            for e in erros:
+                print("    %s" % e)
+        elif avisos:
+            alertas = alertas + len(avisos)
+            print(AMARELO % ("• %s" % nome))
+            for a in avisos:
+                print(CINZA % ("    %s" % a))
+
+    total = 0
+    for nome in sorted(os.listdir(TOOLS)):
+        pasta = os.path.join(TOOLS, nome)
+        if os.path.isdir(pasta) and servidores(pasta):
+            total = total + 1
+
+    print("")
+    if problemas:
+        print(VERMELHO % ("%d BEAT(S) SEM DESTINO" % problemas))
+        print(CINZA % "    Falham em SILÊNCIO: a animação roda e nada acontece.")
+        return 1
+    print(VERDE % ("BEAT OK — %d Tool(s) conferidas" % total))
+    if alertas:
+        print(CINZA % ("    %d aviso(s) acima: sequência escrita e não usada."
+                       % alertas))
+    print("")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
