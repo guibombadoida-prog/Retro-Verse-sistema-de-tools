@@ -2324,7 +2324,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Maria] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -2334,6 +2334,60 @@ end
 --═══════════════════════════════════════════════════════════════
 
 --- O contato. 0.06 s — mais que isso e vira explosão, que não é o que é.
+
+--- Clona um molde que veio DA ORIGEM, de qualquer lugar dentro da Tool.
+---
+--- ⚠️ ESTA FUNÇÃO FALTAVA, E O CONSOLE MOSTROU.
+---
+---     `attempt to call a nil value` em `METEORO` e `RAIO`. O andaime deste
+---     módulo veio do Guest, que desenha só com primitiva e nunca precisou de
+---     `molde`. Os efeitos da Maria precisam: o `Beam` do Curador, o `Orb` e o
+---     `Shadows` da Escuridão, o `Mesh` e o `Particle` das Estrelas, do Meteoro
+---     e do Relâmpago vieram todos do `mariatools.rbxmx`.
+---
+---     Chamada a função inexistente vira `nil` e só estoura NA HORA DE CHAMAR —
+---     dentro do `pcall` do `VFX.Executar`, que transforma em `warn`. O jogo não
+---     trava, o efeito some, e nada no verificador estático pegava.
+---
+--- A busca é RECURSIVA porque os moldes não estão todos no mesmo nível: o
+--- `Beam` do Curador mora dentro do `Handle`, e os da Escuridão são filhos
+--- diretos da Tool.
+---
+--- Devolve `nil` quando a Tool não traz aquele molde, e cada efeito cai no
+--- desenho primitivo — a Tool sozinha num place vazio continua funcionando.
+local pastaMoldes, moldeProcurado = nil, false
+
+local function acharTool()
+	local no = script
+	while no do
+		if no:IsA("Tool") then return no end
+		no = no.Parent
+	end
+	return nil
+end
+
+local function molde(nome, props)
+	if not moldeProcurado then
+		moldeProcurado = true
+		pastaMoldes = acharTool()
+	end
+	if not pastaMoldes then return nil end
+
+	local base = pastaMoldes:FindFirstChild(nome, true)
+	if not base then return nil end
+
+	local copia = base:Clone()
+	-- emissor autorado entra DESLIGADO: quem acende é quem usa, com o `Rate`
+	-- do autor. `:Emit()` ignoraria a curva que ele escreveu.
+	if copia:IsA("ParticleEmitter") or copia:IsA("Trail") or copia:IsA("Beam") then
+		copia.Enabled = false
+	end
+	for chave, valor in pairs(props or {}) do
+		copia[chave] = valor
+	end
+	return copia
+end
+
 local function camadaFlash(p, c, raio)
 	local bola = novaParte({
 		Shape = Enum.PartType.Ball,
@@ -2863,7 +2917,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Maria] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end

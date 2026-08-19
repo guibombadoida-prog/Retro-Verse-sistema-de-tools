@@ -1378,7 +1378,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -1907,7 +1907,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -6074,7 +6074,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -6603,7 +6603,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -10765,7 +10765,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -11294,7 +11294,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -15439,7 +15439,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -15968,7 +15968,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -20149,7 +20149,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -20678,7 +20678,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -24859,7 +24859,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -25388,7 +25388,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -29559,7 +29559,7 @@ local function pk(nome, ...)
 	if not fn then return false end
 	local ok, err = pcall(fn, ...)
 	if not ok then
-		warn("[VFXModule_Guest] pack " .. tostring(nome) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] pack " .. tostring(nome) .. ": " .. tostring(err))
 	end
 	return ok
 end
@@ -30088,7 +30088,7 @@ function VFX.Executar(tipo, dados)
 	if not fn then return false end
 	local ok, err = pcall(fn, dados)
 	if not ok then
-		warn("[VFXModule_Guest] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+		warn("[" .. script.Name .. "/Jodro] falha em " .. tostring(tipo) .. ": " .. tostring(err))
 	end
 	return ok
 end
