@@ -1976,6 +1976,32 @@ local ACESO = {
 
 local vivos = {}
 
+--%(regua)s
+-- O REGISTRO POR `id`
+--
+-- O servidor abre efeito com prazo — o tornado, o buraco, o anel, o portal — e
+-- precisa poder DESFAZER antes da hora, ou MOVER junto com quem o carrega.
+-- Sem registro, a Tool guardada no meio deixa o efeito girando na tela até o
+-- `Debris` lembrar dele.
+--
+-- `idAtual` é posto pelo despachante ANTES de chamar o efeito, e tirado
+-- depois: assim todo desenho feito ali dentro cai no registro sem que cada
+-- função de baixo nível precise receber o `id`.
+--%(regua)s
+
+local PorId = {}
+local idAtual = nil
+
+--- Guarda a peça em `vivos`, e no registro do `id` da vez se houver um.
+local function registrar(inst)
+	table.insert(vivos, inst)
+	if idAtual then
+		PorId[idAtual] = PorId[idAtual] or {}
+		table.insert(PorId[idAtual], inst)
+	end
+	return inst
+end
+
 local function acender(instancia)
 	for classe, campos in pairs(ACESO) do
 		if instancia:IsA(classe) then
@@ -1994,7 +2020,7 @@ function M.clonar(molde, vida)
 		acender(filho)
 	end
 	copia.Parent = workspace
-	table.insert(vivos, copia)
+	registrar(copia)
 	Debris:AddItem(copia, vida or 4)
 	return copia
 end
@@ -2032,7 +2058,7 @@ local function som(rotulo, posicao, pitch)
 	copia.Parent = ancora
 	copia:Play()
 
-	table.insert(vivos, ancora)
+	registrar(ancora)
 	Debris:AddItem(ancora, (copia.TimeLength > 0 and copia.TimeLength or 5) + 1)
 	return copia
 end
@@ -2057,7 +2083,7 @@ local function onda(posicao, escala, cor, vida)
 	disco.Color = cor or COR.CLARO
 	disco.Anchored, disco.CanCollide = true, false
 	disco.Parent = workspace
-	table.insert(vivos, disco)
+	registrar(disco)
 	Debris:AddItem(disco, (vida or 1.2) + 0.5)
 	TweenService:Create(disco, TweenInfo.new(vida or 1.2,
 		Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -2094,7 +2120,7 @@ local function nova(posicao, escala, cor, vida)
 	bola.Anchored, bola.CanCollide = true, false
 	bola.CFrame = CFrame.new(posicao)
 	bola.Parent = workspace
-	table.insert(vivos, bola)
+	registrar(bola)
 	Debris:AddItem(bola, (vida or 0.6) + 0.4)
 	TweenService:Create(bola, TweenInfo.new(vida or 0.6,
 		Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -2167,7 +2193,7 @@ local function feixe(origem, destino, calibre, cor, vida)
 	cilindro.Color = cor or COR.CLARO
 	cilindro.Anchored, cilindro.CanCollide = true, false
 	cilindro.Parent = workspace
-	table.insert(vivos, cilindro)
+	registrar(cilindro)
 	Debris:AddItem(cilindro, (vida or 2) + 0.5)
 	TweenService:Create(cilindro, TweenInfo.new(vida or 2,
 		Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -2315,7 +2341,7 @@ function VFX.FANTASMA(d, _moldes, personagem)
 			eco.Anchored, eco.CanCollide = true, false
 			eco.Transparency = 0.4
 			eco.Parent = workspace
-			table.insert(vivos, eco)
+			registrar(eco)
 			Debris:AddItem(eco, 1)
 			TweenService:Create(eco, TweenInfo.new(1),
 				{ Transparency = 1 }):Play()
@@ -2573,15 +2599,87 @@ function VFX.RAIO(d)
 end
 
 --%(regua)s
+-- MOVER — o efeito com prazo acompanha quem o carrega
+--
+-- O tornado da Forma 1 e o escudo orbital seguem o portador. Sem isto o
+-- servidor teria de reabrir o efeito a cada passo, e o cliente veria a coisa
+-- piscar em vez de andar.
+--%(regua)s
 
-function M.desenhar(tipo, dados, moldes, personagem)
-	local fn = VFX[tipo]
-	if not fn then return end
-	local ok, erro = pcall(fn, dados, moldes, personagem)
-	if not ok then
-		warn("[Xester VFX] " .. tostring(tipo) .. ": " .. tostring(erro))
+function VFX.MOVER(d)
+	local reg = d and d.id and PorId[d.id]
+	if not reg then return end
+	local destino = d.posicao
+	if typeof(destino) ~= "Vector3" then return end
+	local tempo = d.tempo or 0.3
+	for _, inst in ipairs(reg) do
+		if inst and inst.Parent then
+			local peca = inst
+			if not peca:IsA("BasePart") then
+				peca = (peca:IsA("Model") and peca.PrimaryPart) or nil
+			end
+			if peca then
+				TweenService:Create(peca,
+					TweenInfo.new(tempo, Enum.EasingStyle.Linear),
+					{ CFrame = CFrame.new(destino) * (peca.CFrame - peca.Position) }
+				):Play()
+			end
+		end
 	end
 end
+
+--%(regua)s
+-- A PORTA DO MÓDULO — `Executar`, `Parar`, `LimparTudo`
+--
+-- É a assinatura que todo `Client.lua` do repositório usa. Este módulo tinha
+-- `M.desenhar` e `M.limpar`, de um Client anterior: o Client atual chamava
+-- `VFX.Executar`, que não existia, e TODO efeito das catorze Tools morria em
+-- `attempt to call a nil value` — em silêncio, porque quem falha primeiro é a
+-- linha do `OnClientEvent`, não a habilidade.
+--
+-- `desenhar` e `limpar` continuam aqui como os nomes antigos da mesma coisa.
+--%(regua)s
+
+function M.Executar(tipo, dados, moldes, personagem)
+	local fn = VFX[tipo]
+	if not fn then return false end
+	local anterior = idAtual
+	idAtual = dados and dados.id or nil
+	local ok, erro = pcall(fn, dados, moldes, personagem)
+	idAtual = anterior
+	if not ok then
+		warn("[" .. script.Name .. "/Xester] falha em " .. tostring(tipo)
+			.. ": " .. tostring(erro))
+	end
+	return ok
+end
+
+function M.Parar(id)
+	local reg = id and PorId[id]
+	if not reg then return end
+	for _, inst in ipairs(reg) do
+		if inst and inst.Parent then
+			if inst:IsA("ParticleEmitter") or inst:IsA("Trail")
+					or inst:IsA("Beam") then
+				inst.Enabled = false
+			end
+			inst.Parent = nil
+		end
+	end
+	PorId[id] = nil
+end
+
+function M.LimparTudo()
+	for id in pairs(PorId) do M.Parar(id) end
+	for _, peca in ipairs(vivos) do
+		if peca and peca.Parent then peca.Parent = nil end
+	end
+	vivos = {}
+end
+
+--- Os nomes antigos, apontando para a mesma coisa.
+M.desenhar = M.Executar
+M.limpar = M.LimparTudo
 
 --- Beat do animator. O gesto marca CARGA e GOLPE; aqui viram brilho na mão,
 --- para o golpe ter peso ANTES do efeito grande chegar.
@@ -2593,13 +2691,6 @@ function M.beat(marca, personagem)
 	elseif marca == "GOLPE" then
 		nova(braco.Position, 4, COR.CLARO, 0.35)
 	end
-end
-
-function M.limpar()
-	for _, peca in ipairs(vivos) do
-		if peca and peca.Parent then peca.Parent = nil end
-	end
-	vivos = {}
 end
 
 return M

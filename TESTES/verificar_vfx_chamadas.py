@@ -14,6 +14,10 @@ POR QUE ISTO EXISTE
       `molde`                   faltava no VFXModule_Maria — só o CONSOLE DO
                                 JOGO pegou, com `attempt to call a nil value`
                                 em METEORO e RAIO
+      `Executar`/`Parar`/       o VFXModule do Xester exportava `desenhar` e
+      `LimparTudo`              `limpar`, de um Client anterior. O Client atual
+                                chamava `VFX.Executar` — TODO efeito das 14
+                                Tools morria na primeira linha, calado
 
     A causa é sempre a mesma: o andaime de um módulo é reusado de outro
     conjunto, os EFEITOS novos usam um helper que aquele andaime não tinha, e
@@ -24,6 +28,11 @@ POR QUE ISTO EXISTE
     estrutura, pose ou tipo enxerga isso — o arquivo é Lua válido.
 
 O QUE ELE FAZ
+
+    DUAS conferências. A segunda nasceu do caso do Xester: um módulo pode ter
+    todos os helpers no lugar e ainda assim não servir, porque o `Client.lua`
+    chama uma PORTA que ele não abre. Um helper faltando apaga um efeito; a
+    porta faltando apaga todos.
 
     Lê cada `VFXModule`, junta o que está DEFINIDO (`local function x`,
     `function x`, `local x = function`, parâmetro de função, `local x`), e
@@ -107,6 +116,36 @@ def verificar(caminho):
     return faltando
 
 
+#: o que um `Client.lua` chama no módulo, `VFX.<Nome>(`
+CHAMADA_NO_MODULO = re.compile(r"\bVFX\.([A-Z]\w*)\s*\(")
+
+#: o que um `VFXModule.lua` exporta: `function <tabela>.<Nome>(` ou
+#: `<tabela>.<Nome> = ` — a tabela devolvida costuma ser `M` ou `VFX`
+EXPORTA_FUNCAO = re.compile(r"(?m)^function\s+\w+\.([A-Z]\w*)\s*\(")
+EXPORTA_ALIAS = re.compile(r"(?m)^\w+\.([A-Z]\w*)\s*=\s*")
+
+
+def porta(pasta):
+    """(faltando, testou) — o `Client.lua` da Tool chama porta que o
+    `VFXModule.lua` dela não exporta?
+
+    Só olha `VFX.<Nome>` com inicial MAIÚSCULA: `VFX.Executar` é a porta do
+    módulo, e `vfx("TEMPESTADE", …)` no Server é outra coisa — aquele passa
+    pelo despachante, e a checagem dele é a de cima.
+    """
+    cliente = os.path.join(pasta, "Client.lua")
+    modulo = os.path.join(pasta, "VFXModule.lua")
+    if not (os.path.exists(cliente) and os.path.exists(modulo)):
+        return [], False
+    usa = set(CHAMADA_NO_MODULO.findall(
+        sem_ruido(open(cliente, encoding="utf-8").read())))
+    if not usa:
+        return [], False
+    fonte = sem_ruido(open(modulo, encoding="utf-8").read())
+    tem = set(EXPORTA_FUNCAO.findall(fonte)) | set(EXPORTA_ALIAS.findall(fonte))
+    return sorted(usa - tem), True
+
+
 def main():
     alvos = []
     for base, _dirs, arquivos in os.walk(RAIZ):
@@ -117,10 +156,26 @@ def main():
                 alvos.append(os.path.join(base, arq))
     alvos.sort()
 
-    # o mesmo módulo é copiado para dentro de cada Tool; basta conferir a fonte
-    fontes = [a for a in alvos if "FERRAMENTAS/dados" in a.replace("\\", "/")]
-    if not fontes:
-        fontes = alvos
+    # A fonte em `FERRAMENTAS/dados/` é a que interessa quando existe — o mesmo
+    # módulo é copiado para dentro de cada Tool.
+    #
+    # Mas nem todo conjunto tem fonte solta: o Xester guarda o dele como
+    # TEMPLATE dentro do gerador, com `%(paleta)s` trocado por forma. Template
+    # não é Lua válido e não pode virar arquivo. Então o que se confere ali é o
+    # módulo GERADO, dentro da Tool — que é o que embarca de verdade.
+    #
+    # Um por conteúdo: 14 cópias do mesmo módulo são um módulo.
+    import hashlib
+    fontes, vistos = [], set()
+    for caminho in alvos:
+        se_dados = "FERRAMENTAS/dados" in caminho.replace("\\", "/")
+        chave = hashlib.md5(
+            open(caminho, "rb").read()).hexdigest() if not se_dados else None
+        if se_dados:
+            fontes.append(caminho)
+        elif chave not in vistos:
+            vistos.add(chave)
+            fontes.append(caminho)
 
     problemas = 0
     for caminho in fontes:
@@ -136,6 +191,31 @@ def main():
             print("%s✓ %s%s" % (VERDE, rotulo, FIM))
 
     print("")
+    print("PORTA DO MÓDULO — o que o Client chama, o VFXModule exporta?")
+    print("")
+    portas = 0
+    for pasta in sorted(os.listdir(os.path.join(RAIZ, "Tools"))):
+        cheio = os.path.join(RAIZ, "Tools", pasta)
+        if not os.path.isdir(cheio):
+            continue
+        faltando, testou = porta(cheio)
+        if not testou:
+            continue
+        if faltando:
+            portas = portas + 1
+            print("%s✗ %s%s" % (VERMELHO, pasta, FIM))
+            for nome in faltando:
+                print("    o Client chama VFX.%s, que o VFXModule desta Tool "
+                      "não exporta — o efeito morre na primeira linha" % nome)
+    if portas == 0:
+        print("%s✓ toda porta chamada pelo Client existe no módulo%s"
+              % (VERDE, FIM))
+
+    print("")
+    if portas:
+        print("%s%d TOOL(S) COM PORTA DE VFX QUEBRADA%s"
+              % (VERMELHO, portas, FIM))
+        return 1
     if problemas:
         print("%s%d MÓDULO(S) COM CHAMADA SEM DEFINIÇÃO%s" % (VERMELHO, problemas, FIM))
         print("%s    Foi assim que `molde` sumiu do VFXModule_Maria e só o"

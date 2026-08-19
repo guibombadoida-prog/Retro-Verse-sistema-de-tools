@@ -1,79 +1,102 @@
 -- Poses.lua
--- ModuleScript "Poses" — Xester Procissao de Cartas
+-- ModuleScript "Poses" — Xester Procissao de Cartas  (Xester Forma 2)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
---   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
---   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+-- RECRIADA DO ZERO. A Tool já existia com M1 mais uma Extra; agora
+-- são QUATRO habilidades, e cada uma tem a própria sequência.
 --
--- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+-- Forma 2 é O DESPERTAR: cajado, machado e invocação, corpo inteiro
+-- — regra 7, e mágico de salão não se debate.
 --
--- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
--- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
+-- JUNTA QUE LIDERA: **HRP** (regra 6).
 --
--- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
--- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
--- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
--- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
--- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--   PROCISSAO      golpe pesado     1.34s · 4 passo(s)
+--   FORMACAO       conjuração       1.11s · 4 passo(s)
+--   MARCHA         sustentada       1.52s · 4 passo(s)
+--   DISSOLVER      golpe pesado     1.34s · 4 passo(s)
 --
--- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
--- tronco e pernas enquanto o golpe move só o braço.
+-- Gerado por FERRAMENTAS/gerar_poses_xester_novo.py.
 
 local P = {}
 
 
-P.GUARDA_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
-	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
-	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
-	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+P.CAJADO_APONTA = {
+	RightArm = CFrame.new(1.52, 0.36, -1.18) * CFrame.Angles(math.rad(90), math.rad(-6), math.rad(-4)),
+	LeftArm = CFrame.new(-1.44, 0.08, -0.3) * CFrame.Angles(math.rad(26), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-8), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-3), math.rad(12), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.88, -0.22) * CFrame.Angles(math.rad(-10), math.rad(0), math.rad(0)),
 }
 
-P.PROCISSAO_DE_CARTAS_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
-	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
-	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
-	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+P.CAJADO_CHAO = {
+	RightArm = CFrame.new(1.42, -0.34, -0.4) * CFrame.Angles(math.rad(26), math.rad(10), math.rad(22)),
+	LeftArm = CFrame.new(-1.4, -0.2, -0.44) * CFrame.Angles(math.rad(34), math.rad(-10), math.rad(-18)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(24), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, -0.44, 0) * CFrame.Angles(math.rad(26), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.6, -0.52) * CFrame.Angles(math.rad(-36), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.5, -1.66, -0.44) * CFrame.Angles(math.rad(-30), math.rad(0), math.rad(0)),
 }
 
-P.PROCISSAO_DE_CARTAS_2 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-17.746), math.rad(28.056), math.rad(-12.978)),
-	Head = CFrame.new(0.023, 2.005, 0.055) * CFrame.Angles(math.rad(-1.968), math.rad(-27.061), math.rad(1.058)),
-	LeftArm = CFrame.new(-2.353, 0.443, 0.326) * CFrame.Angles(math.rad(98.67), math.rad(0.653), math.rad(-114.328)),
-	LeftLeg = CFrame.new(-0.853, -1.941, -0.974) * CFrame.Angles(math.rad(-12.839), math.rad(26.606), math.rad(5.374)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.323, -2.009, -0.309) * CFrame.Angles(math.rad(-25.964), math.rad(-32.422), math.rad(2.795)),
+P.CAJADO_ERGUE = {
+	RightArm = CFrame.new(1.44, 0.84, -0.04) * CFrame.Angles(math.rad(168), math.rad(-8), math.rad(-14)),
+	LeftArm = CFrame.new(-1.46, 0.1, -0.28) * CFrame.Angles(math.rad(24), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-34), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.1, 0) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
 }
 
-P.PROCISSAO_DE_CARTAS_3 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-36.4), math.rad(-42.48), math.rad(4.026)),
-	Head = CFrame.new(0.038, 2.009, 0.088) * CFrame.Angles(math.rad(10.445), math.rad(39.336), math.rad(-8.544)),
-	LeftArm = CFrame.new(-1.253, 0.752, -1.519) * CFrame.Angles(math.rad(98.886), math.rad(-0.337), math.rad(24.781)),
-	LeftLeg = CFrame.new(-1.78, -1.868, -1.089) * CFrame.Angles(math.rad(48.066), math.rad(33.722), math.rad(-39.71)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(0.926, -1.819, -0.307) * CFrame.Angles(math.rad(-63.229), math.rad(-29.312), math.rad(-17.349)),
+P.CONVOCA = {
+	RightArm = CFrame.new(1.38, 0.62, -0.42) * CFrame.Angles(math.rad(128), math.rad(-18), math.rad(-26)),
+	LeftArm = CFrame.new(-1.38, 0.62, -0.42) * CFrame.Angles(math.rad(128), math.rad(18), math.rad(26)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-24), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.08, 0) * CFrame.Angles(math.rad(-13), math.rad(0), math.rad(0)),
 }
 
-P.PROCISSAO_DE_CARTAS_4 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-30.621), math.rad(-56.256), math.rad(2.9)),
-	Head = CFrame.new(0.041, 1.965, 0.095) * CFrame.Angles(math.rad(24.454), math.rad(43.474), math.rad(-19.174)),
-	LeftArm = CFrame.new(-2.376, 1.372, -0.992) * CFrame.Angles(math.rad(102.586), math.rad(-36.182), math.rad(-43.442)),
-	LeftLeg = CFrame.new(-1.759, -2.083, -0.7) * CFrame.Angles(math.rad(50.504), math.rad(38.924), math.rad(-44.296)),
-	RightArm = CFrame.new(2.353, -0.045, 0.249) * CFrame.Angles(math.rad(26.991), math.rad(-39.131), math.rad(42.94)),
-	RightLeg = CFrame.new(0.982, -1.905, -0.983) * CFrame.Angles(math.rad(-19.047), math.rad(-21.043), math.rad(-17.92)),
+P.IDLE = {
+	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
+	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
+}
+
+P.PALMA_ABERTA = {
+	RightArm = CFrame.new(1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(-16), math.rad(-8)),
+	LeftArm = CFrame.new(-1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(16), math.rad(8)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-4), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-2), math.rad(0), math.rad(0)),
 }
 
 P.SEQUENCIAS = {
 
-	PROCISSAO_DE_CARTAS = {
-		{ pose = "PROCISSAO_DE_CARTAS_2", time = 0.333, style = "Exponential", dir = "Out", marca = "CARGA" },
-		{ pose = "PROCISSAO_DE_CARTAS_3", time = 0.433, style = "Exponential", dir = "Out" },
-		{ pose = "PROCISSAO_DE_CARTAS_4", time = 0.333, style = "Exponential", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- golpe pesado · 1.34s · 4 passo(s)
+	PROCISSAO = {
+		{ pose = "CONVOCA", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CONVOCA", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.045, freq = 26, marca = "SEGURA" },
+		{ pose = "CAJADO_APONTA", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração · 1.11s · 4 passo(s)
+	FORMACAO = {
+		{ pose = "PALMA_ABERTA", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMA_ABERTA", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "PALMA_ABERTA", time = 0.15, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- sustentada · 1.52s · 4 passo(s)
+	MARCHA = {
+		{ pose = "CAJADO_APONTA", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CAJADO_APONTA", time = 0.7, style = "Sine", dir = "InOut", tremor = 0.03, freq = 19, marca = "SEGURA" },
+		{ pose = "CAJADO_APONTA", time = 0.18, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- golpe pesado · 1.34s · 4 passo(s)
+	DISSOLVER = {
+		{ pose = "CAJADO_ERGUE", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CAJADO_ERGUE", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.045, freq = 26, marca = "SEGURA" },
+		{ pose = "CAJADO_CHAO", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

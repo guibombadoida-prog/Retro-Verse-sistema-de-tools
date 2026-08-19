@@ -1,59 +1,93 @@
 -- Poses.lua
--- ModuleScript "Poses" — Xester Baralho Espectral
+-- ModuleScript "Poses" — Xester Baralho Espectral  (Xester Forma 2)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
---   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
---   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+-- RECRIADA DO ZERO. A Tool já existia com M1 mais uma Extra; agora
+-- são QUATRO habilidades, e cada uma tem a própria sequência.
 --
--- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+-- Forma 2 é O DESPERTAR: cajado, machado e invocação, corpo inteiro
+-- — regra 7, e mágico de salão não se debate.
 --
--- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
--- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
+-- JUNTA QUE LIDERA: **RightArm** (regra 6).
 --
--- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
--- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
--- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
--- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
--- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--   ESPECTRAL      conjuração       1.11s · 4 passo(s)
+--   NAIPE          conjuração       1.11s · 4 passo(s)
+--   ESPELHO        sustentada       1.52s · 4 passo(s)
+--   COMPLETO       golpe pesado     1.34s · 4 passo(s)
 --
--- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
--- tronco e pernas enquanto o golpe move só o braço.
+-- Gerado por FERRAMENTAS/gerar_poses_xester_novo.py.
 
 local P = {}
 
 
-P.GUARDA_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
-	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
-	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
-	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+P.CAJADO_APONTA = {
+	RightArm = CFrame.new(1.52, 0.36, -1.18) * CFrame.Angles(math.rad(90), math.rad(-6), math.rad(-4)),
+	LeftArm = CFrame.new(-1.44, 0.08, -0.3) * CFrame.Angles(math.rad(26), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-8), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-3), math.rad(12), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.88, -0.22) * CFrame.Angles(math.rad(-10), math.rad(0), math.rad(0)),
 }
 
-P.BARALHO_ESPECTRAL_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
-	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
-	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
-	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+P.CAJADO_ERGUE = {
+	RightArm = CFrame.new(1.44, 0.84, -0.04) * CFrame.Angles(math.rad(168), math.rad(-8), math.rad(-14)),
+	LeftArm = CFrame.new(-1.46, 0.1, -0.28) * CFrame.Angles(math.rad(24), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-34), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.1, 0) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
 }
 
-P.BARALHO_ESPECTRAL_2 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.6), math.rad(-39.9), math.rad(-0.6)),
-	Head = CFrame.new(0, 2.002, 0.026) * CFrame.Angles(math.rad(-2.898), math.rad(38.347), math.rad(2.27)),
-	LeftArm = CFrame.new(-2.466, 0.745, -0.474) * CFrame.Angles(math.rad(83.358), math.rad(-20.083), math.rad(-35.007)),
-	LeftLeg = CFrame.new(-1.362, -2.081, -0.395) * CFrame.Angles(math.rad(-11.085), math.rad(42.432), math.rad(-5.015)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.123, -2.375, -0.131) * CFrame.Angles(math.rad(-44.219), math.rad(-16.774), math.rad(-1.073)),
+P.CONVOCA = {
+	RightArm = CFrame.new(1.38, 0.62, -0.42) * CFrame.Angles(math.rad(128), math.rad(-18), math.rad(-26)),
+	LeftArm = CFrame.new(-1.38, 0.62, -0.42) * CFrame.Angles(math.rad(128), math.rad(18), math.rad(26)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-24), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.08, 0) * CFrame.Angles(math.rad(-13), math.rad(0), math.rad(0)),
+}
+
+P.IDLE = {
+	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
+	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
+}
+
+P.PALMA_ABERTA = {
+	RightArm = CFrame.new(1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(-16), math.rad(-8)),
+	LeftArm = CFrame.new(-1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(16), math.rad(8)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-4), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-2), math.rad(0), math.rad(0)),
 }
 
 P.SEQUENCIAS = {
 
-	BARALHO_ESPECTRAL = {
-		{ pose = "BARALHO_ESPECTRAL_2", time = 2.500, style = "Exponential", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- conjuração · 1.11s · 4 passo(s)
+	ESPECTRAL = {
+		{ pose = "CONVOCA", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CONVOCA", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "CAJADO_APONTA", time = 0.15, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- conjuração · 1.11s · 4 passo(s)
+	NAIPE = {
+		{ pose = "CONVOCA", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CONVOCA", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "CAJADO_APONTA", time = 0.15, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- sustentada · 1.52s · 4 passo(s)
+	ESPELHO = {
+		{ pose = "PALMA_ABERTA", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMA_ABERTA", time = 0.7, style = "Sine", dir = "InOut", tremor = 0.03, freq = 19, marca = "SEGURA" },
+		{ pose = "PALMA_ABERTA", time = 0.18, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- golpe pesado · 1.34s · 4 passo(s)
+	COMPLETO = {
+		{ pose = "CAJADO_ERGUE", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "CAJADO_ERGUE", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.055, freq = 28, marca = "SEGURA" },
+		{ pose = "CONVOCA", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

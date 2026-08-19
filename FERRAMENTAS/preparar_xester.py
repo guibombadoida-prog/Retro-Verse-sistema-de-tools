@@ -65,15 +65,14 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(RAIZ, "Tools")
 ENTRADA = os.path.join(RAIZ, "MODELOS_ENTRADA", "Xester")
 
-# Tools cuja habilidade primária precisa saber PARA ONDE o jogador aponta.
-# As outras miram pela frente do portador e não precisam do canal.
-PRECISA_MIRA = (
-    "Xester Teleporte",
-    "Xester Buraco Negro",
-    "Xester Carta Ceifeira",
-    "Xester Invocacao",
-    "Xester Procissao de Cartas",
-)
+# `PRECISA_MIRA` e o `MiraRemote` saíram.
+#
+# Eles existiam porque a primária ficava em `Tool.Activated`, que não carrega
+# ponto nenhum: cinco Tools precisavam de um terceiro canal só para dizer PARA
+# ONDE. Agora o `Client` manda `VFXRemote:FireServer(mira())` — o ponto viaja
+# no mesmo tiro que pede a habilidade, e as catorze miram. Um `RemoteEvent`
+# que nenhum script lê é asset depositado e mudo, e uma porta a mais para
+# validar.
 
 CLASSES_SCRIPT = ("Script", "LocalScript", "ModuleScript")
 PROIBIDAS = ("ScreenGui", "Animation", "BillboardGui", "SurfaceGui",
@@ -363,6 +362,12 @@ SONS_F1 = {
 #   842332424 bola de fogo · 1982011510 bola imensa
 #   2014087015 sopro do dragão · 1910988873 o raio
 
+#: ⚠️ COMPLETADO PARA QUATRO POR TOOL — uma por habilidade.
+#:
+#: As 14 passaram de M1 + uma Extra para M1 + TRÊS, e Tool com quatro
+#: habilidades e um som só toca a mesma coisa quatro vezes. Os ids acrescentados
+#: já estavam NESTA MESMA TABELA, em outra Tool do conjunto: nenhum foi
+#: inventado, e a paleta continua sendo a do `xesterv2`.
 SONS_POR_TOOL = {
     "Xester Ato de Desaparecer": [
         ("SELA", "1898092341", 4, 1.0), ("AFUNDA", "472214107", 4, 0.85),
@@ -370,21 +375,29 @@ SONS_POR_TOOL = {
     ],
     "Xester Full House": [
         ("ABRE", "1882057730", 4, 1.0), ("ATIRA", "1499747506", 3, 1.1),
+        ('SEQUENCIA', '342337569', 4, 1.2),
+        ('PUXA', '1888686669', 4, 0.95),
     ],
     "Xester Cardnado": [
         ("ARRANCA", "342337569", 5, 1.0), ("RUGE", "1072606965", 3, 1.0),
         ("FOGO", "842332424", 4, 1.15),
+        ('OLHO', '1894958339', 4, 0.8),
     ],
     "Xester Teleporte": [
         ("SOME", "1894958339", 5, 1.0),
+        ('MARCA', '1898092341', 4, 1.15),
+        ('VOLTA', '1894958339', 5, 1.3),
+        ('CORRENTE', '413682983', 4, 1.25),
     ],
     "Xester Carta Colossal": [
         ("ERGUE", "236989198", 4, 0.9), ("BATE", "765590102", 6, 0.85),
         ("FOGO", "1982011510", 5, 0.9),
+        ('MURALHA', '236989198', 4, 0.75),
     ],
     "Xester Buraco Negro": [
         ("ABRE", "1888686669", 4, 0.75), ("COLAPSA", "472579737", 6, 0.8),
         ("RAIO", "1910988873", 5, 1.0),
+        ('EJETA', '472579737', 5, 1.2),
     ],
     "Xester Escudo de Cartas": [
         ("SOBE", "236989198", 4, 1.05), ("REBATE", "288641686", 4, 1.0),
@@ -393,25 +406,39 @@ SONS_POR_TOOL = {
     # Forma 2 — ids do `xesterv2`, no papel que ele lhes dava
     "Xester Carta Ceifeira": [
         ("SAI", "1544022435", 4, 1.0), ("CRAVA", "1843578719", 5, 0.95),
+        ('CEIFA', '342337569', 4, 0.9),
+        ('COLHEITA', '1910988873', 5, 0.8),
     ],
     "Xester Esfera do Fim": [
         ("CARREGA", "1845012046", 3, 1.0), ("DETONA", "142070127", 6, 0.85),
         ("ECO", "1040136448", 4, 0.9),
+        ('ORBITA', '1845012046', 3, 1.3),
     ],
     "Xester Baralho Espectral": [
         ("CONJURA", "4255432837", 4, 1.0), ("GOLPE", "1301200629", 3, 1.1),
+        ('NAIPE', '1499747506', 3, 1.2),
+        ('ESPELHO', '288641686', 4, 1.05),
     ],
     "Xester Invocacao": [
         ("CHAMA", "3292075199", 5, 0.95), ("NASCE", "4571960003", 4, 1.0),
+        ('COMANDA', '1072606965', 3, 0.9),
+        ('LEGIAO', '1888686669', 4, 0.85),
     ],
     "Xester Furia do Machado": [
         ("SACA", "187042245", 4, 1.0), ("RISO", "1072606965", 3, 1.25),
+        ('REDEMOINHO', '342337569', 4, 0.85),
+        ('DECAPITA', '765590102', 6, 0.8),
     ],
     "Xester Procissao de Cartas": [
         ("SOBE", "3855293277", 4, 1.0),
+        ('FORMACAO', '236989198', 4, 1.0),
+        ('MARCHA', '933780081', 3, 1.1),
+        ('DISSOLVE', '413682983', 4, 1.2),
     ],
     "Xester Portal do Cajado": [
         ("ABRE", "314678645", 4, 0.9), ("CORTA", "821439273", 4, 1.05),
+        ('SAIDA', '1888686669', 4, 1.1),
+        ('FECHA', '54111471', 5, 0.85),
     ],
 }
 
@@ -606,14 +633,12 @@ def equipar(tool, dados, marca, extra):
     definir(tool, "bool", "CanBeDropped", "false")
     definir(tool, "bool", "RequiresHandle", "true")
 
+    # Os DOIS remotes, nas catorze. `AcaoRemote` era condicional a `extra`
+    # porque a Tool tinha zero ou uma Extra; agora são três em todas, e o
+    # `Server` faz `WaitForChild("AcaoRemote")` — sem o RemoteEvent na árvore
+    # ele trava no `WaitForChild` e a Tool inteira não liga.
     novo_item(tool, "RemoteEvent", "VFXRemote", "RV_VFX_%s" % marca)
-    if extra:
-        novo_item(tool, "RemoteEvent", "AcaoRemote", "RV_ACA_%s" % marca)
-    if nome in PRECISA_MIRA:
-        # A primária continua em `Tool.Activated` (§9). O MiraRemote carrega só
-        # o PARA ONDE, porque o mouse existe no cliente e em lugar nenhum mais.
-        # O servidor confere o alcance antes de usar o ponto.
-        novo_item(tool, "RemoteEvent", "MiraRemote", "RV_MIR_%s" % marca)
+    novo_item(tool, "RemoteEvent", "AcaoRemote", "RV_ACA_%s" % marca)
 
     valores = [
         ("StringValue", "string", "DamageClass", classe_dano),
@@ -621,8 +646,9 @@ def equipar(tool, dados, marca, extra):
         ("NumberValue", "float", "EnergyCost", str(energia)),
         ("NumberValue", "float", "RecargaGlobal", str(recarga)),
     ]
-    if extra:
-        valores.append(("StringValue", "string", "TeclaExtra", tecla))
+    # `TeclaExtra` saiu. Ele existia porque cada Tool tinha UMA Extra com tecla
+    # própria; agora são três, fixas em R, T e Y, e o cliente as declara. Value
+    # que nenhum script lê é asset depositado e mudo.
     for classe, tag, alvo, valor in valores:
         _i, props = novo_item(tool, classe, alvo,
                               "RV_%s_%s" % (alvo[:6], marca))

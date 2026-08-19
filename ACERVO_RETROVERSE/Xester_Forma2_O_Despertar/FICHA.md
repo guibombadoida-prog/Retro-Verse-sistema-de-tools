@@ -129,3 +129,55 @@ portal, `CORTA` quando ele desce.
 Ela vive em `FERRAMENTAS/gerar_servers_xester.py`, e não no
 `poses_xester.json`, porque aquele arquivo é **saída** do
 `extrair_poses_xester.py` — o que for escrito lá some na próxima extração.
+
+---
+
+## Recriação de 2026-08-19 — as 7 desta forma, refeitas do zero
+
+Ver `ACERVO_RETROVERSE/Xester_Forma1/FICHA.md` para os dois defeitos que a
+recriação revelou (a porta do `VFXModule` e o `AcaoRemote` ausente), que
+valiam para as 14.
+
+Aqui ficam as 7 desta forma e as quatro habilidades de cada uma. A M1 é a da
+origem; `R`, `T` e `Y` são novas e estendem o mesmo tema.
+
+| Tool | M1 (da origem) | R | T | Y |
+|---|---|---|---|---|
+| Carta Ceifeira | três cartas que perseguem e estouram | Ceifar | Marca | Colheita |
+| Esfera do Fim | carrega, suga e detona | Órbita | Compressão | O Fim |
+| Baralho Espectral | baralho girando em volta | Naipe | Espelho | Baralho Completo |
+| Invocação | um servo que caça | Comandar | Legião | Dispensar |
+| Fúria do Machado | saca e avança cortando | Arremesso | Redemoinho | Decapitar |
+| Procissão de Cartas | fileira de cartas até o alvo | Formação | Marcha | Dissolver |
+| Portal do Cajado | carta-portal que puxa e corta | Saída | Atravessar | Fechar |
+
+### Onde a origem foi corrigida, e não copiada
+
+**A Esfera do Fim** prendia a carga num `repeat ... until charging == false`
+amarrado ao `Button1Up` do cliente: soltar o botão fora da tela deixava a
+sucção rodando para sempre. Agora a carga é o compasso da animação — `CARGA`
+liga, `SEGURA` mantém, `GOLPE` detona. Não existe caminho em que fique ligada.
+
+**A Fúria do Machado** punha `ws = 120` e não devolvia. 120 de `WalkSpeed`
+atravessa colisão com replicação normal. A corrida agora tem prazo, teto que o
+motor sustenta, e `pararCorrida` é chamado de três lugares.
+
+**A Invocação** clonava `enemy` com os scripts `ai` e `core` ligados. O molde
+entra **podado**, e a perseguição é escrita no `Server` da própria Tool. O servo
+se chama `ServoDoXester` e um filtro `hostisEm` o tira da conta de alvo — sem
+ele os servos bateriam uns nos outros, e a Dispensar mataria os próprios
+invocados antes de estourar.
+
+**A Procissão** andava 200 passos POR QUADRO, num laço apertado que segurava o
+servidor. Os passos viraram `task.delay` com o mesmo espaçamento: mesma
+fileira, mesmo desenho, e o servidor respira entre um e outro.
+
+### Nenhuma fere o portador, nenhuma destrói peça do mundo
+
+`alvosEm` tira o `personagem` da consulta e o Núcleo filtra time. Nenhuma das
+28 habilidades desta forma chama `Destroy`, `Remove`, `BreakJoints` ou
+`Instance.new("Explosion")`.
+
+### O que continua verdadeiro
+
+Nada rodou no Studio. A verificação é toda estática.

@@ -116,3 +116,79 @@ mundo, para o som não morrer se a Tool for guardada no meio do efeito.
 
 Nada rodou no Studio. A verificação é toda estática — que a animação agora é
 **chamada** está provado pelo arquivo; que ela **fica bonita** só o jogo diz.
+
+---
+
+## Recriação de 2026-08-19 — as 14 refeitas do zero no pipeline atual
+
+As 14 Tools do Xester eram as mais antigas do repositório. Saíram de um gerador
+anterior ao despachante de keyframe, à pasta `SFX/` e ao preâmbulo
+compartilhado, e traziam **M1 mais uma Extra**. Agora trazem **quatro
+habilidades**: M1 no clique, `R`, `T` e `Y` nas teclas. 14 Tools × 4 = **56
+habilidades**.
+
+A M1 de cada Tool é a da origem, mecânica por mecânica — é a habilidade pela
+qual a Tool tem nome. As três Extras estendem o mesmo tema; nenhuma abre um
+segundo assunto.
+
+### Dois defeitos que só a recriação revelou
+
+**1. A porta do VFXModule estava quebrada nas 14.**
+
+O `VFXModule` do Xester exportava `M.desenhar`, `M.beat` e `M.limpar` — a
+assinatura de um `Client.lua` anterior. O `Client` atual chama
+`VFX.Executar(tipo, dados)`, `VFX.Parar(id)` e `VFX.LimparTudo()`.
+
+Nenhuma das três existia. **Todo efeito das 14 Tools morria na primeira linha**
+do `OnClientEvent`, com `attempt to call a nil value` — e calado, porque quem
+falha é a linha do handler, não a habilidade: o dano saía, o som saía, e a tela
+ficava vazia.
+
+O módulo ganhou as três portas, mais um **registro por `id`** (`PorId`) e o
+efeito `MOVER`, que o tornado da Forma 1 e o escudo orbital chamavam sem que
+existisse. `desenhar` e `limpar` continuam lá, apontando para a mesma coisa.
+
+**2. `AcaoRemote` só existia em 6 das 14.**
+
+Ele era criado sob a condição `if extra:` — a Tool tinha zero ou uma Extra.
+Agora são três em todas, e o `Server` faz `WaitForChild("AcaoRemote")`: sem o
+`RemoteEvent` na árvore ele **trava no `WaitForChild` e a Tool inteira não
+liga**. Passou a ser criado nas 14.
+
+No mesmo passe saiu o `MiraRemote` e a lista `PRECISA_MIRA`. Eles existiam
+porque a primária ficava em `Tool.Activated`, que não carrega ponto nenhum:
+cinco Tools tinham um terceiro canal só para dizer PARA ONDE. Agora o `Client`
+manda `VFXRemote:FireServer(mira())` e as catorze miram com dois remotes.
+
+### O verificador aprendeu a checar a PORTA
+
+`TESTES/verificar_vfx_chamadas.py` conferia só o que estava **dentro** de um
+`VFXModule` — helper chamado e nunca definido. Isso não pegava o defeito 1:
+todos os helpers do Xester estavam no lugar.
+
+Agora ele faz uma segunda conferência: para cada Tool, o que o `Client.lua`
+chama como `VFX.<Nome>(` tem de estar exportado pelo `VFXModule.lua` dela.
+**81 Tools cobertas.** Um helper faltando apaga um efeito; a porta faltando
+apaga todos.
+
+### O que a origem fazia e aqui não acontece
+
+Ela escrevia em `Health` cinco vezes, chamava `BreakJoints` seis, e o `Banish`
+fazia `Foe:Destroy()` — matar por deleção tira o abate do Núcleo e apaga o
+personagem do jogador. Tinha 21 `math.random`, que com todos os clientes
+desenhando faria cada um ver uma cena diferente. Punha `ws = 120` e nunca
+devolvia. O `enemy` da Invocação vinha com os scripts `ai` e `core` ligados.
+
+Nada disso sobreviveu: dano é `TakeDamage` pelo Núcleo, tombo é
+`PlatformStand` com prazo, sorteio é ângulo áureo, a corrida do machado volta
+por três caminhos, e o servo é o molde **podado**, com a perseguição escrita no
+Server da própria Tool.
+
+### Nenhuma fere o portador, nenhuma destrói peça do mundo
+
+`alvosEm` tira o `personagem` da consulta e o Núcleo filtra time. Nenhuma das
+56 chama `Destroy`, `Remove`, `BreakJoints` ou `Instance.new("Explosion")`.
+
+### O que continua verdadeiro
+
+Nada rodou no Studio. A verificação é toda estática.

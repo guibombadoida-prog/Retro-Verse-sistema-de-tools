@@ -1,83 +1,98 @@
 -- Poses.lua
--- ModuleScript "Poses" — Xester Furia do Machado
+-- ModuleScript "Poses" — Xester Furia do Machado  (Xester Forma 2)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
---   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
---   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+-- RECRIADA DO ZERO. A Tool já existia com M1 mais uma Extra; agora
+-- são QUATRO habilidades, e cada uma tem a própria sequência.
 --
--- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+-- Forma 2 é O DESPERTAR: cajado, machado e invocação, corpo inteiro
+-- — regra 7, e mágico de salão não se debate.
 --
--- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
--- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
+-- JUNTA QUE LIDERA: **HRP** (regra 6).
 --
--- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
--- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
--- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
--- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
--- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--   MACHADO        golpe rápido     0.83s · 5 passo(s)
+--   ARREMESSO      conjuração       1.11s · 4 passo(s)
+--   REDEMOINHO     golpe pesado     1.34s · 4 passo(s)
+--   DECAPITAR      golpe pesado     1.34s · 4 passo(s)
 --
--- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
--- tronco e pernas enquanto o golpe move só o braço.
+-- Gerado por FERRAMENTAS/gerar_poses_xester_novo.py.
 
 local P = {}
 
 
-P.GUARDA_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5)),
-	Head = CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922)),
-	LeftArm = CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807)),
-	LeftLeg = CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398)),
-	RightArm = CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961)),
-	RightLeg = CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212)),
+P.CAJADO_APONTA = {
+	RightArm = CFrame.new(1.52, 0.36, -1.18) * CFrame.Angles(math.rad(90), math.rad(-6), math.rad(-4)),
+	LeftArm = CFrame.new(-1.44, 0.08, -0.3) * CFrame.Angles(math.rad(26), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-5), math.rad(-8), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-3), math.rad(12), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.88, -0.22) * CFrame.Angles(math.rad(-10), math.rad(0), math.rad(0)),
 }
 
-P.FURIA_DO_MACHADO_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4)),
-	Head = CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532)),
-	LeftArm = CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21)),
-	LeftLeg = CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864)),
-	RightArm = CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972)),
-	RightLeg = CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869)),
+P.GIRO = {
+	RightArm = CFrame.new(1.5, 0.3, -0.94) * CFrame.Angles(math.rad(80), math.rad(-44), math.rad(-16)),
+	LeftArm = CFrame.new(-1.5, 0.3, -0.94) * CFrame.Angles(math.rad(80), math.rad(44), math.rad(16)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(40), math.rad(0)),
+	HRP = CFrame.new(0, -0.06, 0) * CFrame.Angles(math.rad(5), math.rad(-52), math.rad(0)),
 }
 
-P.FURIA_DO_MACHADO_2 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.488), math.rad(-40.75), math.rad(-28.28)),
-	Head = CFrame.new(0.068, 2.006, 0.101) * CFrame.Angles(math.rad(4.565), math.rad(41.56), math.rad(3.095)),
-	LeftArm = CFrame.new(-2.192, 0.097, -0.593) * CFrame.Angles(math.rad(47.976), math.rad(-17.098), math.rad(-35.404)),
-	LeftLeg = CFrame.new(-1.432, -2.014, -0.959) * CFrame.Angles(math.rad(45.645), math.rad(31.864), math.rad(-26.936)),
-	RightArm = CFrame.new(2.155, 1.397, -0.617) * CFrame.Angles(math.rad(138.257), math.rad(44.804), math.rad(-1.525)),
-	RightLeg = CFrame.new(1.196, -1.809, -0.93) * CFrame.Angles(math.rad(-18.901), math.rad(-20.973), math.rad(11.332)),
+P.IDLE = {
+	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
+	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
 }
 
-P.FURIA_DO_MACHADO_3 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.599), math.rad(-40.7), math.rad(16.148)),
-	Head = CFrame.new(0.095, 2.003, 0.14) * CFrame.Angles(math.rad(5.462), math.rad(28.49), math.rad(2.63)),
-	LeftArm = CFrame.new(-2.258, 0.137, 0.575) * CFrame.Angles(math.rad(-13.597), math.rad(26.857), math.rad(-28.932)),
-	LeftLeg = CFrame.new(-1.452, -2.001, -0.99) * CFrame.Angles(math.rad(-11.455), math.rad(39.857), math.rad(8.627)),
-	RightArm = CFrame.new(0.932, 1.322, -1.309) * CFrame.Angles(math.rad(142.845), math.rad(10.33), math.rad(-53.078)),
-	RightLeg = CFrame.new(1.199, -1.808, -0.934) * CFrame.Angles(math.rad(-18.847), math.rad(-20.97), math.rad(11.536)),
+P.MACHADO_ALTO = {
+	RightArm = CFrame.new(1.4, 0.8, -0.1) * CFrame.Angles(math.rad(172), math.rad(-10), math.rad(-18)),
+	LeftArm = CFrame.new(-1.4, 0.8, -0.1) * CFrame.Angles(math.rad(172), math.rad(10), math.rad(18)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-32), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.14, 0) * CFrame.Angles(math.rad(-19), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.9, 0.12) * CFrame.Angles(math.rad(8), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.5, -1.9, 0.12) * CFrame.Angles(math.rad(8), math.rad(0), math.rad(0)),
 }
 
-P.GARGALHADA_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4)),
-	Head = CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532)),
-	LeftArm = CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21)),
-	LeftLeg = CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864)),
-	RightArm = CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972)),
-	RightLeg = CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869)),
+P.MACHADO_DESCE = {
+	RightArm = CFrame.new(1.44, -0.3, -0.82) * CFrame.Angles(math.rad(20), math.rad(-8), math.rad(-4)),
+	LeftArm = CFrame.new(-1.44, -0.3, -0.82) * CFrame.Angles(math.rad(20), math.rad(8), math.rad(4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(28), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, -0.42, 0) * CFrame.Angles(math.rad(32), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.58, -0.54) * CFrame.Angles(math.rad(-38), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.5, -1.58, -0.54) * CFrame.Angles(math.rad(-38), math.rad(0), math.rad(0)),
 }
 
 P.SEQUENCIAS = {
 
-	FURIA_DO_MACHADO = {
-		{ pose = "FURIA_DO_MACHADO_2", time = 0.150, style = "Exponential", dir = "Out", marca = "CARGA" },
-		{ pose = "FURIA_DO_MACHADO_3", time = 0.150, style = "Exponential", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- golpe rápido · 0.83s · 5 passo(s)
+	MACHADO = {
+		{ pose = "MACHADO_ALTO", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "MACHADO_ALTO", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "MACHADO_DESCE", time = 0.1, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "MACHADO_DESCE", time = 0.15, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
-	GARGALHADA = {
-		{ pose = "GARGALHADA_1", time = 0.12, style = "Quad", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- conjuração · 1.11s · 4 passo(s)
+	ARREMESSO = {
+		{ pose = "MACHADO_ALTO", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "MACHADO_ALTO", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "CAJADO_APONTA", time = 0.15, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- golpe pesado · 1.34s · 4 passo(s)
+	REDEMOINHO = {
+		{ pose = "GIRO", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "GIRO", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.055, freq = 27, marca = "SEGURA" },
+		{ pose = "GIRO", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- golpe pesado · 1.34s · 4 passo(s)
+	DECAPITAR = {
+		{ pose = "MACHADO_ALTO", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "MACHADO_ALTO", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.065, freq = 30, marca = "SEGURA" },
+		{ pose = "MACHADO_DESCE", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

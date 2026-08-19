@@ -1,125 +1,134 @@
 -- Client.lua
--- Script com RunContext = Client — Xester Invocacao
+-- Script com RunContext = Client — Xester Invocacao  (Xester Forma 2)
 --
--- POR QUE NÃO É LocalScript
---   LocalScript dentro de Tool só roda para o jogador cujo Character a contém.
---   O servidor manda o beat com `FireAllClients` e ele CHEGA em todo mundo, mas
---   o único ouvinte era o de quem segurava. Era por isso que o VFX das 14
---   aparecia só para o portador.
+-- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+-- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
+-- mundo — mas o único ouvinte seria o de quem está segurando. `RunContext =
+-- Client` roda em TODO cliente, e nada saiu de dentro da Tool.
 --
---   `Script` com `RunContext = Client` roda em TODO cliente, inclusive dentro
---   da Tool de outro jogador. Nada saiu de dentro da Tool: Regra nº 1 de pé.
+-- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
+-- cliente não replica e os outros jogadores viam o portador parado.
 --
--- O QUE É DE TODOS, E O QUE É SÓ DO DONO
---   De todos: desenhar o VFX e tocar o SFX. É o ponto.
---   Só do dono: mandar a mira e disparar a habilidade Extra.
+-- DOIS BOTÕES DE CELULAR, EM ALTURAS DIFERENTES
 --
---   A animação NÃO está aqui: o rig é do servidor, porque Weld criado no
---   cliente não replica e os outros viam o portador parado.
+--   `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)` — o
+--   terceiro argumento faz o Roblox desenhar o botão sozinho. São três Extras,
+--   então são três `BindAction`, e as alturas são separadas de propósito: com
+--   a mesma altura os três botões empilham e os de baixo ficam inalcançáveis.
 --
--- Gerado por FERRAMENTAS/gerar_servers_xester.py.
+-- Gerado por FERRAMENTAS/gerar_servers_xester_novo.py.
 
 local Players = game:GetService("Players")
 local ContextActionService = game:GetService("ContextActionService")
 
 local jogador = Players.LocalPlayer
 
-local Tool      = script.Parent
-local VFXRemote = Tool:WaitForChild("VFXRemote")
-local Moldes    = Tool:WaitForChild("Moldes")
-local VFX       = require(Tool:WaitForChild("VFXModule"))
-local MiraRemote = Tool:WaitForChild("MiraRemote")
+local Tool       = script.Parent
+local VFXRemote  = Tool:WaitForChild("VFXRemote")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local VFX        = require(Tool:WaitForChild("VFXModule"))
 
-local ALCANCE_MIRA = 90
-local RITMO_MIRA = 0.1
+local ACAO_R = "Xester_XesterInvocacao_R"
+local ACAO_T = "Xester_XesterInvocacao_T"
+local ACAO_Y = "Xester_XesterInvocacao_Y"
+local ALCANCE_MIRA = 55
 
-local portador = nil
-local mandandoMira = false
+local equipado = false
 local rato = nil
 
-local function donoDaTool()
-	local pai = Tool.Parent
-	if not pai then return nil end
-	if not pai:FindFirstChildOfClass("Humanoid") then return nil end
-	return pai
-end
-
-local function souODono()
-	local corpo = donoDaTool()
-	if not corpo then return false end
-	return Players:GetPlayerFromCharacter(corpo) == jogador
-end
-
 --══════════════════════════════════════════════════════════════
--- DESENHO — roda em TODOS os clientes
+-- DESENHO — este trecho roda em TODOS os clientes
 --══════════════════════════════════════════════════════════════
 
 VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-	local corpo = portador or donoDaTool()
-	if tipo == "BEAT" then
-		VFX.beat(dados and dados.marca, corpo)
+	if tipo == "APAGAR" then
+		VFX.Parar(dados and dados.id)
 		return
 	end
-	VFX.desenhar(tipo, dados or {}, Moldes, corpo)
+	VFX.Executar(tipo, dados or {})
 end)
 
 --══════════════════════════════════════════════════════════════
--- MIRA E EXTRA — só o dono
+-- MIRA E ENTRADA — só o dono
 --══════════════════════════════════════════════════════════════
 
-local function pontoMirado()
-	local corpo = portador
-	local raiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
-	if not raiz then return nil end
-	if not rato then return raiz.Position + raiz.CFrame.LookVector * 20 end
-	local alvo = rato.Hit and rato.Hit.Position
-	if not alvo then return raiz.Position + raiz.CFrame.LookVector * 20 end
-	local delta = alvo - raiz.Position
+local function souODono()
+	local pai = Tool.Parent
+	if not pai then return false end
+	if not pai:FindFirstChildOfClass("Humanoid") then return false end
+	return Players:GetPlayerFromCharacter(pai) == jogador
+end
+
+local function mira()
+	local personagem = jogador.Character
+	local origem = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	rato = rato or jogador:GetMouse()
+	local alvo = rato and rato.Hit and rato.Hit.Position
+	if not origem then return alvo or Vector3.new() end
+	if not alvo then return origem.Position + origem.CFrame.LookVector * 20 end
+	local delta = alvo - origem.Position
 	if delta.Magnitude > ALCANCE_MIRA then
-		return raiz.Position + delta.Unit * ALCANCE_MIRA
+		return origem.Position + delta.Unit * ALCANCE_MIRA
 	end
 	return alvo
 end
 
-local function comecarMira()
-	if mandandoMira or not MiraRemote then return end
-	mandandoMira = true
-	rato = rato or (jogador and jogador:GetMouse())
-	task.spawn(function()
-		while mandandoMira do
-			local ponto = pontoMirado()
-			if ponto then MiraRemote:FireServer(ponto) end
-			task.wait(RITMO_MIRA)
-		end
-	end)
+local function ligarEntrada()
+	ContextActionService:BindAction(ACAO_R, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("R", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
+	ContextActionService:SetTitle(ACAO_R, "Comandar")
+	ContextActionService:SetPosition(ACAO_R, UDim2.new(1, -150, 1, -190))
+
+	ContextActionService:BindAction(ACAO_T, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("T", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.T, Enum.KeyCode.ButtonL1)
+	ContextActionService:SetTitle(ACAO_T, "Legiao")
+	-- 70 px acima do R: com a mesma altura eles empilham e o de baixo some
+	ContextActionService:SetPosition(ACAO_T, UDim2.new(1, -150, 1, -260))
+
+	ContextActionService:BindAction(ACAO_Y, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("Y", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.Y, Enum.KeyCode.ButtonL2)
+	ContextActionService:SetTitle(ACAO_Y, "Dispensar")
+	ContextActionService:SetPosition(ACAO_Y, UDim2.new(1, -150, 1, -330))
 end
 
-local function aoEquipar()
-	portador = donoDaTool()
+local function desligarEntrada()
+	ContextActionService:UnbindAction(ACAO_R)
+	ContextActionService:UnbindAction(ACAO_T)
+	ContextActionService:UnbindAction(ACAO_Y)
+end
+
+--══════════════════════════════════════════════════════════════
+-- CICLO
+--══════════════════════════════════════════════════════════════
+
+Tool.Activated:Connect(function()
 	if not souODono() then return end
-	rato = rato or (jogador and jogador:GetMouse())
-	comecarMira()
-end
-
-local function aoGuardar()
-	mandandoMira = false
-	portador = nil
-	VFX.limpar()
-end
-
-Tool.Equipped:Connect(aoEquipar)
-Tool.Unequipped:Connect(aoGuardar)
-
--- `Tool.Equipped` não dispara nos clientes que NÃO são o dono: para eles a
--- Tool só aparece dentro de um Character já montado. Por isso o portador é
--- resolvido na entrada e a cada troca de Parent.
-portador = donoDaTool()
-Tool:GetPropertyChangedSignal("Parent"):Connect(function()
-	portador = donoDaTool()
-	if portador and souODono() then
-		rato = rato or (jogador and jogador:GetMouse())
-		comecarMira()
-	end
+	VFXRemote:FireServer(mira())
 end)
 
+Tool.Equipped:Connect(function()
+	if not souODono() then return end
+	equipado = true
+	ligarEntrada()
+end)
+
+local function aoGuardar()
+	equipado = false
+	desligarEntrada()
+	VFX.LimparTudo()
+end
+
+Tool.Unequipped:Connect(aoGuardar)
 Tool.Destroying:Connect(aoGuardar)

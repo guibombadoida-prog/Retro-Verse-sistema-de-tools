@@ -1,5 +1,104 @@
--- XesterCartaColossal_Server_V1.lua
--- Script de servidor — Xester Carta Colossal  (Xester Forma 1)
+#!/usr/bin/env python3
+"""
+gerar_servers_xester_novo.py — Retro-Verse / Studios
+
+Escreve o `Server`, o `Client`, o `VFXModule` e o `R6CFrameAnimator` das 7
+Tools do XESTER — Forma 1 e Forma 2.
+
+    python3 FERRAMENTAS/preparar_xester.py          # antes
+    python3 FERRAMENTAS/gerar_poses_xester_novo.py  # antes
+    python3 FERRAMENTAS/gerar_servers_xester_novo.py
+
+RECRIADAS DO ZERO, NO PIPELINE DE HOJE
+
+    As 14 já existiam — e eram as mais antigas do repositório. Vinham de um
+    gerador próprio, anterior ao `despachar`, à pasta `SFX/` e ao preâmbulo
+    compartilhado. Tinham M1 mais UMA Extra, com tecla por Tool.
+
+    Agora são QUATRO habilidades cada, em `R`, `T` e `Y`, e o Server sai do
+    mesmo molde do Maria e do Jodro.
+
+O QUE **NÃO** FOI JOGADO FORA
+
+    O `VFXModule` do Xester. Ele tem 730 linhas e 37 efeitos com carta, cajado,
+    espiral e escudo próprios — é mais rico que o genérico, passa no
+    `verificar_vfx_chamadas.py`, e recriá-lo seria trocar coisa boa por coisa
+    nova. Ele continua sendo TEMPLATE dentro do gerador antigo, com
+    `%%(paleta)s` trocado por forma: branco de palco na Forma 1, vermelho de
+    `doomtheme` na Forma 2.
+
+    O `AcaoRemote` continua sendo UM. Quem separa as duas é o nome da tecla no
+    payload, conferido no servidor antes de qualquer coisa — dois remotes
+    seriam duas portas para o mesmo cômodo, e duas superfícies para validar.
+
+    No cliente são três `BindAction`, cada um desenhando o próprio botão de
+    celular. As três alturas são separadas por 70 px: empilhados, os de baixo
+    ficam inalcançáveis.
+
+O SOM MORA EM `Tool/SFX/`
+
+    Nos outros conjuntos o `Sound` fica pendurado no Handle. Aqui são três por
+    Tool, e pasta deixa claro que são irmãos. `somDe(nome)` é o único ponto que
+    sabe disso.
+"""
+
+import os
+import shutil
+import sys
+
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TOOLS = os.path.join(RAIZ, "Tools")
+DADOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dados")
+
+ANIMATOR = os.path.join(TOOLS, "Bomba Nuclear", "R6CFrameAnimator.lua")
+#: o VFXModule e a paleta vêm do gerador antigo, que segue sendo a fonte deles
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gerar_servers_xester import VFXMODULE, PALETAS, REGUA as REGUA_X  # noqa: E402
+
+
+DESPACHANTE = '''
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
+--
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
+--
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
+--          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
+-- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
+-- repositório não declara licença. Ver
+-- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+'''
+
+PREAMBULO = '''-- {objeto}.lua
+-- Script de servidor — {tool}  (Xester {forma_rotulo})
 --
 -- RECRIADA DO ZERO, e não remendada.
 --
@@ -9,15 +108,14 @@
 --   origem, mecânica por mecânica — é a habilidade pela qual a Tool tem nome.
 --   As três Extras estendem o mesmo tema, e nenhuma inventa um segundo assunto.
 --
---   M1   carta colossal   (a mecânica da origem, preservada)
---   R    Muralha   (Extra 1)
---   T    Guilhotina   (Extra 2)
---   Y    Baralho Colossal   (Extra 3)
+--   M1   {rotulo_m1}   (a mecânica da origem, preservada)
+--   R    {rotulo_r}   (Extra 1)
+--   T    {rotulo_t}   (Extra 2)
+--   Y    {rotulo_y}   (Extra 3)
 --
 -- DE ONDE VEM O MATERIAL
 --
---   Forma 1 — ERGUE · BATE · FOGO · MURALHA
---
+{origem}--
 --   Handle, moldes e sons saem dos dois arquivos de origem, pelo mapa de
 --   `FERRAMENTAS/preparar_xester.py`. Nenhum `SoundId` foi inventado: id
 --   chutado é som mudo que nenhum verificador pega.
@@ -51,38 +149,16 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
-
+{extra_require}
 --═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação
 --═══════════════════════════════════════════════════════════════
 
-local ARQUETIPO = "EXPLOSIVO"
+local ARQUETIPO = "{arquetipo}"
 
-local CFG = {
-	ALCANCE       = 40,
-	QUEDA         = 0.75,
-	RAIO          = 15,
-	NUCLEO        = 6,
-	DANO          = 54,
-	BORDA         = 27,
-	EMPURRAO      = 78,
-	TOMBO         = 1.9,
-	RECARGA       = 8,
-
-	RECARGA_R     = 13,
-	DURACAO_MURO  = 8,
-	RAIO_MURO     = 10,
-	LENTIDAO      = 0.4,
-
-	RECARGA_T     = 11,
-	ALCANCE_CORTE = 34,
-	RAIO_CORTE    = 6,
-	DANO_CORTE    = 38,
-
-	RECARGA_Y     = 28,
-	CARTAS        = 3,
-	PASSO         = 0.3,
-}
+local CFG = {{
+{cfg}
+}}
 
 --═══════════════════════════════════════════════════════════════
 -- ESTADO
@@ -91,14 +167,14 @@ local CFG = {
 local jogador, personagem, humanoide, raiz, rig
 local ultimoPrimaria, ultimoR, ultimoT, ultimoY = 0, 0, 0, 0
 local ocupado = false
-local ativos = {}
+local ativos = {{}}
 local semente = 0
 local idEfeito = 0
 
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as quatro virariam globais.
 local primaria, extraR, extraT, extraY
-local muroId = nil
+{estado}
 
 local function proximo()
 	semente = semente + 1
@@ -229,13 +305,13 @@ end
 local function alvosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarHumanoides then
 		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {{}}
 	end
 
-	local achados, vistos = {}, {}
+	local achados, vistos = {{}}, {{}}
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
-	filtro.FilterDescendantsInstances = { personagem }
+	filtro.FilterDescendantsInstances = {{ personagem }}
 	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
 		local modelo = parte:FindFirstAncestorOfClass("Model")
 		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
@@ -269,15 +345,15 @@ end
 local function aliadosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarAliados then
 		return _G.Combate.detectarAliados(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {{}}
 	end
 
-	local inimigos = {}
+	local inimigos = {{}}
 	for _, hostil in ipairs(alvosEm(posicao, raio, limite or 12)) do
 		inimigos[hostil] = true
 	end
 
-	local achados, vistos = {}, {}
+	local achados, vistos = {{}}, {{}}
 	if humanoide and humanoide.Health > 0 then
 		vistos[humanoide] = true
 		table.insert(achados, humanoide)
@@ -285,7 +361,7 @@ local function aliadosEm(posicao, raio, limite)
 
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude
-	filtro.FilterDescendantsInstances = { personagem }
+	filtro.FilterDescendantsInstances = {{ personagem }}
 	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
 		local modelo = parte:FindFirstAncestorOfClass("Model")
 		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
@@ -427,161 +503,9 @@ local function golpearArea(centro, raio, raioNucleo, danoNucleo, danoBorda,
 	return pegos
 end
 
+'''
 
---═══════════════════════════════════════════════════════════════
--- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
---
--- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
--- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
--- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
--- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
---
--- Agora cada sequência tem uma TABELA, um registro por keyframe:
---
---     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
---
---   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
---          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
---   `sfx`  toca um som: `{ nome, pitch }`
---   `faz`  o trabalho que não cabe em dado
---
--- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
--- vem com nome em vez de posição na escada.
---
--- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
--- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
--- repositório não declara licença. Ver
--- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
---═══════════════════════════════════════════════════════════════
-
-local function despachar(quadros)
-	return function(passo)
-		local marca = marcaDe(passo)
-		if not marca then return end
-		local kf = quadros and quadros[marca]
-		if not kf then return end
-		if kf.cam and beatCena then beatCena(marca) end
-		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
-		if kf.faz then kf.faz(passo) end
-	end
-end
-
-
---══════════════════════════════════════════════════════════════
--- A CARTA COLOSSAL — a espera é a mecânica
---
--- 0.75 s entre a conjuração e a queda. Dá para sair de baixo, e é o que separa
--- isto de um dano instantâneo em área.
---══════════════════════════════════════════════════════════════
-
-local function cairCarta(onde, dano, borda)
-	vfx("CARTA_ERGUE", { posicao = onde, queda = CFG.QUEDA })
-	tocarEm("ERGUE", onde, 0.9)
-	task.delay(CFG.QUEDA, function()
-		vfx("CARTA_DESABA", { posicao = onde, raio = CFG.RAIO })
-		vfx("ONDA_CHAO", { posicao = onde, raio = CFG.RAIO })
-		tocarEm("BATE", onde, 0.8)
-		golpearArea(onde, CFG.RAIO, CFG.NUCLEO, dano, borda,
-			CFG.EMPURRAO, CFG.TOMBO)
-	end)
-end
-
-function primaria(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("COLOSSAL", despachar({
-		CARGA = { sfx = { "ERGUE", 0.85 } },
-		GOLPE = { faz = function()
-			cairCarta(destino or frente(CFG.ALCANCE), CFG.DANO, CFG.BORDA)
-		end },
-	}), function() ocupado = false end)
-end
-
---══════════════════════════════════════════════════════════════
--- R — Muralha  ·  T — Guilhotina  ·  Y — Baralho Colossal
---══════════════════════════════════════════════════════════════
-
-local function derrubarMuro()
-	if muroId then
-		vfx("APAGAR", { id = muroId })
-		muroId = nil
-	end
-end
-
-function extraR(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("MURALHA", despachar({
-		CARGA = { sfx = { "MURALHA", 0.8 } },
-		GOLPE = { faz = function()
-			derrubarMuro()
-			muroId = novoId("MURO")
-			local onde = destino or frente(CFG.ALCANCE * 0.4)
-			local meu = muroId
-			vfx("CARTA_CHAO", { posicao = onde, duracao = CFG.DURACAO_MURO,
-				id = meu })
-			tocarEm("MURALHA", onde, 0.85)
-			-- a muralha não bloqueia de verdade: ela ATRASA quem atravessa.
-			-- Parte sólida no caminho de jogador é o tipo de coisa que prende
-			-- gente em canto de mapa.
-			task.spawn(function()
-				local ate = os.clock() + CFG.DURACAO_MURO
-				while muroId == meu and os.clock() < ate do
-					for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_MURO, 10)) do
-						afrouxar(alvo, CFG.LENTIDAO, 1.2)
-					end
-					task.wait(0.9)
-				end
-				if muroId == meu then derrubarMuro() end
-			end)
-		end },
-	}), function() ocupado = false end)
-end
-
-function extraT(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("GUILHOTINA", despachar({
-		CARGA = { sfx = { "FOGO", 1.3 } },
-		GOLPE = { faz = function()
-			local base = raiz.Position
-			local dir = ((destino or frente(CFG.ALCANCE_CORTE)) - base)
-			if dir.Magnitude < 1 then dir = raiz.CFrame.LookVector end
-			dir = Vector3.new(dir.X, 0, dir.Z).Unit
-			for i = 1, 5 do
-				local onde = base + dir * (i * CFG.ALCANCE_CORTE / 5)
-				task.delay((i - 1) * 0.05, function()
-					vfx("CORTE_PORTAL", { posicao = onde })
-					for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_CORTE, 6)) do
-						aplicarDano(alvo, CFG.DANO_CORTE)
-					end
-				end)
-			end
-			tocarEm("FOGO", base + dir * 8, 1.2)
-		end },
-	}), function() ocupado = false end)
-end
-
-function extraY(mira)
-	ocupado = true
-	local destino = mira
-	rig:PlaySequence("BARALHO", despachar({
-		CARGA = { sfx = { "ERGUE", 0.7 } },
-		GOLPE = { faz = function()
-			local centro = destino or frente(CFG.ALCANCE)
-			task.spawn(function()
-				for i = 1, CFG.CARTAS do
-					if not (raiz and raiz.Parent) then break end
-					local a = i * 2.399963
-					cairCarta(centro + Vector3.new(math.cos(a), 0, math.sin(a)) * 9,
-						CFG.DANO * 0.7, CFG.BORDA * 0.7)
-					task.wait(CFG.PASSO)
-				end
-			end)
-		end },
-	}), function() ocupado = false end)
-end
-
+RODAPE = '''
 --═══════════════════════════════════════════════════════════════
 -- CICLO DE VIDA — uma primária e TRÊS Extras
 --═══════════════════════════════════════════════════════════════
@@ -635,9 +559,9 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "XesterColossal", Poses,
+	rig = Animator.new(personagem, "{sufixo}", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
-end)
+{ao_equipar}end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
 --- de uma sequência.
@@ -647,8 +571,7 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	derrubarMuro()
-	if rig then
+{ao_guardar}	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()
 		rig:LockCharacter(false)
@@ -659,3 +582,197 @@ end
 
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
+'''
+
+
+CLIENTE = '''-- Client.lua
+-- Script com RunContext = Client — {tool}  (Xester {forma_rotulo})
+--
+-- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
+-- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
+-- mundo — mas o único ouvinte seria o de quem está segurando. `RunContext =
+-- Client` roda em TODO cliente, e nada saiu de dentro da Tool.
+--
+-- A animação NÃO está aqui: o rig é do servidor, porque `Weld` criado no
+-- cliente não replica e os outros jogadores viam o portador parado.
+--
+-- DOIS BOTÕES DE CELULAR, EM ALTURAS DIFERENTES
+--
+--   `ContextActionService:BindAction(nome, fn, criarBotaoDeToque, ...)` — o
+--   terceiro argumento faz o Roblox desenhar o botão sozinho. São três Extras,
+--   então são três `BindAction`, e as alturas são separadas de propósito: com
+--   a mesma altura os três botões empilham e os de baixo ficam inalcançáveis.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester_novo.py.
+
+local Players = game:GetService("Players")
+local ContextActionService = game:GetService("ContextActionService")
+
+local jogador = Players.LocalPlayer
+
+local Tool       = script.Parent
+local VFXRemote  = Tool:WaitForChild("VFXRemote")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local VFX        = require(Tool:WaitForChild("VFXModule"))
+
+local ACAO_R = "Xester_{sufixo}_R"
+local ACAO_T = "Xester_{sufixo}_T"
+local ACAO_Y = "Xester_{sufixo}_Y"
+local ALCANCE_MIRA = {alcance_mira}
+
+local equipado = false
+local rato = nil
+
+--══════════════════════════════════════════════════════════════
+-- DESENHO — este trecho roda em TODOS os clientes
+--══════════════════════════════════════════════════════════════
+
+VFXRemote.OnClientEvent:Connect(function(tipo, dados)
+	if tipo == "APAGAR" then
+		VFX.Parar(dados and dados.id)
+		return
+	end
+	VFX.Executar(tipo, dados or {{}})
+end)
+
+--══════════════════════════════════════════════════════════════
+-- MIRA E ENTRADA — só o dono
+--══════════════════════════════════════════════════════════════
+
+local function souODono()
+	local pai = Tool.Parent
+	if not pai then return false end
+	if not pai:FindFirstChildOfClass("Humanoid") then return false end
+	return Players:GetPlayerFromCharacter(pai) == jogador
+end
+
+local function mira()
+	local personagem = jogador.Character
+	local origem = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	rato = rato or jogador:GetMouse()
+	local alvo = rato and rato.Hit and rato.Hit.Position
+	if not origem then return alvo or Vector3.new() end
+	if not alvo then return origem.Position + origem.CFrame.LookVector * 20 end
+	local delta = alvo - origem.Position
+	if delta.Magnitude > ALCANCE_MIRA then
+		return origem.Position + delta.Unit * ALCANCE_MIRA
+	end
+	return alvo
+end
+
+local function ligarEntrada()
+	ContextActionService:BindAction(ACAO_R, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("R", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
+	ContextActionService:SetTitle(ACAO_R, "{rotulo_r}")
+	ContextActionService:SetPosition(ACAO_R, UDim2.new(1, -150, 1, -190))
+
+	ContextActionService:BindAction(ACAO_T, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("T", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.T, Enum.KeyCode.ButtonL1)
+	ContextActionService:SetTitle(ACAO_T, "{rotulo_t}")
+	-- 70 px acima do R: com a mesma altura eles empilham e o de baixo some
+	ContextActionService:SetPosition(ACAO_T, UDim2.new(1, -150, 1, -260))
+
+	ContextActionService:BindAction(ACAO_Y, function(_nome, estado)
+		if estado ~= Enum.UserInputState.Begin then return end
+		if not equipado then return end
+		AcaoRemote:FireServer("Y", mira())
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.Y, Enum.KeyCode.ButtonL2)
+	ContextActionService:SetTitle(ACAO_Y, "{rotulo_y}")
+	ContextActionService:SetPosition(ACAO_Y, UDim2.new(1, -150, 1, -330))
+end
+
+local function desligarEntrada()
+	ContextActionService:UnbindAction(ACAO_R)
+	ContextActionService:UnbindAction(ACAO_T)
+	ContextActionService:UnbindAction(ACAO_Y)
+end
+
+--══════════════════════════════════════════════════════════════
+-- CICLO
+--══════════════════════════════════════════════════════════════
+
+Tool.Activated:Connect(function()
+	if not souODono() then return end
+	VFXRemote:FireServer(mira())
+end)
+
+Tool.Equipped:Connect(function()
+	if not souODono() then return end
+	equipado = true
+	ligarEntrada()
+end)
+
+local function aoGuardar()
+	equipado = false
+	desligarEntrada()
+	VFX.LimparTudo()
+end
+
+Tool.Unequipped:Connect(aoGuardar)
+Tool.Destroying:Connect(aoGuardar)
+'''
+
+
+# ═══════════════════════════════════════════════════════════════
+# AS 7 TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+sys.path.insert(0, DADOS)
+from servers_xester import CONJUNTO  # noqa: E402
+
+
+def escrever(tool, d):
+    pasta = os.path.join(TOOLS, tool)
+    if not os.path.isdir(pasta):
+        print("sem pasta Tools/%s" % tool)
+        return False
+
+    d = dict(d)
+    d["extra_require"] = ""
+    d["forma_rotulo"] = ("Forma 1" if d["forma"] == "Forma1" else "Forma 2")
+    d["origem"] = "".join("--   %s\n" % linha for linha in d["origem"])
+    corpo = DESPACHANTE + d["corpo"]
+    servidor = PREAMBULO.format(tool=tool, **d) + corpo + RODAPE.format(**d)
+
+    with open(os.path.join(pasta, "%s.lua" % d["objeto"]), "w",
+              encoding="utf-8") as f:
+        f.write(servidor)
+    with open(os.path.join(pasta, "Client.lua"), "w", encoding="utf-8") as f:
+        f.write(CLIENTE.format(tool=tool, **d))
+
+    shutil.copyfile(ANIMATOR, os.path.join(pasta, "R6CFrameAnimator.lua"))
+    with open(os.path.join(pasta, "VFXModule.lua"), "w", encoding="utf-8") as f:
+        f.write(VFXMODULE % {
+            "regua": REGUA_X,
+            "forma": ("Forma 1, o Mestre das Cartas" if d["forma"] == "Forma1"
+                      else "Forma 2, O Despertar"),
+            "paleta": "".join("\t%s = %s,\n" % (c, v)
+                              for c, v in PALETAS[d["forma"]]),
+        })
+
+    print("%-30s %-8s %5d linhas · M1 + R + T + Y"
+          % (tool, d["forma_rotulo"], servidor.count("\n") + 1))
+    return True
+
+
+def main():
+    if not os.path.exists(ANIMATOR):
+        print("faltando: %s" % ANIMATOR)
+        return 1
+    for tool, d in CONJUNTO.items():
+        if not escrever(tool, d):
+            return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

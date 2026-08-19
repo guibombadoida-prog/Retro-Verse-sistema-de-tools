@@ -1,132 +1,86 @@
 -- Poses.lua
--- ModuleScript "Poses" — Xester Escudo de Cartas
+-- ModuleScript "Poses" — Xester Escudo de Cartas  (Xester Forma 1)
 --
--- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
---   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
---   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+-- RECRIADA DO ZERO. A Tool já existia com M1 mais uma Extra; agora
+-- são QUATRO habilidades, e cada uma tem a própria sequência.
 --
--- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+-- Forma 1 é o BARALHO: gesto de mão, carta e leque, corpo quase parado
+-- — regra 7, e mágico de salão não se debate.
 --
--- PERNA: quem solda é o animator, sob demanda, e é ele quem chama ReleaseLegs
--- ao fim de toda sequência. Perna soldada permanentemente trava a caminhada.
+-- FORMATO V2 — só as juntas que o R6CFrameAnimator solda.
+-- JUNTA QUE LIDERA: **RightArm** (regra 6).
 --
--- ESTAS POSES NÃO SÃO AUTORAIS. Saíram do script original do modelo, pelo
--- FERRAMENTAS/extrair_poses_xester.py: a convenção de Weld foi invertida
--- (o original solda membro→Torso, o animator solda Torso→membro), o pivô do
--- C1 foi composto, e cada keyframe é o ponto que o `:lerp(alvo, alpha)`
--- repetido N quadros REALMENTE alcança — não o alvo escrito no código.
+--   ESCUDO         conjuração       1.11s · 4 passo(s)
+--   REBATER        golpe rápido     0.83s · 5 passo(s)
+--   ESTILHACAR     golpe pesado     1.34s · 4 passo(s)
+--   BLINDADO       sustentada       1.52s · 4 passo(s)
 --
--- GUARDA_1 é a postura de `position == "Idle"` do original: é ela que segura
--- tronco e pernas enquanto o golpe move só o braço.
+-- Gerado por FERRAMENTAS/gerar_poses_xester_novo.py.
 
 local P = {}
 
 
-P.GUARDA_1 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+P.IDLE = {
+	RightArm = CFrame.new(1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(4), math.rad(4)),
+	LeftArm = CFrame.new(-1.48, 0.05, -0.22) * CFrame.Angles(math.rad(18), math.rad(-4), math.rad(-4)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-6), math.rad(0)),
 }
 
-P.ESCUDO_DE_CARTAS_1 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+P.LEQUE = {
+	RightArm = CFrame.new(1.44, 0.34, -0.62) * CFrame.Angles(math.rad(96), math.rad(-22), math.rad(-18)),
+	LeftArm = CFrame.new(-1.4, 0.28, -0.5) * CFrame.Angles(math.rad(82), math.rad(20), math.rad(22)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-8), math.rad(6), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-4), math.rad(-6), math.rad(0)),
 }
 
-P.ESCUDO_DE_CARTAS_2 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.439, 0.157, -0.471) * CFrame.Angles(math.rad(49.482), math.rad(-14.586), math.rad(3.362)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+P.PALMA_ABERTA = {
+	RightArm = CFrame.new(1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(-16), math.rad(-8)),
+	LeftArm = CFrame.new(-1.5, 0.32, -1.08) * CFrame.Angles(math.rad(88), math.rad(16), math.rad(8)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-4), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.02, 0) * CFrame.Angles(math.rad(-2), math.rad(0), math.rad(0)),
 }
 
-P.ESCUDO_DE_CARTAS_3 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(-20), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.37, 0.497, -0.927) * CFrame.Angles(math.rad(90), math.rad(-4), math.rad(-20)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.ESCUDO_DE_CARTAS_4 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(24.786), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.439, 0.159, -0.476) * CFrame.Angles(math.rad(49.667), math.rad(-14.5), math.rad(3.271)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.ESCUDO_DE_CARTAS_5 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(-18.735), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-1.376, 0.495, -0.926) * CFrame.Angles(math.rad(88.825), math.rad(-4.059), math.rad(-19.271)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.SOPRO_DO_DRAGAO_1 = {
-	HRP = CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.SOPRO_DO_DRAGAO_2 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-14.999), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(1.935, 0.296, 0.621) * CFrame.Angles(math.rad(19.871), math.rad(-14.022), math.rad(89.56)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.SOPRO_DO_DRAGAO_3 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-15), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(1.939, 0.302, 0.624) * CFrame.Angles(math.rad(19.956), math.rad(-14.008), math.rad(89.849)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
-}
-
-P.SOPRO_DO_DRAGAO_4 = {
-	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(10), math.rad(15), math.rad(0)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0)),
-	LeftArm = CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711)),
-	LeftLeg = CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10)),
-	RightArm = CFrame.new(0.665, 0.5, -1.413) * CFrame.Angles(math.rad(90), math.rad(0), math.rad(-25)),
-	RightLeg = CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10)),
+P.RECOLHE = {
+	RightArm = CFrame.new(1.32, 0.3, -0.36) * CFrame.Angles(math.rad(86), math.rad(-34), math.rad(-40)),
+	LeftArm = CFrame.new(-1.32, 0.3, -0.36) * CFrame.Angles(math.rad(86), math.rad(34), math.rad(40)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(12), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, -0.12, 0) * CFrame.Angles(math.rad(12), math.rad(0), math.rad(0)),
 }
 
 P.SEQUENCIAS = {
 
-	ESCUDO_DE_CARTAS = {
-		{ pose = "ESCUDO_DE_CARTAS_2", time = 0.583, style = "Exponential", dir = "Out", marca = "CARGA" },
-		{ pose = "ESCUDO_DE_CARTAS_3", time = 0.583, style = "Exponential", dir = "Out" },
-		{ pose = "ESCUDO_DE_CARTAS_4", time = 0.250, style = "Exponential", dir = "Out" },
-		{ pose = "ESCUDO_DE_CARTAS_5", time = 0.167, style = "Exponential", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- conjuração · 1.11s · 4 passo(s)
+	ESCUDO = {
+		{ pose = "PALMA_ABERTA", time = 0.26, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMA_ABERTA", time = 0.4, style = "Sine", dir = "InOut", tremor = 0.03, freq = 22 },
+		{ pose = "PALMA_ABERTA", time = 0.15, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
-	SOPRO_DO_DRAGAO = {
-		{ pose = "SOPRO_DO_DRAGAO_2", time = 0.250, style = "Exponential", dir = "Out", marca = "CARGA" },
-		{ pose = "SOPRO_DO_DRAGAO_3", time = 0.050, style = "Exponential", dir = "Out" },
-		{ pose = "SOPRO_DO_DRAGAO_4", time = 0.833, style = "Exponential", dir = "Out", marca = "GOLPE" },
-		{ pose = "GUARDA_1", time = 0.24, style = "Quad", dir = "Out" },
+	-- golpe rápido · 0.83s · 5 passo(s)
+	REBATER = {
+		{ pose = "LEQUE", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "LEQUE", time = 0.14, style = "Sine", dir = "InOut" },
+		{ pose = "PALMA_ABERTA", time = 0.1, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "PALMA_ABERTA", time = 0.15, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- golpe pesado · 1.34s · 4 passo(s)
+	ESTILHACAR = {
+		{ pose = "RECOLHE", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "RECOLHE", time = 0.54, style = "Sine", dir = "InOut", tremor = 0.045, freq = 26, marca = "SEGURA" },
+		{ pose = "PALMA_ABERTA", time = 0.17, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.33, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- sustentada · 1.52s · 4 passo(s)
+	BLINDADO = {
+		{ pose = "PALMA_ABERTA", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMA_ABERTA", time = 0.7, style = "Sine", dir = "InOut", tremor = 0.03, freq = 19, marca = "SEGURA" },
+		{ pose = "PALMA_ABERTA", time = 0.18, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

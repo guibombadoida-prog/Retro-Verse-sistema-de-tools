@@ -1,93 +1,142 @@
 -- XesterBaralhoEspectral_Server_V1.lua
--- Script de servidor — Xester Baralho Espectral
+-- Script de servidor — Xester Baralho Espectral  (Xester Forma 2)
 --
---   M1   Conjura 2.5 s e o baralho gira batendo em volta.
+-- RECRIADA DO ZERO, e não remendada.
 --
--- DE ONDE VIERAM OS NÚMEROS (§12.12.2)
---   2.5 s de conjuracao com ws = 0 (xesterv2.lua:1549-1556)
---   carta 0.1 x 0.25 x 0.1 crescendo (xesterv2.lua:1436, 1453)
+--   As 14 Tools do Xester eram as mais antigas do repositório: saíram de um
+--   gerador anterior ao `despachar`, à pasta `SFX/` e ao preâmbulo
+--   compartilhado, e tinham M1 mais UMA Extra. Esta traz QUATRO. A M1 é a da
+--   origem, mecânica por mecânica — é a habilidade pela qual a Tool tem nome.
+--   As três Extras estendem o mesmo tema, e nenhuma inventa um segundo assunto.
 --
--- O QUE NÃO ATRAVESSOU A CONVERSÃO
---   `death()` / `:Remove()` no alvo  — matar por deleção tira o abate do
---                                      Núcleo e apaga o personagem do jogador
---   `damagealll` próprio             — regra de combate tem uma porta só
---   `math.random` no dano            — faixa determinística por contador
---   `swait()` / `wait()`             — task.wait e beat do animator
---   geometria movida por quadro NO SERVIDOR — replica a ~20 Hz picotado
+--   M1   baralho que gira em volta   (a mecânica da origem, preservada)
+--   R    Naipe   (Extra 1)
+--   T    Espelho   (Extra 2)
+--   Y    Baralho Completo   (Extra 3)
 --
--- Gerado por FERRAMENTAS/gerar_servers_xester.py. Editar aqui à mão faz as
--- sete derivarem; edite o gerador.
+-- DE ONDE VEM O MATERIAL
+--
+--   Forma 2 — cartas do `cards`, cajado do `staff`
+--   CONJURA · GOLPE · NAIPE · ESPELHO, os quatro do `xesterv2`
+--
+--   Handle, moldes e sons saem dos dois arquivos de origem, pelo mapa de
+--   `FERRAMENTAS/preparar_xester.py`. Nenhum `SoundId` foi inventado: id
+--   chutado é som mudo que nenhum verificador pega.
+--
+-- TRÊS EXTRAS, E UM `AcaoRemote` SÓ
+--
+--   A tentação seria três `RemoteEvent`. Não: quem separa é o NOME DA TECLA no
+--   payload, conferido no servidor antes de qualquer coisa. Três remotes
+--   seriam três portas para o mesmo cômodo, e três superfícies para validar.
+--
+-- O QUE A ORIGEM FAZIA E AQUI NÃO ACONTECE
+--
+--   Ela escrevia em `Health` cinco vezes, chamava `BreakJoints` seis, e o
+--   `Banish` fazia `Foe:Destroy()` — matar por deleção tira o abate do Núcleo e
+--   apaga o personagem do jogador. Tinha 21 `math.random`, que com todos os
+--   clientes desenhando faria cada um ver uma cena diferente. E deixava
+--   `WalkSpeed` alterado para sempre. Nada disso sobreviveu.
+--
+-- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
+-- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_xester_novo.py. Editar aqui à mão faz as
+-- catorze derivarem; edite o gerador.
 
 local Players = game:GetService("Players")
 local Debris  = game:GetService("Debris")
 
-local Tool      = script.Parent
-local Handle    = Tool:WaitForChild("Handle")
-local VFXRemote = Tool:WaitForChild("VFXRemote")
-local Moldes    = Tool:WaitForChild("Moldes")
-local Poses     = require(Tool:WaitForChild("Poses"))
-local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Tool       = script.Parent
+local Handle     = Tool:WaitForChild("Handle")
+local VFXRemote  = Tool:WaitForChild("VFXRemote")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local Poses      = require(Tool:WaitForChild("Poses"))
+local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
 
---══════════════════════════════════════════════════════════════
+--═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação
---══════════════════════════════════════════════════════════════
+--═══════════════════════════════════════════════════════════════
 
-local ARQUETIPO = "CEIFA"
-
---- A sequência de pose que esta habilidade toca. Ela existe no `Poses.lua`
---- desde sempre; o que faltava era alguém chamá-la.
-local SEQUENCIA = "BARALHO_ESPECTRAL"
+local ARQUETIPO = "ESPECTRAL"
 
 local CFG = {
-	RECARGA = 20,
-	ALCANCE = 60,
-	CONJURA = 2.5,
-	CARTAS = 12,
-	DURACAO = 3,
-	INTERVALO = 0.15,
-	ORBITA = 8,
-	RAIO = 9,
-	DANO_MIN = 14,
-	DANO_MAX = 26,
-	EMPURRAO = 45,
+	CONJURA       = 0.4,
+	DURACAO       = 5,
+	PASSO         = 0.4,
+	ORBITA        = 8,
+	RAIO          = 6,
+	DANO          = 14,
+	EMPURRAO      = 26,
+	RECARGA       = 10,
+
+	RECARGA_R     = 12,
+	NAIPES        = 4,
+	ALCANCE_NAIPE = 40,
+	PASSOS_NAIPE  = 8,
+	ESPACO_NAIPE  = 5,
+	RAIO_NAIPE    = 6,
+	DANO_NAIPE    = 22,
+	INTERVALO     = 0.06,
+
+	RECARGA_T     = 18,
+	DURACAO_ESP   = 5,
+	PASSO_ESP     = 0.5,
+	RAIO_ESPELHO  = 7,
+	DANO_ESPELHO  = 16,
+
+	RECARGA_Y     = 26,
+	RAIO_COMPLETO = 20,
+	NUCLEO_COMP   = 7,
+	DANO_COMPLETO = 60,
+	BORDA_COMPLETO = 30,
+	EMPURRAO_COMP = 96,
+	TOMBO         = 1.8,
 }
 
---══════════════════════════════════════════════════════════════
+--═══════════════════════════════════════════════════════════════
 -- ESTADO
---══════════════════════════════════════════════════════════════
+--═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
-local ultimoUso, ultimoExtra = 0, 0
-local ultimaMira = nil
+local ultimoPrimaria, ultimoR, ultimoT, ultimoY = 0, 0, 0, 0
+local ocupado = false
 local ativos = {}
 local semente = 0
+local idEfeito = 0
 
---- Trava de sequência. Sem ela o jogador reencadeia a habilidade por cima da
---- animação anterior e o `PlaySequence` do quadro seguinte cancela o do
---- anterior no meio — o golpe sai, a pose não.
-local ocupado = false
+--- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso as quatro virariam globais.
+local primaria, extraR, extraT, extraY
+local baralhoId = nil
+local espelhoId = nil
+local geracao = 0
 
 local function proximo()
 	semente = semente + 1
-	if semente > 1000000 then semente = 1 end
+	if semente > 100000 then semente = 1 end
 	return semente
 end
 
---- Faixa determinística no lugar de `math.random(a, b)`.
---- O original sorteava o dano a cada golpe; aqui a variedade vem de uma
---- senoide sobre o contador — mesma dispersão, e reproduzível.
-local function naFaixa(minimo, maximo)
-	local onda = (math.sin(proximo() * 2.399963) + 1) * 0.5
-	return minimo + (maximo - minimo) * onda
+--- Jitter determinístico em [-1,1]. No lugar dos 21 `math.random` da origem —
+--- e com todos os clientes desenhando, um sorteio faria cada um ver uma cena
+--- diferente, o que lê como lag.
+local function jitter(fase)
+	return math.sin(proximo() * 2.399963 + (fase or 0))
 end
 
---- Ângulo áureo: espalha N pontos sem repetir e sem sortear.
-local function anguloDe(indice)
-	return math.rad(137.507764 * indice)
+--- Faixa determinística no lugar de `math.random(minimo, maximo)`.
+local function naFaixa(minimo, maximo)
+	local onda = (jitter(0.7) + 1) * 0.5
+	return minimo + (maximo - minimo) * onda
 end
 
 local function vfx(tipo, dados)
 	VFXRemote:FireAllClients(tipo, dados)
+end
+
+local function novoId(prefixo)
+	idEfeito = idEfeito + 1
+	return prefixo .. "_" .. tostring(idEfeito)
 end
 
 local function guardar(conexao)
@@ -95,39 +144,22 @@ local function guardar(conexao)
 	return conexao
 end
 
-local function soltarTudo()
-	for _, conexao in ipairs(ativos) do
-		if conexao.Connected then conexao:Disconnect() end
-	end
-	ativos = {}
-end
-
---══════════════════════════════════════════════════════════════
--- SOM — os `Sound` da Tool, que estavam MUDOS
---
--- As 14 Tools carregavam de 1 a 4 `Sound` nomeados por papel (`SELA`,
--- `AFUNDA`, `RISO`, `CONJURA`…) dentro do `.rbxmx`, e **nenhum server tocava
--- nenhum**. O asset estava depositado e nunca ligado — foi o "cadê os SFX".
---
--- `tocarEm` põe o som numa ÂNCORA PRÓPRIA, nunca na peça que o pediu: um
--- `Sound` só toca enquanto tem pai no DataModel, e pendurá-lo na carta que some
--- no quadro seguinte mata o som no quadro em que ele nasce.
---══════════════════════════════════════════════════════════════
-
-local function tocar(nome, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
-	local som = base:Clone()
-	som.PlaybackSpeed = pitch or 1
-	som.Parent = Handle
-	som:Play()
-	Debris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
-	return som
+--- Toca um som numa ÂNCORA PRÓPRIA, nunca na peça que o pediu.
+---
+--- Um `Sound` só toca enquanto tem pai no DataModel. Pendurar o som na peça que
+--- some no quadro seguinte mata o som no quadro em que ele nasce.
+--- No JODRO o som mora em `Tool/SFX/`, não pendurado no Handle: são três por
+--- Tool e a pasta deixa claro que são irmãos.
+local function somDe(nome)
+	local pasta = Tool:FindFirstChild("SFX")
+	local achado = pasta and pasta:FindFirstChild(nome)
+	if achado and achado:IsA("Sound") then return achado end
+	return nil
 end
 
 local function tocarEm(nome, posicao, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 
 	local ancora = Instance.new("Part")
 	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
@@ -148,12 +180,37 @@ local function tocarEm(nome, posicao, pitch, corte)
 	return som
 end
 
---══════════════════════════════════════════════════════════════
--- DANO — a Tool declara, o Núcleo decide (§12.5 / §12.6)
+local function tocar(nome, pitch, corte)
+	local base = somDe(nome)
+	if not base then return nil end
+	local som = base:Clone()
+	som.PlaybackSpeed = pitch or 1
+	som.Parent = Handle
+	som:Play()
+	Debris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+	return som
+end
+
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e falha em SILÊNCIO: a animação roda inteira e o
+--- dano não acontece. Custou os 14 Tools de dois conjuntos.
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
+--═══════════════════════════════════════════════════════════════
+-- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro.
---══════════════════════════════════════════════════════════════
+-- Toda chamada ao Núcleo é OPCIONAL. A Tool sozinha num place vazio funciona
+-- por inteiro — é o teste que decide a Regra nº 1.
+--
+-- A ORIGEM NÃO TINHA UM `TakeDamage`. Ela escrevia em `Health` cinco vezes,
+-- chamava `BreakJoints` seis, e o `Banish` fazia `Foe:Destroy()` — matar por
+-- deleção tira o abate do Núcleo e apaga o personagem do jogador.
+--═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
 	if _G.Combate and _G.Combate.registrarAtaque then
@@ -178,10 +235,12 @@ local function aplicarDano(alvoHum, bruto)
 	return final
 end
 
+--- Alvos num raio. Quem filtra time é o Núcleo; o fallback é consulta espacial
+--- sob demanda, nunca varredura do mundo por assinatura.
 local function alvosEm(posicao, raio, limite)
 	if _G.Combate and _G.Combate.detectarHumanoides then
 		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 14) or {}
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
 	end
 
 	local achados, vistos = {}, {}
@@ -200,9 +259,97 @@ local function alvosEm(posicao, raio, limite)
 	return achados
 end
 
+
+--═══════════════════════════════════════════════════════════════
+-- ALIADO — o espelho de `alvosEm`, e o primeiro do repositório
+--
+-- O `Cajado Curador` é a primeira Tool que precisa saber em quem NÃO bater. E
+-- o `CLAUDE.md` é explícito: `IsTeamMate` só existe dentro do
+-- `NucleoCombate.lua`. Chamar aqui seria abrir uma segunda porta para a regra
+-- de time, e é exatamente o que o invariante proíbe.
+--
+-- Então a pergunta é feita ao Núcleo. E o FALLBACK não inventa regra de time:
+-- ele DERIVA. Quem está no raio e NÃO está na lista de inimigos que o próprio
+-- `alvosEm` devolveu é aliado — mais o portador, que nunca é inimigo de si.
+--
+-- Sem Núcleo e sem time configurado, `alvosEm` devolve todo mundo, a subtração
+-- devolve só o portador, e a cura vira auto-cura. Que é o comportamento certo
+-- para uma Tool sozinha num place vazio.
+--═══════════════════════════════════════════════════════════════
+
+local function aliadosEm(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarAliados then
+		return _G.Combate.detectarAliados(
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+	end
+
+	local inimigos = {}
+	for _, hostil in ipairs(alvosEm(posicao, raio, limite or 12)) do
+		inimigos[hostil] = true
+	end
+
+	local achados, vistos = {}, {}
+	if humanoide and humanoide.Health > 0 then
+		vistos[humanoide] = true
+		table.insert(achados, humanoide)
+	end
+
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] and not inimigos[hum] then
+			vistos[hum] = true
+			table.insert(achados, hum)
+			if limite and #achados >= limite then break end
+		end
+	end
+	return achados
+end
+
+local function maisPertoAliado(ponto, raio)
+	local melhor, dist = nil, math.huge
+	for _, amigo in ipairs(aliadosEm(ponto, raio or 24, 12)) do
+		local corpo = amigo.Parent
+		local amigoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+		local onde = amigoRaiz and amigoRaiz.Position
+			or (corpo and corpo:FindFirstChild("Head")
+				and corpo.Head.Position)
+		if onde then
+			local d = (onde - ponto).Magnitude
+			if d < dist then melhor, dist = amigo, d end
+		end
+	end
+	return melhor or humanoide
+end
+
+local function raizDe(alvoHum)
+	local corpo = alvoHum and alvoHum.Parent
+	return corpo and corpo:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function frente(distancia)
+	if not raiz then return Vector3.new() end
+	return raiz.Position + raiz.CFrame.LookVector * (distancia or CFG.ALCANCE)
+end
+
+--- O alvo mais perto de um ponto.
+local function maisPerto(ponto, raio)
+	local melhor, dist = nil, math.huge
+	for _, alvo in ipairs(alvosEm(ponto, raio, 12)) do
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			local d = (alvoRaiz.Position - ponto).Magnitude
+			if d < dist then melhor, dist = alvo, d end
+		end
+	end
+	return melhor
+end
+
 local function empurrar(alvoHum, direcao, forca, tempo)
-	local corpo = alvoHum.Parent
-	local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
+	local alvoRaiz = raizDe(alvoHum)
 	if not alvoRaiz or direcao.Magnitude < 0.01 then return end
 	local impulso = Instance.new("BodyVelocity")
 	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
@@ -211,244 +358,383 @@ local function empurrar(alvoHum, direcao, forca, tempo)
 	Debris:AddItem(impulso, tempo or 0.2)
 end
 
---- Golpe em área: dano + empurrão + o beat para o cliente desenhar.
-local function golpearArea(posicao, raio, minimo, maximo, forca, limite)
-	local atingidos = 0
-	for _, alvo in ipairs(alvosEm(posicao, raio, limite or 14)) do
-		aplicarDano(alvo, naFaixa(minimo, maximo))
-		atingidos = atingidos + 1
-		if forca and forca > 0 then
-			local corpo = alvo.Parent
-			local alvoRaiz = corpo and corpo:FindFirstChild("HumanoidRootPart")
-			if alvoRaiz then
-				empurrar(alvo, (alvoRaiz.Position - posicao)
-					+ Vector3.new(0, 0.3, 0), forca, 0.25)
-			end
+local function puxar(alvoHum, centro, forca, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return end
+	local delta = centro - alvoRaiz.Position
+	if delta.Magnitude < 0.5 then return end
+	local impulso = Instance.new("BodyVelocity")
+	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	impulso.Velocity = delta.Unit * forca
+	impulso.Parent = alvoRaiz
+	Debris:AddItem(impulso, tempo or 0.3)
+end
+
+--- Prender no lugar com prazo. `BodyPosition` no ponto onde o alvo já está —
+--- não é teleporte, é âncora. Nunca `Anchored`, que travaria o personagem
+--- inteiro e deixaria o jogador preso se a Tool sumisse no meio.
+local function prender(alvoHum, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return nil end
+	local ancora = Instance.new("BodyPosition")
+	ancora.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	ancora.P = 12000
+	ancora.D = 900
+	ancora.Position = alvoRaiz.Position
+	ancora.Parent = alvoRaiz
+	Debris:AddItem(ancora, tempo or 3)
+	return ancora
+end
+
+--- Tombo com prazo. Nunca `BreakJoints`, que desmonta personagem sem volta —
+--- a origem chamava seis.
+local function tombar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	alvoHum.PlatformStand = true
+	task.delay(tempo or 1.2, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.PlatformStand = false
 		end
-	end
-	return atingidos
+	end)
 end
 
---══════════════════════════════════════════════════════════════
--- MOLDES — o asset vem de DENTRO da Tool (Regra nº 1)
---══════════════════════════════════════════════════════════════
-
---- Acha um molde por nome, em qualquer profundidade de `Moldes/`.
-local function molde(nome)
-	return Moldes:FindFirstChild(nome, true)
+--- Lentidão com volta garantida. Guarda a velocidade ANTES de mexer, e devolve
+--- essa — nunca um número fixo, porque o alvo pode ter velocidade própria.
+local function afrouxar(alvoHum, fator, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	local antes = alvoHum.WalkSpeed
+	alvoHum.WalkSpeed = antes * (fator or 0.5)
+	task.delay(tempo or 3, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.WalkSpeed = antes
+		end
+	end)
 end
 
---- Clona um molde para o mundo. O molde mora apagado (Transparency = 1);
---- quem acende é o cliente, ao desenhar. O que o servidor põe no mundo é
---- SÓ o que precisa de física ou de colisão.
-local function porNoMundo(nome, cframe, vida)
-	local base = molde(nome)
-	if not base then return nil end
-	local copia = base:Clone()
-	copia.Parent = workspace
-	if copia:IsA("BasePart") then
-		copia.CFrame = cframe
-	elseif copia:IsA("Model") and copia.PrimaryPart then
-		copia:PivotTo(cframe)
+--- Dano em área com NÚCLEO e BORDA.
+---
+--- A origem fazia `ApplyAoE(pos, RAIO, MIN, MAX, FLING, INSTAKILL)` com um raio
+--- só e dano chapado — e quatro das nove marcavam INSTAKILL. Dois raios é o que
+--- impede uma explosão grande de matar meio servidor por estar por perto.
+local function golpearArea(centro, raio, raioNucleo, danoNucleo, danoBorda,
+		forca, tombo, limite)
+	local pegos = 0
+	for _, alvo in ipairs(alvosEm(centro, raio, limite or 16)) do
+		local alvoRaiz = raizDe(alvo)
+		local d = alvoRaiz and (alvoRaiz.Position - centro).Magnitude or raio
+		if d <= raioNucleo then
+			aplicarDano(alvo, danoNucleo)
+			if tombo then tombar(alvo, tombo) end
+		else
+			aplicarDano(alvo, danoBorda)
+			if tombo then tombar(alvo, tombo * 0.5) end
+		end
+		if alvoRaiz and forca then
+			empurrar(alvo, (alvoRaiz.Position - centro) + Vector3.new(0, 0.6, 0),
+				forca, 0.32)
+		end
+		pegos = pegos + 1
 	end
-	Debris:AddItem(copia, vida or 8)
-	return copia
+	return pegos
 end
 
---══════════════════════════════════════════════════════════════
--- PORTA DE ENTRADA — recarga, energia, e o beat
---══════════════════════════════════════════════════════════════
 
-local function podeUsar(quando, recarga)
-	if not (personagem and humanoide and humanoide.Health > 0 and raiz) then
-		return false
-	end
-	if os.clock() - quando < recarga then return false end
-	return true
-end
-
---- Mira: o cliente manda para onde aponta. O servidor CONFERE o alcance em
---- vez de confiar — payload de cliente é entrada, não verdade.
-local function mirar(pedido)
-	if typeof(pedido) ~= "Vector3" then
-		return raiz.Position + raiz.CFrame.LookVector * CFG.ALCANCE
-	end
-	local delta = pedido - raiz.Position
-	if delta.Magnitude > CFG.ALCANCE then
-		return raiz.Position + delta.Unit * CFG.ALCANCE
-	end
-	return pedido
-end
-
---══════════════════════════════════════════════════════════════
--- PRIMÁRIA — Baralho Espectral
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
 --
--- 2.5 s de conjuração, e o baralho gira em volta batendo em quem chega perto.
--- É a habilidade mais lenta das sete: o original trava o `ws` em 0 durante a
--- conjuração inteira, e isso foi mantido como `LockCharacter` no cliente.
---══════════════════════════════════════════════════════════════
-
-local function primaria()
-	vfx("BARALHO_CONJURA", { duracao = CFG.CONJURA, cartas = CFG.CARTAS })
-
-	local pulsos = math.floor(CFG.DURACAO / CFG.INTERVALO)
-	local i = 1
-	while i <= pulsos do
-		local indice = i
-		task.delay(CFG.CONJURA + indice * CFG.INTERVALO, function()
-			if not (personagem and raiz and humanoide and humanoide.Health > 0) then
-				return
-			end
-			local ang = anguloDe(indice)
-			local ponto = raiz.Position
-				+ Vector3.new(math.cos(ang), 0, math.sin(ang)) * CFG.ORBITA
-			vfx("BARALHO_GOLPE", { posicao = ponto })
-			golpearArea(ponto, CFG.RAIO, CFG.DANO_MIN, CFG.DANO_MAX,
-				CFG.EMPURRAO, 6)
-		end)
-		i = i + 1
-	end
-end
-
-
---══════════════════════════════════════════════════════════════
--- ANIMAÇÃO — o rig é DO SERVIDOR
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
 --
--- `Instance.new("Weld")` criado num LocalScript é instância LOCAL: não replica.
--- Enquanto o rig morou no cliente, os outros jogadores viam o portador
--- executando a habilidade PARADO. Weld do servidor replica, e o C0 junto.
---══════════════════════════════════════════════════════════════
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe —
+--          não dá mais para escrever `beatCena("CARGA")` dentro de `GOLPE`
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- A ideia é do `grims-cutscene-engine`, que guarda Keyframes e Actions como
+-- dado e deixa um runner interpretar. Nenhuma linha dele foi copiada — aquele
+-- repositório não declara licença. Ver
+-- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
+--═══════════════════════════════════════════════════════════════
 
-local function montarRig()
-	if rig then return rig end
-	if not personagem then return nil end
-	rig = Animator.new(personagem, "XesterBaralhoEspectral", Poses, Poses.SEQUENCIAS)
-	return rig
-end
-
---- O beat vem como KEYFRAME, não como string.
----
---- `PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a TABELA do
---- passo, e a marca está em `kf.marca`. Comparar o keyframe com uma string
---- nunca dá verdadeiro, e falha em SILÊNCIO.
-local function marcaDe(passo)
-	return type(passo) == "table" and passo.marca or nil
-end
-
---- Toca a sequência e devolve o controle no beat.
----
---- ⚠️ ISTO NÃO ERA CHAMADO. O `animar()` existia nas 14 Tools e **nenhuma o
----    invocava**: `Poses.lua` e o `R6CFrameAnimator` eram código morto, o
----    personagem ficava parado, e o golpe saía inteiro no mesmo quadro do
----    clique. A habilidade acontecia; a animação, não.
----
---- `aoGolpe` é chamado na marca `GOLPE`. Se a sequência não tiver essa marca —
---- três delas terminam em `CARGA` —, ele é chamado no FIM. Habilidade que não
---- dispara é a falha que este repositório já pagou uma vez; aqui não há caminho
---- em que o golpe simplesmente não aconteça.
-local function animar(sequencia, aoGolpe, aoCarga)
-	local atual = montarRig()
-	local disparou = false
-
-	local function soltar()
-		if disparou then return end
-		disparou = true
-		if aoGolpe then aoGolpe() end
-	end
-
-	if not atual then
-		-- sem rig (Humanoid sumiu no meio do equipar) a habilidade ainda sai
-		soltar()
-		ocupado = false
-		return
-	end
-
-	ocupado = true
-	atual:PlaySequence(sequencia, function(passo)
+local function despachar(quadros)
+	return function(passo)
 		local marca = marcaDe(passo)
 		if not marca then return end
-		vfx("BEAT", { marca = marca })
-		if marca == "CARGA" then
-			if aoCarga then aoCarga() end
-		elseif marca == "GOLPE" then
-			soltar()
-		end
-	end, function()
-		soltar()
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — o baralho espectral
+--
+-- A mecânica da origem: cartas girando em volta do portador, batendo em quem
+-- chega perto. Ela travava `ws = 0` durante a conjuração inteira e devolvia na
+-- unha; aqui a trava é `rig:LockCharacter`, que o `desmontar` desfaz sozinho
+-- nas DUAS portas — `Unequipped` e `Destroying`.
+--══════════════════════════════════════════════════════════════
+
+local function apagarBaralho()
+	geracao = geracao + 1
+	if baralhoId then
+		vfx("APAGAR", { id = baralhoId })
+		baralhoId = nil
+	end
+	if rig then rig:LockCharacter(false) end
+end
+
+function primaria(_mira)
+	ocupado = true
+	rig:PlaySequence("ESPECTRAL", despachar({
+		CARGA = { sfx = { "CONJURA", 1 }, faz = function()
+			if rig then rig:LockCharacter(true) end
+			vfx("BARALHO_CONJURA", { duracao = CFG.CONJURA })
+		end },
+		GOLPE = { faz = function()
+			apagarBaralho()
+			geracao = geracao + 1
+			local minha = geracao
+			baralhoId = novoId("BARALHO")
+			vfx("BARALHO_CONJURA", { duracao = CFG.DURACAO,
+				raio = CFG.ORBITA, id = baralhoId })
+			tocar("CONJURA", 0.95)
+
+			task.spawn(function()
+				local ate = os.clock() + CFG.DURACAO
+				local passo = 0
+				while minha == geracao and os.clock() < ate do
+					if not (personagem and raiz and humanoide
+							and humanoide.Health > 0) then
+						break
+					end
+					-- ângulo áureo: cada passo cai num lugar novo, e todos os
+					-- clientes veem o mesmo lugar
+					local ang = passo * 2.399963
+					local onde = raiz.Position + Vector3.new(
+						math.cos(ang) * CFG.ORBITA, 1,
+						math.sin(ang) * CFG.ORBITA)
+					vfx("BARALHO_GOLPE", { posicao = onde })
+					for _, alvo in ipairs(alvosEm(onde, CFG.RAIO, 8)) do
+						aplicarDano(alvo, CFG.DANO)
+						local alvoRaiz = raizDe(alvo)
+						if alvoRaiz then
+							empurrar(alvo, alvoRaiz.Position - onde,
+								CFG.EMPURRAO, 0.2)
+						end
+					end
+					passo = passo + 1
+					task.wait(CFG.PASSO)
+				end
+				if minha == geracao then apagarBaralho() end
+			end)
+		end },
+	}), function()
 		ocupado = false
+		if rig then rig:LockCharacter(false) end
 	end)
 end
 
---- Solta o rig POR INTEIRO, e zera a referência.
----
---- Zerar é o que importa: `montarRig()` devolve o `rig` em cache, e depois de
---- um respawn esse cache aponta para o Character MORTO. A sequência tocaria
---- num corpo que não existe mais — sem erro, sem pose, sem nada. Guardar o rig
---- entre duas vidas é o mesmo tipo de silêncio que o beat comparado com string.
-local function desmontarRig()
-	if not rig then return end
-	rig:CancelSequence()
-	rig:ReleaseLegs()
-	rig:LockCharacter(false)
-	rig:Destroy()
-	rig = nil
+--══════════════════════════════════════════════════════════════
+-- R — Naipe  ·  T — Espelho  ·  Y — Baralho Completo
+--══════════════════════════════════════════════════════════════
+
+--- Quatro linhas de carta, uma por naipe, nas quatro direções do portador. Não
+--- é um leque à frente: é uma cruz, e serve para quem está cercado.
+function extraR(_mira)
+	ocupado = true
+	rig:PlaySequence("NAIPE", despachar({
+		CARGA = { sfx = { "NAIPE", 1.2 } },
+		GOLPE = { faz = function()
+			if not (raiz and raiz.Parent) then return end
+			local origem = raiz.Position
+			local frenteDir = raiz.CFrame.LookVector
+			local ladoDir = raiz.CFrame.RightVector
+			local direcoes = {
+				frenteDir, -frenteDir, ladoDir, -ladoDir,
+			}
+			tocarEm("NAIPE", origem, 1.15)
+			local n = 1
+			while n <= CFG.NAIPES do
+				local direcao = direcoes[n]
+				local i = 1
+				while i <= CFG.PASSOS_NAIPE do
+					local indice = i
+					task.delay(indice * CFG.INTERVALO, function()
+						if not personagem then return end
+						local onde = origem
+							+ direcao * (indice * CFG.ESPACO_NAIPE)
+						vfx("CARTA_VOA", { origem = origem, destino = onde })
+						for _, alvo in ipairs(alvosEm(onde, CFG.RAIO_NAIPE, 6)) do
+							aplicarDano(alvo, CFG.DANO_NAIPE)
+						end
+					end)
+					i = i + 1
+				end
+				n = n + 1
+			end
+		end },
+	}), function() ocupado = false end)
 end
 
---══════════════════════════════════════════════════════════════
--- OS DISPAROS — a habilidade sai NO BEAT, não no clique
---
--- Era aqui que faltava o fio. `primaria()` e `extra()` eram chamadas direto do
--- `Tool.Activated`, e a sequência de pose nunca tocava: dano, VFX e empurrão
--- saíam todos no MESMO quadro do clique, com o personagem parado.
---
--- Agora quem chama é o beat. `CARGA` toca o som de preparação, `GOLPE` solta a
--- habilidade. A trava `ocupado` impede reencadear por cima da animação.
---══════════════════════════════════════════════════════════════
-
-local function dispararPrimaria()
-	animar(SEQUENCIA, function()
-		tocarEm("GOLPE", raiz.Position, 1)
-		primaria()
-	end, function()
-		tocar("CONJURA", 1)
-	end)
+local function apagarEspelho()
+	if espelhoId then
+		vfx("APAGAR", { id = espelhoId })
+		espelhoId = nil
+	end
 end
 
+--- Espelho: casca espectral colada no portador. Ela DEVOLVE — quem encosta
+--- toma. O `ForceField` com prazo é quem segura o outro lado, e o `TakeDamage`
+--- do Núcleo já o respeita sozinho.
+function extraT(_mira)
+	ocupado = true
+	rig:PlaySequence("ESPELHO", despachar({
+		CARGA  = { sfx = { "ESPELHO", 1.05 } },
+		SEGURA = { sfx = { "CONJURA", 1.2 } },
+		GOLPE  = { faz = function()
+			apagarEspelho()
+			espelhoId = novoId("ESPELHO")
+			local meu = espelhoId
+			vfx("ESCUDO_SOBE", { posicao = raiz.Position,
+				duracao = CFG.DURACAO_ESP, id = meu })
+			tocar("ESPELHO", 1)
 
---══════════════════════════════════════════════════════════════
--- CICLO DE VIDA
---══════════════════════════════════════════════════════════════
+			if personagem and not personagem:FindFirstChildOfClass("ForceField") then
+				local campo = Instance.new("ForceField")
+				campo.Visible = true
+				campo.Parent = personagem
+				Debris:AddItem(campo, CFG.DURACAO_ESP)
+			end
+
+			task.spawn(function()
+				local ate = os.clock() + CFG.DURACAO_ESP
+				while espelhoId == meu and os.clock() < ate do
+					if not (personagem and raiz and humanoide
+							and humanoide.Health > 0) then
+						break
+					end
+					local centro = raiz.Position
+					for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_ESPELHO, 10)) do
+						aplicarDano(alvo, CFG.DANO_ESPELHO)
+						vfx("BARALHO_GOLPE", { posicao = centro })
+					end
+					task.wait(CFG.PASSO_ESP)
+				end
+				if espelhoId == meu then apagarEspelho() end
+			end)
+		end },
+	}), function() ocupado = false end)
+end
+
+--- O baralho inteiro fecha de uma vez. É a única das quatro com núcleo e
+--- borda: um estouro grande sem borda mataria quem só passava perto.
+function extraY(_mira)
+	ocupado = true
+	rig:PlaySequence("COMPLETO", despachar({
+		CARGA  = { sfx = { "CONJURA", 0.8 } },
+		SEGURA = { sfx = { "NAIPE", 0.85 } },
+		GOLPE  = { faz = function()
+			local centro = raiz.Position
+			apagarBaralho()
+			vfx("BARALHO_GOLPE", { posicao = centro })
+			vfx("ONDA_DUPLA", { posicao = centro })
+			vfx("CEIFEIRA_ESTOURA", { posicao = centro })
+			tocarEm("GOLPE", centro, 0.85)
+			golpearArea(centro, CFG.RAIO_COMPLETO, CFG.NUCLEO_COMP,
+				CFG.DANO_COMPLETO, CFG.BORDA_COMPLETO, CFG.EMPURRAO_COMP,
+				CFG.TOMBO)
+		end },
+	}), function() ocupado = false end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA — uma primária e TRÊS Extras
+--═══════════════════════════════════════════════════════════════
+
+local function pronto(quando, recarga)
+	return os.clock() - quando >= recarga
+end
+
+local function podeAgir()
+	if not (personagem and humanoide and raiz and rig) then return false end
+	if humanoide.Health <= 0 then return false end
+	return not ocupado
+end
+
+VFXRemote.OnServerEvent:Connect(function(quem, mira)
+	if quem ~= jogador or not podeAgir() then return end
+	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
+	ultimoPrimaria = os.clock()
+	primaria(mira)
+end)
+
+--- As TRÊS Extras chegam pelo MESMO remote. A tecla vem no payload e é
+--- conferida aqui: qualquer coisa fora de "R", "T" e "Y" é descartada sem
+--- resposta.
+--- Confiar no cliente para dizer qual habilidade rodar seria dar a ele a
+--- escolha da recarga também.
+AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
+	if quem ~= jogador or not podeAgir() then return end
+	if typeof(mira) ~= "Vector3" then mira = frente() end
+
+	if tecla == "R" then
+		if not pronto(ultimoR, CFG.RECARGA_R) then return end
+		ultimoR = os.clock()
+		extraR(mira)
+	elseif tecla == "T" then
+		if not pronto(ultimoT, CFG.RECARGA_T) then return end
+		ultimoT = os.clock()
+		extraT(mira)
+	elseif tecla == "Y" then
+		if not pronto(ultimoY, CFG.RECARGA_Y) then return end
+		ultimoY = os.clock()
+		extraY(mira)
+	end
+end)
 
 Tool.Equipped:Connect(function()
 	personagem = Tool.Parent
-	jogador = Players:GetPlayerFromCharacter(personagem)
-	humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
-	raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	raiz       = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
+	if not (personagem and humanoide and raiz) then return end
+
+	rig = Animator.new(personagem, "XesterBaralho", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
 end)
 
---- As duas portas fecham pelo MESMO caminho.
----
---- `desmontarRig` era o terceiro código morto desta Tool: definido e nunca
---- chamado, como o `animar()`. Com a trava `ocupado`, deixá-lo solto seria
---- pior que inútil — guardar a Tool no meio de uma sequência travaria
---- `ocupado = true` para sempre, e ao reequipar a habilidade nunca mais sairia.
+--- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
+--- de uma sequência.
 local function desmontar()
-	soltarTudo()
-	desmontarRig()
+	for _, c in ipairs(ativos) do
+		if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
+	end
+	table.clear(ativos)
 	ocupado = false
+	apagarBaralho()
+	apagarEspelho()
+	if rig then
+		rig:CancelSequence()
+		rig:ReleaseLegs()
+		rig:LockCharacter(false)
+		rig:Destroy()
+		rig = nil
+	end
 end
 
 Tool.Unequipped:Connect(desmontar)
-
-Tool.Activated:Connect(function()
-	-- a trava vem ANTES da recarga: barrar depois de `ultimoUso = os.clock()`
-	-- cobraria o tempo de espera por um golpe que não saiu
-	if ocupado then return end
-	if not podeUsar(ultimoUso, CFG.RECARGA) then return end
-	ultimoUso = os.clock()
-	dispararPrimaria()
-end)
-
---- `Destroying`, não `AncestryChanged`: a Tool pode trocar de pai a cada
---- equipar sem estar sendo destruída.
 Tool.Destroying:Connect(desmontar)
