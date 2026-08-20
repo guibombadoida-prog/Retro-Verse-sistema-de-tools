@@ -13,8 +13,9 @@
 --
 -- JUNTA QUE LIDERA: **Head** (regra 6 da gramática).
 --
---   FEIXE          conjuração       1.00s · 5 passo(s), 1 segurado(s)
---   VARREDURA      sustentada       1.60s · 6 passo(s), 1 segurado(s)
+--   FEIXE_ABRE     conjuração       0.30s · 2 passo(s), 0 segurado(s)
+--   FEIXE_FECHA    reação           0.40s · 2 passo(s), 0 segurado(s)
+--   SOBRECARGA     sustentada       1.76s · 7 passo(s), 2 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
 -- GANCHO, LAMINA_ERGUE… As sete são a MESMA briga, com armas diferentes.
@@ -58,23 +59,27 @@ P.VARRE_OLHOS = {
 
 P.SEQUENCIAS = {
 
-	-- conjuração · 1.00s · 5 passo(s), 1 segurado(s)
-	FEIXE = {
-		{ pose = "MIRA_OLHOS", time = 0.2, style = "Quad", dir = "Out", marca = "MIRA" },
+	-- conjuração · 0.30s · 2 passo(s), 0 segurado(s)
+	FEIXE_ABRE = {
+		{ pose = "MIRA_OLHOS", time = 0.18, style = "Quad", dir = "Out", marca = "MIRA" },
 		{ pose = "FEIXE_OLHOS", time = 0.12, style = "Back", dir = "Out", marca = "ATIRA" },
-		{ pose = "FEIXE_OLHOS", time = 0.3, style = "Sine", dir = "InOut", tremor = 0.02, freq = 26 },
-		{ pose = "MIRA_OLHOS", time = 0.16, style = "Quad", dir = "Out" },
-		{ pose = "IDLE", time = 0.22, style = "Quad", dir = "Out" },
 	},
 
-	-- sustentada · 1.60s · 6 passo(s), 1 segurado(s)
-	VARREDURA = {
+	-- reação · 0.40s · 2 passo(s), 0 segurado(s)
+	FEIXE_FECHA = {
+		{ pose = "MIRA_OLHOS", time = 0.16, style = "Quad", dir = "Out", marca = "CORTA" },
+		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- sustentada · 1.76s · 7 passo(s), 2 segurado(s)
+	SOBRECARGA = {
 		{ pose = "MIRA_OLHOS", time = 0.2, style = "Back", dir = "Out", marca = "MIRA" },
 		{ pose = "FEIXE_OLHOS", time = 0.14, style = "Quint", dir = "Out", marca = "ABRE" },
-		{ pose = "VARRE_OLHOS", time = 0.42, style = "Sine", dir = "InOut", tremor = 0.03, freq = 28, marca = "VARRE" },
-		{ pose = "VARRE_OLHOS", time = 0.36, style = "Sine", dir = "InOut", tremor = 0.03, freq = 28, marca = "VARRE" },
-		{ pose = "FEIXE_OLHOS", time = 0.22, style = "Quad", dir = "InOut", marca = "FECHA" },
-		{ pose = "IDLE", time = 0.26, style = "Quad", dir = "Out" },
+		{ pose = "VARRE_OLHOS", time = 0.42, style = "Sine", dir = "InOut", tremor = 0.04, freq = 30, marca = "CARREGA" },
+		{ pose = "VARRE_OLHOS", time = 0.36, style = "Sine", dir = "InOut", tremor = 0.055, freq = 34 },
+		{ pose = "FEIXE_OLHOS", time = 0.12, style = "Quint", dir = "Out", marca = "ESTOURA" },
+		{ pose = "FEIXE_OLHOS", time = 0.24, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.28, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }

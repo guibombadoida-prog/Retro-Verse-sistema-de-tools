@@ -203,14 +203,50 @@ BASE = {
         "RightLeg": J(0.5, -1.9, 0.16, 9, 0, 0),
         "LeftLeg": J(-0.5, -1.9, 0.16, 9, 0, 0),
     },
+    # ── três poses novas, do pedido de refazimento ──────────────────────
+    # o contra-ataque: mão aberta na altura do rosto, corpo torcido para trás.
+    # É a leitura de QUEM ESPERA — nada nela é ofensivo, e é isso que faz o
+    # `GANCHO` que vem depois ler como resposta, não como iniciativa.
+    "CONTRA_PEGA": {
+        "RightArm": J(1.38, 0.6, -0.5, 118, -20, -30),
+        "LeftArm": J(-1.3, 0.3, -0.72, 78, 22, 34),
+        "Head": J(0, 1.5, 0, -4, -16, 0),
+        "HRP": J(0, 0.02, 0, -6, -30, 0),
+        "RightLeg": J(0.5, -1.88, 0.24, 14, 0, 0),
+    },
+    # a cortada: as duas mãos acima da cabeça, tronco arqueado para trás.
+    # É o arco mais alto do conjunto — o oposto do `LAMINA_ERGUE`, que é de
+    # lado; esta é de cima, e a diferença é o que faz a cortada ser cortada.
+    "CORTADA_ALTA": {
+        "RightArm": J(1.3, 0.86, 0.12, 168, 10, 14),
+        "LeftArm": J(-1.3, 0.86, 0.12, 168, -10, -14),
+        "Head": J(0, 1.5, 0, -30, 0, 0),
+        "HRP": J(0, 0.14, 0, -18, 0, 0),
+        "RightLeg": J(0.5, -1.86, 0.24, 12, 0, 0),
+        "LeftLeg": J(-0.5, -1.86, 0.24, 12, 0, 0),
+    },
+    # e o fim dela: tudo desce de uma vez, joelho dobrado, cabeça para baixo
+    "CORTADA_BAIXA": {
+        "RightArm": J(1.44, -0.34, -0.86, 34, -8, -10),
+        "LeftArm": J(-1.44, -0.34, -0.86, 34, 8, 10),
+        "Head": J(0, 1.5, 0, 24, 0, 0),
+        "HRP": J(0, -0.42, 0, 26, 0, 0),
+        "RightLeg": J(0.5, -1.6, -0.62, -40, 0, 0),
+        "LeftLeg": J(-0.5, -1.9, 0.3, 18, 0, 0),
+    },
 }
 
 
 # alvo -> (lidera, sequências)
+#
+# REFAZIMENTO — as 7 habilidades foram redesenhadas a pedido. O que mudou de
+# sequência está anotado em cada Tool; o que não é citado entrou intacto,
+# porque reescrever pose já conformada e verificada é convite a introduzir erro
+# num lugar que não tinha nenhum.
 CONJUNTO = {
 
     "Combate": ("HRP", {
-        # combo: 35 : 65 (regra 3) · 1.00 s cada, dentro da regra 1
+        # combo: 35 : 65 (regra 3) · 1.00 s cada, dentro da regra 1 — INTACTO
         "SOCO_A": ("combo", [
             P("GUARDA", 0.2, "Back", "In", "CARGA"),
             P("GUARDA", 0.15, "Sine", "InOut"),
@@ -232,25 +268,31 @@ CONJUNTO = {
             P("GANCHO", 0.22, "Sine", "InOut"),
             P("IDLE", 0.38, "Quad", "Out", "FIM"),
         ]),
-        # golpe rápido pesado: 1.20 s, impacto a 55%
-        "CHUTE": ("golpe rápido", [
-            P("CHUTE_CARGA", 0.24, "Back", "In", "GIRA"),
-            P("CHUTE_CARGA", 0.42, "Sine", "InOut", "SEGURA", 0.03, 20),
-            P("CHUTE_GIRA", 0.12, "Quint", "Out", "CHUTA"),
-            P("CHUTE_GIRA", 0.18, "Sine", "InOut"),
-            P("IDLE", 0.24, "Quad", "Out"),
+        # NOVA — o COUNTER, no lugar do Chute Rodado.
+        #
+        # DUAS sequências, e é a diferença que faz a habilidade honesta. A
+        # primeira é só a guarda: ela ABRE a janela e fica esperando. Se nada
+        # vier, acaba em nada — contra que erra tem de custar.
+        "CONTRA": ("reação", [
+            P("CONTRA_PEGA", 0.14, "Back", "Out", "ABRE"),
+            P("CONTRA_PEGA", 0.52, "Sine", "InOut", "ESPERA", 0.02, 18),
+            P("CONTRA_PEGA", 0.34, "Sine", "InOut", None, 0.03, 24),
+            P("IDLE", 0.26, "Quad", "Out", "FECHA"),
+        ]),
+        # a segunda só toca se a janela PEGOU alguma coisa. `PlaySequence`
+        # cancela a anterior sozinho, então a guarda é interrompida no quadro
+        # em que o golpe chega — que é exatamente como counter deve ler.
+        "DEVOLVER": ("reação", [
+            P("GANCHO", 0.1, "Quint", "Out", "DEVOLVE"),
+            P("GANCHO", 0.2, "Sine", "InOut"),
+            P("IDLE", 0.26, "Quad", "Out", "FIM"),
         ]),
     }),
 
-    "Desviar e Empurrar": ("HRP", {
-        # golpe rápido: 0.90 s, impacto a 51%
-        "EMPURRAO": ("golpe rápido", [
-            P("EMPURRA_CARGA", 0.2, "Back", "In", "CARGA"),
-            P("EMPURRA_CARGA", 0.26, "Sine", "InOut"),
-            P("EMPURRA_SOLTA", 0.1, "Quint", "Out", "EMPURRA"),
-            P("EMPURRA_SOLTA", 0.14, "Sine", "InOut"),
-            P("IDLE", 0.2, "Quad", "Out"),
-        ]),
+    # RENOMEADA de `Desviar e Empurrar`. A esquiva era a Extra e virou a
+    # PRIMÁRIA — é ela que dá nome à Tool, e é o único pedaço de lógica do
+    # `dodge` do Rufus14 que sobreviveu ao passe. O empurrão desceu para Extra.
+    "Desviar": ("HRP", {
         # 0.62 s — o único do conjunto abaixo da faixa da regra 1, e de
         # propósito: esquiva lenta não é esquiva. O `dodge` de origem media
         # `dhtime = 0.65`, e este número é dele.
@@ -259,10 +301,18 @@ CONJUNTO = {
             P("ESQUIVA", 0.26, "Sine", "InOut", "IMUNE"),
             P("IDLE", 0.24, "Quad", "Out", "SAI"),
         ]),
+        # golpe rápido: 0.90 s, impacto a 51% — INTACTO
+        "EMPURRAO": ("golpe rápido", [
+            P("EMPURRA_CARGA", 0.2, "Back", "In", "CARGA"),
+            P("EMPURRA_CARGA", 0.26, "Sine", "InOut"),
+            P("EMPURRA_SOLTA", 0.1, "Quint", "Out", "EMPURRA"),
+            P("EMPURRA_SOLTA", 0.14, "Sine", "InOut"),
+            P("IDLE", 0.2, "Quad", "Out"),
+        ]),
     }),
 
     "Corte Frio": ("RightArm", {
-        # golpe rápido: 1.00 s, impacto a 52%
+        # golpe rápido: 1.00 s, impacto a 52% — INTACTO
         "CORTE": ("golpe rápido", [
             P("LAMINA_ERGUE", 0.22, "Back", "In", "ERGUE"),
             P("LAMINA_ERGUE", 0.3, "Sine", "InOut"),
@@ -270,32 +320,50 @@ CONJUNTO = {
             P("LAMINA_CORTA", 0.16, "Sine", "InOut"),
             P("IDLE", 0.22, "Quad", "Out"),
         ]),
-        # CUTSCENE · 4.60 s · 70% de preparação · 3 segurados
-        # Abaixo dos 7 s da regra 5 de propósito: é execução de UM alvo, não
-        # ultimate de área. A regra 5 mede ultimate de arena; cena de execução
-        # longa demais vira punição para quem está esperando.
-        "EXECUCAO": ("cutscene", [
+        # NOVA — CUTSCENE DE CORTES CONSECUTIVOS, no lugar da Execução.
+        #
+        # 3.47 s, SEIS cortes. A execução antiga tinha uma preparação de 70% e
+        # UM corte no fim; esta inverte: a preparação é 0.57 s e o resto é
+        # golpe atrás de golpe. É outra leitura — não é "o golpe definitivo",
+        # é "não dá para parar".
+        #
+        # Cada corte é `erguer 0.12 → cortar 0.10`. 0.10 s é o impacto mais
+        # curto que o conjunto tem; abaixo disso o tween não chega e o
+        # keyframe passa sem a pose acontecer.
+        "SERIE": ("cutscene", [
             P("LAMINA_ERGUE", 0.35, "Back", "In", "CAMERA", 0.02, 16),
-            P("LAMINA_ERGUE", 0.6, "Sine", "InOut", "ENCARA", 0.03, 20),
-            P("ESTOCADA", 0.25, "Quint", "In", "AVANCA"),
-            P("ESTOCADA", 0.7, "Sine", "InOut", "SEGURA", 0.05, 27),
-            P("ESTOCADA", 0.75, "Sine", "InOut", None, 0.06, 31),
-            P("LAMINA_CORTA", 0.15, "Quint", "Out", "CORTA"),
-            P("LAMINA_CORTA", 0.7, "Sine", "InOut"),
-            P("IDLE", 1.1, "Quad", "Out", "FIM"),
+            P("ESTOCADA", 0.22, "Quint", "In", "AVANCA"),
+            P("LAMINA_CORTA", 0.1, "Quint", "Out", "CORTE_1"),
+            P("LAMINA_ERGUE", 0.12, "Quad", "InOut"),
+            P("LAMINA_CORTA", 0.1, "Quint", "Out", "CORTE_2"),
+            P("LAMINA_ERGUE", 0.12, "Quad", "InOut"),
+            P("LAMINA_CORTA", 0.1, "Quint", "Out", "CORTE_3"),
+            P("LAMINA_ERGUE", 0.12, "Quad", "InOut"),
+            P("LAMINA_CORTA", 0.1, "Quint", "Out", "CORTE_4"),
+            P("LAMINA_ERGUE", 0.14, "Quad", "InOut"),
+            P("LAMINA_CORTA", 0.1, "Quint", "Out", "CORTE_5"),
+            P("ESTOCADA", 0.18, "Back", "In", "SEGURA", 0.05, 30),
+            P("LAMINA_CORTA", 0.12, "Quint", "Out", "ULTIMO"),
+            P("LAMINA_CORTA", 0.5, "Sine", "InOut"),
+            P("IDLE", 0.9, "Quad", "Out", "FIM"),
         ]),
     }),
 
     "Impacto Forte": ("RightArm", {
-        # golpe rápido pesado: 1.20 s, impacto a 58%
-        "SOCO": ("golpe rápido", [
-            P("GUARDA", 0.24, "Back", "In", "CARGA"),
-            P("GUARDA", 0.46, "Sine", "InOut", "SEGURA", 0.035, 22),
-            P("SOCO_DIR", 0.12, "Quint", "Out", "BATE"),
-            P("SOCO_DIR", 0.16, "Sine", "InOut"),
-            P("IDLE", 0.22, "Quad", "Out"),
+        # REESCRITA — o molde do soco sério: 1.60 s, e o impacto dura 0.08 s.
+        #
+        # A anterior era 1.20 s com 0.12 s de impacto. O que muda a leitura não
+        # é o dano, é a PROPORÇÃO: 58% do tempo é a carga parada, e o golpe é
+        # UM quadro. Golpe que demora a sair e sai instantâneo é o que dá a
+        # impressão de que a força não coube na animação.
+        "SOCO": ("golpe pesado", [
+            P("GUARDA", 0.3, "Back", "In", "CARGA"),
+            P("GUARDA", 0.62, "Sine", "InOut", "SEGURA", 0.04, 24),
+            P("SOCO_DIR", 0.08, "Quint", "Out", "BATE"),
+            P("SOCO_DIR", 0.26, "Sine", "InOut", "VENTO"),
+            P("IDLE", 0.34, "Quad", "Out", "FIM"),
         ]),
-        # conjuração pesada: 1.40 s
+        # conjuração pesada: 1.40 s — INTACTA
         "RACHA": ("golpe pesado", [
             P("CHUTE_CARGA", 0.26, "Back", "In", "ERGUE"),
             P("CHUTE_CARGA", 0.54, "Sine", "InOut", "SEGURA", 0.045, 24),
@@ -305,6 +373,9 @@ CONJUNTO = {
         ]),
     }),
 
+    # As duas sequências entraram INTACTAS: braço aberto é aura ligada, e isso
+    # não muda por a aura agora refletir em vez de acelerar. O que mudou é o
+    # Server inteiro.
     "Aura": ("RightArm", {
         # transformação: 2.00 s, 2 : 98 (regra 4) — abre no primeiro quadro e
         # passa o resto sustentando
@@ -323,66 +394,71 @@ CONJUNTO = {
             P("AURA_ABRE", 0.16, "Sine", "InOut"),
             P("IDLE", 0.22, "Quad", "Out"),
         ]),
+        # NOVA — a reação de quem devolveu um golpe. Curta de propósito: ela
+        # toca no meio de outra coisa, toda vez que a aura reflete, e sequência
+        # longa aqui deixaria o portador travado enquanto apanha.
+        "REFLETE": ("reação", [
+            P("AURA_ABRE", 0.08, "Quint", "Out", "DEVOLVE"),
+            P("AURA_ABRE", 0.16, "Sine", "InOut"),
+        ]),
     }),
 
+    # Lidera pela CABEÇA — exceção declarada à regra 6.
     "Olhos Laser": ("Head", {
-        # conjuração: 1.00 s. Lidera pela CABEÇA — exceção declarada à regra 6.
-        "FEIXE": ("conjuração", [
-            P("MIRA_OLHOS", 0.2, "Quad", "Out", "MIRA"),
+        # REESCRITA em DUAS metades, porque o feixe agora é SEGURADO.
+        #
+        # `PlaySequence` roda até o fim e para; as juntas ficam no C0 do último
+        # keyframe. Então `FEIXE_ABRE` termina em `FEIXE_OLHOS` e a pose FICA,
+        # pelo tempo que o jogador segurar o clique. Quem solta toca a outra.
+        "FEIXE_ABRE": ("conjuração", [
+            P("MIRA_OLHOS", 0.18, "Quad", "Out", "MIRA"),
             P("FEIXE_OLHOS", 0.12, "Back", "Out", "ATIRA"),
-            P("FEIXE_OLHOS", 0.3, "Sine", "InOut", None, 0.02, 26),
-            P("MIRA_OLHOS", 0.16, "Quad", "Out"),
-            P("IDLE", 0.22, "Quad", "Out"),
         ]),
-        # sustentada: 1.60 s — a varredura em leque
-        "VARREDURA": ("sustentada", [
+        "FEIXE_FECHA": ("reação", [
+            P("MIRA_OLHOS", 0.16, "Quad", "Out", "CORTA"),
+            P("IDLE", 0.24, "Quad", "Out", "FIM"),
+        ]),
+        # NOVA — a sobrecarga, no lugar da varredura em leque. Mesmas poses: o
+        # gesto de quem força os olhos é o mesmo, muda o que sai deles.
+        "SOBRECARGA": ("sustentada", [
             P("MIRA_OLHOS", 0.2, "Back", "Out", "MIRA"),
             P("FEIXE_OLHOS", 0.14, "Quint", "Out", "ABRE"),
-            P("VARRE_OLHOS", 0.42, "Sine", "InOut", "VARRE", 0.03, 28),
-            P("VARRE_OLHOS", 0.36, "Sine", "InOut", "VARRE", 0.03, 28),
-            P("FEIXE_OLHOS", 0.22, "Quad", "InOut", "FECHA"),
-            P("IDLE", 0.26, "Quad", "Out"),
+            P("VARRE_OLHOS", 0.42, "Sine", "InOut", "CARREGA", 0.04, 30),
+            P("VARRE_OLHOS", 0.36, "Sine", "InOut", None, 0.055, 34),
+            P("FEIXE_OLHOS", 0.12, "Quint", "Out", "ESTOURA"),
+            P("FEIXE_OLHOS", 0.24, "Sine", "InOut"),
+            P("IDLE", 0.28, "Quad", "Out", "FIM"),
         ]),
     }),
 
-    "TryHard": ("HRP", {
-        # COMBO DE QUATRO · 35 : 65 na abertura (regra 3): o primeiro impacto
-        # cai cedo porque o resto do tempo são os golpes seguintes.
-        "COMBO_1": ("combo", [
-            P("GUARDA", 0.14, "Back", "In", "CARGA"),
-            P("GUARDA", 0.1, "Sine", "InOut"),
-            P("SOCO_DIR", 0.08, "Quint", "Out", "BATE"),
-            P("SOCO_DIR", 0.12, "Sine", "InOut"),
-            P("GUARDA", 0.16, "Quad", "Out", "ABRE_JANELA"),
+    # SUBSTITUI a `TryHard`. O combo de quatro dela virou uma coisa só: a
+    # cortada, que desce de cima. Não é o combo do `Combate` com outro nome.
+    "Cortada Fatal": ("HRP", {
+        # golpe pesado: 1.30 s, impacto a 62%. A cortada é ALTA — o arco
+        # inteiro passa acima da cabeça antes de descer, e é por isso que ela
+        # demora mais que o soco do `Combate` e menos que o do `Impacto Forte`.
+        "CORTADA": ("golpe pesado", [
+            P("CORTADA_ALTA", 0.28, "Back", "In", "ERGUE"),
+            P("CORTADA_ALTA", 0.52, "Sine", "InOut", "SEGURA", 0.035, 22),
+            P("CORTADA_BAIXA", 0.1, "Quint", "Out", "DESCE"),
+            P("CORTADA_BAIXA", 0.16, "Sine", "InOut"),
+            P("IDLE", 0.24, "Quad", "Out", "FIM"),
         ]),
-        "COMBO_2": ("combo", [
-            P("SOCO_ESQ", 0.1, "Quint", "Out", "BATE"),
-            P("SOCO_ESQ", 0.14, "Sine", "InOut"),
-            P("GUARDA", 0.16, "Quad", "Out", "ABRE_JANELA"),
-        ]),
-        "COMBO_3": ("combo", [
-            P("GANCHO", 0.11, "Quint", "Out", "BATE"),
-            P("GANCHO", 0.15, "Sine", "InOut"),
-            P("GUARDA", 0.16, "Quad", "Out", "ABRE_JANELA"),
-        ]),
-        "COMBO_4": ("combo", [
-            P("CHUTE_CARGA", 0.14, "Back", "In"),
-            P("CHUTE_GIRA", 0.12, "Quint", "Out", "BATE_FORTE"),
-            P("CHUTE_GIRA", 0.2, "Sine", "InOut"),
-            P("IDLE", 0.3, "Quad", "Out", "FIM"),
-        ]),
-        # ULTIMATE COM CUTSCENE · 7.60 s · 76% de preparação (regra 5)
-        "FINALIZADOR": ("ultimate", [
-            P("GUARDA", 0.45, "Back", "In", "CAMERA", 0.02, 15),
-            P("LAMINA_ERGUE", 0.75, "Quad", "InOut", "ERGUE", 0.03, 19),
-            P("LAMINA_ERGUE", 1.0, "Sine", "InOut", "CARGA", 0.04, 23),
-            P("LAMINA_ERGUE", 1.1, "Sine", "InOut", None, 0.055, 28),
-            P("ESTOCADA", 0.4, "Quint", "In", "AVANCA"),
-            P("ESTOCADA", 1.0, "Sine", "InOut", "SEGURA", 0.075, 33),
-            P("ESTOCADA", 1.05, "Sine", "InOut", None, 0.09, 37),
-            P("LAMINA_CORTA", 0.2, "Quint", "Out", "EXECUTA"),
-            P("LAMINA_CORTA", 0.75, "Sine", "InOut"),
-            P("IDLE", 0.9, "Quad", "Out", "FIM"),
+        # ULTIMATE COM CUTSCENE · 6.15 s · 74% de preparação (regra 5)
+        #
+        # Ela só sai em alvo ABAIXO do limiar de vida. Cutscene de execução que
+        # o alvo pode sobreviver é anticlímax; e execução sem limiar é só um
+        # golpe grande com câmera.
+        "FATAL": ("ultimate", [
+            P("GUARDA", 0.4, "Back", "In", "CAMERA", 0.02, 15),
+            P("CORTADA_ALTA", 0.7, "Quad", "InOut", "ERGUE", 0.03, 19),
+            P("CORTADA_ALTA", 0.95, "Sine", "InOut", "CARGA", 0.045, 24),
+            P("CORTADA_ALTA", 1.0, "Sine", "InOut", None, 0.06, 29),
+            P("ESTOCADA", 0.35, "Quint", "In", "AVANCA"),
+            P("ESTOCADA", 0.85, "Sine", "InOut", "SEGURA", 0.075, 34),
+            P("CORTADA_BAIXA", 0.14, "Quint", "Out", "EXECUTA"),
+            P("CORTADA_BAIXA", 0.66, "Sine", "InOut"),
+            P("IDLE", 1.1, "Quad", "Out", "FIM"),
         ]),
     }),
 }

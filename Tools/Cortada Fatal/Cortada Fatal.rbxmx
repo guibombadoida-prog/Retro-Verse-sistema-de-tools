@@ -18,7 +18,7 @@
 			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
-			<string name="ToolTip">Combo de quatro golpes; a Extra finaliza, com cutscene</string>
+			<string name="ToolTip">Cortada de cima; a Extra executa quem esta na reta, com cutscene</string>
 			<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117902</url></Content>
 			<token name="LevelOfDetail">0</token>
 			<CoordinateFrame name="ModelMeshCFrame">
@@ -65,7 +65,7 @@
 			<BinaryString name="AttributesSerialize" />
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 			<bool name="DefinesCapabilities">false</bool>
-			<string name="Name">TryHard</string>
+			<string name="Name">Cortada Fatal</string>
 			<int64 name="SourceAssetId">71737453447563</int64>
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 		</Properties>
@@ -323,14 +323,14 @@
 				</Properties>
 			</Item>
 			</Item>
-		<Item class="StringValue" referent="DR_Damage_07"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_07"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_TryHard</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_07"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_07"><Properties><string name="Name">RecargaGlobal</string><float name="Value">22</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_07"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_07"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_CUTR_07"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="DR_TryHard_Serv_07"><Properties><string name="Name">TryHard_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TryHard_Server_V1.lua
--- Script de servidor — TryHard  (conjunto DRAMA)
+		<Item class="StringValue" referent="DR_Damage_07"><Properties><string name="Name">DamageClass</string><string name="Value">Melee</string></Properties></Item><Item class="StringValue" referent="DR_ChaveR_07"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Drama_Cortada</string></Properties></Item><Item class="NumberValue" referent="DR_Energy_07"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="DR_Recarg_07"><Properties><string name="Name">RecargaGlobal</string><float name="Value">22</float></Properties></Item><Item class="RemoteEvent" referent="DR_VFXR_07"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_ACAO_07"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="DR_CUTR_07"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="DR_CortadaFatal_07"><Properties><string name="Name">CortadaFatal_Server_V1</string><ProtectedString name="Source"><![CDATA[-- CortadaFatal_Server_V1.lua
+-- Script de servidor — Cortada Fatal  (conjunto DRAMA)
 --
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   combo de quatro golpes que encadeiam
---   R    Finalizador   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   cortada de cima, com onda no chao
+--   R    Fatal   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -354,22 +354,22 @@ local ARQUETIPO = "MELEE"
 
 local CFG = {
 	ALCANCE       = 6.5,
-	RAIO_GOLPE    = 7,
-	DANO_1        = 11,
-	DANO_2        = 13,
-	DANO_3        = 16,
-	DANO_4        = 30,
-	EMPURRAO      = 24,
-	EMPURRAO_4    = 88,
-	RECARGA       = 0.32,
-	JANELA_COMBO  = 1,
+	RAIO_CORTADA  = 8,
+	DANO          = 34,
+	EMPURRAO      = 58,
+	TOMBO         = 1.4,
+	RECARGA       = 2.4,
+	ALCANCE_ONDA  = 26,
+	LARGURA_ONDA  = 5,
+	DANO_ONDA     = 18,
+	PASSOS_ONDA   = 8,
 
-	RECARGA_EXTRA = 45,
+	RECARGA_EXTRA = 26,
 	RAIO_ALVO     = 14,
-	DANO_FINAL    = 130,
-	RAIO_FINAL    = 16,
-	DANO_AREA     = 45,
-	EMPURRAO_FINAL = 105,
+	LIMIAR        = 0.4,
+	DANO_FATAL    = 120,
+	DANO_FRACO    = 44,
+	AVANCO        = 5,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -386,8 +386,8 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-local passoCombo = 0
-local ultimoGolpe = 0
+local alvoFatal = nil
+local fatalArmado = false
 
 local function proximo()
 	semente = semente + 1
@@ -570,6 +570,99 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
 
 --═══════════════════════════════════════════════════════════════
 -- A CUTSCENE — um `FireClient` POR ESPECTADOR
@@ -628,128 +721,164 @@ local function fecharCena()
 end
 
 
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — combo de QUATRO
+--══════════════════════════════════════════════════════════════
+-- M1 — a cortada
 --
--- A janela é curta (1 s) e o quarto golpe é o que paga: 11, 13, 16, 30. Quem
--- acerta a cadência inteira tira 70; quem só martela o botão tira 11 por vez,
--- porque o passo volta ao começo toda vez que a janela vence.
+-- Desce de CIMA. O arco passa inteiro acima da cabeça antes de cair, e a onda
+-- corre pelo chão à frente — é o que separa esta Tool do soco do `Combate` e
+-- do corredor do `Impacto Forte`.
 --
--- A regra 3 da gramática mede combo em 35 : 65 — o primeiro impacto cai cedo
--- porque o resto do tempo são os golpes seguintes. É por isso que `COMBO_1` tem
--- carga e os outros três entram direto no impacto.
---═══════════════════════════════════════════════════════════════
-
-local ORDEM_COMBO = { "COMBO_1", "COMBO_2", "COMBO_3", "COMBO_4" }
-local DANO_COMBO = { }
-
-local function bater(dano, tipo, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-				+ Vector3.new(0, 0.3, 0), forca, 0.18)
-			vfx(tipo, { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		achou = true
-	end
-	if achou then tocarEm("IMPACTO", ponto, 1 + jitter(0.9) * 0.12) end
-end
+-- Ela SUBSTITUI o combo de quatro da `TryHard`. Combo de quatro socos ao lado
+-- do combo de três do `Combate` eram a mesma Tool com outro nome.
+--══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
-
-	if os.clock() - ultimoGolpe > CFG.JANELA_COMBO then passoCombo = 0 end
-	passoCombo = passoCombo % 4 + 1
-	ultimoGolpe = os.clock()
-
-	DANO_COMBO = { CFG.DANO_1, CFG.DANO_2, CFG.DANO_3, CFG.DANO_4 }
-	local dano = DANO_COMBO[passoCombo]
-	local quarto = passoCombo == 4
-	tocar("GOLPE", 1 + passoCombo * 0.07)
-
-	rig:PlaySequence(ORDEM_COMBO[passoCombo], despachar({
-		BATE = { faz = function()
-			bater(dano, passoCombo == 3 and "GANCHO" or "SOCO", CFG.EMPURRAO)
+	rig:PlaySequence("CORTADA", despachar({
+		ERGUE = { sfx = { "PREPARA", 0.9 } },
+		SEGURA = { faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ Vector3.new(0, 3.4, 0), escala = 1 })
 		end },
-		BATE_FORTE = { faz = function()
-			bater(dano, "CHUTE", CFG.EMPURRAO_4)
-			vfx("CHUTE", { cframe = raiz.CFrame
-				* CFrame.new(0, -0.4, -CFG.ALCANCE * 0.5), escala = 1.3 })
-		end },
-		FIM = { faz = function()
-			passoCombo = 0
-		end },
-	}), function()
-		ocupado = false
-	end)
-end
+		DESCE = { faz = function()
+			local ponto = frente(CFG.ALCANCE)
+			local direcao = raiz.CFrame.LookVector
+			local chao = raiz.Position - Vector3.new(0, 2.2, 0)
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — o finalizador, COM CUTSCENE
---
--- ULTIMATE: 7.60 s com 76% de preparação, dentro da faixa da regra 5. É a
--- sequência mais longa do repositório depois do `Colapso` do Terremoto, e a
--- única com combo antes dela.
---
--- Sem alvo não há cena. Abrir cutscene para o vazio é o jeito mais rápido de
--- tirar a câmera de alguém sem motivo.
---═══════════════════════════════════════════════════════════════
+			vfx("CORTADA", { posicao = ponto, cframe = raiz.CFrame,
+				alcance = CFG.ALCANCE_ONDA, escala = 1 })
+			tocarEm("IMPACTO", ponto, 0.85)
 
-function extra(mira)
-	local alvo = maisPerto(mira, CFG.RAIO_ALVO) or maisPerto(frente(), CFG.RAIO_ALVO)
-	if not alvo then
-		tocar("PREPARA", 0.55)
-		return
-	end
+			local vistos = {}
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTADA, 8)) do
+				vistos[alvo] = true
+				aplicarDano(alvo, CFG.DANO)
+				tombar(alvo, CFG.TOMBO)
+				empurrar(alvo, direcao + Vector3.new(0, 0.25, 0),
+					CFG.EMPURRAO, 0.24)
+			end
 
-	ocupado = true
-	passoCombo = 0
-	rig:LockCharacter(true)
-	abrirCena(alvo, "CAMERA")
-
-	rig:PlaySequence("FINALIZADOR", despachar({
-		CAMERA = { sfx = { "CARGA", 0.7 } },
-		ERGUE = { faz = function()
-			beatCena("ENCARA")
-			tocar("PREPARA", 0.65)
-		end },
-		CARGA = { faz = function()
-			beatCena("ENCARA")
-			tocar("CARGA", 0.9)
-		end },
-		AVANCA = { cam = true, sfx = { "GOLPE", 0.8 } },
-		SEGURA = { cam = true },
-		EXECUTA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			local onde = alvoRaiz and alvoRaiz.Position or frente()
-			vfx("ESTILHACO", { posicao = onde, escala = 1.8 })
-			vfx("RACHA", { posicao = onde - Vector3.new(0, 2.6, 0), escala = 1.6 })
-			tocarEm("IMPACTO", onde, 0.5)
-			aplicarDano(alvo, CFG.DANO_FINAL)
-			tombar(alvo, 3)
-			-- quem estava perto paga o respingo, mas bem menos: o golpe é DELE
-			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_FINAL, 12)) do
-				if perto ~= alvo then
-					aplicarDano(perto, CFG.DANO_AREA)
-					local pertoRaiz = raizDe(perto)
-					if pertoRaiz then
-						empurrar(perto, (pertoRaiz.Position - onde)
-							+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_FINAL, 0.34)
+			-- a onda: corre pelo chão, e é o que dá alcance à cortada
+			for i = 1, CFG.PASSOS_ONDA do
+				local passo = chao + direcao
+					* (CFG.ALCANCE_ONDA * i / CFG.PASSOS_ONDA)
+				for _, alvo in ipairs(alvosEm(passo, CFG.LARGURA_ONDA, 6)) do
+					if not vistos[alvo] then
+						vistos[alvo] = true
+						aplicarDano(alvo, CFG.DANO_ONDA)
+						tombar(alvo, CFG.TOMBO * 0.5)
 					end
 				end
 			end
 		end },
-		FIM = { faz = function()
+		FIM = { sfx = { "GOLPE", 1.05 } },
+	}), function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- R — Fatal  (CUTSCENE)
+--
+-- A execução. Ela só sai CHEIA em alvo abaixo de `LIMIAR` da vida — 40%.
+--
+-- POR QUE O LIMIAR
+--
+--   Cutscene de execução que o alvo sobrevive é anticlímax: seis segundos de
+--   câmera presa para um golpe que não fechou nada. E execução SEM limiar é só
+--   um golpe grande com câmera, que é o que a `TryHard` era.
+--
+--   Acima do limiar a habilidade não é recusada — ela sai, com `DANO_FRACO` e
+--   sem cena. Recusar gastaria a recarga de 26 s do jogador por um alvo que
+--   ele não tinha como medir com precisão.
+--
+-- O ALVO É FIXADO NO INÍCIO, como na série do `Corte Frio`.
+--══════════════════════════════════════════════════════════════
+
+function extra(mira)
+	local alvo = maisPerto(mira, CFG.RAIO_ALVO)
+		or maisPerto(frente(CFG.RAIO_ALVO), CFG.RAIO_ALVO)
+	if not alvo then
+		tocar("PREPARA", 0.75)
+		return
+	end
+
+	local fracao = alvo.MaxHealth > 0 and (alvo.Health / alvo.MaxHealth) or 1
+	fatalArmado = fracao <= CFG.LIMIAR
+	alvoFatal = alvo
+
+	-- ACIMA do limiar: o golpe sai, sem cena e sem o dano de execução.
+	if not fatalArmado then
+		ocupado = true
+		rig:PlaySequence("CORTADA", despachar({
+			ERGUE = { sfx = { "PREPARA", 1.1 } },
+			DESCE = { faz = function()
+				local alvoRaiz = raizDe(alvoFatal)
+				aplicarDano(alvoFatal, CFG.DANO_FRACO)
+				tombar(alvoFatal, 1)
+				if alvoRaiz then
+					vfx("CORTADA", { posicao = alvoRaiz.Position,
+						cframe = raiz.CFrame, alcance = 8, escala = 0.8 })
+					tocarEm("IMPACTO", alvoRaiz.Position, 1)
+				end
+			end },
+		}), function()
+			ocupado = false
+			alvoFatal = nil
+		end)
+		return
+	end
+
+	ocupado = true
+	rig:PlaySequence("FATAL", despachar({
+		CAMERA = { cam = true, sfx = { "CARGA", 0.7 }, faz = function()
+			abrirCena(alvoFatal, "FATAL")
+			rig:LockCharacter(true)
+			if alvoFatal and alvoFatal.Health > 0 then
+				atordoar(alvoFatal, 4)
+			end
+		end },
+		ERGUE = { cam = true, faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ Vector3.new(0, 4, 0), escala = 1.4 })
+		end },
+		CARGA = { cam = true, sfx = { "PREPARA", 0.6 } },
+		AVANCA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			if alvoRaiz and raiz then
+				local delta = alvoRaiz.Position - raiz.Position
+				local plano = Vector3.new(delta.X, 0, delta.Z)
+				if plano.Magnitude > CFG.AVANCO then
+					empurrar(humanoide, plano, plano.Magnitude * 2.6, 0.22)
+				end
+			end
+		end },
+		SEGURA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			if alvoRaiz then
+				vfx("FATAL_MARCA", { posicao = alvoRaiz.Position, escala = 1 })
+			end
+		end },
+		EXECUTA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			local onde = alvoRaiz and alvoRaiz.Position or frente(CFG.ALCANCE)
+			vfx("FATAL", { posicao = onde, cframe = raiz.CFrame, escala = 1 })
+			tocarEm("IMPACTO", onde, 0.55)
+			if alvoFatal and alvoFatal.Health > 0 then
+				aplicarDano(alvoFatal, CFG.DANO_FATAL)
+				tombar(alvoFatal, 2.4)
+			end
+		end },
+		FIM = { cam = true, faz = function()
+			rig:LockCharacter(false)
 			fecharCena()
+			alvoFatal = nil
+			fatalArmado = false
 		end },
 	}), function()
-		fecharCena()
-		rig:LockCharacter(false)
 		ocupado = false
+		rig:LockCharacter(false)
+		fecharCena()
+		alvoFatal = nil
+		fatalArmado = false
 	end)
 end
 
@@ -766,6 +895,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -791,7 +921,7 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "DramaTryHard", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "DramaCortada", Poses, Poses.SEQUENCIAS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -802,7 +932,8 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	passoCombo = 0
+	alvoFatal = nil
+	fatalArmado = false
 	fecharCena()
 	if rig then
 		rig:CancelSequence()
@@ -816,7 +947,7 @@ end
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 ]]></ProtectedString></Properties></Item><Item class="Script" referent="DR_Client_07"><Properties><string name="Name">Client</string><ProtectedString name="Source"><![CDATA[-- Client.lua
--- Script com RunContext = Client — TryHard  (conjunto DRAMA)
+-- Script com RunContext = Client — Cortada Fatal  (conjunto DRAMA)
 --
 -- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
 -- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
@@ -843,7 +974,7 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local VFX        = require(Tool:WaitForChild("VFXModule"))
 
-local ACAO = "Drama_DramaTryHard_R"
+local ACAO = "Drama_DramaCortada_R"
 local ALCANCE_MIRA = 50
 
 local equipado = false
@@ -894,7 +1025,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Finalizador")
+	ContextActionService:SetTitle(ACAO, "Fatal")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -905,6 +1036,7 @@ end
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
+
 
 Tool.Activated:Connect(function()
 	if not souODono() then return end
@@ -1370,7 +1502,7 @@ end
 
 return Animator
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="DR_Poses_07"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
--- ModuleScript "Poses" — TryHard  (conjunto DRAMA)
+-- ModuleScript "Poses" — Cortada Fatal  (conjunto DRAMA)
 --
 -- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
 --   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
@@ -1384,11 +1516,8 @@ return Animator
 --
 -- JUNTA QUE LIDERA: **HRP** (regra 6 da gramática).
 --
---   COMBO_1        combo            0.60s · 5 passo(s), 2 segurado(s)
---   COMBO_2        combo            0.40s · 3 passo(s), 1 segurado(s)
---   COMBO_3        combo            0.42s · 3 passo(s), 1 segurado(s)
---   COMBO_4        combo            0.76s · 4 passo(s), 1 segurado(s)
---   FINALIZADOR    ultimate         7.60s · 10 passo(s), 5 segurado(s)
+--   CORTADA        golpe pesado     1.30s · 5 passo(s), 2 segurado(s)
+--   FATAL          ultimate         6.15s · 9 passo(s), 4 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
 -- GANCHO, LAMINA_ERGUE… As sete são a MESMA briga, com armas diferentes.
@@ -1398,21 +1527,22 @@ return Animator
 local P = {}
 
 
-P.CHUTE_CARGA = {
-	RightArm = CFrame.new(1.5, 0.3, -0.4) * CFrame.Angles(math.rad(62), math.rad(-14), math.rad(-12)),
-	LeftArm = CFrame.new(-1.5, 0.3, -0.4) * CFrame.Angles(math.rad(62), math.rad(14), math.rad(12)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-6), math.rad(24), 0),
-	HRP = CFrame.new(0, 0.04, 0) * CFrame.Angles(math.rad(-4), math.rad(-40), 0),
-	RightLeg = CFrame.new(0.5, -1.7, -0.5) * CFrame.Angles(math.rad(-34), math.rad(0), 0),
+P.CORTADA_ALTA = {
+	RightArm = CFrame.new(1.3, 0.86, 0.12) * CFrame.Angles(math.rad(168), math.rad(10), math.rad(14)),
+	LeftArm = CFrame.new(-1.3, 0.86, 0.12) * CFrame.Angles(math.rad(168), math.rad(-10), math.rad(-14)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-30), math.rad(0), 0),
+	HRP = CFrame.new(0, 0.14, 0) * CFrame.Angles(math.rad(-18), math.rad(0), 0),
+	RightLeg = CFrame.new(0.5, -1.86, 0.24) * CFrame.Angles(math.rad(12), math.rad(0), 0),
+	LeftLeg = CFrame.new(-0.5, -1.86, 0.24) * CFrame.Angles(math.rad(12), math.rad(0), 0),
 }
 
-P.CHUTE_GIRA = {
-	RightArm = CFrame.new(1.56, 0.2, 0.3) * CFrame.Angles(math.rad(-14), math.rad(-20), math.rad(-46)),
-	LeftArm = CFrame.new(-1.56, 0.2, 0.3) * CFrame.Angles(math.rad(-14), math.rad(20), math.rad(46)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(4), math.rad(-30), 0),
-	HRP = CFrame.new(0, -0.04, 0) * CFrame.Angles(math.rad(5), math.rad(150), 0),
-	RightLeg = CFrame.new(0.66, -1.5, -0.9) * CFrame.Angles(math.rad(-78), math.rad(0), math.rad(-14)),
-	LeftLeg = CFrame.new(-0.5, -1.94, 0.1) * CFrame.Angles(math.rad(6), math.rad(0), 0),
+P.CORTADA_BAIXA = {
+	RightArm = CFrame.new(1.44, -0.34, -0.86) * CFrame.Angles(math.rad(34), math.rad(-8), math.rad(-10)),
+	LeftArm = CFrame.new(-1.44, -0.34, -0.86) * CFrame.Angles(math.rad(34), math.rad(8), math.rad(10)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(24), math.rad(0), 0),
+	HRP = CFrame.new(0, -0.42, 0) * CFrame.Angles(math.rad(26), math.rad(0), 0),
+	RightLeg = CFrame.new(0.5, -1.6, -0.62) * CFrame.Angles(math.rad(-40), math.rad(0), 0),
+	LeftLeg = CFrame.new(-0.5, -1.9, 0.3) * CFrame.Angles(math.rad(18), math.rad(0), 0),
 }
 
 P.ESTOCADA = {
@@ -1422,14 +1552,6 @@ P.ESTOCADA = {
 	HRP = CFrame.new(0, -0.12, 0) * CFrame.Angles(math.rad(16), math.rad(12), 0),
 	RightLeg = CFrame.new(0.5, -1.82, -0.44) * CFrame.Angles(math.rad(-22), math.rad(0), 0),
 	LeftLeg = CFrame.new(-0.5, -1.9, 0.28) * CFrame.Angles(math.rad(16), math.rad(0), 0),
-}
-
-P.GANCHO = {
-	RightArm = CFrame.new(1.44, -0.08, -0.96) * CFrame.Angles(math.rad(54), math.rad(-26), math.rad(-16)),
-	LeftArm = CFrame.new(-1.32, 0.44, -0.5) * CFrame.Angles(math.rad(92), math.rad(16), math.rad(24)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-12), math.rad(-18), 0),
-	HRP = CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-8), math.rad(34), 0),
-	RightLeg = CFrame.new(0.52, -1.86, -0.3) * CFrame.Angles(math.rad(-16), math.rad(0), 0),
 }
 
 P.GUARDA = {
@@ -1446,82 +1568,28 @@ P.IDLE = {
 	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-8), 0),
 }
 
-P.LAMINA_CORTA = {
-	RightArm = CFrame.new(1.52, 0.02, -1.14) * CFrame.Angles(math.rad(74), math.rad(-34), math.rad(-18)),
-	LeftArm = CFrame.new(-1.42, -0.02, -0.66) * CFrame.Angles(math.rad(38), math.rad(24), math.rad(16)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(8), math.rad(-26), 0),
-	HRP = CFrame.new(0, -0.06, 0) * CFrame.Angles(math.rad(7), math.rad(38), 0),
-	RightLeg = CFrame.new(0.5, -1.9, -0.26) * CFrame.Angles(math.rad(-13), math.rad(0), 0),
-}
-
-P.LAMINA_ERGUE = {
-	RightArm = CFrame.new(1.36, 0.78, -0.2) * CFrame.Angles(math.rad(142), math.rad(16), math.rad(18)),
-	LeftArm = CFrame.new(-1.44, 0.2, -0.42) * CFrame.Angles(math.rad(46), math.rad(-12), math.rad(-14)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-18), math.rad(22), 0),
-	HRP = CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-8), math.rad(-32), 0),
-}
-
-P.SOCO_DIR = {
-	RightArm = CFrame.new(1.5, 0.4, -1.16) * CFrame.Angles(math.rad(92), math.rad(-8), math.rad(-4)),
-	LeftArm = CFrame.new(-1.28, 0.5, -0.6) * CFrame.Angles(math.rad(104), math.rad(18), math.rad(30)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-2), math.rad(-14), 0),
-	HRP = CFrame.new(0, -0.02, 0) * CFrame.Angles(math.rad(3), math.rad(26), 0),
-	RightLeg = CFrame.new(0.5, -1.9, -0.24) * CFrame.Angles(math.rad(-12), math.rad(0), 0),
-}
-
-P.SOCO_ESQ = {
-	RightArm = CFrame.new(1.28, 0.5, -0.6) * CFrame.Angles(math.rad(104), math.rad(-18), math.rad(-30)),
-	LeftArm = CFrame.new(-1.5, 0.4, -1.16) * CFrame.Angles(math.rad(92), math.rad(8), math.rad(4)),
-	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-2), math.rad(14), 0),
-	HRP = CFrame.new(0, -0.02, 0) * CFrame.Angles(math.rad(3), math.rad(-26), 0),
-	LeftLeg = CFrame.new(-0.5, -1.9, -0.24) * CFrame.Angles(math.rad(-12), math.rad(0), 0),
-}
-
 P.SEQUENCIAS = {
 
-	-- combo · 0.60s · 5 passo(s), 2 segurado(s)
-	COMBO_1 = {
-		{ pose = "GUARDA", time = 0.14, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "GUARDA", time = 0.1, style = "Sine", dir = "InOut" },
-		{ pose = "SOCO_DIR", time = 0.08, style = "Quint", dir = "Out", marca = "BATE" },
-		{ pose = "SOCO_DIR", time = 0.12, style = "Sine", dir = "InOut" },
-		{ pose = "GUARDA", time = 0.16, style = "Quad", dir = "Out", marca = "ABRE_JANELA" },
+	-- golpe pesado · 1.30s · 5 passo(s), 2 segurado(s)
+	CORTADA = {
+		{ pose = "CORTADA_ALTA", time = 0.28, style = "Back", dir = "In", marca = "ERGUE" },
+		{ pose = "CORTADA_ALTA", time = 0.52, style = "Sine", dir = "InOut", tremor = 0.035, freq = 22, marca = "SEGURA" },
+		{ pose = "CORTADA_BAIXA", time = 0.1, style = "Quint", dir = "Out", marca = "DESCE" },
+		{ pose = "CORTADA_BAIXA", time = 0.16, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
-	-- combo · 0.40s · 3 passo(s), 1 segurado(s)
-	COMBO_2 = {
-		{ pose = "SOCO_ESQ", time = 0.1, style = "Quint", dir = "Out", marca = "BATE" },
-		{ pose = "SOCO_ESQ", time = 0.14, style = "Sine", dir = "InOut" },
-		{ pose = "GUARDA", time = 0.16, style = "Quad", dir = "Out", marca = "ABRE_JANELA" },
-	},
-
-	-- combo · 0.42s · 3 passo(s), 1 segurado(s)
-	COMBO_3 = {
-		{ pose = "GANCHO", time = 0.11, style = "Quint", dir = "Out", marca = "BATE" },
-		{ pose = "GANCHO", time = 0.15, style = "Sine", dir = "InOut" },
-		{ pose = "GUARDA", time = 0.16, style = "Quad", dir = "Out", marca = "ABRE_JANELA" },
-	},
-
-	-- combo · 0.76s · 4 passo(s), 1 segurado(s)
-	COMBO_4 = {
-		{ pose = "CHUTE_CARGA", time = 0.14, style = "Back", dir = "In" },
-		{ pose = "CHUTE_GIRA", time = 0.12, style = "Quint", dir = "Out", marca = "BATE_FORTE" },
-		{ pose = "CHUTE_GIRA", time = 0.2, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.3, style = "Quad", dir = "Out", marca = "FIM" },
-	},
-
-	-- ultimate · 7.60s · 10 passo(s), 5 segurado(s)
-	FINALIZADOR = {
-		{ pose = "GUARDA", time = 0.45, style = "Back", dir = "In", tremor = 0.02, freq = 15, marca = "CAMERA" },
-		{ pose = "LAMINA_ERGUE", time = 0.75, style = "Quad", dir = "InOut", tremor = 0.03, freq = 19, marca = "ERGUE" },
-		{ pose = "LAMINA_ERGUE", time = 1.0, style = "Sine", dir = "InOut", tremor = 0.04, freq = 23, marca = "CARGA" },
-		{ pose = "LAMINA_ERGUE", time = 1.1, style = "Sine", dir = "InOut", tremor = 0.055, freq = 28 },
-		{ pose = "ESTOCADA", time = 0.4, style = "Quint", dir = "In", marca = "AVANCA" },
-		{ pose = "ESTOCADA", time = 1.0, style = "Sine", dir = "InOut", tremor = 0.075, freq = 33, marca = "SEGURA" },
-		{ pose = "ESTOCADA", time = 1.05, style = "Sine", dir = "InOut", tremor = 0.09, freq = 37 },
-		{ pose = "LAMINA_CORTA", time = 0.2, style = "Quint", dir = "Out", marca = "EXECUTA" },
-		{ pose = "LAMINA_CORTA", time = 0.75, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.9, style = "Quad", dir = "Out", marca = "FIM" },
+	-- ultimate · 6.15s · 9 passo(s), 4 segurado(s)
+	FATAL = {
+		{ pose = "GUARDA", time = 0.4, style = "Back", dir = "In", tremor = 0.02, freq = 15, marca = "CAMERA" },
+		{ pose = "CORTADA_ALTA", time = 0.7, style = "Quad", dir = "InOut", tremor = 0.03, freq = 19, marca = "ERGUE" },
+		{ pose = "CORTADA_ALTA", time = 0.95, style = "Sine", dir = "InOut", tremor = 0.045, freq = 24, marca = "CARGA" },
+		{ pose = "CORTADA_ALTA", time = 1.0, style = "Sine", dir = "InOut", tremor = 0.06, freq = 29 },
+		{ pose = "ESTOCADA", time = 0.35, style = "Quint", dir = "In", marca = "AVANCA" },
+		{ pose = "ESTOCADA", time = 0.85, style = "Sine", dir = "InOut", tremor = 0.075, freq = 34, marca = "SEGURA" },
+		{ pose = "CORTADA_BAIXA", time = 0.14, style = "Quint", dir = "Out", marca = "EXECUTA" },
+		{ pose = "CORTADA_BAIXA", time = 0.66, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 1.1, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }
@@ -1716,7 +1784,12 @@ local function camadaRasgo(cf, c, comprimento, largura, tempo)
 end
 
 local function camadaFaiscas(p, c, forca, quantidade, subida)
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1757,7 +1830,12 @@ local function camadaAnel(p, c, raio, tempo, espessura)
 end
 
 local function camadaPoeira(p, c, forca, quantidade)
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1939,7 +2017,12 @@ function Efeitos.AURA(d)
 	local c = cor(d, CFG.COR_AURA)
 	local reg = registroDe(d)
 
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1966,8 +2049,16 @@ function Efeitos.AURA(d)
 
 	-- O emissor é ligado por `Rate`, e o registro segue o portador: quem move a
 	-- âncora é o Server, pelo beat. Aqui ela nasce onde o beat mandou.
-	registrar(ancora, (d and d.duracao) or 12)
-	if reg then table.insert(reg, ancora) end
+	local prazo = (d and (d.vida or d.duracao)) or 12
+	-- a peça é do PERSONAGEM: quem some é o emissor, nunca ela. Registrar o
+	-- HumanoidRootPart no `Debris` apagaria o jogador junto com a aura.
+	if ancora == peca then
+		Debris:AddItem(att, prazo)
+		if reg then table.insert(reg, att) end
+	else
+		registrar(ancora, prazo)
+		if reg then table.insert(reg, ancora) end
+	end
 	camadaAnel(p - Vector3.new(0, 2.6, 0), c, 4 * e, 0.5, 0.2)
 end
 
@@ -1984,9 +2075,14 @@ function Efeitos.AURA_PULSO(d)
 end
 
 --- Feixe dos olhos. Nasce na CABEÇA — quem passa a origem é o Server.
+--- O feixe. Ele agora é SEGURADO e chega a ~8 pacotes por segundo, então o
+--- desenho tem de ser barato: um cilindro, um clarão no fim, e nada mais.
+--- `posicao`/`para` são os nomes que o Server usa; `origem`/`destino` ficam
+--- porque a versão anterior mandava assim e trocar os dois lados de uma vez é
+--- como se perde um efeito em silêncio.
 function Efeitos.FEIXE(d)
 	local origem = (d and d.origem) or pos(d)
-	local destino = (d and d.destino) or origem
+	local destino = (d and d.destino) or (d and d.para) or origem
 	local e, c = escala(d), cor(d)
 	if not pk("Laser_Shot", origem, destino, 0.2, 0.05, 7,
 			branco(c, 0.6), c) then
@@ -2003,6 +2099,317 @@ function Efeitos.FEIXE(d)
 	end
 	camadaFaiscas(origem, c, 0.3 * e, 5, 2)
 	camadaFlash(destino, c, 1.8 * e)
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- O REFAZIMENTO — 12 efeitos das habilidades redesenhadas
+--
+-- Onde já havia forma equivalente, ela foi REUSADA em vez de recriada:
+-- `SOCO`, `CORTE`, `EMPURRAO`, `ESQUIVA`, `RACHA`, `AURA`, `AURA_PULSO`,
+-- `ESTILHACO`, `EXECUCAO` e `FEIXE` entraram intactos. O que está abaixo é o
+-- que não existia — e cada um existe porque a habilidade nova tem uma LEITURA
+-- que nenhuma das antigas dá.
+--═══════════════════════════════════════════════════════════════
+
+-- ── COMBATE · o counter ─────────────────────────────────────────────
+
+--- A janela aberta: um anel raso em volta do portador, que PULSA devagar.
+--- Devagar é o ponto — quem está do outro lado precisa ver que a guarda está
+--- de pé e decidir não bater. Counter que não avisa é armadilha, não counter.
+function Efeitos.CONTRA_ABRE(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 1
+	local c = cor(d, CFG.COR_BRASA)
+	camadaAnel(p - Vector3.new(0, 2.4, 0), c, 5 * e, math.min(vida, 0.5), 0.3)
+	camadaFlash(p, c, 1.6 * e)
+	camadaFaiscas(p, c, 0.25 * e, 5, 3)
+end
+
+--- A devolvida: rasgo do portador PARA o agressor, e estouro nele. O rasgo é
+--- o que diz de onde veio — sem ele o agressor só vê dano do nada.
+function Efeitos.CONTRA_DEVOLVE(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or p
+	local c = cor(d, CFG.COR_BRASA)
+	local delta = p - de
+	if delta.Magnitude > 0.5 then
+		camadaRasgo(CFrame.lookAt(de + delta * 0.5, p),
+			c, delta.Magnitude, 0.7 * e, 0.2)
+	end
+	camadaFlash(p, c, 3 * e)
+	camadaFaiscas(p, c, 0.8 * e, 18, 6)
+	pk("Small_Nova", p, 0.26, 0, 7 * e, branco(c, 0.6), c)
+end
+
+--- Pegou o golpe e não achou quem deu. O gesto sai, o dano não — e o desenho
+--- diz isso: clarão sem rasgo e sem estouro.
+function Efeitos.CONTRA_VAZIO(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_POEIRA)
+	camadaFlash(p, c, 2 * e)
+	camadaAnel(p, c, 3.4 * e, 0.3, 0.18)
+end
+
+-- ── DESVIAR · os i-frames ───────────────────────────────────────────
+
+--- A invencibilidade tem de ser VISÍVEL. `ForceField.Visible = false` esconde
+--- o brilho padrão do Roblox — que é feio e não combina com nada aqui —, e
+--- este efeito põe no lugar uma casca curta que diz a mesma coisa.
+--- Invencibilidade que não se vê é o adversário achando que o jogo bugou.
+function Efeitos.IMUNE(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 0.42
+	local c = cor(d, CFG.COR_GELO)
+	local casca = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(6, 6, 6) * e,
+		Color = c,
+		Material = Enum.Material.ForceField,
+		Transparency = 0.55,
+		CFrame = CFrame.new(p),
+	})
+	tween(casca, vida, { Transparency = 1,
+		Size = Vector3.new(7.4, 7.4, 7.4) * e }, Enum.EasingStyle.Quad)
+	registrar(casca, vida + 0.1)
+end
+
+-- ── CORTE FRIO · a série ────────────────────────────────────────────
+
+--- A marca de gelo em quem foi cortado. Fica um pouco, porque a lentidão
+--- também fica: efeito que some antes do que ele representa é mentira visual.
+function Efeitos.GELO(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 1.8
+	local c = cor(d, CFG.COR_GELO)
+	for i = 1, 4 do
+		local a = angulo(i)
+		local lasca = novaParte({
+			Size = Vector3.new(0.34, 2.2 + i * 0.3, 0.34) * e,
+			Color = c,
+			Material = Enum.Material.Glass,
+			Transparency = 0.35,
+			CFrame = CFrame.new(p + Vector3.new(math.cos(a), -0.6,
+				math.sin(a)) * (1.5 * e))
+				* CFrame.Angles(math.rad(jitter(i) * 22), a,
+					math.rad(jitter(i + 3) * 22)),
+		})
+		tween(lasca, vida, { Transparency = 1 }, Enum.EasingStyle.Quad)
+		registrar(lasca, vida + 0.2)
+	end
+	camadaFlash(p, CFG.COR_GELO_FUN, 1.4 * e)
+end
+
+--- Um corte da série. O ÂNGULO vem do servidor, tirado do ângulo áureo por
+--- ordem: seis cortes, seis inclinações que não se repetem. Sem isso os seis
+--- cairiam sobrepostos e a série leria como um corte só piscando.
+function Efeitos.CORTE_SERIE(d)
+	local p, e = pos(d), escala(d)
+	local ang = (d and d.angulo) or angulo()
+	local ordem = (d and d.ordem) or 1
+	local c = cor(d, CFG.COR_GELO)
+	local cf = CFrame.new(p) * CFrame.Angles(0, ang, math.rad(28 + ordem * 14))
+	camadaRasgo(cf, c, (7 + ordem * 0.7) * e, 0.5 * e, 0.14)
+	camadaFlash(p, branco(c, 0.4), 1.7 * e)
+	camadaFaiscas(p, c, 0.4 * e, 8, -4)
+	pk("Small_Slash", cf, (8 + ordem) * e, 0.18, branco(c, 0.7), c)
+end
+
+-- ── IMPACTO FORTE · o soco sério ────────────────────────────────────
+
+--- A carga do punho. Ela existe para o adversário ter o que ler: 0.62 s de
+--- aviso antes de um golpe que arremessa 90 studs.
+function Efeitos.CARREGA(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_BRASA)
+	camadaFlash(p, c, 1.5 * e)
+	camadaFaiscas(p, c, 0.35 * e, 8, 5)
+	camadaAnel(p, c, 2.6 * e, 0.34, 0.2)
+end
+
+--- O CORREDOR. É a forma inteira desta habilidade: uma faixa reta e longa, não
+--- uma esfera. Esfera lê como explosão; faixa lê como sopro, e era a faixa que
+--- estava sendo pedida.
+---
+--- Os anéis descem a reta com atraso crescente — é o que faz o corredor ser
+--- percorrido em vez de aparecer inteiro de uma vez.
+function Efeitos.SOCO_SERIO(d)
+	local origem = pos(d)
+	local destino = (d and d.para) or origem
+	local largura = (d and d.largura) or 7
+	local e = escala(d)
+	local c = cor(d, CFG.COR_BRASA)
+
+	local delta = destino - origem
+	if delta.Magnitude < 1 then return end
+	local direcao = delta.Unit
+	local olhar = CFrame.lookAt(origem, destino)
+
+	local tubo = novaParte({
+		Size = Vector3.new(largura * e, largura * e, delta.Magnitude),
+		Color = branco(c, 0.45),
+		Transparency = 0.55,
+		CFrame = CFrame.lookAt(origem + delta * 0.5, destino),
+	})
+	tween(tubo, 0.34, { Transparency = 1,
+		Size = Vector3.new(largura * 0.3 * e, largura * 0.3 * e,
+			delta.Magnitude) }, Enum.EasingStyle.Quint)
+	registrar(tubo, 0.5)
+
+	for i = 1, 6 do
+		local fracao = i / 6
+		local onde = origem + direcao * (delta.Magnitude * fracao)
+		task.delay((i - 1) * 0.035, function()
+			camadaAnel(onde, c, (largura * 0.6 + i * 0.8) * e, 0.28, 0.26)
+		end)
+	end
+
+	camadaFlash(origem + direcao * 3, c, 4 * e)
+	camadaPoeira(origem - Vector3.new(0, 2.4, 0), CFG.COR_POEIRA, 1.1 * e, 16)
+	pk("Small_Nova", origem + direcao * 3, 0.3, 0, 9 * e, branco(c, 0.6), c)
+	pk("Shockwave", olhar, olhar, 0.4,
+		Vector3.new(largura, 2, largura) * e,
+		Vector3.new(largura * 2.4, 3, largura * 2.4) * e,
+		c, branco(c, 0.5), Enum.EasingStyle.Quint)
+end
+
+-- ── AURA · a reflexão ───────────────────────────────────────────────
+
+--- O estalo de quem devolveu. Curto — ele acontece TODA vez que o portador
+--- apanha, e um efeito longo aqui viraria uma parede de luz numa troca de
+--- tiros.
+function Efeitos.AURA_DEVOLVE(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or nil
+	local c = cor(d, CFG.COR_AURA)
+	if de and (p - de).Magnitude > 0.5 then
+		local delta = p - de
+		camadaRasgo(CFrame.lookAt(de + delta * 0.5, p),
+			c, delta.Magnitude, 0.4 * e, 0.16)
+	end
+	camadaFlash(p, c, 2.2 * e)
+	camadaFaiscas(p, c, 0.5 * e, 10, 4)
+end
+
+-- ── OLHOS LASER · a sobrecarga ──────────────────────────────────────
+
+--- A carga nos olhos, antes do estouro.
+function Efeitos.SOBRECARGA_CARGA(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 0.9
+	local c = cor(d, CFG.COR_CARMESIM)
+	local bola = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.3, 0.3, 0.3) * e,
+		Color = branco(c, 0.5),
+		Transparency = 0.05,
+		CFrame = CFrame.new(p),
+	})
+	local luz = Instance.new("PointLight")
+	luz.Color, luz.Brightness, luz.Range = c, 6, 12 * e
+	luz.Parent = bola
+	tween(bola, vida, { Size = Vector3.new(2.4, 2.4, 2.4) * e },
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	registrar(bola, vida + 0.1)
+	task.delay(vida, function()
+		if bola and bola.Parent then bola.Parent = nil end
+	end)
+	camadaFaiscas(p, c, 0.3 * e, 6, 3)
+end
+
+--- O estouro: núcleo e borda, com o rasgo que liga os olhos ao ponto.
+function Efeitos.SOBRECARGA(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or p
+	local raio = (d and d.raio) or 22
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	local delta = p - de
+	if delta.Magnitude > 1 then
+		local viga = novaParte({
+			Size = Vector3.new(1.4 * e, 1.4 * e, delta.Magnitude),
+			Color = branco(c, 0.6),
+			Transparency = 0.1,
+			CFrame = CFrame.lookAt(de + delta * 0.5, p),
+		})
+		tween(viga, 0.3, { Transparency = 1,
+			Size = Vector3.new(0.2 * e, 0.2 * e, delta.Magnitude) },
+			Enum.EasingStyle.Quint)
+		registrar(viga, 0.45)
+	end
+
+	camadaFlash(p, branco(c, 0.4), 6 * e)
+	camadaFaiscas(p, c, 1.2 * e, 24, 8)
+	camadaPoeira(p, CFG.COR_POEIRA, 1 * e, 12)
+	pk("Small_Nova", p, 0.34, 0, raio * e, branco(c, 0.6), c)
+	pk("Shockwave_Explosion", p, 0.42, 2 * e, raio * e, c, branco(c, 0.5))
+end
+
+-- ── CORTADA FATAL ───────────────────────────────────────────────────
+
+--- A cortada: rasgo VERTICAL, e a onda que corre pelo chão à frente. O
+--- vertical é o que a separa do corte lateral do `Corte Frio` — a mesma lâmina
+--- com outro arco tem de ler diferente.
+function Efeitos.CORTADA(d)
+	local p, e = pos(d), escala(d)
+	local alcance = (d and d.alcance) or 26
+	local cf = quadro(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	camadaRasgo(cf * CFrame.new(0, 1.6, -2) * CFrame.Angles(0, 0, math.rad(90)),
+		c, 12 * e, 0.8 * e, 0.18)
+	camadaFlash(p, c, 3 * e)
+	camadaFaiscas(p, c, 0.8 * e, 16, -8)
+
+	-- a onda no chão: seis anéis descendo a reta, com atraso crescente
+	local chao = cf.Position - Vector3.new(0, 2.2, 0)
+	for i = 1, 6 do
+		local onde = chao + cf.LookVector * (alcance * i / 6)
+		task.delay((i - 1) * 0.03, function()
+			camadaAnel(onde, c, (2.4 + i * 0.9) * e, 0.26, 0.22)
+		end)
+	end
+	camadaPoeira(chao, CFG.COR_POEIRA, 0.8 * e, 10)
+	pk("Small_Slash", cf * CFrame.new(0, 1.4, -2), 13 * e, 0.24,
+		branco(c, 0.6), c)
+end
+
+--- A marca da execução, no alvo, antes do golpe cair. Ela é o aviso de que a
+--- cena vai terminar em alguma coisa — cutscene sem marca é cutscene em que o
+--- espectador não sabe onde olhar.
+function Efeitos.FATAL_MARCA(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+	for i = 1, 3 do
+		task.delay((i - 1) * 0.12, function()
+			camadaAnel(p, c, (7 - i * 1.6) * e, 0.34, 0.3)
+		end)
+	end
+	camadaFlash(p + Vector3.new(0, 2, 0), c, 2.4 * e)
+end
+
+--- E o golpe. É o efeito mais caro do conjunto, e é de propósito: ele fecha
+--- uma cutscene de 6 s com 26 s de recarga.
+function Efeitos.FATAL(d)
+	local p, e = pos(d), escala(d)
+	local cf = quadro(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	camadaRasgo(CFrame.new(p) * CFrame.Angles(0, cf and 0 or 0, math.rad(90)),
+		c, 18 * e, 1.4 * e, 0.24)
+	camadaFlash(p, branco(c, 0.5), 8 * e)
+	camadaFaiscas(p, c, 1.5 * e, 30, -10)
+	camadaPoeira(p - Vector3.new(0, 2, 0), CFG.COR_POEIRA, 1.4 * e, 20)
+	for i = 1, 3 do
+		task.delay((i - 1) * 0.07, function()
+			camadaAnel(p - Vector3.new(0, 2.2, 0), c, (6 + i * 4) * e,
+				0.36, 0.34)
+		end)
+	end
+	pk("Small_Nova", p, 0.4, 0, 16 * e, branco(c, 0.65), c)
+	pk("Shockwave_Explosion", p, 0.5, 3 * e, 20 * e, c, branco(c, 0.5))
+	pk("Floor_Crack", CFrame.new(p - Vector3.new(0, 2.4, 0)), 14 * e, 5,
+		CFG.COR_POEIRA)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -2046,7 +2453,7 @@ function VFX.LimparTudo()
 end
 
 return VFX
-]]></ProtectedString></Properties><Item class="Folder" referent="RVPACK_TryHard"><Properties><string name="Name">Pack</string></Properties><Item class="ModuleScript" referent="RBXDD62479EE0D2498691640ADECC9F7DAB_TryHard">
+]]></ProtectedString></Properties><Item class="Folder" referent="RVPACK_CortadaFatal"><Properties><string name="Name">Pack</string></Properties><Item class="ModuleScript" referent="RBXDD62479EE0D2498691640ADECC9F7DAB_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -2152,7 +2559,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="MeshPart" referent="RBXE272030C2173423D8B6C953994175A03_TryHard">
+				<Item class="MeshPart" referent="RBXE272030C2173423D8B6C953994175A03_CortadaFatal">
 					<Properties>
 						<bool name="DoubleSided">false</bool>
 						<bool name="HasJointOffset">false</bool>
@@ -2286,7 +2693,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBX518BAA6CD39E49228BF6E225D82FDF46_TryHard">
+			<Item class="ModuleScript" referent="RBX518BAA6CD39E49228BF6E225D82FDF46_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -2392,7 +2799,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="MeshPart" referent="RBX98761FAB60004DFABF84F4C9DFEF4854_TryHard">
+				<Item class="MeshPart" referent="RBX98761FAB60004DFABF84F4C9DFEF4854_CortadaFatal">
 					<Properties>
 						<bool name="DoubleSided">false</bool>
 						<bool name="HasJointOffset">false</bool>
@@ -2526,7 +2933,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBXC6DA45285A8F4B32A31F8DEFD2283CE7_TryHard">
+			<Item class="ModuleScript" referent="RBXC6DA45285A8F4B32A31F8DEFD2283CE7_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -2687,7 +3094,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="ParticleEmitter" referent="RBX265CA72773ED41D68F2D4A3659C74374_TryHard">
+				<Item class="ParticleEmitter" referent="RBX265CA72773ED41D68F2D4A3659C74374_CortadaFatal">
 					<Properties>
 						<Vector3 name="Acceleration">
 							<X>0</X>
@@ -2738,7 +3145,7 @@ end]]></ProtectedString>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
 				</Item>
-				<Item class="MeshPart" referent="RBX2315E0EF6E59419394FEBAF2441AF4CE_TryHard">
+				<Item class="MeshPart" referent="RBX2315E0EF6E59419394FEBAF2441AF4CE_CortadaFatal">
 					<Properties>
 						<bool name="DoubleSided">false</bool>
 						<bool name="HasJointOffset">false</bool>
@@ -2872,7 +3279,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBXDCD2358874B24F3B8315377E8D3A4351_TryHard">
+			<Item class="ModuleScript" referent="RBXDCD2358874B24F3B8315377E8D3A4351_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -3010,7 +3417,7 @@ end
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="Model" referent="RBX82BB96DAA3CB4D96B73A35C9B63D4C9D_TryHard">
+				<Item class="Model" referent="RBX82BB96DAA3CB4D96B73A35C9B63D4C9D_CortadaFatal">
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
@@ -3035,7 +3442,7 @@ end
 						</Vector3>
 						<token name="ModelStreamingMode">0</token>
 						<bool name="NeedsPivotMigration">false</bool>
-						<Ref name="PrimaryPart">RBX321B2E87B1F14EFD8B0DFA055FE7EE7B_TryHard</Ref>
+						<Ref name="PrimaryPart">RBX321B2E87B1F14EFD8B0DFA055FE7EE7B_CortadaFatal</Ref>
 						<float name="ScaleFactor">1</float>
 						<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<OptionalCoordinateFrame name="WorldPivotData">
@@ -3059,7 +3466,7 @@ end
 						<int64 name="SourceAssetId">7183818583</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-					<Item class="MeshPart" referent="RBXFEFE1F26F41046868030BE18AE7FF917_TryHard">
+					<Item class="MeshPart" referent="RBXFEFE1F26F41046868030BE18AE7FF917_CortadaFatal">
 						<Properties>
 							<bool name="DoubleSided">false</bool>
 							<bool name="HasJointOffset">false</bool>
@@ -3192,7 +3599,7 @@ end
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-					<Item class="MeshPart" referent="RBX321B2E87B1F14EFD8B0DFA055FE7EE7B_TryHard">
+					<Item class="MeshPart" referent="RBX321B2E87B1F14EFD8B0DFA055FE7EE7B_CortadaFatal">
 						<Properties>
 							<bool name="DoubleSided">false</bool>
 							<bool name="HasJointOffset">false</bool>
@@ -3325,7 +3732,7 @@ end
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-					<Item class="MeshPart" referent="RBXD26F76E7F2F74C088D3769AC80752D95_TryHard">
+					<Item class="MeshPart" referent="RBXD26F76E7F2F74C088D3769AC80752D95_CortadaFatal">
 						<Properties>
 							<bool name="DoubleSided">false</bool>
 							<bool name="HasJointOffset">false</bool>
@@ -3458,7 +3865,7 @@ end
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-					<Item class="MeshPart" referent="RBXE6B1C8CC8A8941DBAFABABC54C4E48C2_TryHard">
+					<Item class="MeshPart" referent="RBXE6B1C8CC8A8941DBAFABABC54C4E48C2_CortadaFatal">
 						<Properties>
 							<bool name="DoubleSided">false</bool>
 							<bool name="HasJointOffset">false</bool>
@@ -3591,7 +3998,7 @@ end
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-					<Item class="MeshPart" referent="RBX9531E9A414BF4B9E8C6341C3DA9DBD0F_TryHard">
+					<Item class="MeshPart" referent="RBX9531E9A414BF4B9E8C6341C3DA9DBD0F_CortadaFatal">
 						<Properties>
 							<bool name="DoubleSided">false</bool>
 							<bool name="HasJointOffset">false</bool>
@@ -3726,7 +4133,7 @@ end
 					</Item>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBX2A5C954A0EDA47EB8F36B140290C0714_TryHard">
+			<Item class="ModuleScript" referent="RBX2A5C954A0EDA47EB8F36B140290C0714_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -3830,7 +4237,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="Model" referent="RBX9DDA33976A6D49568254957AEFEC4EEB_TryHard">
+				<Item class="Model" referent="RBX9DDA33976A6D49568254957AEFEC4EEB_CortadaFatal">
 					<Properties>
 						<token name="LevelOfDetail">0</token>
 						<CoordinateFrame name="ModelMeshCFrame">
@@ -3879,7 +4286,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-					<Item class="Part" referent="RBX0C9C53626297468F98583AB8A76D2C9D_TryHard">
+					<Item class="Part" referent="RBX0C9C53626297468F98583AB8A76D2C9D_CortadaFatal">
 						<Properties>
 							<token name="shape">0</token>
 							<token name="formFactorRaw">1</token>
@@ -3976,7 +4383,7 @@ end]]></ProtectedString>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-					<Item class="Part" referent="RBXD1C7050723354A08B7C847D4CB074A61_TryHard">
+					<Item class="Part" referent="RBXD1C7050723354A08B7C847D4CB074A61_CortadaFatal">
 						<Properties>
 							<token name="shape">0</token>
 							<token name="formFactorRaw">1</token>
@@ -4075,7 +4482,7 @@ end]]></ProtectedString>
 					</Item>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBX0FF24457CC6D4801BA64E74211125B9E_TryHard">
+			<Item class="ModuleScript" referent="RBX0FF24457CC6D4801BA64E74211125B9E_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -4153,7 +4560,7 @@ end]]></ProtectedString>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBXD6DA4679EBA44BDC8A1C8992E1954A38_TryHard">
+			<Item class="ModuleScript" referent="RBXD6DA4679EBA44BDC8A1C8992E1954A38_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -4256,7 +4663,7 @@ end
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="MeshPart" referent="RBX5A753B61B8E54CD58E012142E1551CBC_TryHard">
+				<Item class="MeshPart" referent="RBX5A753B61B8E54CD58E012142E1551CBC_CortadaFatal">
 					<Properties>
 						<bool name="DoubleSided">false</bool>
 						<bool name="HasJointOffset">false</bool>
@@ -4390,7 +4797,7 @@ end
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBXCB6E2B80FCEE40D7B3FF9DE3D56520D6_TryHard">
+			<Item class="ModuleScript" referent="RBXCB6E2B80FCEE40D7B3FF9DE3D56520D6_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -4487,7 +4894,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="ParticleEmitter" referent="RBXC568A7C841BE4F35980B3C6F0A0947F8_TryHard">
+				<Item class="ParticleEmitter" referent="RBXC568A7C841BE4F35980B3C6F0A0947F8_CortadaFatal">
 					<Properties>
 						<Vector3 name="Acceleration">
 							<X>0</X>
@@ -4539,7 +4946,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ModuleScript" referent="RBXE3575A6461F94234A06BA668BD99A228_TryHard">
+			<Item class="ModuleScript" referent="RBXE3575A6461F94234A06BA668BD99A228_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -4634,7 +5041,7 @@ end
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
 			</Item>
-			<Item class="ModuleScript" referent="RBX67AE4B796445464DB90D5BA99F8CD6CD_TryHard">
+			<Item class="ModuleScript" referent="RBX67AE4B796445464DB90D5BA99F8CD6CD_CortadaFatal">
 				<Properties>
 					<Content name="LinkedSource"><null /></Content>
 					<ProtectedString name="Source"><![CDATA[--[[ CONFORMADO §12.12.2 — Retro-Verse
@@ -4780,7 +5187,7 @@ end]]></ProtectedString>
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 				</Properties>
-				<Item class="Trail" referent="RBXFB1C8273B9254D2A82EBD5A32E732535_TryHard">
+				<Item class="Trail" referent="RBXFB1C8273B9254D2A82EBD5A32E732535_CortadaFatal">
 					<Properties>
 						<Ref name="Attachment0">null</Ref>
 						<Ref name="Attachment1">null</Ref>
@@ -4828,7 +5235,7 @@ end]]></ProtectedString>
 --
 --   1. FOV é a técnica principal, não o movimento. Fecha na carga, ESTOURA no
 --      golpe. A amplitude escala com a intimidade: `Corte Frio` é execução a
---      dois passos (44 -> 96, amplitude 52); o finalizador do `TryHard` abre
+--      dois passos (44 -> 96, amplitude 52); o fatal da `Cortada Fatal` abre
 --      mais cedo e fecha mais (40 -> 104, amplitude 64).
 --   3. Aproximação EXPONENCIAL, nunca Tween bloqueante:
 --      `k = 1 - math.exp(-VELOC * dt)`. Independente de FPS, interrompível a
@@ -4888,6 +5295,28 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(1.6, 1.7, 2.4), olhar = "alvo",     fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(6, 4.5, 8),     olhar = "alvo",     fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(7, 5, 9),       olhar = "alvo",     fov = 104, tremor = true },
+
+		-- ── o refazimento: a série de cortes e a cortada fatal ──────────
+		--
+		-- ERGUE e CARGA são a preparação da `Cortada Fatal`: a câmera SOBE
+		-- junto com a lâmina e vai fechando. É o oposto do que ela faz no
+		-- impacto, e é o contraste que faz o impacto ler como impacto.
+		ERGUE   = { de = Vector3.new(4.6, 4.4, 7.2), olhar = "alvo",     fov = 56, tremor = false },
+		CARGA   = { de = Vector3.new(3, 3.6, 5),     olhar = "alvo",     fov = 48, tremor = true  },
+
+		-- CORTE_1 e CORTE_3 são a série. Os dois trocam de LADO: o primeiro
+		-- pela direita, o terceiro pela esquerda. Corte consecutivo filmado
+		-- sempre do mesmo ponto vira um corte só piscando — a troca de eixo é
+		-- o que faz seis cortes lerem como seis.
+		CORTE_1 = { de = Vector3.new(2.6, 2.2, 3.4),  olhar = "alvo",    fov = 50, tremor = true  },
+		CORTE_3 = { de = Vector3.new(-2.8, 2.4, 3.6), olhar = "alvo",    fov = 52, tremor = true  },
+
+		-- e o último corte abre tudo, como o EXECUTA
+		ULTIMO  = { de = Vector3.new(6.5, 4.8, 8.5),  olhar = "alvo",    fov = 100, tremor = true },
+
+		-- FIM assenta antes de devolver. Sem ele a câmera volta no mesmo
+		-- quadro do impacto, e a cena termina sem respirar.
+		FIM     = { de = Vector3.new(7.5, 4, 10),     olhar = "alvo",    fov = 70, tremor = false },
 	},
 	ALVO = {
 		CAMERA  = { de = Vector3.new(-5, 3.4, 12),   olhar = "eu",       fov = 66, tremor = false },
@@ -4896,6 +5325,16 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(-1.4, 1.9, 4),  olhar = "eu",       fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(-4, 4, 10),     olhar = "eu",       fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(-5, 4.6, 11),   olhar = "eu",       fov = 104, tremor = true },
+
+		-- A metade da regra 2 que é do ALVO. Mesmos beats, ancoradouro nele, e
+		-- olhando a PRÓPRIA cara: quem está sendo cortado seis vezes tem de ver
+		-- isso acontecendo com ele, não ver o outro trabalhando.
+		ERGUE   = { de = Vector3.new(-3.4, 3.8, 9),   olhar = "eu",      fov = 60, tremor = false },
+		CARGA   = { de = Vector3.new(-2.4, 3, 7),     olhar = "eu",      fov = 52, tremor = true  },
+		CORTE_1 = { de = Vector3.new(-2.2, 2.3, 5),   olhar = "eu",      fov = 54, tremor = true  },
+		CORTE_3 = { de = Vector3.new(2.4, 2.5, 5.2),  olhar = "eu",      fov = 56, tremor = true  },
+		ULTIMO  = { de = Vector3.new(-5.5, 4.4, 11.5), olhar = "eu",     fov = 100, tremor = true },
+		FIM     = { de = Vector3.new(-6, 3.6, 12),    olhar = "eu",      fov = 74, tremor = false },
 	},
 }
 

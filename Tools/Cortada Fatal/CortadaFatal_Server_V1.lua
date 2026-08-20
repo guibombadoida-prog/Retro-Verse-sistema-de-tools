@@ -1,11 +1,11 @@
--- TryHard_Server_V1.lua
--- Script de servidor — TryHard  (conjunto DRAMA)
+-- CortadaFatal_Server_V1.lua
+-- Script de servidor — Cortada Fatal  (conjunto DRAMA)
 --
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   combo de quatro golpes que encadeiam
---   R    Finalizador   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   cortada de cima, com onda no chao
+--   R    Fatal   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -29,22 +29,22 @@ local ARQUETIPO = "MELEE"
 
 local CFG = {
 	ALCANCE       = 6.5,
-	RAIO_GOLPE    = 7,
-	DANO_1        = 11,
-	DANO_2        = 13,
-	DANO_3        = 16,
-	DANO_4        = 30,
-	EMPURRAO      = 24,
-	EMPURRAO_4    = 88,
-	RECARGA       = 0.32,
-	JANELA_COMBO  = 1,
+	RAIO_CORTADA  = 8,
+	DANO          = 34,
+	EMPURRAO      = 58,
+	TOMBO         = 1.4,
+	RECARGA       = 2.4,
+	ALCANCE_ONDA  = 26,
+	LARGURA_ONDA  = 5,
+	DANO_ONDA     = 18,
+	PASSOS_ONDA   = 8,
 
-	RECARGA_EXTRA = 45,
+	RECARGA_EXTRA = 26,
 	RAIO_ALVO     = 14,
-	DANO_FINAL    = 130,
-	RAIO_FINAL    = 16,
-	DANO_AREA     = 45,
-	EMPURRAO_FINAL = 105,
+	LIMIAR        = 0.4,
+	DANO_FATAL    = 120,
+	DANO_FRACO    = 44,
+	AVANCO        = 5,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -61,8 +61,8 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-local passoCombo = 0
-local ultimoGolpe = 0
+local alvoFatal = nil
+local fatalArmado = false
 
 local function proximo()
 	semente = semente + 1
@@ -245,6 +245,99 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
 
 --═══════════════════════════════════════════════════════════════
 -- A CUTSCENE — um `FireClient` POR ESPECTADOR
@@ -303,128 +396,164 @@ local function fecharCena()
 end
 
 
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — combo de QUATRO
+--══════════════════════════════════════════════════════════════
+-- M1 — a cortada
 --
--- A janela é curta (1 s) e o quarto golpe é o que paga: 11, 13, 16, 30. Quem
--- acerta a cadência inteira tira 70; quem só martela o botão tira 11 por vez,
--- porque o passo volta ao começo toda vez que a janela vence.
+-- Desce de CIMA. O arco passa inteiro acima da cabeça antes de cair, e a onda
+-- corre pelo chão à frente — é o que separa esta Tool do soco do `Combate` e
+-- do corredor do `Impacto Forte`.
 --
--- A regra 3 da gramática mede combo em 35 : 65 — o primeiro impacto cai cedo
--- porque o resto do tempo são os golpes seguintes. É por isso que `COMBO_1` tem
--- carga e os outros três entram direto no impacto.
---═══════════════════════════════════════════════════════════════
-
-local ORDEM_COMBO = { "COMBO_1", "COMBO_2", "COMBO_3", "COMBO_4" }
-local DANO_COMBO = { }
-
-local function bater(dano, tipo, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-				+ Vector3.new(0, 0.3, 0), forca, 0.18)
-			vfx(tipo, { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		achou = true
-	end
-	if achou then tocarEm("IMPACTO", ponto, 1 + jitter(0.9) * 0.12) end
-end
+-- Ela SUBSTITUI o combo de quatro da `TryHard`. Combo de quatro socos ao lado
+-- do combo de três do `Combate` eram a mesma Tool com outro nome.
+--══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
-
-	if os.clock() - ultimoGolpe > CFG.JANELA_COMBO then passoCombo = 0 end
-	passoCombo = passoCombo % 4 + 1
-	ultimoGolpe = os.clock()
-
-	DANO_COMBO = { CFG.DANO_1, CFG.DANO_2, CFG.DANO_3, CFG.DANO_4 }
-	local dano = DANO_COMBO[passoCombo]
-	local quarto = passoCombo == 4
-	tocar("GOLPE", 1 + passoCombo * 0.07)
-
-	rig:PlaySequence(ORDEM_COMBO[passoCombo], despachar({
-		BATE = { faz = function()
-			bater(dano, passoCombo == 3 and "GANCHO" or "SOCO", CFG.EMPURRAO)
+	rig:PlaySequence("CORTADA", despachar({
+		ERGUE = { sfx = { "PREPARA", 0.9 } },
+		SEGURA = { faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ Vector3.new(0, 3.4, 0), escala = 1 })
 		end },
-		BATE_FORTE = { faz = function()
-			bater(dano, "CHUTE", CFG.EMPURRAO_4)
-			vfx("CHUTE", { cframe = raiz.CFrame
-				* CFrame.new(0, -0.4, -CFG.ALCANCE * 0.5), escala = 1.3 })
-		end },
-		FIM = { faz = function()
-			passoCombo = 0
-		end },
-	}), function()
-		ocupado = false
-	end)
-end
+		DESCE = { faz = function()
+			local ponto = frente(CFG.ALCANCE)
+			local direcao = raiz.CFrame.LookVector
+			local chao = raiz.Position - Vector3.new(0, 2.2, 0)
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — o finalizador, COM CUTSCENE
---
--- ULTIMATE: 7.60 s com 76% de preparação, dentro da faixa da regra 5. É a
--- sequência mais longa do repositório depois do `Colapso` do Terremoto, e a
--- única com combo antes dela.
---
--- Sem alvo não há cena. Abrir cutscene para o vazio é o jeito mais rápido de
--- tirar a câmera de alguém sem motivo.
---═══════════════════════════════════════════════════════════════
+			vfx("CORTADA", { posicao = ponto, cframe = raiz.CFrame,
+				alcance = CFG.ALCANCE_ONDA, escala = 1 })
+			tocarEm("IMPACTO", ponto, 0.85)
 
-function extra(mira)
-	local alvo = maisPerto(mira, CFG.RAIO_ALVO) or maisPerto(frente(), CFG.RAIO_ALVO)
-	if not alvo then
-		tocar("PREPARA", 0.55)
-		return
-	end
+			local vistos = {}
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTADA, 8)) do
+				vistos[alvo] = true
+				aplicarDano(alvo, CFG.DANO)
+				tombar(alvo, CFG.TOMBO)
+				empurrar(alvo, direcao + Vector3.new(0, 0.25, 0),
+					CFG.EMPURRAO, 0.24)
+			end
 
-	ocupado = true
-	passoCombo = 0
-	rig:LockCharacter(true)
-	abrirCena(alvo, "CAMERA")
-
-	rig:PlaySequence("FINALIZADOR", despachar({
-		CAMERA = { sfx = { "CARGA", 0.7 } },
-		ERGUE = { faz = function()
-			beatCena("ENCARA")
-			tocar("PREPARA", 0.65)
-		end },
-		CARGA = { faz = function()
-			beatCena("ENCARA")
-			tocar("CARGA", 0.9)
-		end },
-		AVANCA = { cam = true, sfx = { "GOLPE", 0.8 } },
-		SEGURA = { cam = true },
-		EXECUTA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			local onde = alvoRaiz and alvoRaiz.Position or frente()
-			vfx("ESTILHACO", { posicao = onde, escala = 1.8 })
-			vfx("RACHA", { posicao = onde - Vector3.new(0, 2.6, 0), escala = 1.6 })
-			tocarEm("IMPACTO", onde, 0.5)
-			aplicarDano(alvo, CFG.DANO_FINAL)
-			tombar(alvo, 3)
-			-- quem estava perto paga o respingo, mas bem menos: o golpe é DELE
-			for _, perto in ipairs(alvosEm(onde, CFG.RAIO_FINAL, 12)) do
-				if perto ~= alvo then
-					aplicarDano(perto, CFG.DANO_AREA)
-					local pertoRaiz = raizDe(perto)
-					if pertoRaiz then
-						empurrar(perto, (pertoRaiz.Position - onde)
-							+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_FINAL, 0.34)
+			-- a onda: corre pelo chão, e é o que dá alcance à cortada
+			for i = 1, CFG.PASSOS_ONDA do
+				local passo = chao + direcao
+					* (CFG.ALCANCE_ONDA * i / CFG.PASSOS_ONDA)
+				for _, alvo in ipairs(alvosEm(passo, CFG.LARGURA_ONDA, 6)) do
+					if not vistos[alvo] then
+						vistos[alvo] = true
+						aplicarDano(alvo, CFG.DANO_ONDA)
+						tombar(alvo, CFG.TOMBO * 0.5)
 					end
 				end
 			end
 		end },
-		FIM = { faz = function()
+		FIM = { sfx = { "GOLPE", 1.05 } },
+	}), function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- R — Fatal  (CUTSCENE)
+--
+-- A execução. Ela só sai CHEIA em alvo abaixo de `LIMIAR` da vida — 40%.
+--
+-- POR QUE O LIMIAR
+--
+--   Cutscene de execução que o alvo sobrevive é anticlímax: seis segundos de
+--   câmera presa para um golpe que não fechou nada. E execução SEM limiar é só
+--   um golpe grande com câmera, que é o que a `TryHard` era.
+--
+--   Acima do limiar a habilidade não é recusada — ela sai, com `DANO_FRACO` e
+--   sem cena. Recusar gastaria a recarga de 26 s do jogador por um alvo que
+--   ele não tinha como medir com precisão.
+--
+-- O ALVO É FIXADO NO INÍCIO, como na série do `Corte Frio`.
+--══════════════════════════════════════════════════════════════
+
+function extra(mira)
+	local alvo = maisPerto(mira, CFG.RAIO_ALVO)
+		or maisPerto(frente(CFG.RAIO_ALVO), CFG.RAIO_ALVO)
+	if not alvo then
+		tocar("PREPARA", 0.75)
+		return
+	end
+
+	local fracao = alvo.MaxHealth > 0 and (alvo.Health / alvo.MaxHealth) or 1
+	fatalArmado = fracao <= CFG.LIMIAR
+	alvoFatal = alvo
+
+	-- ACIMA do limiar: o golpe sai, sem cena e sem o dano de execução.
+	if not fatalArmado then
+		ocupado = true
+		rig:PlaySequence("CORTADA", despachar({
+			ERGUE = { sfx = { "PREPARA", 1.1 } },
+			DESCE = { faz = function()
+				local alvoRaiz = raizDe(alvoFatal)
+				aplicarDano(alvoFatal, CFG.DANO_FRACO)
+				tombar(alvoFatal, 1)
+				if alvoRaiz then
+					vfx("CORTADA", { posicao = alvoRaiz.Position,
+						cframe = raiz.CFrame, alcance = 8, escala = 0.8 })
+					tocarEm("IMPACTO", alvoRaiz.Position, 1)
+				end
+			end },
+		}), function()
+			ocupado = false
+			alvoFatal = nil
+		end)
+		return
+	end
+
+	ocupado = true
+	rig:PlaySequence("FATAL", despachar({
+		CAMERA = { cam = true, sfx = { "CARGA", 0.7 }, faz = function()
+			abrirCena(alvoFatal, "FATAL")
+			rig:LockCharacter(true)
+			if alvoFatal and alvoFatal.Health > 0 then
+				atordoar(alvoFatal, 4)
+			end
+		end },
+		ERGUE = { cam = true, faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ Vector3.new(0, 4, 0), escala = 1.4 })
+		end },
+		CARGA = { cam = true, sfx = { "PREPARA", 0.6 } },
+		AVANCA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			if alvoRaiz and raiz then
+				local delta = alvoRaiz.Position - raiz.Position
+				local plano = Vector3.new(delta.X, 0, delta.Z)
+				if plano.Magnitude > CFG.AVANCO then
+					empurrar(humanoide, plano, plano.Magnitude * 2.6, 0.22)
+				end
+			end
+		end },
+		SEGURA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			if alvoRaiz then
+				vfx("FATAL_MARCA", { posicao = alvoRaiz.Position, escala = 1 })
+			end
+		end },
+		EXECUTA = { cam = true, faz = function()
+			local alvoRaiz = raizDe(alvoFatal)
+			local onde = alvoRaiz and alvoRaiz.Position or frente(CFG.ALCANCE)
+			vfx("FATAL", { posicao = onde, cframe = raiz.CFrame, escala = 1 })
+			tocarEm("IMPACTO", onde, 0.55)
+			if alvoFatal and alvoFatal.Health > 0 then
+				aplicarDano(alvoFatal, CFG.DANO_FATAL)
+				tombar(alvoFatal, 2.4)
+			end
+		end },
+		FIM = { cam = true, faz = function()
+			rig:LockCharacter(false)
 			fecharCena()
+			alvoFatal = nil
+			fatalArmado = false
 		end },
 	}), function()
-		fecharCena()
-		rig:LockCharacter(false)
 		ocupado = false
+		rig:LockCharacter(false)
+		fecharCena()
+		alvoFatal = nil
+		fatalArmado = false
 	end)
 end
 
@@ -441,6 +570,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -466,7 +596,7 @@ Tool.Equipped:Connect(function()
 	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
 	if not (personagem and humanoide and raiz) then return end
 
-	rig = Animator.new(personagem, "DramaTryHard", Poses, Poses.SEQUENCIAS)
+	rig = Animator.new(personagem, "DramaCortada", Poses, Poses.SEQUENCIAS)
 end)
 
 --- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
@@ -477,7 +607,8 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
-	passoCombo = 0
+	alvoFatal = nil
+	fatalArmado = false
 	fecharCena()
 	if rig then
 		rig:CancelSequence()

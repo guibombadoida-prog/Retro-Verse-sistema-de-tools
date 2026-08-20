@@ -15,6 +15,7 @@
 --
 --   LIGAR          transformação    2.00s · 5 passo(s), 2 segurado(s)
 --   PULSO          golpe rápido     1.00s · 5 passo(s), 2 segurado(s)
+--   REFLETE        reação           0.24s · 2 passo(s), 1 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
 -- GANCHO, LAMINA_ERGUE… As sete são a MESMA briga, com armas diferentes.
@@ -65,6 +66,12 @@ P.SEQUENCIAS = {
 		{ pose = "AURA_ABRE", time = 0.12, style = "Quint", dir = "Out", marca = "SOLTA" },
 		{ pose = "AURA_ABRE", time = 0.16, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 0.22, style = "Quad", dir = "Out" },
+	},
+
+	-- reação · 0.24s · 2 passo(s), 1 segurado(s)
+	REFLETE = {
+		{ pose = "AURA_ABRE", time = 0.08, style = "Quint", dir = "Out", marca = "DEVOLVE" },
+		{ pose = "AURA_ABRE", time = 0.16, style = "Sine", dir = "InOut" },
 	},
 
 }

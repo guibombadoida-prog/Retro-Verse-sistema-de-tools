@@ -4,7 +4,7 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   soco pesado que arremessa
+--   M1   soco serio: um corredor reto de vento
 --   R    Rachar o Chao   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
@@ -28,17 +28,25 @@ local ARQUETIPO = "MELEE"
 
 local CFG = {
 	ALCANCE       = 6.5,
-	RAIO_GOLPE    = 7,
-	DANO          = 40,
-	EMPURRAO      = 96,
-	SUBIDA        = 34,
-	TOMBO         = 1.8,
-	RECARGA       = 2.2,
+	RAIO_GOLPE    = 6,
+	DANO          = 46,
+	DANO_VENTO    = 30,
+	EMPURRAO      = 128,
+	SUBIDA        = 26,
+	TOMBO         = 2,
+	RECARGA       = 3.4,
+
+	COMPRIMENTO   = 90,
+	LARGURA       = 7,
+	PASSOS_VENTO  = 15,
 
 	RECARGA_EXTRA = 13,
 	RAIO_RACHA    = 20,
+	NUCLEO_RACHA  = 7,
 	DANO_RACHA    = 52,
+	BORDA_RACHA   = 26,
 	EMPURRAO_RACHA = 70,
+	TOMBO_RACHA   = 1.6,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -238,64 +246,214 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
-
 --═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o soco pesado
+-- ATORDOAR — trava no lugar, e devolve garantido
 --
--- Um golpe, caro e lento. 1.20 s com quadro segurado no meio (regra 7): o que
--- vende peso não é o dano, é o tempo parado antes dele.
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
 --═══════════════════════════════════════════════════════════════
 
-function primaria(_mira)
-	ocupado = true
-	rig:PlaySequence("SOCO", despachar({
-		CARGA = { sfx = { "CARGA", 1.1 } },
-		SEGURA = { sfx = { "PREPARA", 0.8 } },
-		BATE = { faz = function()
-			local ponto = frente(CFG.ALCANCE)
-			tocarEm("IMPACTO", ponto, 0.75)
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
-				aplicarDano(alvo, CFG.DANO)
-				tombar(alvo, CFG.TOMBO)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					empurrar(alvo, raiz.CFrame.LookVector * CFG.EMPURRAO
-						+ Vector3.new(0, CFG.SUBIDA, 0), 1, 0.34)
-					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1.6 })
-				end
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
 			end
-		end },
-	}), function()
-		ocupado = false
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
 	end)
 end
 
 --═══════════════════════════════════════════════════════════════
--- EXTRA — rachar o chão
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
 --═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — o soco sério
+--
+-- O pedido foi "parecido com o soco do Saitama", e o que define aquele soco
+-- não é o dano: é o CORREDOR. O punho acerta quem está à frente, e o
+-- deslocamento de ar continua em linha reta por 90 studs, pegando tudo o que
+-- estiver na faixa.
+--
+-- POR QUE CORREDOR E NÃO ESFERA
+--
+--   A versão anterior era um raio em volta do ponto de impacto — a mesma forma
+--   de qualquer soco pesado do repositório. Esfera lê como explosão; faixa
+--   reta lê como sopro. É a forma que carrega a referência, e trocá-la era o
+--   pedido inteiro.
+--
+--   A colheita é em `PASSOS_VENTO` pontos ao longo da reta, com um raio
+--   pequeno em cada, e `vistos` impede o mesmo alvo de levar duas vezes por
+--   estar entre dois pontos.
+--
+-- E A ANIMAÇÃO ACOMPANHA
+--
+--   1.60 s, com 58% do tempo na carga parada e um impacto de 0.08 s — o mais
+--   curto do conjunto. Golpe que demora a sair e sai instantâneo é o que dá a
+--   impressão de que a força não coube na animação.
+--══════════════════════════════════════════════════════════════
+
+function primaria(_mira)
+	ocupado = true
+	rig:PlaySequence("SOCO", despachar({
+		CARGA = { sfx = { "CARGA", 0.8 } },
+		SEGURA = { faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ raiz.CFrame.LookVector * 1.6 + Vector3.new(0, 1.2, 0),
+				escala = 1 })
+		end },
+		BATE = { faz = function()
+			local ponto = frente(CFG.ALCANCE)
+			local direcao = raiz.CFrame.LookVector
+			local saida = raiz.Position + Vector3.new(0, 1.2, 0)
+
+			vfx("SOCO_SERIO", { posicao = saida,
+				para = saida + direcao * CFG.COMPRIMENTO,
+				largura = CFG.LARGURA, escala = 1 })
+			tocarEm("IMPACTO", ponto, 0.75)
+
+			local vistos = {}
+
+			-- o punho: perto, e é onde o dano cheio mora
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 6)) do
+				vistos[alvo] = true
+				aplicarDano(alvo, CFG.DANO)
+				tombar(alvo, CFG.TOMBO)
+				empurrar(alvo, direcao + Vector3.new(0, CFG.SUBIDA / CFG.EMPURRAO, 0),
+					CFG.EMPURRAO, 0.34)
+			end
+
+			-- o corredor: 90 studs de faixa reta, dano menor, empurrão igual
+			for i = 1, CFG.PASSOS_VENTO do
+				local passo = saida + direcao
+					* (CFG.COMPRIMENTO * i / CFG.PASSOS_VENTO)
+				for _, alvo in ipairs(alvosEm(passo, CFG.LARGURA, 6)) do
+					if not vistos[alvo] then
+						vistos[alvo] = true
+						aplicarDano(alvo, CFG.DANO_VENTO)
+						tombar(alvo, CFG.TOMBO * 0.6)
+						empurrar(alvo, direcao + Vector3.new(0, 0.2, 0),
+							CFG.EMPURRAO * 0.7, 0.3)
+					end
+				end
+			end
+		end },
+		VENTO = { sfx = { "GOLPE", 0.7 } },
+	}), function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- R — Rachar o Chão
+--
+-- Núcleo e borda em volta do portador. INTACTA: ela já era o par certo do
+-- soco — um pega em linha, a outra pega em volta.
+--══════════════════════════════════════════════════════════════
 
 function extra(_mira)
 	ocupado = true
 	rig:PlaySequence("RACHA", despachar({
-		ERGUE = { sfx = { "CARGA", 0.75 } },
-		SEGURA = { sfx = { "PREPARA", 0.6 } },
+		ERGUE = { sfx = { "PREPARA", 0.85 } },
+		SEGURA = { faz = function()
+			vfx("CARREGA", { posicao = raiz.Position
+				+ Vector3.new(0, 2.4, 0), escala = 0.8 })
+		end },
 		RACHA = { faz = function()
-			local chao = raiz.Position - Vector3.new(0, 2.6, 0)
-			vfx("RACHA", { posicao = chao, escala = 1.5 })
-			tocarEm("IMPACTO", chao, 0.55)
-			for _, alvo in ipairs(alvosEm(chao, CFG.RAIO_RACHA, 12)) do
-				aplicarDano(alvo, CFG.DANO_RACHA)
-				tombar(alvo, 2)
+			local centro = raiz.Position - Vector3.new(0, 1.6, 0)
+			vfx("RACHA", { posicao = centro, raio = CFG.RAIO_RACHA,
+				escala = 1 })
+			tocarEm("IMPACTO", centro, 0.65)
+
+			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_RACHA, 14)) do
 				local alvoRaiz = raizDe(alvo)
+				local d = alvoRaiz and (alvoRaiz.Position - centro).Magnitude
+					or CFG.RAIO_RACHA
+				if d <= CFG.NUCLEO_RACHA then
+					aplicarDano(alvo, CFG.DANO_RACHA)
+					tombar(alvo, CFG.TOMBO_RACHA)
+				else
+					aplicarDano(alvo, CFG.BORDA_RACHA)
+					tombar(alvo, CFG.TOMBO_RACHA * 0.5)
+				end
 				if alvoRaiz then
-					empurrar(alvo, (alvoRaiz.Position - chao)
-						+ Vector3.new(0, 0.6, 0), CFG.EMPURRAO_RACHA, 0.32)
+					empurrar(alvo, (alvoRaiz.Position - centro)
+						+ Vector3.new(0, 0.7, 0), CFG.EMPURRAO_RACHA, 0.3)
 				end
 			end
 		end },
-	}), function()
-		ocupado = false
-	end)
+	}), function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -311,6 +469,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end

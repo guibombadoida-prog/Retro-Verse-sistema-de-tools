@@ -373,8 +373,13 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar("Swoosh", 1 + jitter(0.7) * 0.1)
+	-- O beat é `GOLPE`, não `BATE`. As duas sequências do `Poses.lua` marcam o
+	-- quadro de impacto como `GOLPE`; despachar `BATE` casava com nada e o
+	-- `bater()` NUNCA rodava — M1 sem dano nenhum nas duas Tools, em silêncio.
+	-- Só apareceu quando o `verificar_beats.py` foi consertado: o regex dele
+	-- casava 1 bloco de 170 e imprimia OK sem ter olhado.
 	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", despachar({
-		BATE = { faz = function()
+		GOLPE = { faz = function()
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
 		end },
 	}), function()
@@ -5433,8 +5438,13 @@ function primaria(_mira)
 	local segundo = golpeB
 	golpeB = not golpeB
 	tocar(segundo and "Swoosh2" or "Swoosh", 1 + jitter(0.9) * 0.1)
+	-- O beat é `GOLPE`, não `BATE`. As duas sequências do `Poses.lua` marcam o
+	-- quadro de impacto como `GOLPE`; despachar `BATE` casava com nada e o
+	-- `bater()` NUNCA rodava — M1 sem dano nenhum nas duas Tools, em silêncio.
+	-- Só apareceu quando o `verificar_beats.py` foi consertado: o regex dele
+	-- casava 1 bloco de 170 e imprimia OK sem ter olhado.
 	rig:PlaySequence(segundo and "GOLPE_B" or "GOLPE_A", despachar({
-		BATE = { faz = function()
+		GOLPE = { faz = function()
 			bater(segundo and CFG.DANO_B or CFG.DANO_A, segundo)
 		end },
 	}), function()

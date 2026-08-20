@@ -4,8 +4,8 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   combo de tres golpes que encadeiam
---   R    Chute Rodado   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   combo de tres socos que encadeiam
+--   R    Counter   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -36,11 +36,13 @@ local CFG = {
 	RECARGA       = 0.4,
 	JANELA_COMBO  = 1.4,
 
-	RECARGA_EXTRA = 8,
-	DANO_CHUTE    = 32,
-	RAIO_CHUTE    = 10,
-	EMPURRAO_CHUTE = 78,
-	TOMBO         = 1.5,
+	RECARGA_EXTRA = 9,
+	JANELA_CONTRA = 1.0,
+	FATOR_DEVOLVE = 1.6,
+	TETO_DEVOLVE  = 55,
+	RAIO_DEVOLVE  = 22,
+	ATORDOAMENTO  = 1.6,
+	EMPURRAO_CONTRA = 46,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -59,6 +61,10 @@ local idEfeito = 0
 local primaria, extra
 local passoCombo = 0
 local ultimoGolpe = 0
+local vigiaContra = nil
+local contraAberto = false
+--- `function x()` sem esta linha atribui a uma GLOBAL
+local fecharContra
 
 local function proximo()
 	semente = semente + 1
@@ -241,86 +247,230 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
 
 --═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — combo de três
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — combo de três
 --
 -- O passo avança só se o golpe anterior caiu dentro da janela. Passou do
 -- prazo, volta ao primeiro: é o que faz combo ser combo e não uma fila de
--- socos independentes.
---
--- Os três alternam por CONTADOR, não por sorteio — a regra manda índice
--- sequencial no lugar de `math.random`.
---═══════════════════════════════════════════════════════════════
+-- socos avulsos. INTACTO do refazimento anterior.
+--══════════════════════════════════════════════════════════════
 
-local function bater(dano, tipo, forca)
-	local ponto = frente(CFG.ALCANCE)
-	local achou = false
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 4)) do
-		aplicarDano(alvo, dano)
-		local alvoRaiz = raizDe(alvo)
-		if alvoRaiz then
-			empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-				+ Vector3.new(0, 0.3, 0), forca or CFG.EMPURRAO, 0.18)
-			vfx(tipo, { posicao = alvoRaiz.Position, escala = 1 })
-		end
-		achou = true
-	end
-	if achou then
-		tocarEm("IMPACTO", ponto, 1 + jitter(0.4) * 0.1)
-	end
-	return achou
-end
+local ORDEM = { "SOCO_A", "SOCO_B", "SOCO_C" }
+local DANOS = { "DANO_A", "DANO_B", "DANO_C" }
 
 function primaria(_mira)
+	local agora = os.clock()
+	if agora - ultimoGolpe > CFG.JANELA_COMBO then passoCombo = 0 end
+	passoCombo = passoCombo + 1
+	if passoCombo > 3 then passoCombo = 1 end
+	ultimoGolpe = agora
+
+	local passo = passoCombo
 	ocupado = true
-
-	if os.clock() - ultimoGolpe > CFG.JANELA_COMBO then passoCombo = 0 end
-	passoCombo = passoCombo % 3 + 1
-	ultimoGolpe = os.clock()
-
-	local seq = ({ "SOCO_A", "SOCO_B", "SOCO_C" })[passoCombo]
-	local dano = ({ CFG.DANO_A, CFG.DANO_B, CFG.DANO_C })[passoCombo]
-	tocar("GOLPE", 1 + passoCombo * 0.06)
-
-	rig:PlaySequence(seq, despachar({
+	rig:PlaySequence(ORDEM[passo], despachar({
+		-- o TERCEIRO tem timbre próprio. É o gancho, o que fecha o combo e o
+		-- que dá quase o dobro do dano dos dois primeiros — som igual aos
+		-- outros dois desperdiçaria a única pista sonora de que ele é
+		-- diferente. E é o que tira o `CARGA` da lista de som depositado e
+		-- mudo: asset viajando dentro da Tool sem ninguém tocá-lo.
+		CARGA = { sfx = { passo == 3 and "CARGA" or "PREPARA",
+			passo == 3 and 0.9 or 1.15 } },
 		BATE = { faz = function()
-			bater(dano, passoCombo == 3 and "GANCHO" or "SOCO",
-				passoCombo == 3 and CFG.EMPURRAO * 2 or CFG.EMPURRAO)
+			local ponto = frente(CFG.ALCANCE)
+			local pegou = false
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 5)) do
+				aplicarDano(alvo, CFG[DANOS[passo]])
+				empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.2, 0),
+					CFG.EMPURRAO, 0.18)
+				local alvoRaiz = raizDe(alvo)
+				if alvoRaiz then
+					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1 })
+				end
+				pegou = true
+			end
+			if pegou then
+				tocarEm("IMPACTO", ponto, 1 + jitter(0.3) * 0.1)
+			else
+				tocar("GOLPE", 1.2)
+			end
 		end },
-	}), function()
-		ocupado = false
-	end)
+		FIM = { faz = function() passoCombo = 0 end },
+	}), function() ocupado = false end)
 end
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — chute rodado
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
+-- R — Counter
+--
+-- Abre uma janela de `JANELA_CONTRA` segundos. Se alguém acertar o portador
+-- dentro dela, o dano é DEVOLVIDO multiplicado, e quem bateu fica atordoado.
+--
+-- COMO ELE SABE QUE LEVOU
+--
+--   `humanoide.HealthChanged`, que é a única coisa do Roblox que avisa perda
+--   de vida sem importar de onde ela veio. A subtração filtra cura. E quem
+--   bateu vem da etiqueta `creator` que o próprio repositório grava na vítima
+--   — nada de gancho global do Núcleo, que é declarado lá como sendo para
+--   sistemas e não para Tools.
+--
+-- O QUE ELE NÃO FAZ
+--
+--   Não anula o dano. Contra que zera o golpe é invencibilidade com outro
+--   nome, e o `Desviar` já é a Tool que dá i-frames. Aqui você LEVA e devolve
+--   mais — a troca é boa, e continua sendo uma troca.
+--
+--   E ele devolve UMA vez. A janela fecha no primeiro acerto: contra que
+--   devolve tudo o que vier durante um segundo apaga qualquer time.
+--══════════════════════════════════════════════════════════════
+
+function fecharContra()
+	contraAberto = false
+	if vigiaContra then
+		vigiaContra:Disconnect()
+		vigiaContra = nil
+	end
+end
+
+local function devolver(quanto, agressor)
+	if not contraAberto then return end
+	fecharContra()
+
+	local devolvido = math.min(quanto * CFG.FATOR_DEVOLVE, CFG.TETO_DEVOLVE)
+	if not agressor then
+		-- pegou o golpe mas não achou quem deu: o gesto sai, o dano não.
+		vfx("CONTRA_VAZIO", { posicao = raiz.Position, escala = 1 })
+		tocar("PREPARA", 0.8)
+		return
+	end
+
+	local alvoRaiz = raizDe(agressor)
+	aplicarDano(agressor, devolvido)
+	atordoar(agressor, CFG.ATORDOAMENTO)
+	if alvoRaiz then
+		empurrar(agressor, alvoRaiz.Position - raiz.Position
+			+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_CONTRA, 0.24)
+		vfx("CONTRA_DEVOLVE", { posicao = alvoRaiz.Position,
+			de = raiz.Position, escala = 1 })
+		tocarEm("IMPACTO", alvoRaiz.Position, 0.85)
+	end
+
+	-- a resposta interrompe a guarda no quadro em que o golpe chega, que é
+	-- exatamente como counter deve ler. `PlaySequence` cancela a anterior.
+	rig:PlaySequence("DEVOLVER", despachar({
+		DEVOLVE = { sfx = { "GOLPE", 0.9 } },
+	}), function() ocupado = false end)
+end
 
 function extra(_mira)
 	ocupado = true
-	passoCombo = 0
-	rig:PlaySequence("CHUTE", despachar({
-		GIRA = { sfx = { "PREPARA", 0.9 } },
-		CHUTA = { faz = function()
-			local ponto = frente(CFG.ALCANCE * 0.8)
-			vfx("CHUTE", { cframe = raiz.CFrame
-				* CFrame.new(0, -0.4, -CFG.ALCANCE * 0.5), escala = 1.2 })
-			tocarEm("IMPACTO", ponto, 0.8)
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CHUTE, 8)) do
-				aplicarDano(alvo, CFG.DANO_CHUTE)
-				tombar(alvo, CFG.TOMBO)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_CHUTE, 0.3)
-					vfx("SOCO", { posicao = alvoRaiz.Position, escala = 1.3 })
-				end
-			end
+	rig:PlaySequence("CONTRA", despachar({
+		ABRE = { sfx = { "PREPARA", 1.3 }, faz = function()
+			fecharContra()
+			contraAberto = true
+			vfx("CONTRA_ABRE", { posicao = raiz.Position, escala = 1,
+				vida = CFG.JANELA_CONTRA })
+			vigiaContra = guardar(vigiarVida(devolver))
+			task.delay(CFG.JANELA_CONTRA, fecharContra)
 		end },
-	}), function()
-		ocupado = false
-	end)
+		ESPERA = { faz = function()
+			vfx("CONTRA_ABRE", { posicao = raiz.Position, escala = 0.6,
+				vida = 0.4 })
+		end },
+		FECHA = { faz = fecharContra },
+	}), function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -336,6 +486,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -373,6 +524,7 @@ local function desmontar()
 	table.clear(ativos)
 	ocupado = false
 	passoCombo = 0
+	fecharContra()
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()

@@ -13,7 +13,7 @@
 --
 -- JUNTA QUE LIDERA: **RightArm** (regra 6 da gramática).
 --
---   SOCO           golpe rápido     1.20s · 5 passo(s), 2 segurado(s)
+--   SOCO           golpe pesado     1.60s · 5 passo(s), 2 segurado(s)
 --   RACHA          golpe pesado     1.40s · 5 passo(s), 2 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
@@ -64,13 +64,13 @@ P.SOCO_DIR = {
 
 P.SEQUENCIAS = {
 
-	-- golpe rápido · 1.20s · 5 passo(s), 2 segurado(s)
+	-- golpe pesado · 1.60s · 5 passo(s), 2 segurado(s)
 	SOCO = {
-		{ pose = "GUARDA", time = 0.24, style = "Back", dir = "In", marca = "CARGA" },
-		{ pose = "GUARDA", time = 0.46, style = "Sine", dir = "InOut", tremor = 0.035, freq = 22, marca = "SEGURA" },
-		{ pose = "SOCO_DIR", time = 0.12, style = "Quint", dir = "Out", marca = "BATE" },
-		{ pose = "SOCO_DIR", time = 0.16, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 0.22, style = "Quad", dir = "Out" },
+		{ pose = "GUARDA", time = 0.3, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "GUARDA", time = 0.62, style = "Sine", dir = "InOut", tremor = 0.04, freq = 24, marca = "SEGURA" },
+		{ pose = "SOCO_DIR", time = 0.08, style = "Quint", dir = "Out", marca = "BATE" },
+		{ pose = "SOCO_DIR", time = 0.26, style = "Sine", dir = "InOut", marca = "VENTO" },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 	-- golpe pesado · 1.40s · 5 passo(s), 2 segurado(s)

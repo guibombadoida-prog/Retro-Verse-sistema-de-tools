@@ -1,5 +1,5 @@
 -- Client.lua
--- Script com RunContext = Client — Desviar e Empurrar  (conjunto DRAMA)
+-- Script com RunContext = Client — Desviar  (conjunto DRAMA)
 --
 -- LocalScript dentro de uma Tool só roda para o jogador cujo Character a
 -- contém. O servidor manda o beat com `FireAllClients` e ele CHEGA em todo
@@ -77,7 +77,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Esquiva")
+	ContextActionService:SetTitle(ACAO, "Empurrao")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -88,6 +88,7 @@ end
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
+
 
 Tool.Activated:Connect(function()
 	if not souODono() then return end

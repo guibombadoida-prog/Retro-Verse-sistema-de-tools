@@ -21,7 +21,7 @@
 --
 --   1. FOV é a técnica principal, não o movimento. Fecha na carga, ESTOURA no
 --      golpe. A amplitude escala com a intimidade: `Corte Frio` é execução a
---      dois passos (44 -> 96, amplitude 52); o finalizador do `TryHard` abre
+--      dois passos (44 -> 96, amplitude 52); o fatal da `Cortada Fatal` abre
 --      mais cedo e fecha mais (40 -> 104, amplitude 64).
 --   3. Aproximação EXPONENCIAL, nunca Tween bloqueante:
 --      `k = 1 - math.exp(-VELOC * dt)`. Independente de FPS, interrompível a
@@ -81,6 +81,28 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(1.6, 1.7, 2.4), olhar = "alvo",     fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(6, 4.5, 8),     olhar = "alvo",     fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(7, 5, 9),       olhar = "alvo",     fov = 104, tremor = true },
+
+		-- ── o refazimento: a série de cortes e a cortada fatal ──────────
+		--
+		-- ERGUE e CARGA são a preparação da `Cortada Fatal`: a câmera SOBE
+		-- junto com a lâmina e vai fechando. É o oposto do que ela faz no
+		-- impacto, e é o contraste que faz o impacto ler como impacto.
+		ERGUE   = { de = Vector3.new(4.6, 4.4, 7.2), olhar = "alvo",     fov = 56, tremor = false },
+		CARGA   = { de = Vector3.new(3, 3.6, 5),     olhar = "alvo",     fov = 48, tremor = true  },
+
+		-- CORTE_1 e CORTE_3 são a série. Os dois trocam de LADO: o primeiro
+		-- pela direita, o terceiro pela esquerda. Corte consecutivo filmado
+		-- sempre do mesmo ponto vira um corte só piscando — a troca de eixo é
+		-- o que faz seis cortes lerem como seis.
+		CORTE_1 = { de = Vector3.new(2.6, 2.2, 3.4),  olhar = "alvo",    fov = 50, tremor = true  },
+		CORTE_3 = { de = Vector3.new(-2.8, 2.4, 3.6), olhar = "alvo",    fov = 52, tremor = true  },
+
+		-- e o último corte abre tudo, como o EXECUTA
+		ULTIMO  = { de = Vector3.new(6.5, 4.8, 8.5),  olhar = "alvo",    fov = 100, tremor = true },
+
+		-- FIM assenta antes de devolver. Sem ele a câmera volta no mesmo
+		-- quadro do impacto, e a cena termina sem respirar.
+		FIM     = { de = Vector3.new(7.5, 4, 10),     olhar = "alvo",    fov = 70, tremor = false },
 	},
 	ALVO = {
 		CAMERA  = { de = Vector3.new(-5, 3.4, 12),   olhar = "eu",       fov = 66, tremor = false },
@@ -89,6 +111,16 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(-1.4, 1.9, 4),  olhar = "eu",       fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(-4, 4, 10),     olhar = "eu",       fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(-5, 4.6, 11),   olhar = "eu",       fov = 104, tremor = true },
+
+		-- A metade da regra 2 que é do ALVO. Mesmos beats, ancoradouro nele, e
+		-- olhando a PRÓPRIA cara: quem está sendo cortado seis vezes tem de ver
+		-- isso acontecendo com ele, não ver o outro trabalhando.
+		ERGUE   = { de = Vector3.new(-3.4, 3.8, 9),   olhar = "eu",      fov = 60, tremor = false },
+		CARGA   = { de = Vector3.new(-2.4, 3, 7),     olhar = "eu",      fov = 52, tremor = true  },
+		CORTE_1 = { de = Vector3.new(-2.2, 2.3, 5),   olhar = "eu",      fov = 54, tremor = true  },
+		CORTE_3 = { de = Vector3.new(2.4, 2.5, 5.2),  olhar = "eu",      fov = 56, tremor = true  },
+		ULTIMO  = { de = Vector3.new(-5.5, 4.4, 11.5), olhar = "eu",     fov = 100, tremor = true },
+		FIM     = { de = Vector3.new(-6, 3.6, 12),    olhar = "eu",      fov = 74, tremor = false },
 	},
 }
 

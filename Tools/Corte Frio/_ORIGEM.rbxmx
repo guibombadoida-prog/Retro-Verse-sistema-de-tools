@@ -18,7 +18,7 @@
 			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
-			<string name="ToolTip">Corte de lamina; a Extra e a execucao, com cutscene</string>
+			<string name="ToolTip">Corte de lamina; a Extra e a serie de cortes, com cutscene</string>
 			<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117902</url></Content>
 			<token name="LevelOfDetail">0</token>
 			<CoordinateFrame name="ModelMeshCFrame">

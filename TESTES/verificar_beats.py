@@ -67,9 +67,51 @@ RE_TOCA_TERNARIO = re.compile(
 #: Quando não é literal, o beat é conferido contra a UNIÃO das sequências: não
 #: dá para saber qual delas vai tocar, mas dá para saber se aquele beat não
 #: existe em nenhuma.
-RE_DESPACHO = re.compile(
-    r'PlaySequence\(\s*([^,\n]+?)\s*,\s*despachar\(\{(.*?)\n\t\}\)\)',
-    re.S)
+# ⚠️ NÃO volte a fechar este bloco por REGEX.
+#
+# A versão anterior era
+#
+#     PlaySequence\(\s*([^,\n]+?)\s*,\s*despachar\(\{(.*?)\n\t\}\)\)
+#
+# e ela exigia que a tabela fechasse em `\n\t}))`. Só que a forma usada em
+# quase todo o repositório é
+#
+#     rig:PlaySequence("X", despachar({ ... }), function() ocupado = false end)
+#
+# que fecha em `\n\t}), function(...)`. O regex não casava, `findall` devolvia
+# vazio, e a checagem nº 2 — a que existe PORQUE 14 Tools saíram com dano zero
+# — não conferia nada. Medido: **1 bloco casado de 170**. O verificador
+# imprimia OK a leva inteira sem ter olhado para nada.
+#
+# É a mesma família do defeito que o `verificar_pack_vfx.py` tinha, e o
+# conserto é o mesmo: contar chave, não adivinhar o terminador.
+RE_ABRE_DESPACHO = re.compile(
+    r'PlaySequence\(\s*([^,\n]+?)\s*,\s*despachar\(\{')
+
+
+def despachos(texto):
+    """(alvo, corpo) de cada `despachar({...})`, fechando por contagem."""
+    for m in RE_ABRE_DESPACHO.finditer(texto):
+        nivel, i = 1, m.end()
+        while i < len(texto) and nivel > 0:
+            ch = texto[i]
+            if ch == "{":
+                nivel = nivel + 1
+            elif ch == "}":
+                nivel = nivel - 1
+                if nivel == 0:
+                    break
+            elif ch == '"':
+                # string: pular até a próxima aspa não escapada, para que uma
+                # chave dentro de texto não desequilibre a contagem
+                i = i + 1
+                while i < len(texto) and texto[i] != '"':
+                    if texto[i] == "\\":
+                        i = i + 1
+                    i = i + 1
+            i = i + 1
+        if nivel == 0:
+            yield m.group(1), texto[m.end():i]
 
 #: qualquer literal MAIÚSCULO no Server. Serve só para o AVISO de sequência não
 #: tocada: um nome guardado em tabela e chamado por índice é invisível para o
@@ -117,7 +159,12 @@ def verificar(pasta):
     bloco = poses[corte:] if corte >= 0 else poses
     marcas_por_seq = {}
     for nome, corpo in RE_SEQ_DEF.findall(bloco):
-        marcas_por_seq[nome] = set(re.findall(r'marca = "([A-Z_]+)"', corpo))
+        # `[A-Z0-9_]`, com DÍGITO. O padrão anterior era `[A-Z_]+` e não pegava
+        # `CORTE_1`: do lado do Server o `RE_BEAT` aceita dígito, do lado do
+        # Poses não aceitava, e todo beat numerado saía como "a sequência não
+        # tem" — falso positivo garantido para qualquer combo enumerado.
+        marcas_por_seq[nome] = set(
+            re.findall(r'marca = "([A-Z][A-Z0-9_]*)"', corpo))
     if not marcas_por_seq:
         return erros, avisos
 
@@ -151,7 +198,7 @@ def verificar(pasta):
         todas = set()
         for conjunto in marcas_por_seq.values():
             todas.update(conjunto)
-        for alvo, corpo in RE_DESPACHO.findall(fonte):
+        for alvo, corpo in despachos(fonte):
             literal = re.fullmatch(r'"([A-Z][A-Z0-9_]*)"', alvo.strip())
             if literal:
                 seq = literal.group(1)

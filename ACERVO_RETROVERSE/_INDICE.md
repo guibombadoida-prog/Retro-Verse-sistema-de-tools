@@ -265,7 +265,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · **28 sequências** | **LIMPO** | as 7 Tools do conjunto GRAVIDADE |
 | poses do `Determination` | **Trident** | 214 escritas em `Motor6D.C0` | **CRU** | — |
 | poses do `dodge` | **Drama** / Rufus14 | 6 juntas em `Weld.C0` — **esquiva**, inédita aqui | **CRU** — medida, não copiada | a gramática |
-| `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
+| `Poses.lua` × 7 | **autoral**, pela gramática | **18 poses de base · 19 sequências** | **LIMPO** | as 7 Tools do conjunto DRAMA |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · 17 sequências | **LIMPO** | as 7 Tools do conjunto FAKER |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · 10 sequências | **LIMPO** | as 7 Tools do conjunto NOOB |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · **21 sequências** | **LIMPO** | as 7 Tools do conjunto JUPITER |
@@ -317,7 +317,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `SeriousMode_CutsceneCam_V1` | **autoral** | órbita bezier + contraste de FOV | LIMPO | — (referência) |
 | `YorrSlayer_CutsceneCam_V1` | YorrSlayer (conformado) | **enquadramento por espectador** + FOV | LIMPO | técnica aplicada no Escudo Partido |
 | `GRAMATICA_CUTSCENE.md` | **medida nas três fontes** | as 6 regras de cutscene | **APROVADO** | Escudo Partido · as 2 do DRAMA · **as 2 do FAKER** |
-| `CutsceneCam_Drama` | **autoral**, pelas 6 regras | **enquadramento por espectador**, de verdade | **LIMPO** | `Corte Frio`, `TryHard` |
+| `CutsceneCam_Drama` | **autoral**, pelas 6 regras | **enquadramento por espectador**, de verdade · 12 quadros | **LIMPO** | `Corte Frio`, `Cortada Fatal` |
 | `CutsceneCam_Faker` | **autoral**, pelas 6 regras | cena de **AFASTAMENTO** + foco `cima` + plateia de área | **LIMPO** | `Era Do Fim`, `Faker Entity` |
 
 > **A cutscene do FAKER inverte a direção do estouro, e a regra 1 continua valendo.**

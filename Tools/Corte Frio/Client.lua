@@ -77,7 +77,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Execucao")
+	ContextActionService:SetTitle(ACAO, "Serie de Cortes")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -88,6 +88,7 @@ end
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
+
 
 Tool.Activated:Connect(function()
 	if not souODono() then return end

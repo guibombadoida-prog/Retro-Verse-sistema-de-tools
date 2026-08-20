@@ -518,12 +518,12 @@ CONJUNTOS = [
     # têm Handle nenhum, e ganham um invisível. Duas têm CUTSCENE.
     ("Drama_7_Tools.rbxmx", "Drama", [
         "Combate",
-        "Desviar e Empurrar",
+        "Desviar",
         "Corte Frio",
         "Impacto Forte",
         "Aura",
         "Olhos Laser",
-        "TryHard",
+        "Cortada Fatal",
     ]),
     ("Guest_7_Tools.rbxmx", "Guest_Tools", [
         "Taco de Baseball",

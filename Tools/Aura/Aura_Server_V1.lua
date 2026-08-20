@@ -4,7 +4,7 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   liga a aura: mais velocidade enquanto ela dura
+--   M1   liga a aura: o dano sofrido volta em quem deu
 --   R    Pulso   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
@@ -28,18 +28,19 @@ local ARQUETIPO = "SUPORTE"
 
 local CFG = {
 	ALCANCE       = 6,
-	DURACAO       = 12,
-	VELOCIDADE    = 26,
-	PULSOS        = 4,
-	INTERVALO     = 2.4,
-	RAIO_AURA     = 13,
-	DANO_AURA     = 7,
-	RECARGA       = 16,
+	DURACAO       = 10,
+	FATOR_DEVOLVE = 1.0,
+	TETO_DEVOLVE  = 40,
+	RAIO_DEVOLVE  = 26,
+	ATORDOAMENTO  = 0.9,
+	ESPACO_ATORDOA = 1.6,
+	RECARGA       = 20,
 
 	RECARGA_EXTRA = 9,
 	RAIO_PULSO    = 18,
-	DANO_PULSO    = 34,
-	EMPURRAO_PULSO = 74,
+	DANO_PULSO    = 24,
+	EMPURRAO_PULSO = 64,
+	ATORDOA_PULSO = 1.4,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -58,7 +59,10 @@ local idEfeito = 0
 local primaria, extra
 local auraLigada = false
 local idAura = nil
-local velocidadeBase = nil
+local vigiaAura = nil
+local ultimoAtordoa = 0
+--- `function x()` sem esta linha atribui a uma GLOBAL
+local desligarAura
 
 local function proximo()
 	semente = semente + 1
@@ -241,45 +245,173 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
 
 --═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — ligar a aura
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
 --
--- É o único estado PERSISTENTE do conjunto, e por isso é o único que precisa
--- de saída garantida. O `WalkSpeed` de origem é guardado, e `desmontar()` — nas
--- duas portas — devolve.
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
 --
--- A aura fere sozinha, em pulsos espaçados. Quem encadeia é `task.delay` com
--- guarda de estado, e não um laço: se a aura for desligada no meio, o pulso
--- seguinte simplesmente não acontece.
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
 --═══════════════════════════════════════════════════════════════
 
-local function desligarAura()
-	if not auraLigada then return end
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — a aura de reflexão
+--
+-- O pedido: "todo o dano sofrido é devolvido + atordoamento". É literalmente
+-- isso. Enquanto ela está de pé, cada perda de vida do portador vira dano em
+-- quem a causou, e quem a causou trava.
+--
+-- ELA NÃO ANULA O DANO
+--
+--   Devolver E não levar seria invencibilidade com passo extra. O portador
+--   apanha normalmente; o que ele ganha é que apanhar CUSTA. A `DURACAO` de 10
+--   s contra 20 s de recarga é o que fecha a conta: metade do tempo ligada, e
+--   quem sabe disso simplesmente para de bater e espera.
+--
+-- O ATORDOAMENTO TEM ESPAÇAMENTO PRÓPRIO
+--
+--   `ESPACO_ATORDOA` — 1.6 s entre travadas. Sem isso, um agressor com uma
+--   arma automática ficaria travado permanentemente pela própria cadência: a
+--   aura seria um `stunlock` infinito, e nada nela diz que deveria ser.
+--   O dano volta SEMPRE; o atordoamento é que é espaçado.
+--
+-- ONDE ELE ACHA QUEM BATEU
+--
+--   Na etiqueta `creator`, gravada no Humanoid da vítima pelo próprio
+--   repositório. Sem Núcleo nenhum isso funciona — e sem etiqueta, o alvo mais
+--   perto dentro de `RAIO_DEVOLVE` é o palpite, limitado por raio de propósito.
+--══════════════════════════════════════════════════════════════
+
+function desligarAura()
 	auraLigada = false
+	if vigiaAura then
+		vigiaAura:Disconnect()
+		vigiaAura = nil
+	end
 	if idAura then
 		vfx("PARAR", { id = idAura })
 		idAura = nil
 	end
-	if humanoide and humanoide.Parent and velocidadeBase then
-		humanoide.WalkSpeed = velocidadeBase
-		velocidadeBase = nil
-	end
 end
 
-local function pulsarAura(restantes)
-	if not (auraLigada and personagem and raiz) then return end
-	if restantes <= 0 then
-		desligarAura()
+local function refletir(quanto, agressor)
+	if not (auraLigada and raiz) then return end
+
+	local devolvido = math.min(quanto * CFG.FATOR_DEVOLVE, CFG.TETO_DEVOLVE)
+	if devolvido < 1 then return end
+
+	if not agressor then
+		vfx("AURA_DEVOLVE", { posicao = raiz.Position, escala = 0.7 })
 		return
 	end
-	vfx("AURA_PULSO", { posicao = raiz.Position, escala = 0.8 })
-	for _, alvo in ipairs(alvosEm(raiz.Position, CFG.RAIO_AURA, 10)) do
-		aplicarDano(alvo, CFG.DANO_AURA)
+
+	local alvoRaiz = raizDe(agressor)
+	aplicarDano(agressor, devolvido)
+
+	local agora = os.clock()
+	if agora - ultimoAtordoa >= CFG.ESPACO_ATORDOA then
+		ultimoAtordoa = agora
+		atordoar(agressor, CFG.ATORDOAMENTO)
 	end
-	task.delay(CFG.INTERVALO, function()
-		pulsarAura(restantes - 1)
-	end)
+
+	if alvoRaiz then
+		vfx("AURA_DEVOLVE", { posicao = alvoRaiz.Position,
+			de = raiz.Position, escala = 1 })
+		tocarEm("GOLPE", alvoRaiz.Position, 1.35)
+	end
+
+	-- reação curta: ela toca no meio de outra coisa, toda vez que a aura
+	-- devolve, e sequência longa aqui deixaria o portador travado apanhando.
+	if not ocupado then
+		rig:PlaySequence("REFLETE", despachar({
+			DEVOLVE = { faz = function() end },
+		}))
+	end
 end
 
 function primaria(_mira)
@@ -291,56 +423,57 @@ function primaria(_mira)
 
 	ocupado = true
 	rig:PlaySequence("LIGAR", despachar({
-		LIGA = { faz = function()
+		LIGA = { sfx = { "CARGA", 1 }, faz = function()
 			auraLigada = true
+			ultimoAtordoa = 0
 			idAura = novoId("AURA")
-			tocar("CARGA", 1)
-			vfx("AURA", { posicao = raiz.Position, escala = 1.2,
-				duracao = CFG.DURACAO, id = idAura })
-			if velocidadeBase == nil then velocidadeBase = humanoide.WalkSpeed end
-			humanoide.WalkSpeed = CFG.VELOCIDADE
-			task.delay(CFG.INTERVALO, function()
-				pulsarAura(CFG.PULSOS)
+			-- `peca = raiz` é o que faz a aura ANDAR com o portador. Sem
+			-- ela o emissor nasce no chão e o jogador sai de dentro da
+			-- própria aura em dois passos. A peça viaja pelo Remote como
+			-- instância — é mais barato que um tique de posição.
+			vfx("AURA", { id = idAura, posicao = raiz.Position,
+				peca = raiz, escala = 1, vida = CFG.DURACAO })
+			vigiaAura = guardar(vigiarVida(refletir))
+			task.delay(CFG.DURACAO, function()
+				if auraLigada then desligarAura() end
 			end)
 		end },
-		SUSTENTA = { sfx = { "CARGA", 0.8 } },
-	}), function()
-		ocupado = false
-	end)
+		SUSTENTA = { faz = function()
+			vfx("AURA_DEVOLVE", { posicao = raiz.Position, escala = 0.5 })
+		end },
+		FECHA = { sfx = { "PREPARA", 1.2 } },
+	}), function() ocupado = false end)
 end
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — o pulso
+--══════════════════════════════════════════════════════════════
+-- R — Pulso
 --
--- Com a aura ligada ele cobra mais caro, e desliga a aura: é o gasto do
--- estado, não um segundo golpe grátis.
---═══════════════════════════════════════════════════════════════
+-- O jeito de USAR a aura em vez de esperar por ela: um estouro que atordoa em
+-- volta. Ele funciona com a aura desligada — só bate mais forte com ela de pé,
+-- porque o dano da aura entra por cima.
+--══════════════════════════════════════════════════════════════
 
 function extra(_mira)
 	ocupado = true
-	local reforcado = auraLigada
 	rig:PlaySequence("PULSO", despachar({
-		RECOLHE = { sfx = { "PREPARA", 1.2 } },
+		RECOLHE = { sfx = { "PREPARA", 0.95 } },
 		SOLTA = { faz = function()
-			local onde = raiz.Position
-			local escala = reforcado and 1.6 or 1
-			local dano = reforcado and CFG.DANO_PULSO * 1.6 or CFG.DANO_PULSO
-			local raio = reforcado and CFG.RAIO_PULSO * 1.3 or CFG.RAIO_PULSO
-			vfx("AURA_PULSO", { posicao = onde, escala = escala })
-			tocarEm("IMPACTO", onde, reforcado and 0.7 or 1)
-			for _, alvo in ipairs(alvosEm(onde, raio, 12)) do
-				aplicarDano(alvo, dano)
+			local centro = raiz.Position
+			vfx("AURA_PULSO", { posicao = centro, raio = CFG.RAIO_PULSO,
+				escala = 1, ligada = auraLigada })
+			tocarEm("IMPACTO", centro, 1.05)
+
+			for _, alvo in ipairs(alvosEm(centro, CFG.RAIO_PULSO, 12)) do
+				aplicarDano(alvo, CFG.DANO_PULSO)
+				atordoar(alvo, CFG.ATORDOA_PULSO)
 				local alvoRaiz = raizDe(alvo)
 				if alvoRaiz then
-					empurrar(alvo, (alvoRaiz.Position - onde)
-						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_PULSO, 0.28)
+					empurrar(alvo, (alvoRaiz.Position - centro)
+						+ Vector3.new(0, 0.4, 0), CFG.EMPURRAO_PULSO, 0.26)
 				end
 			end
-			if reforcado then desligarAura() end
 		end },
-	}), function()
-		ocupado = false
-	end)
+	}), function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -356,6 +489,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end

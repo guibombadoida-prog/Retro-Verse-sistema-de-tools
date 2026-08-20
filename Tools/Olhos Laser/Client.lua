@@ -77,7 +77,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Varredura")
+	ContextActionService:SetTitle(ACAO, "Sobrecarga")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -89,9 +89,45 @@ end
 -- CICLO
 --══════════════════════════════════════════════════════════════
 
+
+--══════════════════════════════════════════════════════════════
+-- O FEIXE É SEGURADO
+--
+-- `Tool.Activated` abre e `Tool.Deactivated` fecha — o par que o Roblox já dá
+-- para clique mantido. Entre os dois, a mira sobe a `PASSO_MIRA`, e é isso que
+-- faz o feixe VARRER em vez de apontar para onde estava quando saiu.
+--
+-- 12 pacotes por segundo. Um `RenderStepped` mandaria 60 por um ponto que o
+-- mouse move devagar, e o desenho do feixe já interpola o meio do caminho.
+--══════════════════════════════════════════════════════════════
+
+local PASSO_MIRA = 0.08
+local LIMITE_FEIXE = 6
+local segurando = false
+
 Tool.Activated:Connect(function()
-	if not souODono() then return end
-	VFXRemote:FireServer(mira())
+	if not souODono() or segurando then return end
+	segurando = true
+	VFXRemote:FireServer(mira(), "ABRE")
+	task.spawn(function()
+		local ate = os.clock() + LIMITE_FEIXE
+		while segurando and equipado and os.clock() < ate do
+			VFXRemote:FireServer(mira(), "MIRA")
+			task.wait(PASSO_MIRA)
+		end
+		-- o teto de tempo também fecha: soltar o clique é o caminho normal, e
+		-- ele não pode ser o ÚNICO, ou um alt-tab deixaria o feixe ligado.
+		if segurando then
+			segurando = false
+			VFXRemote:FireServer(mira(), "FECHA")
+		end
+	end)
+end)
+
+Tool.Deactivated:Connect(function()
+	if not souODono() or not segurando then return end
+	segurando = false
+	VFXRemote:FireServer(mira(), "FECHA")
 end)
 
 Tool.Equipped:Connect(function()

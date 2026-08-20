@@ -19,12 +19,12 @@ TRÊS TOOLS, E SÓ UMA COM HANDLE
     | Alvo                | Handle vem de | Como                             |
     |---------------------|---------------|----------------------------------|
     | Combate             | Fists         | Handle **invisível**, 0.4 stud   |
-    | Desviar e Empurrar  | dodge         | Handle **invisível**             |
+    | Desviar             | dodge         | Handle **invisível**             |
     | Corte Frio          | UpperSword    | a espada, inteira · **CUTSCENE** |
     | Impacto Forte       | Fists         | **clone** — Handle invisível     |
     | Aura                | dodge         | **clone** — Handle invisível     |
     | Olhos Laser         | Fists         | **clone** — Handle invisível     |
-    | TryHard             | UpperSword    | **clone** · **CUTSCENE**         |
+    | Cortada Fatal       | UpperSword    | **clone** · **CUTSCENE**         |
 
     Handle invisível não substitui mesh de ninguém: supre o que a origem não
     tem. É o mesmo caminho do `Humilhador`, no conjunto GUEST.
@@ -61,32 +61,32 @@ DESTINO = os.path.join(RAIZ, "MODELOS_ENTRADA", "Drama", "Drama_7_Tools.rbxmx")
 # tecla da Extra · tem cutscene
 CONJUNTO = [
     ("Combate", "Fists",
-     "Combo de tres golpes; a Extra abre com o chute rodado",
+     "Combo de tres socos; a Extra e o counter, que devolve o golpe",
      "Melee", 0, 3, "Drama_Combate", "R", False),
 
-    ("Desviar e Empurrar", "dodge",
-     "Empurra quem esta na frente; a Extra e a esquiva com invencibilidade",
+    ("Desviar", "dodge",
+     "Esquiva com invencibilidade; a Extra empurra quem esta na frente",
      "Melee", 0, 4, "Drama_Desviar", "R", False),
 
     ("Corte Frio", "UpperSword",
-     "Corte de lamina; a Extra e a execucao, com cutscene",
+     "Corte de lamina; a Extra e a serie de cortes, com cutscene",
      "Melee", 0, 6, "Drama_CorteFrio", "R", True),
 
     ("Impacto Forte", "Fists",
-     "Soco pesado que arremessa; a Extra racha o chao",
+     "Soco serio: um corredor reto de vento; a Extra racha o chao",
      "Melee", 0, 7, "Drama_Impacto", "R", False),
 
     ("Aura", "dodge",
-     "Liga a aura e ela sustenta; a Extra solta o pulso",
+     "Aura que devolve o dano sofrido e atordoa; a Extra solta o pulso",
      "Suporte", 0, 10, "Drama_Aura", "R", False),
 
     ("Olhos Laser", "Fists",
-     "Feixe pelos olhos; a Extra varre em leque",
+     "Feixe continuo enquanto segurar; a Extra e a sobrecarga",
      "Ranged", 0, 5, "Drama_Olhos", "R", False),
 
-    ("TryHard", "UpperSword",
-     "Combo de quatro golpes; a Extra finaliza, com cutscene",
-     "Melee", 0, 22, "Drama_TryHard", "R", True),
+    ("Cortada Fatal", "UpperSword",
+     "Cortada de cima; a Extra executa quem esta na reta, com cutscene",
+     "Melee", 0, 22, "Drama_Cortada", "R", True),
 ]
 
 CLASSES_SCRIPT = ("Script", "LocalScript", "ModuleScript")
@@ -128,13 +128,17 @@ SONS = {
 
 # quais papéis cada Tool precisa ter no Handle
 SONS_POR_TOOL = {
-    "Combate":            ("GOLPE", "IMPACTO", "PREPARA"),
-    "Desviar e Empurrar": ("GOLPE", "IMPACTO", "PREPARA"),
-    "Corte Frio":         ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
-    "Impacto Forte":      ("GOLPE", "IMPACTO", "CARGA"),
-    "Aura":               ("CARGA", "IMPACTO", "PREPARA"),
-    "Olhos Laser":        ("CARGA", "IMPACTO", "GOLPE"),
-    "TryHard":            ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    # As QUATRO em todas as sete. A paleta do modelo é fina — quatro timbres
+    # para sete Tools —, e distribuí-la em partes deixou `Impacto Forte` com um
+    # `GOLPE` que nenhum script tocava e `Desviar` com um `IMPACTO` mudo. Som
+    # depositado e mudo é asset viajando dentro da Tool sem função.
+    "Combate":       ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Desviar":       ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Corte Frio":    ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Impacto Forte": ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Aura":          ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Olhos Laser":   ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
+    "Cortada Fatal": ("GOLPE", "IMPACTO", "PREPARA", "CARGA"),
 }
 
 

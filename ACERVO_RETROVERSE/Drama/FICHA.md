@@ -105,7 +105,49 @@ python3 FERRAMENTAS/converter_para_rbxm.py ... # a entrega
 
 Saíram **7 Tools** — `Drama_7_Tools.rbxm`. `Fists` e `dodge` não têm Handle
 nenhum, e as cinco derivadas deles ganharam um **invisível de 0.4 stud**. Duas
-têm **cutscene**: `Corte Frio` e `TryHard`.
+têm **cutscene**: `Corte Frio` e `Cortada Fatal`.
+
+## Refazimento de 2026-08-20 — as 7 habilidades redesenhadas
+
+O conjunto foi refeito a pedido, com a lista de habilidades vinda do usuário.
+**A base de assets é a mesma**: os 3 Handles, os 4 `Sound` e a hierarquia da
+origem não foram tocados. O que mudou foi habilidade, pose e VFX.
+
+| Tool | M1 | Extra `R` | Mudou o quê |
+|---|---|---|---|
+| `Combate` | combo de 3 socos | **Counter** | a Extra: era Chute Rodado |
+| `Desviar` | **esquiva** | Empurrão | **inverteu**: a esquiva era Extra e virou M1; a Tool foi renomeada |
+| `Corte Frio` | corte que congela | **Série de Cortes** | a cutscene: era uma execução única, virou 6 cortes consecutivos |
+| `Impacto Forte` | **soco sério** | Rachar o Chão | a M1: era esfera, virou corredor reto de 90 studs |
+| `Aura` | **aura de reflexão** | Pulso | a M1 inteira: era velocidade, virou devolver dano + atordoar |
+| `Olhos Laser` | **feixe segurado** | Sobrecarga | a M1: era tiro único, virou feixe contínuo que varre |
+| `Cortada Fatal` | cortada de cima | **Fatal** | **substitui a `TryHard`** por inteiro |
+
+**Duas Tools renomeadas:** `Desviar e Empurrar` → `Desviar`,
+`TryHard` → `Cortada Fatal`.
+
+### O counter e a aura não usam gancho do Núcleo
+
+As duas precisam saber *quem acabou de me acertar*. `_G.Combate.aoAplicarDano`
+existe e resolveria — mas o próprio Núcleo o declara **"§12.5 regra global —
+para SISTEMAS, nunca para Tools"**.
+
+O caminho usado é `Humanoid.HealthChanged` mais a etiqueta `creator`, que o
+repositório inteiro já grava no Humanoid da vítima (`creditar()` nas Tools,
+`marcarCredito` no Núcleo). Funciona num place vazio, sem Núcleo nenhum — que
+é o que a Regra nº 1 cobra.
+
+### Três poses novas
+
+`CONTRA_PEGA` (mão aberta na altura do rosto, corpo torcido para trás),
+`CORTADA_ALTA` e `CORTADA_BAIXA` (o arco de cima, que nenhuma pose do conjunto
+tinha — o `LAMINA_ERGUE` é de lado).
+
+### Os 4 sons agora estão nas 7
+
+A paleta é fina — quatro timbres —, e distribuí-la em partes tinha deixado
+`Impacto Forte` com um `GOLPE` mudo e `Desviar e Empurrar` com um `IMPACTO`
+mudo. As quatro entram nas sete, e as sete citam as quatro.
 
 ### A regra 2 da gramática de cutscene finalmente saiu do papel
 

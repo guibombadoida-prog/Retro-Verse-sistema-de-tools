@@ -18,7 +18,7 @@
 			</CoordinateFrame>
 			<bool name="ManualActivationOnly">false</bool>
 			<bool name="RequiresHandle">true</bool>
-			<string name="ToolTip">Corte de lamina; a Extra e a execucao, com cutscene</string>
+			<string name="ToolTip">Corte de lamina; a Extra e a serie de cortes, com cutscene</string>
 			<Content name="TextureId"><url>http://www.roblox.com/asset/?id=93117902</url></Content>
 			<token name="LevelOfDetail">0</token>
 			<CoordinateFrame name="ModelMeshCFrame">
@@ -329,8 +329,8 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   corte de lamina
---   R    Execucao   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   corte de lamina que congela
+--   R    Serie de Cortes   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -357,14 +357,18 @@ local CFG = {
 	RAIO_CORTE    = 7.5,
 	DANO          = 26,
 	EMPURRAO      = 24,
+	LENTIDAO      = 0.6,
+	TEMPO_FRIO    = 1.8,
 	RECARGA       = 0.9,
 
-	RECARGA_EXTRA = 20,
-	RAIO_ALVO     = 12,
-	DANO_EXECUCAO = 85,
-	DURACAO_GELO  = 2.6,
-	LENTIDAO      = 0.35,
-	TEMPO_LENTO   = 3,
+	RECARGA_EXTRA = 22,
+	RAIO_ALVO     = 14,
+	DANO_CORTE    = 16,
+	DANO_ULTIMO   = 44,
+	CORTES        = 5,
+	AVANCO        = 6,
+	DURACAO_GELO  = 2.8,
+	LENTIDAO_GELO = 0.3,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -381,7 +385,8 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-
+local alvoDaSerie = nil
+local cortesDados = 0
 
 local function proximo()
 	semente = semente + 1
@@ -564,6 +569,99 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
 
 --═══════════════════════════════════════════════════════════════
 -- A CUTSCENE — um `FireClient` POR ESPECTADOR
@@ -622,89 +720,147 @@ local function fecharCena()
 end
 
 
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o corte
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
+-- M1 — o corte
+--
+-- Corte de lâmina que deixa o alvo LENTO. É o preparo da Extra: alvo devagar é
+-- alvo que ainda está lá quando a série começa.
+--══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
 	rig:PlaySequence("CORTE", despachar({
-		ERGUE = { sfx = { "PREPARA", 1 } },
+		ERGUE = { sfx = { "PREPARA", 1.2 } },
 		CORTA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
-			tocar("GOLPE", 1 + jitter(0.7) * 0.08)
-			vfx("CORTE", { cframe = raiz.CFrame
-				* CFrame.new(0, 0.4, -CFG.ALCANCE * 0.55), escala = 1.1 })
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTE, 5)) do
+			local q = raiz.CFrame * CFrame.new(0, 1, -3)
+			vfx("CORTE", { cframe = q, escala = 1 })
+			local pegou = false
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTE, 6)) do
 				aplicarDano(alvo, CFG.DANO)
+				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_FRIO)
+				empurrar(alvo, raiz.CFrame.LookVector, CFG.EMPURRAO, 0.16)
 				local alvoRaiz = raizDe(alvo)
 				if alvoRaiz then
-					empurrar(alvo, raiz.CFrame.LookVector, CFG.EMPURRAO, 0.16)
-					vfx("CORTE", { posicao = alvoRaiz.Position, escala = 0.7 })
+					vfx("GELO", { posicao = alvoRaiz.Position, escala = 0.8,
+						vida = CFG.TEMPO_FRIO })
 				end
-				tocarEm("IMPACTO", alvoRaiz and alvoRaiz.Position or ponto, 1.2)
+				pegou = true
+			end
+			if pegou then
+				tocarEm("IMPACTO", ponto, 1.1)
+			else
+				tocar("GOLPE", 1.25)
 			end
 		end },
-	}), function()
-		ocupado = false
-	end)
+	}), function() ocupado = false end)
 end
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — a execução, COM CUTSCENE
+--══════════════════════════════════════════════════════════════
+-- R — Série de Cortes  (CUTSCENE)
 --
--- Um alvo, o mais perto. Sem alvo não há cena: abrir cutscene para o vazio é o
--- jeito mais rápido de tirar a câmera de alguém sem motivo.
---═══════════════════════════════════════════════════════════════
+-- O pedido foi "cutscene de cortes consecutivos", e a diferença com a execução
+-- que estava aqui antes é a PROPORÇÃO. A execução tinha 70% de preparação e um
+-- corte no fim: a leitura era "o golpe definitivo". Esta tem 0.57 s de
+-- preparação e depois seis cortes seguidos, um a cada 0.22 s: a leitura é
+-- "não dá para parar".
+--
+-- CADA CORTE É UM BEAT, E CADA BEAT É UM ACERTO
+--
+--   `CORTE_1` a `CORTE_5` e `ULTIMO` — seis marcas na sequência, seis entradas
+--   na tabela do despachante. Nenhum `task.wait` encadeia nada: quem conduz o
+--   tempo é o animator, e o dano cai quando a lâmina cai.
+--
+--   `TESTES/verificar_beats.py` confere que os seis existem dos dois lados. É
+--   o verificador que nasceu porque 14 Tools saíram com beat escrito só de um
+--   lado e dano zero.
+--
+-- O ALVO É FIXADO NO INÍCIO
+--
+--   Ele é escolhido uma vez, no `AVANCA`, e a série inteira persegue ESSE. Um
+--   `maisPerto` por corte faria a lâmina pular de alvo em alvo no meio da
+--   cena — o que é outra habilidade, e não a que foi pedida.
+--══════════════════════════════════════════════════════════════
+
+--- Um corte da série. `ordem` é só para o desenho: o ângulo de cada lâmina sai
+--- do ângulo áureo, então os seis nunca se sobrepõem.
+local function cortarNaSerie(ordem, dano)
+	local alvo = alvoDaSerie
+	if not (alvo and alvo.Parent and alvo.Health > 0) then
+		-- o alvo caiu no meio da série: o gesto continua, o dano não tem onde
+		-- cair. Cortar o ar é melhor que a cena parar pela metade.
+		tocar("GOLPE", 1.3 + ordem * 0.04)
+		return
+	end
+	local alvoRaiz = raizDe(alvo)
+	if not alvoRaiz then return end
+
+	cortesDados = cortesDados + 1
+	aplicarDano(alvo, dano)
+	afrouxar(alvo, CFG.LENTIDAO_GELO, CFG.DURACAO_GELO)
+
+	vfx("CORTE_SERIE", { posicao = alvoRaiz.Position, angulo = angulo(ordem),
+		ordem = ordem, escala = 1 })
+	tocarEm("GOLPE", alvoRaiz.Position, 1.1 + ordem * 0.06)
+end
 
 function extra(mira)
-	local alvo = maisPerto(mira, CFG.RAIO_ALVO) or maisPerto(frente(), CFG.RAIO_ALVO)
+	local alvo = maisPerto(mira, CFG.RAIO_ALVO)
+		or maisPerto(frente(CFG.RAIO_ALVO), CFG.RAIO_ALVO)
 	if not alvo then
-		tocar("PREPARA", 0.6)
+		tocar("PREPARA", 0.8)
 		return
 	end
 
 	ocupado = true
-	local id = novoId("GELO")
-	rig:LockCharacter(true)
-	abrirCena(alvo, "CAMERA")
+	alvoDaSerie = alvo
+	cortesDados = 0
 
-	rig:PlaySequence("EXECUCAO", despachar({
-		CAMERA = { sfx = { "CARGA", 0.85 } },
-		ENCARA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			if alvoRaiz then
-				vfx("EXECUCAO", { posicao = alvoRaiz.Position, escala = 1,
-					duracao = CFG.DURACAO_GELO, id = id })
+	rig:PlaySequence("SERIE", despachar({
+		CAMERA = { cam = true, sfx = { "CARGA", 0.9 }, faz = function()
+			abrirCena(alvoDaSerie, "SERIE")
+			rig:LockCharacter(true)
+		end },
+		AVANCA = { cam = true, faz = function()
+			-- encosta no alvo: a série é corpo a corpo, e o avanço é o que
+			-- fecha a distância sem teleportar ninguém.
+			local alvoRaiz = raizDe(alvoDaSerie)
+			if alvoRaiz and raiz then
+				local delta = alvoRaiz.Position - raiz.Position
+				local plano = Vector3.new(delta.X, 0, delta.Z)
+				if plano.Magnitude > CFG.AVANCO then
+					empurrar(humanoide, plano, plano.Magnitude * 2.4, 0.2)
+				end
+			end
+			vfx("GELO", { posicao = raiz.Position, escala = 1.2, vida = 3 })
+		end },
+		CORTE_1 = { cam = true, faz = function() cortarNaSerie(1, CFG.DANO_CORTE) end },
+		CORTE_2 = { faz = function() cortarNaSerie(2, CFG.DANO_CORTE) end },
+		CORTE_3 = { cam = true, faz = function() cortarNaSerie(3, CFG.DANO_CORTE) end },
+		CORTE_4 = { faz = function() cortarNaSerie(4, CFG.DANO_CORTE) end },
+		CORTE_5 = { faz = function() cortarNaSerie(5, CFG.DANO_CORTE) end },
+		SEGURA = { cam = true, sfx = { "CARGA", 0.7 } },
+		ULTIMO = { cam = true, faz = function()
+			cortarNaSerie(6, CFG.DANO_ULTIMO)
+			local alvoRaiz = raizDe(alvoDaSerie)
+			local onde = alvoRaiz and alvoRaiz.Position or frente(CFG.ALCANCE)
+			vfx("ESTILHACO", { posicao = onde, escala = 1,
+				cortes = cortesDados })
+			tocarEm("IMPACTO", onde, 0.8)
+			if alvoDaSerie and alvoDaSerie.Health > 0 then
+				tombar(alvoDaSerie, 1.4)
 			end
 		end },
-		AVANCA = { cam = true, sfx = { "PREPARA", 0.7 } },
-		SEGURA = { cam = true, faz = function()
-			-- o gelo segura: quem está sendo executado não sai andando
-			if alvo.Health > 0 then
-				alvo.WalkSpeed = alvo.WalkSpeed * CFG.LENTIDAO
-				local antes = alvo.WalkSpeed / CFG.LENTIDAO
-				task.delay(CFG.TEMPO_LENTO, function()
-					if alvo and alvo.Parent then alvo.WalkSpeed = antes end
-				end)
-			end
-		end },
-		CORTA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			local onde = alvoRaiz and alvoRaiz.Position or frente()
-			vfx("PARAR", { id = id })
-			vfx("ESTILHACO", { posicao = onde, escala = 1.4 })
-			tocarEm("IMPACTO", onde, 0.7)
-			aplicarDano(alvo, CFG.DANO_EXECUCAO)
-			tombar(alvo, 2)
-		end },
-		FIM = { faz = function()
+		FIM = { cam = true, faz = function()
+			rig:LockCharacter(false)
 			fecharCena()
+			alvoDaSerie = nil
 		end },
 	}), function()
-		fecharCena()
-		rig:LockCharacter(false)
 		ocupado = false
+		rig:LockCharacter(false)
+		fecharCena()
+		alvoDaSerie = nil
 	end)
 end
 
@@ -721,6 +877,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -757,6 +914,8 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
+	alvoDaSerie = nil
+	cortesDados = 0
 	fecharCena()
 	if rig then
 		rig:CancelSequence()
@@ -848,7 +1007,7 @@ local function ligarEntrada()
 		return Enum.ContextActionResult.Sink
 	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonR1)
 
-	ContextActionService:SetTitle(ACAO, "Execucao")
+	ContextActionService:SetTitle(ACAO, "Serie de Cortes")
 	ContextActionService:SetPosition(ACAO, UDim2.new(1, -140, 1, -180))
 end
 
@@ -859,6 +1018,7 @@ end
 --══════════════════════════════════════════════════════════════
 -- CICLO
 --══════════════════════════════════════════════════════════════
+
 
 Tool.Activated:Connect(function()
 	if not souODono() then return end
@@ -1339,7 +1499,7 @@ return Animator
 -- JUNTA QUE LIDERA: **RightArm** (regra 6 da gramática).
 --
 --   CORTE          golpe rápido     1.00s · 5 passo(s), 2 segurado(s)
---   EXECUCAO       cutscene         4.60s · 8 passo(s), 4 segurado(s)
+--   SERIE          cutscene         3.27s · 15 passo(s), 1 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
 -- GANCHO, LAMINA_ERGUE… As sete são a MESMA briga, com armas diferentes.
@@ -1391,16 +1551,23 @@ P.SEQUENCIAS = {
 		{ pose = "IDLE", time = 0.22, style = "Quad", dir = "Out" },
 	},
 
-	-- cutscene · 4.60s · 8 passo(s), 4 segurado(s)
-	EXECUCAO = {
+	-- cutscene · 3.27s · 15 passo(s), 1 segurado(s)
+	SERIE = {
 		{ pose = "LAMINA_ERGUE", time = 0.35, style = "Back", dir = "In", tremor = 0.02, freq = 16, marca = "CAMERA" },
-		{ pose = "LAMINA_ERGUE", time = 0.6, style = "Sine", dir = "InOut", tremor = 0.03, freq = 20, marca = "ENCARA" },
-		{ pose = "ESTOCADA", time = 0.25, style = "Quint", dir = "In", marca = "AVANCA" },
-		{ pose = "ESTOCADA", time = 0.7, style = "Sine", dir = "InOut", tremor = 0.05, freq = 27, marca = "SEGURA" },
-		{ pose = "ESTOCADA", time = 0.75, style = "Sine", dir = "InOut", tremor = 0.06, freq = 31 },
-		{ pose = "LAMINA_CORTA", time = 0.15, style = "Quint", dir = "Out", marca = "CORTA" },
-		{ pose = "LAMINA_CORTA", time = 0.7, style = "Sine", dir = "InOut" },
-		{ pose = "IDLE", time = 1.1, style = "Quad", dir = "Out", marca = "FIM" },
+		{ pose = "ESTOCADA", time = 0.22, style = "Quint", dir = "In", marca = "AVANCA" },
+		{ pose = "LAMINA_CORTA", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE_1" },
+		{ pose = "LAMINA_ERGUE", time = 0.12, style = "Quad", dir = "InOut" },
+		{ pose = "LAMINA_CORTA", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE_2" },
+		{ pose = "LAMINA_ERGUE", time = 0.12, style = "Quad", dir = "InOut" },
+		{ pose = "LAMINA_CORTA", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE_3" },
+		{ pose = "LAMINA_ERGUE", time = 0.12, style = "Quad", dir = "InOut" },
+		{ pose = "LAMINA_CORTA", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE_4" },
+		{ pose = "LAMINA_ERGUE", time = 0.14, style = "Quad", dir = "InOut" },
+		{ pose = "LAMINA_CORTA", time = 0.1, style = "Quint", dir = "Out", marca = "CORTE_5" },
+		{ pose = "ESTOCADA", time = 0.18, style = "Back", dir = "In", tremor = 0.05, freq = 30, marca = "SEGURA" },
+		{ pose = "LAMINA_CORTA", time = 0.12, style = "Quint", dir = "Out", marca = "ULTIMO" },
+		{ pose = "LAMINA_CORTA", time = 0.5, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.9, style = "Quad", dir = "Out", marca = "FIM" },
 	},
 
 }
@@ -1595,7 +1762,12 @@ local function camadaRasgo(cf, c, comprimento, largura, tempo)
 end
 
 local function camadaFaiscas(p, c, forca, quantidade, subida)
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1636,7 +1808,12 @@ local function camadaAnel(p, c, raio, tempo, espessura)
 end
 
 local function camadaPoeira(p, c, forca, quantidade)
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1818,7 +1995,12 @@ function Efeitos.AURA(d)
 	local c = cor(d, CFG.COR_AURA)
 	local reg = registroDe(d)
 
-	local ancora = novaParte({ Size = Vector3.new(0.2, 0.2, 0.2),
+	-- Se o Server mandou a PEÇA, o emissor mora nela e a aura anda junto. Sem
+	-- peça, ele nasce numa âncora parada no ponto — que é o que a versão
+	-- anterior fazia, e por isso o portador saía de dentro da própria aura.
+	local peca = (d and d.peca)
+	local ancora = (peca and peca:IsA("BasePart")) and peca or novaParte({
+		Size = Vector3.new(0.2, 0.2, 0.2),
 		Transparency = 1, CFrame = CFrame.new(p) })
 	local att = Instance.new("Attachment")
 	att.Parent = ancora
@@ -1845,8 +2027,16 @@ function Efeitos.AURA(d)
 
 	-- O emissor é ligado por `Rate`, e o registro segue o portador: quem move a
 	-- âncora é o Server, pelo beat. Aqui ela nasce onde o beat mandou.
-	registrar(ancora, (d and d.duracao) or 12)
-	if reg then table.insert(reg, ancora) end
+	local prazo = (d and (d.vida or d.duracao)) or 12
+	-- a peça é do PERSONAGEM: quem some é o emissor, nunca ela. Registrar o
+	-- HumanoidRootPart no `Debris` apagaria o jogador junto com a aura.
+	if ancora == peca then
+		Debris:AddItem(att, prazo)
+		if reg then table.insert(reg, att) end
+	else
+		registrar(ancora, prazo)
+		if reg then table.insert(reg, ancora) end
+	end
 	camadaAnel(p - Vector3.new(0, 2.6, 0), c, 4 * e, 0.5, 0.2)
 end
 
@@ -1863,9 +2053,14 @@ function Efeitos.AURA_PULSO(d)
 end
 
 --- Feixe dos olhos. Nasce na CABEÇA — quem passa a origem é o Server.
+--- O feixe. Ele agora é SEGURADO e chega a ~8 pacotes por segundo, então o
+--- desenho tem de ser barato: um cilindro, um clarão no fim, e nada mais.
+--- `posicao`/`para` são os nomes que o Server usa; `origem`/`destino` ficam
+--- porque a versão anterior mandava assim e trocar os dois lados de uma vez é
+--- como se perde um efeito em silêncio.
 function Efeitos.FEIXE(d)
 	local origem = (d and d.origem) or pos(d)
-	local destino = (d and d.destino) or origem
+	local destino = (d and d.destino) or (d and d.para) or origem
 	local e, c = escala(d), cor(d)
 	if not pk("Laser_Shot", origem, destino, 0.2, 0.05, 7,
 			branco(c, 0.6), c) then
@@ -1882,6 +2077,317 @@ function Efeitos.FEIXE(d)
 	end
 	camadaFaiscas(origem, c, 0.3 * e, 5, 2)
 	camadaFlash(destino, c, 1.8 * e)
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- O REFAZIMENTO — 12 efeitos das habilidades redesenhadas
+--
+-- Onde já havia forma equivalente, ela foi REUSADA em vez de recriada:
+-- `SOCO`, `CORTE`, `EMPURRAO`, `ESQUIVA`, `RACHA`, `AURA`, `AURA_PULSO`,
+-- `ESTILHACO`, `EXECUCAO` e `FEIXE` entraram intactos. O que está abaixo é o
+-- que não existia — e cada um existe porque a habilidade nova tem uma LEITURA
+-- que nenhuma das antigas dá.
+--═══════════════════════════════════════════════════════════════
+
+-- ── COMBATE · o counter ─────────────────────────────────────────────
+
+--- A janela aberta: um anel raso em volta do portador, que PULSA devagar.
+--- Devagar é o ponto — quem está do outro lado precisa ver que a guarda está
+--- de pé e decidir não bater. Counter que não avisa é armadilha, não counter.
+function Efeitos.CONTRA_ABRE(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 1
+	local c = cor(d, CFG.COR_BRASA)
+	camadaAnel(p - Vector3.new(0, 2.4, 0), c, 5 * e, math.min(vida, 0.5), 0.3)
+	camadaFlash(p, c, 1.6 * e)
+	camadaFaiscas(p, c, 0.25 * e, 5, 3)
+end
+
+--- A devolvida: rasgo do portador PARA o agressor, e estouro nele. O rasgo é
+--- o que diz de onde veio — sem ele o agressor só vê dano do nada.
+function Efeitos.CONTRA_DEVOLVE(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or p
+	local c = cor(d, CFG.COR_BRASA)
+	local delta = p - de
+	if delta.Magnitude > 0.5 then
+		camadaRasgo(CFrame.lookAt(de + delta * 0.5, p),
+			c, delta.Magnitude, 0.7 * e, 0.2)
+	end
+	camadaFlash(p, c, 3 * e)
+	camadaFaiscas(p, c, 0.8 * e, 18, 6)
+	pk("Small_Nova", p, 0.26, 0, 7 * e, branco(c, 0.6), c)
+end
+
+--- Pegou o golpe e não achou quem deu. O gesto sai, o dano não — e o desenho
+--- diz isso: clarão sem rasgo e sem estouro.
+function Efeitos.CONTRA_VAZIO(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_POEIRA)
+	camadaFlash(p, c, 2 * e)
+	camadaAnel(p, c, 3.4 * e, 0.3, 0.18)
+end
+
+-- ── DESVIAR · os i-frames ───────────────────────────────────────────
+
+--- A invencibilidade tem de ser VISÍVEL. `ForceField.Visible = false` esconde
+--- o brilho padrão do Roblox — que é feio e não combina com nada aqui —, e
+--- este efeito põe no lugar uma casca curta que diz a mesma coisa.
+--- Invencibilidade que não se vê é o adversário achando que o jogo bugou.
+function Efeitos.IMUNE(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 0.42
+	local c = cor(d, CFG.COR_GELO)
+	local casca = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(6, 6, 6) * e,
+		Color = c,
+		Material = Enum.Material.ForceField,
+		Transparency = 0.55,
+		CFrame = CFrame.new(p),
+	})
+	tween(casca, vida, { Transparency = 1,
+		Size = Vector3.new(7.4, 7.4, 7.4) * e }, Enum.EasingStyle.Quad)
+	registrar(casca, vida + 0.1)
+end
+
+-- ── CORTE FRIO · a série ────────────────────────────────────────────
+
+--- A marca de gelo em quem foi cortado. Fica um pouco, porque a lentidão
+--- também fica: efeito que some antes do que ele representa é mentira visual.
+function Efeitos.GELO(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 1.8
+	local c = cor(d, CFG.COR_GELO)
+	for i = 1, 4 do
+		local a = angulo(i)
+		local lasca = novaParte({
+			Size = Vector3.new(0.34, 2.2 + i * 0.3, 0.34) * e,
+			Color = c,
+			Material = Enum.Material.Glass,
+			Transparency = 0.35,
+			CFrame = CFrame.new(p + Vector3.new(math.cos(a), -0.6,
+				math.sin(a)) * (1.5 * e))
+				* CFrame.Angles(math.rad(jitter(i) * 22), a,
+					math.rad(jitter(i + 3) * 22)),
+		})
+		tween(lasca, vida, { Transparency = 1 }, Enum.EasingStyle.Quad)
+		registrar(lasca, vida + 0.2)
+	end
+	camadaFlash(p, CFG.COR_GELO_FUN, 1.4 * e)
+end
+
+--- Um corte da série. O ÂNGULO vem do servidor, tirado do ângulo áureo por
+--- ordem: seis cortes, seis inclinações que não se repetem. Sem isso os seis
+--- cairiam sobrepostos e a série leria como um corte só piscando.
+function Efeitos.CORTE_SERIE(d)
+	local p, e = pos(d), escala(d)
+	local ang = (d and d.angulo) or angulo()
+	local ordem = (d and d.ordem) or 1
+	local c = cor(d, CFG.COR_GELO)
+	local cf = CFrame.new(p) * CFrame.Angles(0, ang, math.rad(28 + ordem * 14))
+	camadaRasgo(cf, c, (7 + ordem * 0.7) * e, 0.5 * e, 0.14)
+	camadaFlash(p, branco(c, 0.4), 1.7 * e)
+	camadaFaiscas(p, c, 0.4 * e, 8, -4)
+	pk("Small_Slash", cf, (8 + ordem) * e, 0.18, branco(c, 0.7), c)
+end
+
+-- ── IMPACTO FORTE · o soco sério ────────────────────────────────────
+
+--- A carga do punho. Ela existe para o adversário ter o que ler: 0.62 s de
+--- aviso antes de um golpe que arremessa 90 studs.
+function Efeitos.CARREGA(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_BRASA)
+	camadaFlash(p, c, 1.5 * e)
+	camadaFaiscas(p, c, 0.35 * e, 8, 5)
+	camadaAnel(p, c, 2.6 * e, 0.34, 0.2)
+end
+
+--- O CORREDOR. É a forma inteira desta habilidade: uma faixa reta e longa, não
+--- uma esfera. Esfera lê como explosão; faixa lê como sopro, e era a faixa que
+--- estava sendo pedida.
+---
+--- Os anéis descem a reta com atraso crescente — é o que faz o corredor ser
+--- percorrido em vez de aparecer inteiro de uma vez.
+function Efeitos.SOCO_SERIO(d)
+	local origem = pos(d)
+	local destino = (d and d.para) or origem
+	local largura = (d and d.largura) or 7
+	local e = escala(d)
+	local c = cor(d, CFG.COR_BRASA)
+
+	local delta = destino - origem
+	if delta.Magnitude < 1 then return end
+	local direcao = delta.Unit
+	local olhar = CFrame.lookAt(origem, destino)
+
+	local tubo = novaParte({
+		Size = Vector3.new(largura * e, largura * e, delta.Magnitude),
+		Color = branco(c, 0.45),
+		Transparency = 0.55,
+		CFrame = CFrame.lookAt(origem + delta * 0.5, destino),
+	})
+	tween(tubo, 0.34, { Transparency = 1,
+		Size = Vector3.new(largura * 0.3 * e, largura * 0.3 * e,
+			delta.Magnitude) }, Enum.EasingStyle.Quint)
+	registrar(tubo, 0.5)
+
+	for i = 1, 6 do
+		local fracao = i / 6
+		local onde = origem + direcao * (delta.Magnitude * fracao)
+		task.delay((i - 1) * 0.035, function()
+			camadaAnel(onde, c, (largura * 0.6 + i * 0.8) * e, 0.28, 0.26)
+		end)
+	end
+
+	camadaFlash(origem + direcao * 3, c, 4 * e)
+	camadaPoeira(origem - Vector3.new(0, 2.4, 0), CFG.COR_POEIRA, 1.1 * e, 16)
+	pk("Small_Nova", origem + direcao * 3, 0.3, 0, 9 * e, branco(c, 0.6), c)
+	pk("Shockwave", olhar, olhar, 0.4,
+		Vector3.new(largura, 2, largura) * e,
+		Vector3.new(largura * 2.4, 3, largura * 2.4) * e,
+		c, branco(c, 0.5), Enum.EasingStyle.Quint)
+end
+
+-- ── AURA · a reflexão ───────────────────────────────────────────────
+
+--- O estalo de quem devolveu. Curto — ele acontece TODA vez que o portador
+--- apanha, e um efeito longo aqui viraria uma parede de luz numa troca de
+--- tiros.
+function Efeitos.AURA_DEVOLVE(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or nil
+	local c = cor(d, CFG.COR_AURA)
+	if de and (p - de).Magnitude > 0.5 then
+		local delta = p - de
+		camadaRasgo(CFrame.lookAt(de + delta * 0.5, p),
+			c, delta.Magnitude, 0.4 * e, 0.16)
+	end
+	camadaFlash(p, c, 2.2 * e)
+	camadaFaiscas(p, c, 0.5 * e, 10, 4)
+end
+
+-- ── OLHOS LASER · a sobrecarga ──────────────────────────────────────
+
+--- A carga nos olhos, antes do estouro.
+function Efeitos.SOBRECARGA_CARGA(d)
+	local p, e = pos(d), escala(d)
+	local vida = (d and d.vida) or 0.9
+	local c = cor(d, CFG.COR_CARMESIM)
+	local bola = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.3, 0.3, 0.3) * e,
+		Color = branco(c, 0.5),
+		Transparency = 0.05,
+		CFrame = CFrame.new(p),
+	})
+	local luz = Instance.new("PointLight")
+	luz.Color, luz.Brightness, luz.Range = c, 6, 12 * e
+	luz.Parent = bola
+	tween(bola, vida, { Size = Vector3.new(2.4, 2.4, 2.4) * e },
+		Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	registrar(bola, vida + 0.1)
+	task.delay(vida, function()
+		if bola and bola.Parent then bola.Parent = nil end
+	end)
+	camadaFaiscas(p, c, 0.3 * e, 6, 3)
+end
+
+--- O estouro: núcleo e borda, com o rasgo que liga os olhos ao ponto.
+function Efeitos.SOBRECARGA(d)
+	local p, e = pos(d), escala(d)
+	local de = (d and d.de) or p
+	local raio = (d and d.raio) or 22
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	local delta = p - de
+	if delta.Magnitude > 1 then
+		local viga = novaParte({
+			Size = Vector3.new(1.4 * e, 1.4 * e, delta.Magnitude),
+			Color = branco(c, 0.6),
+			Transparency = 0.1,
+			CFrame = CFrame.lookAt(de + delta * 0.5, p),
+		})
+		tween(viga, 0.3, { Transparency = 1,
+			Size = Vector3.new(0.2 * e, 0.2 * e, delta.Magnitude) },
+			Enum.EasingStyle.Quint)
+		registrar(viga, 0.45)
+	end
+
+	camadaFlash(p, branco(c, 0.4), 6 * e)
+	camadaFaiscas(p, c, 1.2 * e, 24, 8)
+	camadaPoeira(p, CFG.COR_POEIRA, 1 * e, 12)
+	pk("Small_Nova", p, 0.34, 0, raio * e, branco(c, 0.6), c)
+	pk("Shockwave_Explosion", p, 0.42, 2 * e, raio * e, c, branco(c, 0.5))
+end
+
+-- ── CORTADA FATAL ───────────────────────────────────────────────────
+
+--- A cortada: rasgo VERTICAL, e a onda que corre pelo chão à frente. O
+--- vertical é o que a separa do corte lateral do `Corte Frio` — a mesma lâmina
+--- com outro arco tem de ler diferente.
+function Efeitos.CORTADA(d)
+	local p, e = pos(d), escala(d)
+	local alcance = (d and d.alcance) or 26
+	local cf = quadro(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	camadaRasgo(cf * CFrame.new(0, 1.6, -2) * CFrame.Angles(0, 0, math.rad(90)),
+		c, 12 * e, 0.8 * e, 0.18)
+	camadaFlash(p, c, 3 * e)
+	camadaFaiscas(p, c, 0.8 * e, 16, -8)
+
+	-- a onda no chão: seis anéis descendo a reta, com atraso crescente
+	local chao = cf.Position - Vector3.new(0, 2.2, 0)
+	for i = 1, 6 do
+		local onde = chao + cf.LookVector * (alcance * i / 6)
+		task.delay((i - 1) * 0.03, function()
+			camadaAnel(onde, c, (2.4 + i * 0.9) * e, 0.26, 0.22)
+		end)
+	end
+	camadaPoeira(chao, CFG.COR_POEIRA, 0.8 * e, 10)
+	pk("Small_Slash", cf * CFrame.new(0, 1.4, -2), 13 * e, 0.24,
+		branco(c, 0.6), c)
+end
+
+--- A marca da execução, no alvo, antes do golpe cair. Ela é o aviso de que a
+--- cena vai terminar em alguma coisa — cutscene sem marca é cutscene em que o
+--- espectador não sabe onde olhar.
+function Efeitos.FATAL_MARCA(d)
+	local p, e = pos(d), escala(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+	for i = 1, 3 do
+		task.delay((i - 1) * 0.12, function()
+			camadaAnel(p, c, (7 - i * 1.6) * e, 0.34, 0.3)
+		end)
+	end
+	camadaFlash(p + Vector3.new(0, 2, 0), c, 2.4 * e)
+end
+
+--- E o golpe. É o efeito mais caro do conjunto, e é de propósito: ele fecha
+--- uma cutscene de 6 s com 26 s de recarga.
+function Efeitos.FATAL(d)
+	local p, e = pos(d), escala(d)
+	local cf = quadro(d)
+	local c = cor(d, CFG.COR_CARMESIM)
+
+	camadaRasgo(CFrame.new(p) * CFrame.Angles(0, cf and 0 or 0, math.rad(90)),
+		c, 18 * e, 1.4 * e, 0.24)
+	camadaFlash(p, branco(c, 0.5), 8 * e)
+	camadaFaiscas(p, c, 1.5 * e, 30, -10)
+	camadaPoeira(p - Vector3.new(0, 2, 0), CFG.COR_POEIRA, 1.4 * e, 20)
+	for i = 1, 3 do
+		task.delay((i - 1) * 0.07, function()
+			camadaAnel(p - Vector3.new(0, 2.2, 0), c, (6 + i * 4) * e,
+				0.36, 0.34)
+		end)
+	end
+	pk("Small_Nova", p, 0.4, 0, 16 * e, branco(c, 0.65), c)
+	pk("Shockwave_Explosion", p, 0.5, 3 * e, 20 * e, c, branco(c, 0.5))
+	pk("Floor_Crack", CFrame.new(p - Vector3.new(0, 2.4, 0)), 14 * e, 5,
+		CFG.COR_POEIRA)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -4707,7 +5213,7 @@ end]]></ProtectedString>
 --
 --   1. FOV é a técnica principal, não o movimento. Fecha na carga, ESTOURA no
 --      golpe. A amplitude escala com a intimidade: `Corte Frio` é execução a
---      dois passos (44 -> 96, amplitude 52); o finalizador do `TryHard` abre
+--      dois passos (44 -> 96, amplitude 52); o fatal da `Cortada Fatal` abre
 --      mais cedo e fecha mais (40 -> 104, amplitude 64).
 --   3. Aproximação EXPONENCIAL, nunca Tween bloqueante:
 --      `k = 1 - math.exp(-VELOC * dt)`. Independente de FPS, interrompível a
@@ -4767,6 +5273,28 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(1.6, 1.7, 2.4), olhar = "alvo",     fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(6, 4.5, 8),     olhar = "alvo",     fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(7, 5, 9),       olhar = "alvo",     fov = 104, tremor = true },
+
+		-- ── o refazimento: a série de cortes e a cortada fatal ──────────
+		--
+		-- ERGUE e CARGA são a preparação da `Cortada Fatal`: a câmera SOBE
+		-- junto com a lâmina e vai fechando. É o oposto do que ela faz no
+		-- impacto, e é o contraste que faz o impacto ler como impacto.
+		ERGUE   = { de = Vector3.new(4.6, 4.4, 7.2), olhar = "alvo",     fov = 56, tremor = false },
+		CARGA   = { de = Vector3.new(3, 3.6, 5),     olhar = "alvo",     fov = 48, tremor = true  },
+
+		-- CORTE_1 e CORTE_3 são a série. Os dois trocam de LADO: o primeiro
+		-- pela direita, o terceiro pela esquerda. Corte consecutivo filmado
+		-- sempre do mesmo ponto vira um corte só piscando — a troca de eixo é
+		-- o que faz seis cortes lerem como seis.
+		CORTE_1 = { de = Vector3.new(2.6, 2.2, 3.4),  olhar = "alvo",    fov = 50, tremor = true  },
+		CORTE_3 = { de = Vector3.new(-2.8, 2.4, 3.6), olhar = "alvo",    fov = 52, tremor = true  },
+
+		-- e o último corte abre tudo, como o EXECUTA
+		ULTIMO  = { de = Vector3.new(6.5, 4.8, 8.5),  olhar = "alvo",    fov = 100, tremor = true },
+
+		-- FIM assenta antes de devolver. Sem ele a câmera volta no mesmo
+		-- quadro do impacto, e a cena termina sem respirar.
+		FIM     = { de = Vector3.new(7.5, 4, 10),     olhar = "alvo",    fov = 70, tremor = false },
 	},
 	ALVO = {
 		CAMERA  = { de = Vector3.new(-5, 3.4, 12),   olhar = "eu",       fov = 66, tremor = false },
@@ -4775,6 +5303,16 @@ local QUADROS = {
 		SEGURA  = { de = Vector3.new(-1.4, 1.9, 4),  olhar = "eu",       fov = 44, tremor = true  },
 		CORTA   = { de = Vector3.new(-4, 4, 10),     olhar = "eu",       fov = 96, tremor = true  },
 		EXECUTA = { de = Vector3.new(-5, 4.6, 11),   olhar = "eu",       fov = 104, tremor = true },
+
+		-- A metade da regra 2 que é do ALVO. Mesmos beats, ancoradouro nele, e
+		-- olhando a PRÓPRIA cara: quem está sendo cortado seis vezes tem de ver
+		-- isso acontecendo com ele, não ver o outro trabalhando.
+		ERGUE   = { de = Vector3.new(-3.4, 3.8, 9),   olhar = "eu",      fov = 60, tremor = false },
+		CARGA   = { de = Vector3.new(-2.4, 3, 7),     olhar = "eu",      fov = 52, tremor = true  },
+		CORTE_1 = { de = Vector3.new(-2.2, 2.3, 5),   olhar = "eu",      fov = 54, tremor = true  },
+		CORTE_3 = { de = Vector3.new(2.4, 2.5, 5.2),  olhar = "eu",      fov = 56, tremor = true  },
+		ULTIMO  = { de = Vector3.new(-5.5, 4.4, 11.5), olhar = "eu",     fov = 100, tremor = true },
+		FIM     = { de = Vector3.new(-6, 3.6, 12),    olhar = "eu",      fov = 74, tremor = false },
 	},
 }
 

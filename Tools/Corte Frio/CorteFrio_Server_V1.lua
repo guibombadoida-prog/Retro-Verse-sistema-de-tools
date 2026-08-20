@@ -4,8 +4,8 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   corte de lamina
---   R    Execucao   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   corte de lamina que congela
+--   R    Serie de Cortes   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -32,14 +32,18 @@ local CFG = {
 	RAIO_CORTE    = 7.5,
 	DANO          = 26,
 	EMPURRAO      = 24,
+	LENTIDAO      = 0.6,
+	TEMPO_FRIO    = 1.8,
 	RECARGA       = 0.9,
 
-	RECARGA_EXTRA = 20,
-	RAIO_ALVO     = 12,
-	DANO_EXECUCAO = 85,
-	DURACAO_GELO  = 2.6,
-	LENTIDAO      = 0.35,
-	TEMPO_LENTO   = 3,
+	RECARGA_EXTRA = 22,
+	RAIO_ALVO     = 14,
+	DANO_CORTE    = 16,
+	DANO_ULTIMO   = 44,
+	CORTES        = 5,
+	AVANCO        = 6,
+	DURACAO_GELO  = 2.8,
+	LENTIDAO_GELO = 0.3,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -56,7 +60,8 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-
+local alvoDaSerie = nil
+local cortesDados = 0
 
 local function proximo()
 	semente = semente + 1
@@ -239,6 +244,99 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
+--═══════════════════════════════════════════════════════════════
+-- ATORDOAR — trava no lugar, e devolve garantido
+--
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
+--═══════════════════════════════════════════════════════════════
+
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
+
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
 
 --═══════════════════════════════════════════════════════════════
 -- A CUTSCENE — um `FireClient` POR ESPECTADOR
@@ -297,89 +395,147 @@ local function fecharCena()
 end
 
 
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o corte
---═══════════════════════════════════════════════════════════════
+--══════════════════════════════════════════════════════════════
+-- M1 — o corte
+--
+-- Corte de lâmina que deixa o alvo LENTO. É o preparo da Extra: alvo devagar é
+-- alvo que ainda está lá quando a série começa.
+--══════════════════════════════════════════════════════════════
 
 function primaria(_mira)
 	ocupado = true
 	rig:PlaySequence("CORTE", despachar({
-		ERGUE = { sfx = { "PREPARA", 1 } },
+		ERGUE = { sfx = { "PREPARA", 1.2 } },
 		CORTA = { faz = function()
 			local ponto = frente(CFG.ALCANCE)
-			tocar("GOLPE", 1 + jitter(0.7) * 0.08)
-			vfx("CORTE", { cframe = raiz.CFrame
-				* CFrame.new(0, 0.4, -CFG.ALCANCE * 0.55), escala = 1.1 })
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTE, 5)) do
+			local q = raiz.CFrame * CFrame.new(0, 1, -3)
+			vfx("CORTE", { cframe = q, escala = 1 })
+			local pegou = false
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CORTE, 6)) do
 				aplicarDano(alvo, CFG.DANO)
+				afrouxar(alvo, CFG.LENTIDAO, CFG.TEMPO_FRIO)
+				empurrar(alvo, raiz.CFrame.LookVector, CFG.EMPURRAO, 0.16)
 				local alvoRaiz = raizDe(alvo)
 				if alvoRaiz then
-					empurrar(alvo, raiz.CFrame.LookVector, CFG.EMPURRAO, 0.16)
-					vfx("CORTE", { posicao = alvoRaiz.Position, escala = 0.7 })
+					vfx("GELO", { posicao = alvoRaiz.Position, escala = 0.8,
+						vida = CFG.TEMPO_FRIO })
 				end
-				tocarEm("IMPACTO", alvoRaiz and alvoRaiz.Position or ponto, 1.2)
+				pegou = true
+			end
+			if pegou then
+				tocarEm("IMPACTO", ponto, 1.1)
+			else
+				tocar("GOLPE", 1.25)
 			end
 		end },
-	}), function()
-		ocupado = false
-	end)
+	}), function() ocupado = false end)
 end
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — a execução, COM CUTSCENE
+--══════════════════════════════════════════════════════════════
+-- R — Série de Cortes  (CUTSCENE)
 --
--- Um alvo, o mais perto. Sem alvo não há cena: abrir cutscene para o vazio é o
--- jeito mais rápido de tirar a câmera de alguém sem motivo.
---═══════════════════════════════════════════════════════════════
+-- O pedido foi "cutscene de cortes consecutivos", e a diferença com a execução
+-- que estava aqui antes é a PROPORÇÃO. A execução tinha 70% de preparação e um
+-- corte no fim: a leitura era "o golpe definitivo". Esta tem 0.57 s de
+-- preparação e depois seis cortes seguidos, um a cada 0.22 s: a leitura é
+-- "não dá para parar".
+--
+-- CADA CORTE É UM BEAT, E CADA BEAT É UM ACERTO
+--
+--   `CORTE_1` a `CORTE_5` e `ULTIMO` — seis marcas na sequência, seis entradas
+--   na tabela do despachante. Nenhum `task.wait` encadeia nada: quem conduz o
+--   tempo é o animator, e o dano cai quando a lâmina cai.
+--
+--   `TESTES/verificar_beats.py` confere que os seis existem dos dois lados. É
+--   o verificador que nasceu porque 14 Tools saíram com beat escrito só de um
+--   lado e dano zero.
+--
+-- O ALVO É FIXADO NO INÍCIO
+--
+--   Ele é escolhido uma vez, no `AVANCA`, e a série inteira persegue ESSE. Um
+--   `maisPerto` por corte faria a lâmina pular de alvo em alvo no meio da
+--   cena — o que é outra habilidade, e não a que foi pedida.
+--══════════════════════════════════════════════════════════════
+
+--- Um corte da série. `ordem` é só para o desenho: o ângulo de cada lâmina sai
+--- do ângulo áureo, então os seis nunca se sobrepõem.
+local function cortarNaSerie(ordem, dano)
+	local alvo = alvoDaSerie
+	if not (alvo and alvo.Parent and alvo.Health > 0) then
+		-- o alvo caiu no meio da série: o gesto continua, o dano não tem onde
+		-- cair. Cortar o ar é melhor que a cena parar pela metade.
+		tocar("GOLPE", 1.3 + ordem * 0.04)
+		return
+	end
+	local alvoRaiz = raizDe(alvo)
+	if not alvoRaiz then return end
+
+	cortesDados = cortesDados + 1
+	aplicarDano(alvo, dano)
+	afrouxar(alvo, CFG.LENTIDAO_GELO, CFG.DURACAO_GELO)
+
+	vfx("CORTE_SERIE", { posicao = alvoRaiz.Position, angulo = angulo(ordem),
+		ordem = ordem, escala = 1 })
+	tocarEm("GOLPE", alvoRaiz.Position, 1.1 + ordem * 0.06)
+end
 
 function extra(mira)
-	local alvo = maisPerto(mira, CFG.RAIO_ALVO) or maisPerto(frente(), CFG.RAIO_ALVO)
+	local alvo = maisPerto(mira, CFG.RAIO_ALVO)
+		or maisPerto(frente(CFG.RAIO_ALVO), CFG.RAIO_ALVO)
 	if not alvo then
-		tocar("PREPARA", 0.6)
+		tocar("PREPARA", 0.8)
 		return
 	end
 
 	ocupado = true
-	local id = novoId("GELO")
-	rig:LockCharacter(true)
-	abrirCena(alvo, "CAMERA")
+	alvoDaSerie = alvo
+	cortesDados = 0
 
-	rig:PlaySequence("EXECUCAO", despachar({
-		CAMERA = { sfx = { "CARGA", 0.85 } },
-		ENCARA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			if alvoRaiz then
-				vfx("EXECUCAO", { posicao = alvoRaiz.Position, escala = 1,
-					duracao = CFG.DURACAO_GELO, id = id })
+	rig:PlaySequence("SERIE", despachar({
+		CAMERA = { cam = true, sfx = { "CARGA", 0.9 }, faz = function()
+			abrirCena(alvoDaSerie, "SERIE")
+			rig:LockCharacter(true)
+		end },
+		AVANCA = { cam = true, faz = function()
+			-- encosta no alvo: a série é corpo a corpo, e o avanço é o que
+			-- fecha a distância sem teleportar ninguém.
+			local alvoRaiz = raizDe(alvoDaSerie)
+			if alvoRaiz and raiz then
+				local delta = alvoRaiz.Position - raiz.Position
+				local plano = Vector3.new(delta.X, 0, delta.Z)
+				if plano.Magnitude > CFG.AVANCO then
+					empurrar(humanoide, plano, plano.Magnitude * 2.4, 0.2)
+				end
+			end
+			vfx("GELO", { posicao = raiz.Position, escala = 1.2, vida = 3 })
+		end },
+		CORTE_1 = { cam = true, faz = function() cortarNaSerie(1, CFG.DANO_CORTE) end },
+		CORTE_2 = { faz = function() cortarNaSerie(2, CFG.DANO_CORTE) end },
+		CORTE_3 = { cam = true, faz = function() cortarNaSerie(3, CFG.DANO_CORTE) end },
+		CORTE_4 = { faz = function() cortarNaSerie(4, CFG.DANO_CORTE) end },
+		CORTE_5 = { faz = function() cortarNaSerie(5, CFG.DANO_CORTE) end },
+		SEGURA = { cam = true, sfx = { "CARGA", 0.7 } },
+		ULTIMO = { cam = true, faz = function()
+			cortarNaSerie(6, CFG.DANO_ULTIMO)
+			local alvoRaiz = raizDe(alvoDaSerie)
+			local onde = alvoRaiz and alvoRaiz.Position or frente(CFG.ALCANCE)
+			vfx("ESTILHACO", { posicao = onde, escala = 1,
+				cortes = cortesDados })
+			tocarEm("IMPACTO", onde, 0.8)
+			if alvoDaSerie and alvoDaSerie.Health > 0 then
+				tombar(alvoDaSerie, 1.4)
 			end
 		end },
-		AVANCA = { cam = true, sfx = { "PREPARA", 0.7 } },
-		SEGURA = { cam = true, faz = function()
-			-- o gelo segura: quem está sendo executado não sai andando
-			if alvo.Health > 0 then
-				alvo.WalkSpeed = alvo.WalkSpeed * CFG.LENTIDAO
-				local antes = alvo.WalkSpeed / CFG.LENTIDAO
-				task.delay(CFG.TEMPO_LENTO, function()
-					if alvo and alvo.Parent then alvo.WalkSpeed = antes end
-				end)
-			end
-		end },
-		CORTA = { cam = true, faz = function()
-			local alvoRaiz = raizDe(alvo)
-			local onde = alvoRaiz and alvoRaiz.Position or frente()
-			vfx("PARAR", { id = id })
-			vfx("ESTILHACO", { posicao = onde, escala = 1.4 })
-			tocarEm("IMPACTO", onde, 0.7)
-			aplicarDano(alvo, CFG.DANO_EXECUCAO)
-			tombar(alvo, 2)
-		end },
-		FIM = { faz = function()
+		FIM = { cam = true, faz = function()
+			rig:LockCharacter(false)
 			fecharCena()
+			alvoDaSerie = nil
 		end },
 	}), function()
-		fecharCena()
-		rig:LockCharacter(false)
 		ocupado = false
+		rig:LockCharacter(false)
+		fecharCena()
+		alvoDaSerie = nil
 	end)
 end
 
@@ -396,6 +552,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -432,6 +589,8 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
+	alvoDaSerie = nil
+	cortesDados = 0
 	fecharCena()
 	if rig then
 		rig:CancelSequence()

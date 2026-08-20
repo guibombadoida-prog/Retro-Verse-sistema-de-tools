@@ -1,5 +1,5 @@
 -- Poses.lua
--- ModuleScript "Poses" — Desviar e Empurrar  (conjunto DRAMA)
+-- ModuleScript "Poses" — Desviar  (conjunto DRAMA)
 --
 -- FORMATO V2 — só as juntas que o R6CFrameAnimator solda:
 --   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
@@ -13,8 +13,8 @@
 --
 -- JUNTA QUE LIDERA: **HRP** (regra 6 da gramática).
 --
---   EMPURRAO       golpe rápido     0.90s · 5 passo(s), 2 segurado(s)
 --   ESQUIVA        reação           0.62s · 3 passo(s), 1 segurado(s)
+--   EMPURRAO       golpe rápido     0.90s · 5 passo(s), 2 segurado(s)
 --
 -- O vocabulário é compartilhado entre as sete: GUARDA, SOCO_DIR, SOCO_ESQ,
 -- GANCHO, LAMINA_ERGUE… As sete são a MESMA briga, com armas diferentes.
@@ -57,6 +57,13 @@ P.IDLE = {
 
 P.SEQUENCIAS = {
 
+	-- reação · 0.62s · 3 passo(s), 1 segurado(s)
+	ESQUIVA = {
+		{ pose = "ESQUIVA", time = 0.12, style = "Quint", dir = "Out", marca = "ENTRA" },
+		{ pose = "ESQUIVA", time = 0.26, style = "Sine", dir = "InOut", marca = "IMUNE" },
+		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "SAI" },
+	},
+
 	-- golpe rápido · 0.90s · 5 passo(s), 2 segurado(s)
 	EMPURRAO = {
 		{ pose = "EMPURRA_CARGA", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
@@ -64,13 +71,6 @@ P.SEQUENCIAS = {
 		{ pose = "EMPURRA_SOLTA", time = 0.1, style = "Quint", dir = "Out", marca = "EMPURRA" },
 		{ pose = "EMPURRA_SOLTA", time = 0.14, style = "Sine", dir = "InOut" },
 		{ pose = "IDLE", time = 0.2, style = "Quad", dir = "Out" },
-	},
-
-	-- reação · 0.62s · 3 passo(s), 1 segurado(s)
-	ESQUIVA = {
-		{ pose = "ESQUIVA", time = 0.12, style = "Quint", dir = "Out", marca = "ENTRA" },
-		{ pose = "ESQUIVA", time = 0.26, style = "Sine", dir = "InOut", marca = "IMUNE" },
-		{ pose = "IDLE", time = 0.24, style = "Quad", dir = "Out", marca = "SAI" },
 	},
 
 }

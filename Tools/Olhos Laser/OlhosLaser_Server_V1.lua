@@ -4,8 +4,8 @@
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   feixe pelos olhos
---   R    Varredura   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   feixe continuo enquanto segurar o clique
+--   R    Sobrecarga   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -29,14 +29,21 @@ local ARQUETIPO = "RANGED"
 local CFG = {
 	ALCANCE       = 6,
 	ALCANCE_FEIXE = 220,
-	DANO          = 22,
-	RAIO_IMPACTO  = 4,
-	RECARGA       = 1.2,
+	RECARGA       = 2.6,
+	DURACAO_FEIXE = 6,
+	INTERVALO     = 0.12,
+	DANO_TIQUE    = 4,
+	RAIO_FEIXE    = 3.5,
+	PASSOS_FEIXE  = 22,
+	ALTURA_OLHOS  = 1.5,
 
-	RECARGA_EXTRA = 12,
-	LEQUE         = 7,
-	ABERTURA      = 46,
-	DANO_LEQUE    = 13,
+	RECARGA_EXTRA = 14,
+	CARGA_SOBRE   = 0.9,
+	RAIO_SOBRE    = 22,
+	NUCLEO_SOBRE  = 8,
+	DANO_SOBRE    = 62,
+	BORDA_SOBRE   = 30,
+	EMPURRAO_SOBRE = 72,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -53,7 +60,12 @@ local idEfeito = 0
 --- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
 --- `function x()` atribui ao local, e sem isso as duas virariam globais.
 local primaria, extra
-
+local feixeLigado = false
+local idFeixe = nil
+local pontoFeixe = nil
+local geracaoFeixe = 0
+--- `function x()` sem esta linha atribui a uma GLOBAL
+local apontar, fechar
 
 local function proximo()
 	semente = semente + 1
@@ -236,93 +248,268 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
-
 --═══════════════════════════════════════════════════════════════
--- DE ONDE SAI O FEIXE
+-- ATORDOAR — trava no lugar, e devolve garantido
 --
--- Da CABEÇA, e isso não é detalhe: um feixe de olhos que nasce no Handle sai
--- da mão, e a leitura inteira se perde. A pose desta Tool lidera pela `Head`
--- pelo mesmo motivo.
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
 --═══════════════════════════════════════════════════════════════
 
-local function olhos()
-	local cabeca = personagem and personagem:FindFirstChild("Head")
-	if cabeca then
-		return cabeca.CFrame * CFrame.new(0, 0.2, -0.6)
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
 	end
-	return raiz.CFrame * CFrame.new(0, 1.6, -0.6)
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
+			end
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
+	end)
 end
 
-local function tracar(origem, direcao, alcance)
-	local filtro = RaycastParams.new()
-	filtro.FilterType = Enum.RaycastFilterType.Exclude
-	filtro.FilterDescendantsInstances = { personagem, Tool }
-	filtro.IgnoreWater = true
-	return workspace:Raycast(origem, direcao * alcance, filtro)
-end
+--═══════════════════════════════════════════════════════════════
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
+--
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
+--
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
+--═══════════════════════════════════════════════════════════════
 
-local function disparar(origem, direcao, dano, escala)
-	local acerto = tracar(origem, direcao, CFG.ALCANCE_FEIXE)
-	local ponto = acerto and acerto.Position
-		or (origem + direcao * CFG.ALCANCE_FEIXE)
-	vfx("FEIXE", { origem = origem, destino = ponto, escala = escala or 1 })
-	if not acerto then return end
-	for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_IMPACTO, 4)) do
-		aplicarDano(alvo, dano)
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
 	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
 end
 
---═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o feixe
---═══════════════════════════════════════════════════════════════
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — o feixe contínuo
+--
+-- O pedido foi "igual do Capitão Pátria", e o que define aquele feixe é que
+-- ele é SEGURADO e VARRE. Tiro único aponta para onde estava o mouse quando
+-- saiu; este acompanha, e é a varredura que corta o que atravessa.
+--
+-- TRÊS FASES NUM `RemoteEvent` SÓ
+--
+--   `ABRE` no `Tool.Activated`, `MIRA` a cada 0.08 s enquanto o clique está
+--   mantido, `FECHA` no `Tool.Deactivated`. A fase vem no payload e é
+--   conferida no servidor antes de qualquer coisa — um segundo remote seria
+--   outra porta para o mesmo cômodo, e outra superfície para validar.
+--
+--   `MIRA` e `FECHA` NÃO passam por recarga e passam mesmo com `ocupado`.
+--   Têm de passar: enquanto o feixe está de pé o estado É ocupado.
+--
+-- O DANO É POR TIQUE, NÃO POR QUADRO
+--
+--   `INTERVALO = 0.12` — cerca de 8 tiques por segundo, 4 de dano cada. Um
+--   tique por quadro daria 60, e a mesma habilidade custaria 30 de dano por
+--   segundo ou 240 dependendo do FPS de quem segura. Dano que depende de
+--   framerate não é dano, é loteria.
+--
+-- O TETO DE TEMPO NÃO É ENFEITE
+--
+--   `DURACAO_FEIXE = 6`. Soltar o clique é o caminho normal de fechar, e ele
+--   não pode ser o ÚNICO: um alt-tab, uma queda de conexão ou um cliente que
+--   some deixariam o feixe ligado para sempre. O servidor conta o tempo dele.
+--══════════════════════════════════════════════════════════════
+
+--- Colhe a linha do olho até o ponto mirado. `vistos` impede o mesmo alvo de
+--- levar duas vezes por estar entre dois passos.
+local function queimarLinha(destino)
+	local saida = raiz.Position + Vector3.new(0, CFG.ALTURA_OLHOS, 0)
+	local delta = destino - saida
+	local distancia = math.min(delta.Magnitude, CFG.ALCANCE_FEIXE)
+	if distancia < 1 then return saida, saida end
+	local direcao = delta.Unit
+	local fim = saida + direcao * distancia
+
+	local vistos = {}
+	for i = 1, CFG.PASSOS_FEIXE do
+		local passo = saida + direcao * (distancia * i / CFG.PASSOS_FEIXE)
+		for _, alvo in ipairs(alvosEm(passo, CFG.RAIO_FEIXE, 6)) do
+			if not vistos[alvo] then
+				vistos[alvo] = true
+				aplicarDano(alvo, CFG.DANO_TIQUE)
+			end
+		end
+	end
+	return saida, fim
+end
+
+--- Um tique do feixe. Recursivo por `task.delay`, e a GERAÇÃO é o que impede
+--- dois feixes de rodarem juntos se o jogador reabrir antes do anterior morrer.
+local function tiqueFeixe(geracao, restantes)
+	if not (feixeLigado and geracao == geracaoFeixe) then return end
+	if restantes <= 0 or not (personagem and raiz and raiz.Parent) then
+		fechar()
+		return
+	end
+
+	local destino = pontoFeixe or frente(CFG.ALCANCE_FEIXE)
+	local saida, fim = queimarLinha(destino)
+	vfx("FEIXE", { id = idFeixe, posicao = saida, para = fim, escala = 1,
+		tempo = CFG.INTERVALO })
+
+	task.delay(CFG.INTERVALO, function()
+		tiqueFeixe(geracao, restantes - 1)
+	end)
+end
+
+--- A mira móvel. Não é habilidade: não passa por recarga, e só anota o ponto.
+--- Quem decide se ele ainda vale é o servidor, que sabe se o feixe existe.
+function apontar(mira)
+	if not feixeLigado then return end
+	pontoFeixe = mira
+end
+
+function fechar()
+	if not feixeLigado then return end
+	feixeLigado = false
+	geracaoFeixe = geracaoFeixe + 1
+	pontoFeixe = nil
+	if idFeixe then
+		vfx("PARAR", { id = idFeixe })
+		idFeixe = nil
+	end
+	-- saída cedo em vez de aninhar: com o `PlaySequence` dentro de um `if`, o
+	-- bloco do `despachar` fecha com uma tabulação a mais, e o
+	-- `TESTES/verificar_beats.py` casa o fim errado — ele leu os beats da
+	-- sequência SEGUINTE como se fossem desta. O verificador estava certo em
+	-- reclamar; quem estava torto era a indentação.
+	if not rig then
+		ocupado = false
+		return
+	end
+	rig:PlaySequence("FEIXE_FECHA", despachar({
+		CORTA = { sfx = { "GOLPE", 1.4 } },
+	}), function() ocupado = false end)
+end
 
 function primaria(mira)
+	if feixeLigado then return end
 	ocupado = true
-	rig:PlaySequence("FEIXE", despachar({
-		MIRA = { sfx = { "CARGA", 1.4 } },
-		ATIRA = { faz = function()
-			local cf = olhos()
-			local direcao = (mira - cf.Position)
-			if direcao.Magnitude < 0.01 then direcao = cf.LookVector end
-			tocarEm("GOLPE", cf.Position, 1.5)
-			disparar(cf.Position, direcao.Unit, CFG.DANO, 1)
+	feixeLigado = true
+	pontoFeixe = mira
+	geracaoFeixe = geracaoFeixe + 1
+	local geracao = geracaoFeixe
+	idFeixe = novoId("FEIXE")
+
+	rig:PlaySequence("FEIXE_ABRE", despachar({
+		MIRA = { sfx = { "PREPARA", 1.4 } },
+		ATIRA = { sfx = { "CARGA", 1.25 }, faz = function()
+			-- a pose fica em `FEIXE_OLHOS` até alguém tocar outra sequência:
+			-- `PlaySequence` para no último keyframe e não volta ao IDLE.
+			tiqueFeixe(geracao, math.floor(CFG.DURACAO_FEIXE / CFG.INTERVALO))
 		end },
-	}), function()
-		ocupado = false
-	end)
+	}))
 end
 
---═══════════════════════════════════════════════════════════════
--- EXTRA — a varredura
+--══════════════════════════════════════════════════════════════
+-- R — Sobrecarga
 --
--- Sete feixes num leque, abertos por ÍNDICE — não por sorteio. O leque é
--- simétrico em volta da mira: o do meio vai onde o jogador apontou.
---═══════════════════════════════════════════════════════════════
+-- O outro lado do mesmo poder: em vez de varrer, ele CONCENTRA. Carrega
+-- `CARGA_SOBRE` segundos e estoura num ponto, com núcleo e borda.
+--
+-- Ela FECHA o feixe antes de começar. Os dois usam os olhos, e deixar os dois
+-- ligados ao mesmo tempo daria dois desenhos disputando a mesma cabeça.
+--══════════════════════════════════════════════════════════════
 
 function extra(mira)
+	fechar()
 	ocupado = true
-	rig:PlaySequence("VARREDURA", despachar({
-		MIRA = { sfx = { "CARGA", 1.1 } },
-		ABRE = { sfx = { "GOLPE", 1.2 } },
-		VARRE = { faz = function()
-			local cf = olhos()
-			local base = (mira - cf.Position)
-			if base.Magnitude < 0.01 then base = cf.LookVector end
-			base = base.Unit
-			local meio = (CFG.LEQUE + 1) / 2
-			for i = 1, CFG.LEQUE do
-				local passoAng = math.rad(CFG.ABERTURA) / CFG.LEQUE
-				local desvio = (i - meio) * passoAng
-				local direcao = (CFrame.Angles(0, desvio, 0) * base)
-				disparar(cf.Position, direcao.Unit, CFG.DANO_LEQUE, 0.7)
+	local destino = mira
+
+	rig:PlaySequence("SOBRECARGA", despachar({
+		MIRA = { sfx = { "PREPARA", 0.9 } },
+		ABRE = { faz = function()
+			vfx("SOBRECARGA_CARGA", { posicao = raiz.Position
+				+ Vector3.new(0, CFG.ALTURA_OLHOS, 0), escala = 1,
+				vida = CFG.CARGA_SOBRE })
+		end },
+		CARREGA = { sfx = { "CARGA", 0.75 } },
+		ESTOURA = { faz = function()
+			local saida = raiz.Position + Vector3.new(0, CFG.ALTURA_OLHOS, 0)
+			vfx("SOBRECARGA", { posicao = destino, de = saida,
+				raio = CFG.RAIO_SOBRE, escala = 1 })
+			tocarEm("IMPACTO", destino, 0.7)
+
+			for _, alvo in ipairs(alvosEm(destino, CFG.RAIO_SOBRE, 14)) do
+				local alvoRaiz = raizDe(alvo)
+				local d = alvoRaiz and (alvoRaiz.Position - destino).Magnitude
+					or CFG.RAIO_SOBRE
+				if d <= CFG.NUCLEO_SOBRE then
+					aplicarDano(alvo, CFG.DANO_SOBRE)
+				else
+					aplicarDano(alvo, CFG.BORDA_SOBRE)
+				end
+				if alvoRaiz then
+					empurrar(alvo, (alvoRaiz.Position - destino)
+						+ Vector3.new(0, 0.5, 0), CFG.EMPURRAO_SOBRE, 0.28)
+				end
 			end
 		end },
-		FECHA = { faz = function()
-			tocarEm("IMPACTO", olhos().Position, 1.3)
-		end },
-	}), function()
-		ocupado = false
-	end)
+		FIM = { sfx = { "GOLPE", 0.8 } },
+	}), function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -339,9 +526,28 @@ local function podeAgir()
 	return not ocupado
 end
 
-VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
+
+--- TRÊS fases num remote só. A FASE vem no payload e é conferida aqui antes
+--- de qualquer coisa; um segundo `RemoteEvent` seria outra porta para o mesmo
+--- cômodo, e outra superfície para validar.
+---
+--- `MIRA` e `FECHA` passam mesmo com `ocupado`. Têm de passar: enquanto o
+--- feixe está de pé o estado É ocupado, e exigir que ele acabe tornaria
+--- impossível mirar e soltar.
+VFXRemote.OnServerEvent:Connect(function(quem, mira, fase)
+	if quem ~= jogador then return end
 	if typeof(mira) ~= "Vector3" then mira = frente() end
+
+	if fase == "MIRA" then
+		apontar(mira)
+		return
+	end
+	if fase == "FECHA" then
+		fechar()
+		return
+	end
+
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -374,6 +580,7 @@ local function desmontar()
 	end
 	table.clear(ativos)
 	ocupado = false
+	fechar()
 	if rig then
 		rig:CancelSequence()
 		rig:ReleaseLegs()

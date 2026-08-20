@@ -1,11 +1,11 @@
--- DesviareEmpurrar_Server_V1.lua
--- Script de servidor — Desviar e Empurrar  (conjunto DRAMA)
+-- Desviar_Server_V1.lua
+-- Script de servidor — Desviar  (conjunto DRAMA)
 --
 -- Sai das 3 Tools do `drama.rbxmx`. Handle e som vêm da origem; a habilidade é
 -- escrita aqui. Ver `FERRAMENTAS/preparar_drama.py` para o mapa dos Handles.
 --
---   M1   empurrao em cone a frente
---   R    Esquiva   (Extra, por `AcaoRemote` — e por botão no celular)
+--   M1   esquiva com invencibilidade
+--   R    Empurrao   (Extra, por `AcaoRemote` — e por botão no celular)
 --
 -- Gerado por FERRAMENTAS/gerar_servers_drama.py. Editar aqui à mão faz as sete
 -- derivarem; edite o gerador.
@@ -28,16 +28,16 @@ local ARQUETIPO = "MELEE"
 
 local CFG = {
 	ALCANCE       = 7,
+	DISTANCIA_ESQ = 34,
+	TEMPO_IMUNE   = 0.42,
+	TEMPO_ESQ     = 0.28,
+	RECARGA       = 3,
+
+	RECARGA_EXTRA = 6,
 	RAIO_CONE     = 11,
 	DANO          = 9,
 	EMPURRAO      = 92,
 	SUBIDA        = 16,
-	RECARGA       = 4,
-
-	RECARGA_EXTRA = 6,
-	DISTANCIA_ESQ = 34,
-	TEMPO_IMUNE   = 0.42,
-	TEMPO_ESQ     = 0.28,
 }
 
 --═══════════════════════════════════════════════════════════════
@@ -237,69 +237,200 @@ local function tombar(alvoHum, tempo)
 	end)
 end
 
-
 --═══════════════════════════════════════════════════════════════
--- PRIMÁRIA — o empurrão
+-- ATORDOAR — trava no lugar, e devolve garantido
 --
--- Não é golpe: é deslocamento. Dano baixo e empurrão alto, de propósito — a
--- Tool existe para tirar gente de cima de você, não para matar.
+-- Diferente do `tombar`: quem está atordoado continua DE PÉ. A leitura é
+-- "travou", não "caiu", e as duas habilidades que atordoam neste conjunto
+-- (o counter e a aura) querem a primeira.
+--
+-- O atributo não é enfeite. Sem ele, um segundo atordoamento em cima do
+-- primeiro guardaria `WalkSpeed = 0` como "o valor de antes" e devolveria
+-- zero no fim — o alvo ficaria parado para sempre. É o bug clássico de
+-- lentidão que empilha, e ele não aparece em teste de um alvo só.
 --═══════════════════════════════════════════════════════════════
 
-function primaria(_mira)
-	ocupado = true
-	rig:PlaySequence("EMPURRAO", despachar({
-		CARGA = { sfx = { "PREPARA", 1.1 } },
-		EMPURRA = { faz = function()
-			local ponto = frente(CFG.ALCANCE)
-			vfx("EMPURRAO", { cframe = raiz.CFrame, escala = 1.2 })
-			tocarEm("GOLPE", ponto, 0.85)
-			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CONE, 10)) do
-				aplicarDano(alvo, CFG.DANO)
-				local alvoRaiz = raizDe(alvo)
-				if alvoRaiz then
-					empurrar(alvo, (alvoRaiz.Position - raiz.Position)
-						+ Vector3.new(0, CFG.SUBIDA / CFG.EMPURRAO, 0),
-						CFG.EMPURRAO, 0.3)
-				end
+local function atordoar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	if alvoHum:GetAttribute("DramaAtordoado") then return end
+
+	local usaPotencia = alvoHum.UseJumpPower
+	local andar = alvoHum.WalkSpeed
+	local pular = usaPotencia and alvoHum.JumpPower or alvoHum.JumpHeight
+
+	alvoHum:SetAttribute("DramaAtordoado", true)
+	alvoHum.WalkSpeed = 0
+	if usaPotencia then
+		alvoHum.JumpPower = 0
+	else
+		alvoHum.JumpHeight = 0
+	end
+
+	task.delay(tempo or 1, function()
+		if alvoHum and alvoHum.Parent then
+			alvoHum.WalkSpeed = andar
+			if usaPotencia then
+				alvoHum.JumpPower = pular
+			else
+				alvoHum.JumpHeight = pular
 			end
-		end },
-	}), function()
-		ocupado = false
+			alvoHum:SetAttribute("DramaAtordoado", nil)
+		end
 	end)
 end
 
 --═══════════════════════════════════════════════════════════════
--- EXTRA — a esquiva
+-- QUEM ME BATEU — a etiqueta `creator`, lida do lado de dentro
 --
--- 0.62 s de sequência, e a janela de imunidade é MENOR que ela: 0.42 s. Se
--- fosse igual, esquivar seria sempre certo; assim ainda dá para errar o tempo.
+-- O contra-ataque do `Combate` e a aura do `Aura` precisam da MESMA coisa: a
+-- identidade de quem acabou de me acertar. O repositório já grava isso —
+-- `creditar()` põe um `ObjectValue` chamado `creator` no Humanoid da VÍTIMA, e
+-- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
+-- basta ler.
 --
--- A imunidade é `ForceField` com prazo no `Debris` — o mesmo objeto que o
--- Núcleo já respeita em `TakeDamage`. Não há bandeira nova para vazar.
+-- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
+--    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
+--    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
+--    o que a Regra nº 1 cobra.
 --═══════════════════════════════════════════════════════════════
 
-function extra(_mira)
+local function quemMeBateu()
+	if not humanoide then return nil end
+
+	local marca = humanoide:FindFirstChild("creator")
+	local autor = marca and marca:IsA("ObjectValue") and marca.Value or nil
+	if autor and autor:IsA("Player") then
+		local corpo = autor.Character
+		local hum = corpo and corpo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then return hum end
+	end
+
+	-- Sem etiqueta — dano de queda, de NPC sem crédito, de qualquer coisa. O
+	-- mais perto é o palpite honesto, e ele é LIMITADO POR RAIO: devolver dano
+	-- em quem está do outro lado do mapa seria pior que não devolver nada.
+	if raiz then
+		return maisPerto(raiz.Position, CFG.RAIO_DEVOLVE or 24)
+	end
+	return nil
+end
+
+--- Vigia a própria vida e chama `aoLevar(quanto, quemBateu)` a cada QUEDA.
+---
+--- `HealthChanged` também dispara em cura; a subtração filtra. E a conexão é
+--- devolvida para quem chamou desligar — janela de counter que fica ligada
+--- depois do prazo é counter permanente.
+local function vigiarVida(aoLevar)
+	if not humanoide then return nil end
+	local anterior = humanoide.Health
+	return humanoide.HealthChanged:Connect(function(nova)
+		local queda = anterior - nova
+		anterior = nova
+		if queda <= 0 then return end
+		aoLevar(queda, quemMeBateu())
+	end)
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — a esquiva
+--
+-- Era a Extra e virou a PRIMÁRIA, a pedido. Faz sentido: é ela que dá nome à
+-- Tool, e é o único pedaço de mecânica do `dodge` do Rufus14 que sobreviveu
+-- inteiro ao passe de conformidade.
+--
+-- `TEMPO_ESQ = 0.28` e `TEMPO_IMUNE = 0.42`. A imunidade é MAIOR que o
+-- deslocamento de propósito: esquivar e levar o golpe no quadro em que você
+-- para é a coisa mais frustrante que um jogo de briga faz.
+--
+-- A INVENCIBILIDADE É `ForceField`, e ela tem prazo pelo `Debris`.
+--
+--   `ForceField` é o único jeito de recusar dano que respeita `TakeDamage` —
+--   qualquer Tool do repositório que chame `TakeDamage` bate nele e não passa.
+--   Um `atributo = imune` que só ESTA Tool consultasse não valeria nada contra
+--   as outras 90 do repositório.
+--
+-- O que a origem tinha e não entrou: dois `workspace.DescendantAdded` globais
+-- mantendo uma tabela viva de TODO Humanoid do jogo, ligados para sempre.
+--══════════════════════════════════════════════════════════════
+
+function primaria(mira)
 	ocupado = true
+	local destino = mira
 	rig:PlaySequence("ESQUIVA", despachar({
-		ENTRA = { sfx = { "PREPARA", 1.5 }, faz = function()
-			vfx("ESQUIVA", { posicao = raiz.Position, cframe = raiz.CFrame,
-				escala = 1 })
+		ENTRA = { sfx = { "PREPARA", 1.35 }, faz = function()
+			local para = destino - raiz.Position
+			para = Vector3.new(para.X, 0, para.Z)
+			if para.Magnitude < 1 then
+				para = -raiz.CFrame.LookVector
+			else
+				para = para.Unit
+			end
+
 			if impulsoEsq then impulsoEsq.Parent = nil end
 			impulsoEsq = Instance.new("BodyVelocity")
 			impulsoEsq.MaxForce = Vector3.new(1e5, 0, 1e5)
-			impulsoEsq.Velocity = -raiz.CFrame.LookVector * CFG.DISTANCIA_ESQ
+			impulsoEsq.Velocity = para * CFG.DISTANCIA_ESQ
 			impulsoEsq.Parent = raiz
 			Debris:AddItem(impulsoEsq, CFG.TEMPO_ESQ)
+
+			vfx("ESQUIVA", { posicao = raiz.Position,
+				para = raiz.Position + para * 8, escala = 1 })
 		end },
 		IMUNE = { faz = function()
-			local escudo = Instance.new("ForceField")
-			escudo.Visible = false
-			escudo.Parent = personagem
-			Debris:AddItem(escudo, CFG.TEMPO_IMUNE)
+			local campo = personagem:FindFirstChildOfClass("ForceField")
+			if not campo then
+				campo = Instance.new("ForceField")
+				campo.Visible = false
+				campo.Parent = personagem
+			end
+			Debris:AddItem(campo, CFG.TEMPO_IMUNE)
+			vfx("IMUNE", { posicao = raiz.Position, escala = 1,
+				vida = CFG.TEMPO_IMUNE })
 		end },
+		SAI = { sfx = { "GOLPE", 1.5 } },
 	}), function()
 		ocupado = false
+		impulsoEsq = nil
 	end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- R — Empurrão
+--
+-- Era a primária e desceu para Extra. Cone à frente: dano pequeno, empurrão
+-- grande. Ele não mata — ele TIRA gente de cima, e é o par natural da esquiva.
+--══════════════════════════════════════════════════════════════
+
+function extra(_mira)
+	ocupado = true
+	rig:PlaySequence("EMPURRAO", despachar({
+		CARGA = { sfx = { "CARGA", 1.1 } },
+		EMPURRA = { faz = function()
+			local ponto = frente(CFG.ALCANCE)
+			vfx("EMPURRAO", { posicao = ponto, cframe = raiz.CFrame,
+				raio = CFG.RAIO_CONE, escala = 1 })
+			tocarEm("IMPACTO", ponto, 0.95)
+
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_CONE, 10)) do
+				local alvoRaiz = raizDe(alvo)
+				if alvoRaiz then
+					-- CONE, não esfera: só quem está à frente é empurrado.
+					-- Empurrar quem está atrás de você é o defeito clássico
+					-- de área de melee, e ele passa despercebido em teste
+					-- contra um alvo parado na sua frente.
+					local delta = alvoRaiz.Position - raiz.Position
+					local plano = Vector3.new(delta.X, 0, delta.Z)
+					if plano.Magnitude > 0.5
+							and plano.Unit:Dot(raiz.CFrame.LookVector) > 0.25 then
+						aplicarDano(alvo, CFG.DANO)
+						empurrar(alvo, raiz.CFrame.LookVector
+							+ Vector3.new(0, CFG.SUBIDA / CFG.EMPURRAO, 0),
+							CFG.EMPURRAO, 0.28)
+					end
+				end
+			end
+		end },
+	}), function() ocupado = false end)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -315,6 +446,7 @@ local function podeAgir()
 	if humanoide.Health <= 0 then return false end
 	return not ocupado
 end
+
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
 	if quem ~= jogador or not podeAgir() then return end
@@ -354,6 +486,9 @@ local function desmontar()
 	if impulsoEsq then
 		impulsoEsq.Parent = nil
 		impulsoEsq = nil
+	end
+	if humanoide and humanoide.Parent then
+		humanoide.PlatformStand = false
 	end
 	if rig then
 		rig:CancelSequence()

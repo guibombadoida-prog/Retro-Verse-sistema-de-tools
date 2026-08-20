@@ -89,6 +89,7 @@ end
 -- CICLO
 --══════════════════════════════════════════════════════════════
 
+
 Tool.Activated:Connect(function()
 	if not souODono() then return end
 	VFXRemote:FireServer(mira())
