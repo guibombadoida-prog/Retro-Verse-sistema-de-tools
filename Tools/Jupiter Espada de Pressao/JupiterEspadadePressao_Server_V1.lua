@@ -1,0 +1,613 @@
+-- JupiterEspadadePressao_Server_V1.lua
+-- Script de servidor — Jupiter Espada de Pressao  (conjunto JUPITER)
+--
+-- Os ASSETS saem do `Jupiter_Great_Pressure_Sword` do Acervo — som, malha do
+-- planeta e textura de emissor, todos pela ficha. A HABILIDADE é escrita aqui:
+-- o inventário do `LOGICA/HABILIDADES.md` registra `Health = 0`, raio de 1500
+-- studs, 69 `:Destroy()` e 11 `require` de id numérico na origem, e nada disso
+-- entra em Tool.
+--
+--   M1   Golpe
+--   R    Estocada   (Extra 1)
+--   T    Corte Gigante   (Extra 2)
+--
+--   Handle: a unica lamina de verdade do conjunto
+--   LAMINA 8145344127 (SwordLunge) · CORTE 5287092000 (SwordHit)
+--   GIGANTE 3360000345 (SwordHit2) — os tres da ficha
+--
+-- TRÊS HABILIDADES, E UM `AcaoRemote` SÓ
+--
+--   Quem separa as duas Extras é o NOME DA TECLA no payload, conferido aqui
+--   antes de qualquer coisa. Dois remotes seriam duas portas para o mesmo
+--   cômodo, e duas superfícies para validar.
+--
+-- NINGUÉM TOCA EM `workspace.Gravity`
+--
+--   Este conjunto é sobre pressão, e a tentação óbvia seria a gravidade
+--   global. Ela é estado do place inteiro: mexer nela por Tool quebra todo
+--   mundo que estiver no servidor, e deixa o place torto se a Tool sumir no
+--   meio. Quem cai, cai por `BodyPosition` com prazo, no alvo, um por um.
+--
+-- ONDE O EFEITO APARECE: EM TODO MUNDO. O servidor manda por
+-- `VFXRemote:FireAllClients` e o `Client` é `Script` com `RunContext = Client`.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_jupiter.py. Editar aqui à mão faz as
+-- sete derivarem; edite o gerador.
+
+local Players = game:GetService("Players")
+local Debris  = game:GetService("Debris")
+
+local Tool       = script.Parent
+local Handle     = Tool:WaitForChild("Handle")
+local VFXRemote  = Tool:WaitForChild("VFXRemote")
+local AcaoRemote = Tool:WaitForChild("AcaoRemote")
+local Poses      = require(Tool:WaitForChild("Poses"))
+local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
+
+--═══════════════════════════════════════════════════════════════
+-- CFG — número mágico espalhado pelo corpo é violação
+--═══════════════════════════════════════════════════════════════
+
+local ARQUETIPO = "MELEE"
+
+local CFG = {
+	ALCANCE       = 6,
+	RECARGA       = 0.7,
+	RAIO_GOLPE    = 7,
+	DANO          = 21,
+	EMPURRAO      = 38,
+	TOMBO         = 0.6,
+	ALCANCE_ONDA  = 22,
+	DANO_ONDA     = 12,
+	RAIO_ONDA     = 5,
+
+	RECARGA_R     = 9,
+	ALCANCE_ESTOQUE = 30,
+	PASSOS_ESTOQUE = 8,
+	RAIO_ESTOQUE  = 4,
+	DANO_ESTOQUE  = 32,
+
+	RECARGA_T     = 21,
+	ALCANCE_CORTE = 34,
+	LARGURA_CORTE = 12,
+	NUCLEO_CORTE  = 7,
+	DANO_CORTE    = 46,
+	BORDA_CORTE   = 23,
+	EMPURRAO_CORTE = 84,
+	TOMBO_CORTE   = 1.6,
+}
+
+--═══════════════════════════════════════════════════════════════
+-- ESTADO
+--═══════════════════════════════════════════════════════════════
+
+local jogador, personagem, humanoide, raiz, rig
+local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
+local ocupado = false
+local ativos = {}
+local semente = 0
+local idEfeito = 0
+
+--- Declaradas aqui e atribuídas mais abaixo: `local x` seguido de
+--- `function x()` atribui ao local, e sem isso as três virariam globais.
+local primaria, extraR, extraT
+
+
+local function proximo()
+	semente = semente + 1
+	if semente > 100000 then semente = 1 end
+	return semente
+end
+
+--- Jitter determinístico em [-1,1]. No lugar dos 16 `math.random` da origem —
+--- e com todos os clientes desenhando, um sorteio faria cada um ver uma cena
+--- diferente, o que lê como lag.
+local function jitter(fase)
+	return math.sin(proximo() * 2.399963 + (fase or 0))
+end
+
+--- Faixa determinística no lugar de `math.random(minimo, maximo)`.
+local function naFaixa(minimo, maximo)
+	local onda = (jitter(0.7) + 1) * 0.5
+	return minimo + (maximo - minimo) * onda
+end
+
+--- Ângulo áureo por índice: é o que espalha as quatro luas, os raios da
+--- tormenta e os pontos do cinturão sem sorteio nenhum.
+local function anguloDe(i)
+	return (i or proximo()) * 2.399963
+end
+
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+local function novoId(prefixo)
+	idEfeito = idEfeito + 1
+	return prefixo .. "_" .. tostring(idEfeito)
+end
+
+local function guardar(conexao)
+	table.insert(ativos, conexao)
+	return conexao
+end
+
+--- Toca um som numa ÂNCORA PRÓPRIA, nunca na peça que o pediu.
+---
+--- Um `Sound` só toca enquanto tem pai no DataModel. Pendurar o som na peça que
+--- some no quadro seguinte mata o som no quadro em que ele nasce.
+--- Aqui o som mora em `Tool/SFX/`, não pendurado no Handle: são três por Tool
+--- e a pasta deixa claro que são irmãos.
+local function somDe(nome)
+	local pasta = Tool:FindFirstChild("SFX")
+	local achado = pasta and pasta:FindFirstChild(nome)
+	if achado and achado:IsA("Sound") then return achado end
+	return nil
+end
+
+local function tocarEm(nome, posicao, pitch, corte)
+	local base = somDe(nome)
+	if not base then return nil end
+
+	local ancora = Instance.new("Part")
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Transparency = 1
+	ancora.Anchored = true
+	ancora.CanCollide = false
+	ancora.CanQuery = false
+	ancora.CanTouch = false
+	ancora.CFrame = CFrame.new(posicao or Vector3.new())
+	ancora.Parent = workspace
+
+	local som = base:Clone()
+	som.PlaybackSpeed = pitch or 1
+	som.Parent = ancora
+	som:Play()
+
+	Debris:AddItem(ancora, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+	return som
+end
+
+local function tocar(nome, pitch, corte)
+	local base = somDe(nome)
+	if not base then return nil end
+	local som = base:Clone()
+	som.PlaybackSpeed = pitch or 1
+	som.Parent = Handle
+	som:Play()
+	Debris:AddItem(som, corte or ((som.TimeLength > 0 and som.TimeLength or 4) + 1))
+	return som
+end
+
+--- O beat vem como KEYFRAME, não como string.
+---
+--- `Animator:PlaySequence(seq, onBeat)` chama `onBeat(kf, indice)` — `kf` é a
+--- TABELA do passo, e a marca está em `kf.marca`. Comparar o keyframe com uma
+--- string nunca dá verdadeiro, e falha em SILÊNCIO: a animação roda inteira e o
+--- dano não acontece. Custou 14 Tools de dois conjuntos.
+local function marcaDe(passo)
+	return type(passo) == "table" and passo.marca or nil
+end
+
+--═══════════════════════════════════════════════════════════════
+-- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
+--
+-- Toda chamada ao Núcleo é OPCIONAL. A Tool sozinha num place vazio funciona
+-- por inteiro — é o teste que decide a Regra nº 1.
+--
+-- A ORIGEM NÃO TINHA UM `TakeDamage`. Ela escrevia `Health = 0` em dois
+-- scripts (`Disintegration` e `Disintegrate`), o que fura `ForceField` e tira
+-- o abate do Núcleo, e reimplementava `TagHumanoid` doze vezes por fora.
+--═══════════════════════════════════════════════════════════════
+
+local function creditar(alvoHum)
+	if _G.Combate and _G.Combate.registrarAtaque then
+		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
+	else
+		local marca = alvoHum:FindFirstChild("creator")
+		if marca then marca.Parent = nil end
+		marca = Instance.new("ObjectValue")
+		marca.Name = "creator"
+		marca.Value = jogador
+		marca.Parent = alvoHum
+		Debris:AddItem(marca, 3)
+	end
+end
+
+local function aplicarDano(alvoHum, bruto)
+	if not alvoHum or alvoHum.Health <= 0 then return 0 end
+	local final = (_G.Combate and _G.Combate.calcular
+		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+--- Alvos num raio. Quem filtra time é o Núcleo; o fallback é consulta espacial
+--- sob demanda, nunca varredura do mundo por assinatura.
+---
+--- O RAIO É PEQUENO DE PROPÓSITO. A origem chamava com 1500 studs, que pega
+--- meio mapa: quem estivesse do outro lado do place levava dano de uma espada
+--- que nunca viu.
+local function alvosEm(posicao, raio, limite)
+	if _G.Combate and _G.Combate.detectarHumanoides then
+		return _G.Combate.detectarHumanoides(
+			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
+	end
+
+	local achados, vistos = {}, {}
+	local filtro = OverlapParams.new()
+	filtro.FilterType = Enum.RaycastFilterType.Exclude
+	filtro.FilterDescendantsInstances = { personagem }
+	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
+		local modelo = parte:FindFirstAncestorOfClass("Model")
+		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 and not vistos[hum] then
+			vistos[hum] = true
+			table.insert(achados, hum)
+			if limite and #achados >= limite then break end
+		end
+	end
+	return achados
+end
+
+local function raizDe(alvoHum)
+	local corpo = alvoHum and alvoHum.Parent
+	return corpo and corpo:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function frente(distancia)
+	if not raiz then return Vector3.new() end
+	return raiz.Position + raiz.CFrame.LookVector * (distancia or CFG.ALCANCE)
+end
+
+--- O alvo mais perto de um ponto.
+local function maisPerto(ponto, raio)
+	local melhor, dist = nil, math.huge
+	for _, alvo in ipairs(alvosEm(ponto, raio, 12)) do
+		local alvoRaiz = raizDe(alvo)
+		if alvoRaiz then
+			local d = (alvoRaiz.Position - ponto).Magnitude
+			if d < dist then melhor, dist = alvo, d end
+		end
+	end
+	return melhor
+end
+
+local function empurrar(alvoHum, direcao, forca, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz or direcao.Magnitude < 0.01 then return end
+	local impulso = Instance.new("BodyVelocity")
+	impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	impulso.Velocity = direcao.Unit * forca
+	impulso.Parent = alvoRaiz
+	Debris:AddItem(impulso, tempo or 0.2)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- PRESSÃO — os dois ajudantes que só este conjunto tem
+--
+-- `BodyPosition` com prazo, no alvo, um por um. Nunca `Anchored`, que travaria
+-- o personagem inteiro e deixaria o jogador preso se a Tool sumisse no meio; e
+-- nunca `workspace.Gravity`, que é estado do place e não da Tool.
+--═══════════════════════════════════════════════════════════════
+
+--- Sobe o alvo e o segura no ar.
+local function suspender(alvoHum, altura, tempo, rigidez)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return nil end
+	local ancora = Instance.new("BodyPosition")
+	ancora.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	ancora.P = rigidez or 12000
+	ancora.D = 900
+	ancora.Position = alvoRaiz.Position + Vector3.new(0, altura, 0)
+	ancora.Parent = alvoRaiz
+	Debris:AddItem(ancora, tempo)
+	return ancora
+end
+
+--- Puxa o alvo PARA um ponto e o segura lá.
+local function atrair(alvoHum, ponto, tempo, rigidez)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return nil end
+	local ancora = Instance.new("BodyPosition")
+	ancora.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	ancora.P = rigidez or 9000
+	ancora.D = 1100
+	ancora.Position = ponto
+	ancora.Parent = alvoRaiz
+	Debris:AddItem(ancora, tempo)
+	return ancora
+end
+
+--- Prende no lugar onde o alvo já está. Não é teleporte, é âncora.
+local function prender(alvoHum, tempo)
+	local alvoRaiz = raizDe(alvoHum)
+	if not alvoRaiz then return nil end
+	local ancora = Instance.new("BodyPosition")
+	ancora.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	ancora.P = 12000
+	ancora.D = 900
+	ancora.Position = alvoRaiz.Position
+	ancora.Parent = alvoRaiz
+	Debris:AddItem(ancora, tempo or 3)
+	return ancora
+end
+
+--- Tombo com prazo. Nunca `BreakJoints`, que desmonta personagem sem volta —
+--- a origem chamava um.
+local function tombar(alvoHum, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	alvoHum.PlatformStand = true
+	task.delay(tempo or 1.2, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.PlatformStand = false
+		end
+	end)
+end
+
+--- Lentidão com volta garantida. Guarda a velocidade ANTES de mexer, e devolve
+--- essa — nunca um número fixo, porque o alvo pode ter velocidade própria.
+local function afrouxar(alvoHum, fator, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	local antes = alvoHum.WalkSpeed
+	alvoHum.WalkSpeed = antes * (fator or 0.5)
+	task.delay(tempo or 3, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.WalkSpeed = antes
+		end
+	end)
+end
+
+--- Dano em área com NÚCLEO e BORDA.
+---
+--- A origem tinha um raio só e dano chapado, com dois `Health = 0` no meio.
+--- Dois raios é o que impede uma queda de planeta de matar meio servidor por
+--- estar por perto.
+local function golpearArea(centro, raio, raioNucleo, danoNucleo, danoBorda,
+		forca, tombo, limite)
+	local pegos = 0
+	for _, alvo in ipairs(alvosEm(centro, raio, limite or 16)) do
+		local alvoRaiz = raizDe(alvo)
+		local d = alvoRaiz and (alvoRaiz.Position - centro).Magnitude or raio
+		if d <= raioNucleo then
+			aplicarDano(alvo, danoNucleo)
+			if tombo then tombar(alvo, tombo) end
+		else
+			aplicarDano(alvo, danoBorda)
+			if tombo then tombar(alvo, tombo * 0.5) end
+		end
+		if alvoRaiz and forca then
+			empurrar(alvo, (alvoRaiz.Position - centro) + Vector3.new(0, 0.6, 0),
+				forca, 0.32)
+		end
+		pegos = pegos + 1
+	end
+	return pegos
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT — tabela de keyframe no lugar da escada
+--
+-- Antes cada sequência tinha uma escada de `elseif marca == "X" then`, com o
+-- nome do beat escrito DUAS vezes: no `Poses.lua` e de novo no `if`. Errar a
+-- segunda falha em silêncio — a animação roda inteira e o beat não acontece.
+-- Foi assim que 14 Tools de dois conjuntos ficaram sem dano.
+--
+-- Agora cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- Câmera e som viraram DADO. Só o que é trabalho continua sendo código, e ele
+-- vem com nome em vez de posição na escada.
+--
+-- `TESTES/verificar_beats.py` confere, Tool a Tool, que todo beat despachado
+-- aqui existe na sequência do `Poses.lua`.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+
+--══════════════════════════════════════════════════════════════
+-- M1 — o golpe
+--
+-- Bate perto E manda uma onda de pressão à frente. É o que faz a espada deste
+-- conjunto não ser só uma espada: o alcance de corpo a corpo é 7 studs, mas a
+-- onda chega a 22.
+--══════════════════════════════════════════════════════════════
+
+function primaria(_mira)
+	ocupado = true
+	rig:PlaySequence("GOLPE", despachar({
+		CARGA = { sfx = { "LAMINA", 1.2 } },
+		GOLPE = { faz = function()
+			local q = raiz.CFrame * CFrame.new(0, 1, -3)
+			local ponto = frente(CFG.ALCANCE)
+			vfx("CORTE", { cframe = q, escala = 1 })
+			vfx("ONDA_PRESSAO", { cframe = q, alcance = CFG.ALCANCE_ONDA,
+				escala = 1 })
+			tocarEm("CORTE", ponto, 1 + jitter(0.4) * 0.1)
+
+			for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_GOLPE, 6)) do
+				aplicarDano(alvo, CFG.DANO)
+				tombar(alvo, CFG.TOMBO)
+				empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.3, 0),
+					CFG.EMPURRAO, 0.2)
+			end
+
+			-- a onda: o dano dela é menor, e mora mais longe
+			local longe = raiz.Position
+				+ raiz.CFrame.LookVector * CFG.ALCANCE_ONDA
+			for _, alvo in ipairs(alvosEm(longe, CFG.RAIO_ONDA, 6)) do
+				aplicarDano(alvo, CFG.DANO_ONDA)
+			end
+		end },
+	}), function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- R — Estocada
+--
+-- Uma linha reta. O dano é colhido em `PASSOS_ESTOQUE` pontos ao longo dela,
+-- com um raio pequeno em cada — é o que faz a estocada acertar quem está NO
+-- caminho, e não quem está numa esfera gigante em volta do fim dela.
+--══════════════════════════════════════════════════════════════
+
+function extraR(mira)
+	ocupado = true
+	local destino = mira
+	rig:PlaySequence("ESTOCADA", despachar({
+		CARGA = { sfx = { "LAMINA", 0.95 } },
+		GOLPE = { faz = function()
+			local saida = raiz.Position + Vector3.new(0, 1.2, 0)
+			local delta = destino - saida
+			local distancia = math.min(delta.Magnitude, CFG.ALCANCE_ESTOQUE)
+			if distancia < 1 then return end
+			local direcao = delta.Unit
+			local fim = saida + direcao * distancia
+
+			vfx("ESTOCADA", { de = saida, para = fim, escala = 1 })
+			tocarEm("LAMINA", fim, 1.05)
+
+			local vistos = {}
+			for i = 1, CFG.PASSOS_ESTOQUE do
+				local ponto = saida + direcao * (distancia * i / CFG.PASSOS_ESTOQUE)
+				for _, alvo in ipairs(alvosEm(ponto, CFG.RAIO_ESTOQUE, 6)) do
+					if not vistos[alvo] then
+						vistos[alvo] = true
+						aplicarDano(alvo, CFG.DANO_ESTOQUE)
+					end
+				end
+			end
+		end },
+	}), function() ocupado = false end)
+end
+
+--══════════════════════════════════════════════════════════════
+-- T — Corte Gigante
+--
+-- A lâmina desce inteira. Núcleo e borda, e o empurrão é para FRENTE do
+-- personagem, não para longe do ponto — é um corte, não uma explosão.
+--══════════════════════════════════════════════════════════════
+
+function extraT(_mira)
+	ocupado = true
+	rig:PlaySequence("CORTE_GIGANTE", despachar({
+		CARGA  = { sfx = { "GIGANTE", 0.85 } },
+		SEGURA = { faz = function()
+			vfx("CORTE", { cframe = raiz.CFrame * CFrame.new(0, 2.4, -2),
+				escala = 0.6 })
+		end },
+		GOLPE = { faz = function()
+			local q = raiz.CFrame * CFrame.new(0, 2, -4)
+			local centro = raiz.Position
+				+ raiz.CFrame.LookVector * (CFG.ALCANCE_CORTE * 0.5)
+			vfx("CORTE_GIGANTE", { cframe = q, alcance = CFG.ALCANCE_CORTE,
+				escala = 1 })
+			tocarEm("GIGANTE", centro, 0.9)
+
+			for _, alvo in ipairs(alvosEm(centro, CFG.LARGURA_CORTE, 14)) do
+				local alvoRaiz = raizDe(alvo)
+				local d = alvoRaiz
+					and (alvoRaiz.Position - centro).Magnitude
+					or CFG.LARGURA_CORTE
+				if d <= CFG.NUCLEO_CORTE then
+					aplicarDano(alvo, CFG.DANO_CORTE)
+					tombar(alvo, CFG.TOMBO_CORTE)
+				else
+					aplicarDano(alvo, CFG.BORDA_CORTE)
+					tombar(alvo, CFG.TOMBO_CORTE * 0.5)
+				end
+				empurrar(alvo, raiz.CFrame.LookVector + Vector3.new(0, 0.4, 0),
+					CFG.EMPURRAO_CORTE, 0.3)
+			end
+		end },
+	}), function() ocupado = false end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA — uma primária e DUAS Extras
+--═══════════════════════════════════════════════════════════════
+
+local function pronto(quando, recarga)
+	return os.clock() - quando >= recarga
+end
+
+local function podeAgir()
+	if not (personagem and humanoide and raiz and rig) then return false end
+	if humanoide.Health <= 0 then return false end
+	return not ocupado
+end
+
+VFXRemote.OnServerEvent:Connect(function(quem, mira)
+	if quem ~= jogador or not podeAgir() then return end
+	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
+	ultimoPrimaria = os.clock()
+	primaria(mira)
+end)
+
+--- As DUAS Extras chegam pelo MESMO remote. A tecla vem no payload e é
+--- conferida aqui: qualquer coisa fora de "R" e "T" é descartada sem resposta.
+--- Confiar no cliente para dizer qual habilidade rodar seria dar a ele a
+--- escolha da recarga também.
+AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
+	if quem ~= jogador or not podeAgir() then return end
+	if typeof(mira) ~= "Vector3" then mira = frente() end
+
+	if tecla == "R" then
+		if not pronto(ultimoR, CFG.RECARGA_R) then return end
+		ultimoR = os.clock()
+		extraR(mira)
+	elseif tecla == "T" then
+		if not pronto(ultimoT, CFG.RECARGA_T) then return end
+		ultimoT = os.clock()
+		extraT(mira)
+	end
+end)
+
+Tool.Equipped:Connect(function()
+	personagem = Tool.Parent
+	humanoide  = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	raiz       = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	jogador    = personagem and Players:GetPlayerFromCharacter(personagem)
+	if not (personagem and humanoide and raiz) then return end
+
+	rig = Animator.new(personagem, "JupiterEspada", Poses,
+		Poses.SEQUENCIAS, Poses.TRACKS)
+end)
+
+--- As DUAS portas. `Unequipped` sozinho não cobre a Tool ser destruída no meio
+--- de uma sequência.
+local function desmontar()
+	for _, c in ipairs(ativos) do
+		if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
+	end
+	table.clear(ativos)
+	ocupado = false
+	if rig then
+		rig:CancelSequence()
+		rig:ReleaseLegs()
+		rig:LockCharacter(false)
+		rig:Destroy()
+		rig = nil
+	end
+end
+
+Tool.Unequipped:Connect(desmontar)
+Tool.Destroying:Connect(desmontar)

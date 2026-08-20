@@ -559,6 +559,18 @@ CONJUNTOS = [
         "Xester Final Page",
         "Xester Curtain Reversal",
     ]),
+    # 7 Tools de pressão, do `Jupiter_Great_Pressure_Sword`. Da origem vieram
+    # os ASSETS — 19 SoundId, a malha do planeta, seis texturas de emissor,
+    # todos pela ficha do Acervo. A lógica dos 31 scripts dela ficou de fora.
+    ("Jupiter_7_Tools.rbxmx", "Jupiter_Great_Pressure_Sword", [
+        "Jupiter Grande Mancha",
+        "Jupiter Pressao Esmagadora",
+        "Jupiter Raio Joviano",
+        "Jupiter Luas Galileanas",
+        "Jupiter Cinturao de Radiacao",
+        "Jupiter Espada de Pressao",
+        "Jupiter Queda do Gigante",
+    ]),
     # 5 Tools de DUAS fontes: quatro do `reality_tools.rbxmx` (que está em
     # QUARENTENA por causa do backdoor, que mora na `Pistol` — nenhuma destas
     # quatro tem veneno) e uma do `Canhao_satelite.rbxmx`.

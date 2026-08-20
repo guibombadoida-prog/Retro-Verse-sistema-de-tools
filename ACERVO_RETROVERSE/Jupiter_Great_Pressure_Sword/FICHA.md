@@ -14,7 +14,20 @@
   O restante do modelo **não** foi reescrito — ver `LOGICA/HABILIDADES.md`
 - **Excluído do acervo:** a definir no passe. Já identificados como insalváveis:
   `Animation` (asset), `ColorCorrectionEffect`, `ScreenGui`, `Sky`
-- **Já usado em:** conjunto Gravidade / Telecinese — `RAIO_TEMPORAL` (Plasma + Clarão), `FAISCA` (Anel), `AURA`
+- **Já usado em:**
+  - conjunto Gravidade / Telecinese — `RAIO_TEMPORAL` (Plasma + Clarão), `FAISCA` (Anel), `AURA`
+  - **conjunto JUPITER — as 7 Tools de pressão** (`Tools/Jupiter_7_Tools.rbxm`).
+    Saíram daqui: **19 dos 21 `SoundId`**, a malha do planeta `907848103` com a
+    textura `8077647902`, e **seis texturas de emissor** — `JupiterSpin`
+    (`11283087951`), `JupiterRange` (`6700005265`), `GlareEmitter`
+    (`243660364`), `ExplosionParticles` (`1141830599`),
+    `ExplosionBrightspot` (`243098098`) e `Shock` (`257173628`).
+    Os emissores foram **reescritos** a partir da tabela de `VFX/NOTAS.md`,
+    não copiados: `Rate` de 10000 e 5555 baixado a zero (quem dispara é
+    `:Emit`), `Size` de 65 e 30 studs reduzido, os 20 keypoints serrilhados do
+    `ExplosionParticles` reduzidos a três, e a cor trocada para a paleta do
+    repositório.
+    **A lógica dos 31 scripts NÃO entrou** — ver `LOGICA/HABILIDADES.md`.
 
 > ⚠️ **Sem os quatro campos acima — autor, origem, licença, data — este material
 > fica CRU e NÃO pode entrar em Tool** (§12.12.3).

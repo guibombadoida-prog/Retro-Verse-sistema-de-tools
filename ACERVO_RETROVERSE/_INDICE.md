@@ -35,11 +35,11 @@ Catálogo geral de VFX · SFX · R6 CFrame. **Ler isto antes de criar qualquer e
 
 | Efeito | Origem | Emissores | Status | Usado em |
 |---|---|---|---|---|
-| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | — (nenhuma Tool no repositório) |
+| `RAIO_TEMPORAL` | Jupiter | `Plasma` + `Clarao` | LIMPO | **as 7 do conjunto JUPITER** (`camadaPlasma`) |
 | `ESTILHACO_ESTELAR` | Cosmic Entity | `Estrelas` + `Cintilar` | LIMPO | — (nenhuma Tool no repositório) |
 | `BRASA` | Cosmic Entity | `Brasa` + `Fumaca` | LIMPO | — (nenhuma Tool no repositório) |
-| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | — (nenhuma Tool no repositório) |
-| `AURA` | Jupiter | `Aura` | LIMPO | — (nenhuma Tool no repositório) |
+| `FAISCA` | Cosmic + Jupiter | `Faisca` + `Anel` | LIMPO | **as 7 do conjunto JUPITER** (`camadaFaixa`) |
+| `AURA` | Jupiter | `Aura` | LIMPO | **as 7 do conjunto JUPITER** (`camadaAura`) |
 | `ESTILHACO_ESCUDO` | **Saitama** / Death Counter | `Estilhaco` | LIMPO | — (nenhuma Tool no repositório) |
 | `CLARAO_ESCUDO` | **Saitama** / Normal Uppercut | `Clarao` | LIMPO | — (nenhuma Tool no repositório) |
 | `ONDA_ESCUDO` | **Saitama** / Serious Punch | `Onda` | LIMPO | — (nenhuma Tool no repositório) |
@@ -165,7 +165,7 @@ estão em `VFX/NOTAS.md` de cada pasta — dá para reconstruir o efeito só com
 
 | Efeito | Modelo de origem | Tipo | Status | Já usado em |
 |---|---|---|---|---|
-| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO | — (nenhuma Tool no repositório) |
+| _(21 sons)_ | Jupiter_Great_Pressure_Sword | Raio, espada, invocação, impacto | LIMPO | **19 deles nas 7 do conjunto JUPITER** |
 | _(15 sons)_ | Sword_of_Cosmic_Entity | Supernova, shuriken, teleporte, corte | LIMPO | — (nenhuma Tool no repositório) |
 | _(7 sons)_ | Danilo_Escudos | Bloqueio, impacto, equipar, proteção, sacrifício | LIMPO | — (nenhuma Tool no repositório) |
 | _(3 sons)_ | Judgement_Cut_End | Corte, sentença, estilhaço | LIMPO | — (nenhuma Tool no repositório) |
@@ -211,7 +211,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 
 | Origem | Itens | Status |
 |---|---|---|
-| `Jupiter_Great_Pressure_Sword` | 7 `MeshId`/`TextureId` | **CRU** |
+| `Jupiter_Great_Pressure_Sword` | 7 `MeshId`/`TextureId` | **LIMPO** (o planeta `907848103` + textura `8077647902` e as 6 texturas de emissor, nas 7 Tools do JUPITER); o resto **CRU** |
 | `Sword_of_Cosmic_Entity` | 16 `MeshId`/`TextureId` | **CRU** |
 | `Faker_Tools` | **7 malhas de VFX** — `E`, `Erlo`, `Sphere`, `Spiral`, `WindSphere`, `Ring`, `Mushroom` | **LIMPO** — as 7 em uso no conjunto FAKER |
 
@@ -268,6 +268,7 @@ Catálogo com volume, pitch e rolloff: o `SFX/ids.md` de cada pasta.
 | `Poses.lua` × 7 | **autoral**, pela gramática | 15 poses de base · 19 sequências | **LIMPO** | as 7 Tools do conjunto DRAMA |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · 17 sequências | **LIMPO** | as 7 Tools do conjunto FAKER |
 | `Poses.lua` × 7 | **autoral**, pela gramática | 12 poses de base · 10 sequências | **LIMPO** | as 7 Tools do conjunto NOOB |
+| `Poses.lua` × 7 | **autoral**, pela gramática | 14 poses de base · **21 sequências** | **LIMPO** | as 7 Tools do conjunto JUPITER |
 
 > **O `Noob_Despertado` é o primeiro modelo com animação DENSA que não deixou nada para
 > herdar.** Ele anima em `Motor6D.C0` com `Clerp` dentro de um laço de `Swait()` — três
