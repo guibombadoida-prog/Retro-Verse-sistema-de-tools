@@ -466,6 +466,48 @@ Tool.Destroying:Connect(desmontar)
 '''
 
 
+DESPACHANTE = '''
+--═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT
+--
+-- ⚠️ ESTE BLOCO ESTAVA FALTANDO. O gerador emitia `despachar({...})` em toda
+--    habilidade e NUNCA emitia a definição: `attempt to call a nil value` na
+--    primeira linha de cada `primaria`/`extra`. Sem dano, sem VFX, sem som —
+--    28 Tools de quatro conjuntos, mortas.
+--
+--    A conversão de `if marca == "X"` para tabela de keyframe trocou o corpo
+--    das habilidades nos GERADORES, mas só três dos sete ganharam a definição
+--    junto. Os arquivos `.lua` já gerados continuaram certos até alguém
+--    regerar — e aí a Tool inteira parava.
+--
+-- Cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- `beatCena` só existe nas Tools com cutscene. Nas outras ele é nil, e a
+-- guarda `kf.cam and beatCena` resolve — ler global inexistente devolve nil,
+-- não estoura.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+'''
+
+
 CLIENTE = '''-- Client.lua
 -- Script com RunContext = Client — {tool}  (conjunto FAKER)
 --
@@ -1454,7 +1496,7 @@ def escrever(tool, d):
     d = dict(d)
     d["extra_require"] = ("local CutsceneRemote = Tool:WaitForChild(\"CutsceneRemote\")\n"
                           if d["cutscene"] else "")
-    corpo = (CUTSCENE if d["cutscene"] else "") + d["corpo"]
+    corpo = (CUTSCENE if d["cutscene"] else "") + DESPACHANTE + d["corpo"]
     servidor = PREAMBULO.format(tool=tool, **d) + corpo + RODAPE.format(**d)
 
     with open(os.path.join(pasta, "%s.lua" % d["objeto"]), "w",

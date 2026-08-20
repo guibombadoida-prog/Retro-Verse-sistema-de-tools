@@ -327,6 +327,45 @@ end
 
 
 --═══════════════════════════════════════════════════════════════
+-- O DESPACHANTE DE BEAT
+--
+-- ⚠️ ESTE BLOCO ESTAVA FALTANDO. O gerador emitia `despachar({...})` em toda
+--    habilidade e NUNCA emitia a definição: `attempt to call a nil value` na
+--    primeira linha de cada `primaria`/`extra`. Sem dano, sem VFX, sem som —
+--    28 Tools de quatro conjuntos, mortas.
+--
+--    A conversão de `if marca == "X"` para tabela de keyframe trocou o corpo
+--    das habilidades nos GERADORES, mas só três dos sete ganharam a definição
+--    junto. Os arquivos `.lua` já gerados continuaram certos até alguém
+--    regerar — e aí a Tool inteira parava.
+--
+-- Cada sequência tem uma TABELA, um registro por keyframe:
+--
+--     GOLPE = { cam = true, sfx = { "IMPACTO", 0.9 }, faz = bater }
+--
+--   `cam`  manda o beat para a cutscene, com o nome do próprio keyframe
+--   `sfx`  toca um som: `{ nome, pitch }`
+--   `faz`  o trabalho que não cabe em dado
+--
+-- `beatCena` só existe nas Tools com cutscene. Nas outras ele é nil, e a
+-- guarda `kf.cam and beatCena` resolve — ler global inexistente devolve nil,
+-- não estoura.
+--═══════════════════════════════════════════════════════════════
+
+local function despachar(quadros)
+	return function(passo)
+		local marca = marcaDe(passo)
+		if not marca then return end
+		local kf = quadros and quadros[marca]
+		if not kf then return end
+		if kf.cam and beatCena then beatCena(marca) end
+		if kf.sfx then tocar(kf.sfx[1], kf.sfx[2]) end
+		if kf.faz then kf.faz(passo) end
+	end
+end
+
+
+--═══════════════════════════════════════════════════════════════
 -- PRIMÁRIA — parar o tempo
 --
 -- A origem cobria **raio 1000** — o mapa inteiro, para todo mundo, de um

@@ -113,6 +113,17 @@ def despachos(texto):
         if nivel == 0:
             yield m.group(1), texto[m.end():i]
 
+#: Os ajudantes que o Server usa e define ELE MESMO. Se um deles é chamado e
+#: não está definido no arquivo, a Tool morre na primeira habilidade.
+#:
+#: Todos são `local function` do preâmbulo — não são API do Roblox, não são
+#: global de outro script, e não podem vir de fora: a Regra nº 1 diz que a Tool
+#: é autocontida, então o Server é a fronteira inteira.
+AJUDANTES = (
+    "despachar", "marcaDe", "tocar", "tocarEm", "aplicarDano", "alvosEm",
+    "raizDe", "frente", "empurrar", "tombar", "creditar", "vfx",
+)
+
 #: qualquer literal MAIÚSCULO no Server. Serve só para o AVISO de sequência não
 #: tocada: um nome guardado em tabela e chamado por índice é invisível para o
 #: padrão do `PlaySequence`, e acusá-lo de morto seria mentira.
@@ -181,6 +192,31 @@ def verificar(pasta):
     for caminho in fontes:
         fonte = sem_comentario(open(caminho, encoding="utf-8").read())
         rotulo = os.path.basename(caminho)
+
+        # 0. O AJUDANTE CHAMADO EXISTE NO ARQUIVO
+        #
+        # Esta é a checagem mais boba do arquivo e a que pegou o pior defeito
+        # que o repositório já teve: `gerar_servers_drama`, `_faker`, `_guest`
+        # e `_noob` emitiam `despachar({...})` em toda habilidade e NUNCA
+        # emitiam a definição. `attempt to call a nil value` na primeira linha
+        # de cada `primaria` — 28 Tools de quatro conjuntos sem dano, sem VFX e
+        # sem som, e os cinco outros verificadores passando verdes.
+        #
+        # A Regra nº 1 é o que torna isto conferível: a Tool é AUTOCONTIDA, e
+        # o Server é UM arquivo. Um nome chamado ali e definido em lugar nenhum
+        # do arquivo não tem como existir em tempo de execução.
+        for ajudante in AJUDANTES:
+            chama = re.search(r"(?<![\w.:])%s\(" % ajudante, fonte)
+            if not chama:
+                continue
+            define = re.search(
+                r"(?m)^(?:local )?function %s\(|^local %s\b" % (ajudante, ajudante),
+                fonte)
+            if not define:
+                erros.append("%s chama %s() e NÃO o define — `attempt to call "
+                             "a nil value` na primeira linha da habilidade, e "
+                             "a Tool inteira morre calada"
+                             % (rotulo, ajudante))
 
         # 1. a sequência tocada existe
         nomes = set(RE_TOCA.findall(fonte))
