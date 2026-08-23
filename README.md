@@ -110,8 +110,9 @@ Handle, Mesh, Model, Sound nem Value.
 
 2. **O VFX sai da Tool e volta com ela.**
    Na entrega é filho da Tool; em runtime o Server o move para
-   `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`; em `Tool.Destroying` a pasta some.
-   Quem lê tem duas portas — depósito, e depois o interior da Tool.
+   `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. A pasta é do MODELO: cria ou
+   reutiliza, e fica até o servidor cair. Quem lê tem duas portas — depósito, e
+   depois o interior da Tool.
 3. **Nada de terceiro decide dano, alvo ou estado.**
    Entra o que se **vê e se ouve** (VFX, SFX, pose R6 CFrame), após o passe de conformidade §12.12.2.
 
@@ -123,8 +124,8 @@ Handle, Mesh, Model, Sound nem Value.
 `ServerStorage`).
 
 Não há Script central para copiar, não há pasta para montar em `ReplicatedStorage`, não há
-nada para confirmar no Output. Cada Tool monta o depósito de VFX dela sozinha no primeiro
-`Equipped`, e o desmonta quando morre.
+nada para confirmar no Output. Cada Tool monta o depósito de VFX dela sozinha ao chegar ao jogador — ou
+reutiliza o que outra já montou.
 
 > O `NucleoCombate` foi **removido do repositório**. Ele era opcional e sempre com guarda,
 > e ainda assim fazia a mesma Tool se comportar de dois jeitos conforme existisse ou não um

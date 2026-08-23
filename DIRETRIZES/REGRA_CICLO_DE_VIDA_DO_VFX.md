@@ -14,7 +14,9 @@ Substitui a parte da Regra nº 1 que dizia "o molde nunca sai da Tool". Ele sai 
 > **Em runtime**, quando a Tool chega ao jogador — na mochila **ou** na mão —, esses moldes
 > **saem da Tool** e vão para `ReplicatedStorage`.
 >
-> **Quando a Tool é removida ou destruída**, os moldes que ela pôs lá **vão junto**.
+> **A pasta CRIA ou REUTILIZA.** A primeira Tool que chegar monta; toda Tool depois dela
+> encontra pronto e usa. A pasta fica no `ReplicatedStorage` **até o servidor ser
+> desligado**.
 
 ---
 
@@ -39,11 +41,9 @@ mão — a Tool monta a dela sozinha, no primeiro `Equipped`.
 ReplicatedStorage/
 └── RetroVerse_VFX/               <- criada pela primeira Tool que chegar
     ├── Jupiter_Raio_Joviano/     <- uma pasta por MODELO de Tool
-    │   ├── _refs   (IntValue)    <- quantas Tools vivas dependem desta pasta
     │   ├── Efeitos/              <- os moldes que vieram de dentro da Tool
     │   └── Pack/                 <- o pack de VFX, se a Tool tiver
     └── Drama_Corte_Frio/
-        ├── _refs
         └── Efeitos/
 ```
 
@@ -55,18 +55,29 @@ o depósito teria oito cópias e não teríamos resolvido nada.
 A chave sai de um `StringValue` chamado `ChaveVFX`, filho da Tool, escrito na montagem.
 Nome de Tool não serve: dois modelos podem se chamar `Aura`.
 
-### `_refs` não é enfeite
+### Criar ou reutilizar — e nunca apagar
 
-A regra diz "a Tool é destruída, os moldes vão junto". Com **um** jogador isso é literal.
-Com **dois**, apagar no primeiro `Destroying` arrancaria o molde debaixo do segundo — a
-segunda Tool continuaria viva e pararia de desenhar.
+A primeira Tool daquele modelo que chegar ao jogador **monta** a pasta e move os moldes
+para dentro. Da segunda em diante, a pasta já está lá: a Tool **encontra pronto e usa**.
 
-`_refs` é a contagem de Tools vivas que dependem daquela pasta:
+A pasta **não é apagada**. Ela fica no `ReplicatedStorage` até o servidor ser desligado, e
+some com ele — que é o fim de vida de qualquer coisa que viva em `ReplicatedStorage`.
 
-- **instalar:** `_refs = _refs + 1`. Se a pasta não existir, criar e mover os moldes.
-- **desinstalar:** `_refs = _refs - 1`. **Chegou a zero, a pasta some.**
+**Por que não apagar quando a Tool morre.** Porque a pasta não é da Tool: é do MODELO. Dois
+jogadores com a mesma Tool dependem da mesma pasta, e o instante em que um deles guarda ou
+morre não diz nada sobre o outro. Apagar ali arrancaria o molde debaixo de quem ainda está
+com ela na mão — e o sintoma é a Tool parar de desenhar, em silêncio.
 
-É a leitura fiel do enunciado — "vão junto com a Tool" quer dizer *com a última*.
+Contar referência para saber quando é seguro apagar resolveria isso, e foi a primeira
+versão desta regra. Não vale o preço: é estado a mais para manter certo, num caminho que
+tem de estar certo em todo `Destroying` de todas as Tools, e o que se ganha é liberar
+algumas pastas de molde num servidor que vai cair de qualquer jeito.
+
+**O que NÃO cresce sem limite.** A chave é por modelo, então o teto é o número de modelos
+de Tool que apareceram na partida — não o número de jogadores, nem o de Tools equipadas.
+Um servidor com 30 pessoas usando as mesmas 7 Tools tem 7 pastas.
+
+---
 
 ---
 
@@ -75,9 +86,9 @@ segunda Tool continuaria viva e pararia de desenhar.
 | Momento | Quem | O quê |
 |---|---|---|
 | Montagem (`.rbxm`) | `FERRAMENTAS/` | moldes ficam em `Tool/Efeitos/`, `ChaveVFX` escrito |
-| `Tool.Equipped` **ou** entrar na mochila | **Server** | instala: move `Efeitos` e `Pack` para o depósito, `_refs + 1` |
+| Chegar ao jogador — mochila **ou** mão | **Server** | pasta existe? usa. Não existe? cria e move `Efeitos` e `Pack` |
 | durante a habilidade | Client | clona do depósito; se não achar, clona de dentro da Tool |
-| `Tool.Destroying` | **Server** | `_refs - 1`; zerou, apaga a pasta |
+| servidor desligado | Roblox | a pasta some junto com o place |
 
 ### Instalar é trabalho do SERVER, sempre
 
@@ -108,7 +119,7 @@ A Tool escreve no depósito **dela** e lê do depósito **dela**. Nada mais mudo
 | `InsertService:LoadAsset(...)` | Traz instância de fora em runtime |
 | `require(<id numérico>)` | Código de fora, não auditável |
 | Instalar pelo **cliente** | Não replica; o efeito volta a ser local |
-| Deixar o depósito para trás | Vazamento: a pasta fica no place depois da Tool sumir |
+| Apagar a pasta do depósito | Ela é do MODELO: outro jogador pode estar usando |
 
 ---
 
@@ -122,9 +133,10 @@ resultado também.**
 
 Segundo teste, novo:
 
-**Pegue a Tool, use, guarde, e apague a Tool. `ReplicatedStorage` volta a ficar vazio.**
+**Duas pessoas com a mesma Tool. Uma guarda e morre; a outra continua desenhando.**
 
-Se sobrar `RetroVerse_VFX` com pasta dentro, a Tool vazou.
+É o teste que a versão anterior desta regra não passava. A pasta é do MODELO, e o
+`Destroying` de uma instância não diz nada sobre a outra.
 
 ---
 
@@ -138,7 +150,6 @@ python3 TESTES/verificar_deposito_vfx.py    # instala, conta, e apaga
 O `verificar_deposito_vfx.py` confere, Tool a Tool:
 
 1. tem `ChaveVFX`, e a chave é única no repositório;
-2. quem instala é Server, nunca Client;
-3. todo caminho que instala tem o par que desinstala — `Tool.Destroying` ligado;
-4. quem lê tem as **duas** portas, na ordem certa;
-5. `_refs` sobe e desce no mesmo arquivo.
+2. quem instala é Server, nunca Client — cliente não replica;
+3. quem lê tem as **duas** portas, na ordem certa;
+4. ninguém apaga a pasta do depósito — ela é do modelo, não da instância.

@@ -64,8 +64,8 @@ dependência), **o depósito que a própria Tool montou** em `ReplicatedStorage`
 
 > Na **entrega**, todo molde de `Part`/`MeshPart`/mesh é filho da Tool. Ao chegar ao jogador
 > — mochila **ou** mão —, o **Server** move os moldes para
-> `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. Em `Tool.Destroying`, `_refs` desce; zerou,
-> a pasta some.
+> `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. A pasta **cria ou reutiliza**, e fica lá
+> até o servidor ser desligado.
 
 Quem lê tem **duas portas**, nesta ordem: o depósito, e o interior da Tool. A segunda é o
 que mantém o teste do place vazio verdadeiro.
@@ -92,7 +92,7 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | Perna volta ao `Humanoid` | `ReleaseLegs` no fim; perna soldada permanentemente trava a caminhada |
 | Câmera é 100% cliente | Zero `Camera` em Server Script; servidor manda beat por `RemoteEvent` |
 | Câmera presa é devolvida | Quem escreve `CameraType` liga `Tool.Unequipped` **e** `Tool.Destroying` |
-| O VFX volta para casa | `ChaveVFX` presente; `_refs` sobe e desce; `Tool.Destroying` apaga a pasta |
+| O depósito é do MODELO | `ChaveVFX` presente e única; cria ou reutiliza; **ninguém apaga a pasta** |
 | Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `VFXRemote:FireAllClients` |
 | Ragdoll e efeito de status voltam | O valor de ANTES é guardado e devolvido; guarda contra empilhar |
 

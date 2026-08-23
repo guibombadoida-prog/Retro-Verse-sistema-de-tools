@@ -9,12 +9,15 @@ Confere a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`) Tool a Tool.
 O QUE ELE COBRA
 
     1. a Tool tem `DepositoVFX` e `ChaveVFX`, e a chave é ÚNICA no repositório;
-    2. o Server chama `Deposito.ligar(Tool)` — instalar e desinstalar vêm de
-       graça, é o módulo que os liga;
+    2. o Server chama `Deposito.ligar(Tool)` — o resto vem de graça, é o
+       módulo que instala;
     3. quem lê molde tem as DUAS PORTAS, e o depósito vem primeiro;
     4. ninguém instala pelo cliente — `ReplicatedStorage` replica do servidor
        para os clientes, e um cliente que mova instância para lá move só para
-       ele mesmo. Esse bug já custou uma leva inteira aqui.
+       ele mesmo. Esse bug já custou uma leva inteira aqui;
+    5. NINGUÉM APAGA a pasta do depósito. Ela é do MODELO, não da instância:
+       apagar no `Destroying` de uma Tool arrancaria o molde debaixo de quem
+       ainda está com outra na mão. A pasta fica até o servidor cair.
 
     A checagem 3 é a que pega o defeito caro. O depósito MOVE `Efeitos` e
     `Moldes` para fora da Tool; um módulo que só saiba olhar para dentro dela
@@ -103,7 +106,12 @@ def main():
                 open(os.path.join(pasta, arq), encoding="utf-8").read())
             if "Deposito.ligar(Tool)" not in fonte:
                 erros.append("%s/%s não chama Deposito.ligar(Tool) — os moldes "
-                             "nunca saem da Tool e nunca voltam" % (tool, arq))
+                             "nunca saem da Tool" % (tool, arq))
+            # 5. ninguém apaga a pasta do modelo
+            if re.search(r"Deposito\.(desinstalar|apagar)\(", fonte):
+                erros.append("%s/%s apaga a pasta do depósito — ela é do "
+                             "MODELO, e outro jogador pode estar usando"
+                             % (tool, arq))
             # 4. instalar é do servidor
             if re.search(r"Deposito\.instalar\(", fonte) \
                     and "RunService:IsServer" not in fonte:
@@ -112,7 +120,7 @@ def main():
         cliente = os.path.join(pasta, "Client.lua")
         if os.path.exists(cliente):
             fonte = sem_comentario(open(cliente, encoding="utf-8").read())
-            if re.search(r"Deposito\.(instalar|desinstalar)\(", fonte):
+            if re.search(r"Deposito\.(instalar|ligar)\(", fonte):
                 erros.append("%s/Client.lua mexe no depósito — cliente não "
                              "replica, o efeito volta a ser local" % tool)
 

@@ -113,10 +113,10 @@ Só se a Tool tiver cutscene. Se não tiver, pular a seção inteira.
 
 - [ ] `ChaveVFX` (StringValue) presente na Tool, e a chave é única no repositório
 - [ ] Quem instala é **Server**, nunca Client — Client não replica
-- [ ] `Tool.Equipped` instala; `Tool.Destroying` desinstala
-- [ ] `_refs` sobe na instalação e desce na saída, no mesmo arquivo
+- [ ] A pasta **cria ou reutiliza** — a primeira Tool monta, as outras usam
 - [ ] Quem lê tem **duas portas**: depósito primeiro, interior da Tool depois
-- [ ] Depois de apagar a Tool, `ReplicatedStorage` volta a ficar vazio
+- [ ] **Ninguém apaga a pasta**: ela é do MODELO, e outro jogador pode estar usando
+- [ ] Duas Tools iguais: uma guarda e morre, a outra continua desenhando
 
 ## Todas as Tools
 

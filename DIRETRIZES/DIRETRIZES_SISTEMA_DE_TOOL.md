@@ -237,7 +237,8 @@ Resumo operacional:
 - Ao chegar ao jogador — mochila ou mão —, o **Server** move os moldes para
   `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`.
 - Quem lê tem **duas portas**: o depósito primeiro, o interior da Tool depois.
-- `Tool.Destroying` desconta `_refs`; zerou, a pasta some.
+- A pasta é do **modelo**: **cria ou reutiliza**, e fica até o servidor ser desligado.
+  Ninguém a apaga — outro jogador pode estar usando a mesma.
 
 > ⛔ **O que estava aqui antes era o NÚCLEO DE COMBATE, e ele foi removido do repositório.**
 > Nem regra, nem `_G.Combate`, nem `ServerScriptService/NucleoCombate.lua`. Uma Tool que se

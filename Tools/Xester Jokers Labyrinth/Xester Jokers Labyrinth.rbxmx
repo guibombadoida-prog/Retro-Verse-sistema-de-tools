@@ -7779,7 +7779,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterJokersLabyrinth"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNLABIRINTO_XesterJokersLabyrinth"><Properties><string name="Name">LABIRINTO</string><Content name="SoundId"><url>rbxassetid://342337569</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNEMBARALHA_XesterJokersLabyrinth"><Properties><string name="Name">EMBARALHA</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterJokersLabyrinth"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_9152897571001197392"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterJokersLabyrinth"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNLABIRINTO_XesterJokersLabyrinth"><Properties><string name="Name">LABIRINTO</string><Content name="SoundId"><url>rbxassetid://342337569</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNEMBARALHA_XesterJokersLabyrinth"><Properties><string name="Name">EMBARALHA</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterJokersLabyrinth"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_1733518776379329178"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -7787,14 +7787,14 @@ end]]></ProtectedString>
 --   Na ENTREGA, os moldes de geometria são filhos da Tool.
 --   Ao chegar ao jogador — mochila OU mão —, eles saem da Tool e vão para
 --   `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`.
---   Quando a Tool é destruída, `_refs` desce; zerou, a pasta some.
+--   A pasta CRIA ou REUTILIZA, e fica lá até o servidor ser desligado.
 --
 -- POR QUE UM MÓDULO E NÃO CÓDIGO COLADO EM 94 SERVERS
 --
---   Porque isto tem três partes que têm de combinar: quem instala, quem
---   desinstala e quem lê. Espalhar as três por 94 arquivos é garantir que uma
---   delas fique para trás em algum deles — e o modo de falhar é silencioso, que
---   é a família de defeito que mais custou neste repositório.
+--   Porque isto tem duas partes que têm de combinar: quem instala e quem lê.
+--   Espalhar as duas por 94 arquivos é garantir que uma delas fique para trás
+--   em algum deles — e o modo de falhar é silencioso, que é a família de
+--   defeito que mais custou neste repositório.
 --
 --   O módulo é filho da Tool como o `Poses` e o `R6CFrameAnimator`. A Regra
 --   nº 1 continua satisfeita: ele veio dentro dela.
@@ -7817,7 +7817,9 @@ local RAIZ = "RetroVerse_VFX"
 local PASTAS = { "Efeitos", "Moldes" }
 local PACK_EM_MODULO = { "VFXModule", "Pack" }
 
-local ligadas = {}
+--- Chave fraca: uma Tool destruída sai desta tabela sozinha, sem precisar de
+--- um `Destroying` só para limpar entrada.
+local ligadas = setmetatable({}, { __mode = "k" })
 
 --- A chave é do MODELO, não da instância.
 ---
@@ -7859,8 +7861,8 @@ end
 ---
 --- A segunda porta NÃO é redundância defensiva. É o que mantém verdadeiro o
 --- teste da Regra nº 1: num place vazio ninguém montou depósito nenhum, e até
---- o primeiro `Equipped` o molde ainda está dentro da Tool. É de lá que ele
---- tem de sair, e a Tool tem de funcionar por inteiro assim.
+--- a primeira Tool chegar ao jogador o molde ainda está dentro dela. É de lá
+--- que ele tem de sair, e a Tool tem de funcionar por inteiro assim.
 ---
 --- `de` é o script que está perguntando — dele sai a Tool por ancestral.
 function Deposito.achar(de, nome)
@@ -7881,7 +7883,20 @@ function Deposito.achar(de, nome)
 end
 
 --═══════════════════════════════════════════════════════════════
--- INSTALAR E DESINSTALAR
+-- INSTALAR — CRIAR OU REUTILIZAR
+--
+-- ⚠️ NÃO EXISTE `desinstalar`, E ISSO É DE PROPÓSITO.
+--
+--    A pasta não é da Tool: é do MODELO. Dois jogadores com a mesma Tool
+--    dependem da mesma pasta, e o instante em que um deles guarda ou morre não
+--    diz nada sobre o outro. Apagar ali arrancaria o molde debaixo de quem
+--    ainda está com ela na mão, e o sintoma é a Tool parar de desenhar em
+--    silêncio.
+--
+--    A pasta fica no `ReplicatedStorage` até o servidor ser desligado, e some
+--    com ele. O teto de quanto isso ocupa é o número de MODELOS de Tool que
+--    apareceram na partida — não o de jogadores, nem o de Tools equipadas. Um
+--    servidor com 30 pessoas usando as mesmas 7 Tools tem 7 pastas.
 --═══════════════════════════════════════════════════════════════
 
 local function mover(tool, minha)
@@ -7894,77 +7909,50 @@ local function mover(tool, minha)
 	if pack then pack.Parent = minha end
 end
 
+--- Cria a pasta do modelo, ou reutiliza a que já está lá.
+---
+--- A primeira Tool daquele modelo monta e move os moldes; da segunda em
+--- diante, a pasta já existe e a Tool só encontra pronto. É por isso que a
+--- segunda porta do `achar` importa mesmo depois da instalação: a Tool que
+--- reutiliza continua com os MOLDES DELA dentro de si, intocados — quem moveu
+--- foi a primeira.
 function Deposito.instalar(tool)
-	if not (tool and RunService:IsServer()) then return end
-	local estado = ligadas[tool]
-	if not estado or estado.instalado then return end
-	estado.instalado = true
+	if not (tool and RunService:IsServer()) then return nil end
+	if ligadas[tool] then return Deposito.pasta(tool) end
+	ligadas[tool] = true
 
 	local raiz = raizDoDeposito(true)
 	local chave = chaveDe(tool)
 	local minha = raiz:FindFirstChild(chave)
 
-	if not minha then
-		minha = Instance.new("Folder")
-		minha.Name = chave
-		local refs = Instance.new("IntValue")
-		refs.Name = "_refs"
-		refs.Value = 0
-		refs.Parent = minha
-		mover(tool, minha)
-		minha.Parent = raiz
+	if minha then
+		-- REUTILIZA. Os moldes desta instância ficam onde estão: já há uma
+		-- cópia no depósito, e mover a segunda por cima não acrescenta nada.
+		return minha
 	end
 
-	local refs = minha:FindFirstChild("_refs")
-	if refs then refs.Value = refs.Value + 1 end
-end
-
---- Desconta uma referência. Zerou, a pasta some.
----
---- `_refs` não é enfeite. A regra diz "a Tool é destruída, os moldes vão
---- junto". Com UM jogador isso é literal; com DOIS, apagar no primeiro
---- `Destroying` arrancaria o molde debaixo do segundo — a Tool dele
---- continuaria viva e pararia de desenhar. "Vão junto com a Tool" quer dizer
---- com a ÚLTIMA.
-function Deposito.desinstalar(tool)
-	if not (tool and RunService:IsServer()) then return end
-	local estado = ligadas[tool]
-	if not (estado and estado.instalado) then return end
-	estado.instalado = false
-
-	local raiz = raizDoDeposito(false)
-	local minha = raiz and raiz:FindFirstChild(chaveDe(tool))
-	if not minha then return end
-
-	local refs = minha:FindFirstChild("_refs")
-	if refs then refs.Value = refs.Value - 1 end
-
-	if not refs or refs.Value <= 0 then
-		minha.Parent = nil
-		if #raiz:GetChildren() == 0 then
-			raiz.Parent = nil
-		end
-	end
+	minha = Instance.new("Folder")
+	minha.Name = chave
+	mover(tool, minha)
+	minha.Parent = raiz
+	return minha
 end
 
 --═══════════════════════════════════════════════════════════════
 -- LIGAR — a única linha que o Server precisa escrever
 --═══════════════════════════════════════════════════════════════
 
---- Liga o ciclo inteiro: instala quando a Tool chega ao jogador, desinstala
---- quando ela morre.
+--- Instala quando a Tool chega ao jogador.
 ---
 --- O gatilho é a TROCA DE PAI, não `Tool.Equipped`: a regra diz "mochila OU
---- mão", e uma Tool que fica a partida toda na mochila sem ser equipada
---- também precisa dos moldes no lugar — o dono não é o único que desenha.
+--- mão", e uma Tool que fica a partida toda na mochila sem ser equipada também
+--- precisa dos moldes no lugar — o dono não é o único que desenha.
 ---
 --- `GetPropertyChangedSignal("Parent")` e não `AncestryChanged`: a proibição
---- do `AncestryChanged` é para CLEANUP, e cleanup aqui é `Tool.Destroying`,
---- que é o que a regra manda usar.
+--- do `AncestryChanged` é para CLEANUP, e aqui não há cleanup nenhum para
+--- fazer — a pasta fica até o servidor cair.
 function Deposito.ligar(tool)
 	if not (tool and RunService:IsServer()) then return end
-	if ligadas[tool] then return end
-	ligadas[tool] = { instalado = false }
 
 	local function aoTrocarDePai()
 		local pai = tool.Parent
@@ -7975,16 +7963,11 @@ function Deposito.ligar(tool)
 	end
 
 	tool:GetPropertyChangedSignal("Parent"):Connect(aoTrocarDePai)
-	tool.Destroying:Connect(function()
-		Deposito.desinstalar(tool)
-		ligadas[tool] = nil
-	end)
-
 	aoTrocarDePai()
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9152897571001197392"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Jokers_Labyrinth</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1733518776379329178"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Jokers_Labyrinth</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH
