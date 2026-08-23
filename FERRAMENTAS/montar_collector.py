@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from clonar_tool import (PACK_VFX, RAIZ, TOOLS, enxertar_pack, escrever,
+from clonar_tool import (enxertar_deposito, PACK_VFX, RAIZ, TOOLS, enxertar_pack, escrever,
                          tirar_sandbox,
                          nome_arquivo, nova_raiz, percorrer, prop,
                          tabela_compartilhada)
@@ -32,7 +32,7 @@ CONJUNTO = [
 def main():
     destino = os.path.join(TOOLS, "collector.rbxmx")
     raiz = nova_raiz()
-    trocados, mantidos, enxertados = 0, 0, 0
+    trocados, mantidos, enxertados, depositos = 0, 0, 0, 0
     penduradas = []
 
     fontes = [os.path.join(TOOLS, n, "_ORIGEM.rbxmx") for n in CONJUNTO]
@@ -65,6 +65,8 @@ def main():
                 mantidos = mantidos + 1
 
         enxertados = enxertados + enxertar_pack(tool)
+
+        depositos = depositos + enxertar_deposito(tool, nome)
         tirar_sandbox(tool)
 
         sozinha = nova_raiz()

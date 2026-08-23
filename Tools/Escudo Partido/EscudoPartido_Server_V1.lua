@@ -88,6 +88,7 @@ local Handle = Tool:WaitForChild("Handle")
 
 local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
 local Poses     = require(Tool:WaitForChild("Poses"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 
 local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -> servidor
 local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -> cliente (unidirecional)
@@ -818,3 +819,15 @@ Tool.Destroying:Connect(function()
 	emCutscene = false
 	limparTudo()
 end)
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+--
+-- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
+-- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
+-- para não arrancar o molde debaixo de quem ainda está com a Tool.
+--
+-- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)

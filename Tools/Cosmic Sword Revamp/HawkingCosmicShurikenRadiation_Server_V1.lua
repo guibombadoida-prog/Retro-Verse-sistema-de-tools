@@ -48,6 +48,7 @@ local Debris     = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 
 local Tool = script.Parent
+local Deposito = require(Tool:WaitForChild("DepositoVFX"))
 
 Tool.CanBeDropped   = false
 Tool.RequiresHandle = true
@@ -519,3 +520,10 @@ Tool.Destroying:Connect(function()
 		ligacaoMorte = nil
 	end
 end)
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)

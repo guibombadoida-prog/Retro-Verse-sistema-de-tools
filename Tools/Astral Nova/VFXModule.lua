@@ -32,6 +32,8 @@ local Debris       = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 local RunService   = game:GetService("RunService")
 
+local Deposito = require(script.Parent:WaitForChild("DepositoVFX"))
+
 local VFX = {}
 
 --═══════════════════════════════════════════════════════════════
@@ -216,7 +218,11 @@ local raizPack, packProcurado, moduloDoPack = nil, false, {}
 local function deposito()
 	if packProcurado then return raizPack end
 	packProcurado = true
-	raizPack = script:FindFirstChild(PACK.PASTA)
+	-- DUAS PORTAS (Regra nº 2): o depósito primeiro, o interior depois.
+	-- A segunda não é redundância — num place vazio ninguém montou depósito
+	-- nenhum, e até o primeiro `Equipped` o molde ainda está aqui dentro.
+	raizPack = Deposito.achar(script, PACK.PASTA)
+		or script:FindFirstChild(PACK.PASTA)
 	return raizPack
 end
 

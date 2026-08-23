@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RBX40A1F0AEC34E4A9D9A625EB6405C69D5">
+<roblox xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RBX40A1F0AEC34E4A9D9A625EB6405C69D5">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -71,7 +71,7 @@
 		</Properties>
 		<Item class="Script" referent="RBXCFD26D4480A24BE4ACE5E63F9200F470">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local tool = script.Parent
+				<ProtectedString name="Source">local tool = script.Parent
 local ServerStorage = game:GetService("ServerStorage")
 
 local eldrichSoulInTool = tool:FindFirstChild("CosmicVFX2")
@@ -86,7 +86,7 @@ if existingModel == nil then
 else
 	eldrichSoulInTool:Destroy()
 	script:Destroy()
-end]]></ProtectedString>
+end</ProtectedString>
 				<bool name="Disabled">false</bool>
 				<Content name="LinkedSource"><null /></Content>
 				<token name="RunContext">0</token>
@@ -101,7 +101,7 @@ end]]></ProtectedString>
 		</Item>
 		<Item class="Script" referent="RBX159FC08654134A62A65D60801B7E578D">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local tool = script.Parent
+				<ProtectedString name="Source">local tool = script.Parent
 local remote = tool:WaitForChild("Remote")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -248,7 +248,7 @@ local function doExplosionEffects(hrp, mainScript, elementData)
 				for _, player in ipairs(Players:GetPlayers()) do
 					local char = player.Character
 					local humanoidRoot = char and char:FindFirstChild("HumanoidRootPart")
-					if humanoidRoot and (humanoidRoot.Position - clone.Position).Magnitude <= 150 then
+					if humanoidRoot and (humanoidRoot.Position - clone.Position).Magnitude &lt;= 150 then
 						if not char:FindFirstChild("cosmostwjasdjdad") then
 							local shakeScript = mainScript:FindFirstChild("ShakeCam")
 							if shakeScript then
@@ -348,7 +348,7 @@ local function ShurikenExplode(hrp, mainScript, elementData)
 				for _, player in ipairs(Players:GetPlayers()) do
 					local char = player.Character
 					local humanoidRoot = char and char:FindFirstChild("HumanoidRootPart")
-					if humanoidRoot and (humanoidRoot.Position - clone.Position).Magnitude <= 150 then
+					if humanoidRoot and (humanoidRoot.Position - clone.Position).Magnitude &lt;= 150 then
 						if not char:FindFirstChild("cosmostwjasdjdad") then
 							local shakeScript = mainScript:FindFirstChild("ShakeCam")
 							if shakeScript then
@@ -525,8 +525,8 @@ local function Supernova(player)
 
 			local hasForceField = target:FindFirstChildOfClass("ForceField") ~= nil
 
-			if root and hum and hum.Health > 0 and not hasForceField then
-				if (root.Position - hrp.Position).Magnitude <= 80 then
+			if root and hum and hum.Health &gt; 0 and not hasForceField then
+				if (root.Position - hrp.Position).Magnitude &lt;= 80 then
 					if targetPlayer and IsTeamMate(player, targetPlayer) then
 						continue
 					end
@@ -664,7 +664,7 @@ tool.Activated:Connect(function()
 		for _, obj in ipairs(workspace:GetDescendants()) do
 			if obj:IsA("Model") and obj ~= character and obj.PrimaryPart then
 				local enemyHumanoid = obj:FindFirstChildOfClass("Humanoid")
-				if not enemyHumanoid or enemyHumanoid.Health <= 0 then continue end
+				if not enemyHumanoid or enemyHumanoid.Health &lt;= 0 then continue end
 
 				local enemyRoot = obj.PrimaryPart
 				if obj:FindFirstChildOfClass("ForceField") then continue end
@@ -673,7 +673,7 @@ tool.Activated:Connect(function()
 				if IsTeamMate(player, targetPlayer) then continue end
 
 				local distance = (enemyRoot.Position - root.Position).Magnitude
-				if distance <= 25 and enemyRoot.Position.Y < root.Position.Y - 0.5 then
+				if distance &lt;= 25 and enemyRoot.Position.Y &lt; root.Position.Y - 0.5 then
 					foundLowerTarget = true
 					break
 				end
@@ -754,7 +754,7 @@ tool.Activated:Connect(function()
 
 		local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
 		local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-		if not targetHum or not targetRoot or targetHum.Health <= 0 or targetChar:FindFirstChildOfClass("ForceField") then return end
+		if not targetHum or not targetRoot or targetHum.Health &lt;= 0 or targetChar:FindFirstChildOfClass("ForceField") then return end
 
 		-- Damage
 		targetHum:TakeDamage(40)
@@ -986,7 +986,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 				if not pulling then return end
 				if not hit:IsDescendantOf(character) then
 					local now = tick()
-					if now - (lastHitTimestamps["__global"] or 0) < hitCooldown then return end
+					if now - (lastHitTimestamps["__global"] or 0) &lt; hitCooldown then return end
 					lastHitTimestamps["__global"] = now
 
 					local shurikenPart = Supernova:FindFirstChild("Shuriken")
@@ -997,7 +997,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 						local b = math.clamp(c.B - darkenStep, 0, 1)
 						shurikenPart.Color = Color3.new(r, g, b)
 
-						if r <= minColorValue and g <= minColorValue and b <= minColorValue then
+						if r &lt;= minColorValue and g &lt;= minColorValue and b &lt;= minColorValue then
 							pulling = false
 							if connection then connection:Disconnect() end
 
@@ -1007,8 +1007,8 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 									local char = descendant.Parent
 									if char and char:IsA("Model") and char ~= character and not char:FindFirstChildOfClass("ForceField") then
 										local root = char:FindFirstChild("HumanoidRootPart")
-										if root and (root.Position - PrimaryPart.Position).Magnitude <= 50 then
-											if descendant.Health > 0 then
+										if root and (root.Position - PrimaryPart.Position).Magnitude &lt;= 50 then
+											if descendant.Health &gt; 0 then
 												local plr = game.Players:GetPlayerFromCharacter(char)
 												if not plr or not IsTeamMate(player, plr) then
 													
@@ -1091,13 +1091,13 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 						local hrp = char:FindFirstChild("HumanoidRootPart")
 						local targetPlayer = Players:GetPlayerFromCharacter(char)
 
-						if hrp and (hrp.Position - PrimaryPart.Position).Magnitude <= 20 then
+						if hrp and (hrp.Position - PrimaryPart.Position).Magnitude &lt;= 20 then
 							-- Ignore if target is a teammate
 							if targetPlayer and IsTeamMate(player, targetPlayer) then
 								continue
 							end
 
-							if not lastHitTimestamps[char] or now - lastHitTimestamps[char] >= hitCooldown then
+							if not lastHitTimestamps[char] or now - lastHitTimestamps[char] &gt;= hitCooldown then
 								lastHitTimestamps[char] = now
 
 								-- Pull
@@ -1189,7 +1189,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			local directionVec = rawTargetPos - hrp.Position
 			local distance = directionVec.Magnitude
 
-			if distance > maxDistance then
+			if distance &gt; maxDistance then
 				finalTargetPos = hrp.Position + directionVec.Unit * maxDistance
 			else
 				finalTargetPos = rawTargetPos
@@ -1218,7 +1218,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			end
 		end
 
-		if humanoid and humanoid.Health > 0 then
+		if humanoid and humanoid.Health &gt; 0 then
 			Remote:FireClient(player, true)
 			
 		else
@@ -1255,7 +1255,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			if hitModel and hitModel ~= char and hitModel:FindFirstChildOfClass("Humanoid") then
 				local hum = hitModel:FindFirstChildOfClass("Humanoid")
 				local root = hitModel:FindFirstChild("HumanoidRootPart")
-				if hum and root and hum.Health > 0 and (root.Position - targetPos).Magnitude <= lockRange then
+				if hum and root and hum.Health &gt; 0 and (root.Position - targetPos).Magnitude &lt;= lockRange then
 					local plr = game.Players:GetPlayerFromCharacter(hitModel)
 					if not plr or not IsTeamMate(player, plr) then
 						targetModel = hitModel
@@ -1311,7 +1311,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			local moveVec = desiredPos - bodyPos.Position
 			local dist = moveVec.Magnitude
 
-			if dist > math.huge then
+			if dist &gt; math.huge then
 				desiredPos = bodyPos.Position + moveVec.Unit * math.huge
 			end
 
@@ -1360,7 +1360,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			-- Break early if close to target
 			if targetModel and targetModel:FindFirstChild("HumanoidRootPart") then
 				local distToTarget = (targetModel.HumanoidRootPart.Position - desiredPos).Magnitude
-				if distToTarget <= 2 then
+				if distToTarget &lt;= 2 then
 					break
 				end
 			end
@@ -1445,7 +1445,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			for _, model in ipairs(workspace:GetDescendants()) do
 				local hum = model:FindFirstChildOfClass("Humanoid")
 				local root = model:FindFirstChild("HumanoidRootPart")
-				if hum and root and hum.Health > 0 and (root.Position - pos).Magnitude <= 20 then
+				if hum and root and hum.Health &gt; 0 and (root.Position - pos).Magnitude &lt;= 20 then
 					if model ~= char and not model:FindFirstChildOfClass("ForceField") then
 						local plr = game.Players:GetPlayerFromCharacter(model)
 						if not plr or not IsTeamMate(player, plr) then
@@ -1463,7 +1463,7 @@ remote.OnServerEvent:Connect(function(player, keyCode)
 			end
 		end
 	end
-end)]]></ProtectedString>
+end)</ProtectedString>
 				<bool name="Disabled">false</bool>
 				<Content name="LinkedSource"><null /></Content>
 				<token name="RunContext">0</token>
@@ -1477,7 +1477,7 @@ end)]]></ProtectedString>
 			</Properties>
 			<Item class="Script" referent="RBXD0DC81A1FF314514BB7B15D91583A5B4">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 
 -- 1. Scale shrink tween (on the mesh itself)
@@ -1497,7 +1497,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 fadeTween:Play()
-]]></ProtectedString>
+</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -1693,7 +1693,7 @@ fadeTween:Play()
 			</Item>
 			<Item class="Script" referent="RBX085D083952D14FDFAB728F7DFAFA7B18">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 local mesh = part:FindFirstChildOfClass("SpecialMesh")
 local size = script:FindFirstChild("Size").Value
@@ -1725,7 +1725,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 spinTween:Play()
-fadeTween:Play()]]></ProtectedString>
+fadeTween:Play()</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -1830,7 +1830,7 @@ fadeTween:Play()]]></ProtectedString>
 			</Item>
 			<Item class="Script" referent="RBX2018A01E6E9B42769665E7395D29317B">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 local mainsize = script:FindFirstChild("Size").Value
 
@@ -1851,7 +1851,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 fadeTween:Play()
-]]></ProtectedString>
+</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -1903,7 +1903,7 @@ fadeTween:Play()
 			</Item>
 			<Item class="Script" referent="RBXC8B74A000CF541BAB8BDD0973D7FBBBB">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 local mesh = part:FindFirstChildOfClass("SpecialMesh")
 
@@ -1934,7 +1934,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 spinTween:Play()
-fadeTween:Play()]]></ProtectedString>
+fadeTween:Play()</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -1949,7 +1949,7 @@ fadeTween:Play()]]></ProtectedString>
 			</Item>
 			<Item class="Script" referent="RBX777E6F860C97414E8C694A5087BEB85E">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 
 -- 1. Scale shrink tween (on the mesh itself)
@@ -1979,7 +1979,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 spinTween:Play()
-fadeTween:Play()]]></ProtectedString>
+fadeTween:Play()</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -1994,7 +1994,7 @@ fadeTween:Play()]]></ProtectedString>
 			</Item>
 			<Item class="Script" referent="RBXE16AE0DFB0374844AFE23EF668ADD2C5">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local tweenservice = game:GetService("TweenService") or game:FindService("TweenService")
+					<ProtectedString name="Source">local tweenservice = game:GetService("TweenService") or game:FindService("TweenService")
 
 -- Tween for size with 0.2 second duration
 local sizeTweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, false, 0)
@@ -2006,7 +2006,7 @@ local transparencyTween = tweenservice:Create(script.Parent, transparencyTweenIn
 
 -- Play both tweens
 sizeTween:Play()
-transparencyTween:Play()]]></ProtectedString>
+transparencyTween:Play()</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -2250,7 +2250,7 @@ transparencyTween:Play()]]></ProtectedString>
 			</Item>
 			<Item class="Script" referent="RBX891BADB300E74641837C36496598C1DE">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local TweenService = game:GetService("TweenService")
+					<ProtectedString name="Source">local TweenService = game:GetService("TweenService")
 local part = script.Parent
 local mesh = part:FindFirstChildOfClass("SpecialMesh")
 
@@ -2271,7 +2271,7 @@ local fadeTween = TweenService:Create(
 -- Play tweens
 scaleTween:Play()
 fadeTween:Play()
-]]></ProtectedString>
+</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">2</token>
@@ -2286,7 +2286,7 @@ fadeTween:Play()
 			</Item>
 			<Item class="LocalScript" referent="RBX3D8859D913A6438F8A2295A4FEEF6012">
 				<Properties>
-					<ProtectedString name="Source"><![CDATA[local victim = script.Parent:FindFirstChildOfClass("Humanoid")
+					<ProtectedString name="Source">local victim = script.Parent:FindFirstChildOfClass("Humanoid")
 
 
 
@@ -2300,7 +2300,7 @@ repeat
 	victim.CameraOffset = victim.CameraOffset:Lerp(offset,script.Time.Value * 0.25)
 until script.Time.Value == 0
 victim.CameraOffset = Vector3.new(0,0,0)
-script:Destroy()]]></ProtectedString>
+script:Destroy()</ProtectedString>
 					<bool name="Disabled">true</bool>
 					<Content name="LinkedSource"><null /></Content>
 					<token name="RunContext">0</token>
@@ -2374,7 +2374,7 @@ script:Destroy()]]></ProtectedString>
 		</Item>
 		<Item class="LocalScript" referent="RBX59CB860225AE40BC8F2A1483D28A32EA">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local Tool = script.Parent
+				<ProtectedString name="Source">local Tool = script.Parent
 
 local Remote = Tool:WaitForChild("Remote", 10)
 
@@ -2410,7 +2410,7 @@ function Equipped()
 	local Character = Player.Character
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 
-	if not Humanoid or not Humanoid.Parent or Humanoid.Health <= 0 then
+	if not Humanoid or not Humanoid.Parent or Humanoid.Health &lt;= 0 then
 		return
 	end
 
@@ -2495,7 +2495,7 @@ Tool:WaitForChild("StartHeadCamera").OnClientEvent:Connect(function(start)
 	else
 		camera.CameraType = Enum.CameraType.Custom
 	end
-end)]]></ProtectedString>
+end)</ProtectedString>
 				<bool name="Disabled">false</bool>
 				<Content name="LinkedSource"><null /></Content>
 				<token name="RunContext">0</token>
@@ -7352,7 +7352,7 @@ vYJzOzWqOyC+pNh8v/igOL98Ji8/BP7dvQ==</BinaryString>
 				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-	<Item class="RemoteEvent" referent="RV_HawkVFXRemote"><Properties><string name="Name">HawkingVFXRemote</string></Properties></Item><Item class="Script" referent="RV_HawkServerV1"><Properties><string name="Name">HawkingCosmicShurikenRadiation_Server_V1</string><ProtectedString name="Source"><![CDATA[--[[
+	<Item class="RemoteEvent" referent="RV_HawkVFXRemote"><Properties><string name="Name">HawkingVFXRemote</string></Properties></Item><Item class="Script" referent="RV_HawkServerV1"><Properties><string name="Name">HawkingCosmicShurikenRadiation_Server_V1</string><ProtectedString name="Source">--[[
 ═══════════════════════════════════════════════════════════════════════════
   HAWKING COSMIC SHURIKEN RADIATION — SERVER V1
   Tool: "Sword of Cosmic Entity (Revamped)"  (Cosmic Sword Revamp)
@@ -7502,7 +7502,7 @@ local ligacaoMorte  = nil
 local semente = 0
 local function proximo()
 	semente = semente + 1
-	if semente > 100000 then semente = 1 end
+	if semente &gt; 100000 then semente = 1 end
 	return semente
 end
 
@@ -7539,7 +7539,7 @@ local function tocar(nome, onde, pitch)
 	som.PlaybackSpeed = pitch or 1
 	som.Parent = onde or Handle
 	som:Play()
-	Debris:AddItem(som, (som.TimeLength > 0 and som.TimeLength or 5) + 1)
+	Debris:AddItem(som, (som.TimeLength &gt; 0 and som.TimeLength or 5) + 1)
 	return som
 end
 
@@ -7558,7 +7558,7 @@ local function creditar(alvoHum)
 end
 
 local function aplicarDano(alvoHum, bruto)
-	if not alvoHum or alvoHum.Health <= 0 then return 0 end
+	if not alvoHum or alvoHum.Health &lt;= 0 then return 0 end
 	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
@@ -7576,10 +7576,10 @@ local function inimigosEm(posicao, raio, limite)
 	for _, parte in ipairs(workspace:GetPartBoundsInRadius(posicao, raio, filtro)) do
 		local modelo = parte:FindFirstAncestorOfClass("Model")
 		local hum = modelo and modelo:FindFirstChildOfClass("Humanoid")
-		if hum and hum.Health > 0 and hum ~= humanoide and not vistos[hum] then
+		if hum and hum.Health &gt; 0 and hum ~= humanoide and not vistos[hum] then
 			vistos[hum] = true
 			table.insert(achados, hum)
-			if limite and #achados >= limite then break end
+			if limite and #achados &gt;= limite then break end
 		end
 	end
 	return achados
@@ -7608,7 +7608,7 @@ local function puxarPara(centro, alvoHum)
 
 	local delta = centro - alvoRaiz.Position
 	local dist = delta.Magnitude
-	if dist < CFG.ZONA_MORTA or dist < 0.01 then return end
+	if dist &lt; CFG.ZONA_MORTA or dist &lt; 0.01 then return end
 
 	-- Perto do centro puxa pouco, longe puxa muito: a força cresce com a
 	-- distância normalizada pelo raio. Sem isso, quem já está colado leva um
@@ -7638,7 +7638,7 @@ local function estourarMini(onde)
 		local alvoRaiz = raizDe(alvo)
 		if alvoRaiz then
 			local fora = (alvoRaiz.Position - onde) + Vector3.new(0, 0.4, 0)
-			if fora.Magnitude > 0.01 then
+			if fora.Magnitude &gt; 0.01 then
 				local impulso = Instance.new("BodyVelocity")
 				impulso.MaxForce = Vector3.new(1e5, 1e5, 1e5)
 				impulso.Velocity = fora.Unit * (CFG.EMPURRAO * 0.5)
@@ -7698,7 +7698,7 @@ local function soltarMini(centro, direcao, indice)
 		local outro = atingido and atingido.Parent
 		if not outro or outro == personagem then return end
 		local hum = outro:FindFirstChildOfClass("Humanoid")
-		if not hum or hum.Health <= 0 or hum == humanoide then return end
+		if not hum or hum.Health &lt;= 0 or hum == humanoide then return end
 		-- confere pelo Núcleo se este Humanoid é alvo legítimo
 		local legitimo = false
 		for _, candidato in ipairs(inimigosEm(corpo.Position, 12, 20)) do
@@ -7737,7 +7737,7 @@ local function explodirColossal(centro)
 
 		if alvoRaiz then
 			local fora = (alvoRaiz.Position - centro) + Vector3.new(0, 0.6, 0)
-			if fora.Magnitude > 0.01 then
+			if fora.Magnitude &gt; 0.01 then
 				local impulso = Instance.new("BodyVelocity")
 				impulso.MaxForce = Vector3.new(1e6, 1e6, 1e6)
 				impulso.Velocity = fora.Unit * CFG.EMPURRAO
@@ -7749,7 +7749,7 @@ local function explodirColossal(centro)
 
 	-- o split: 5 direções fixas, da tabela
 	local i = 1
-	while i <= CFG.MINIS do
+	while i &lt;= CFG.MINIS do
 		soltarMini(centro, SPREADS_MINI[i], i)
 		i = i + 1
 	end
@@ -7788,14 +7788,14 @@ local function lancar()
 	laco = guardarEmVoo(RunService.Heartbeat:Connect(function()
 		local agora = os.clock()
 
-		if agora >= fim then
+		if agora &gt;= fim then
 			if laco then laco:Disconnect() end
 			vfx("PARAR", { id = id })
 			explodirColossal(centro)
 			return
 		end
 
-		if agora < proximoPulso then return end
+		if agora &lt; proximoPulso then return end
 		proximoPulso = agora + CFG.SUCCAO_PULSO
 
 		for _, alvo in ipairs(inimigosEm(centro, CFG.SUCCAO_RAIO, 20)) do
@@ -7812,10 +7812,10 @@ end
 
 Remote.OnServerEvent:Connect(function(quem)
 	if quem ~= jogador or not personagem then return end
-	if not humanoide or humanoide.Health <= 0 then return end
+	if not humanoide or humanoide.Health &lt;= 0 then return end
 
 	local agora = os.clock()
-	if agora - ultimoUso < CFG.RECARGA then return end
+	if agora - ultimoUso &lt; CFG.RECARGA then return end
 	ultimoUso = agora
 
 	lancar()
@@ -7829,11 +7829,11 @@ task.spawn(function()
 	while true do
 		task.wait(1)
 		if personagem and not Players:GetPlayerFromCharacter(personagem) then
-			if humanoide and humanoide.Health > 0 and raiz then
+			if humanoide and humanoide.Health &gt; 0 and raiz then
 				local agora = os.clock()
-				if agora - ultimoUso >= CFG.RECARGA then
+				if agora - ultimoUso &gt;= CFG.RECARGA then
 					local perto = inimigosEm(raiz.Position, CFG.SUCCAO_RAIO, 1)
-					if #perto > 0 then
+					if #perto &gt; 0 then
 						ultimoUso = agora
 						lancar()
 					end
@@ -7873,7 +7873,7 @@ Tool.Destroying:Connect(function()
 		ligacaoMorte = nil
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RV_HawkClientV1"><Properties><string name="Name">HawkingCosmicShurikenRadiation_Client_V1</string><ProtectedString name="Source"><![CDATA[--[[
+</ProtectedString></Properties></Item><Item class="LocalScript" referent="RV_HawkClientV1"><Properties><string name="Name">HawkingCosmicShurikenRadiation_Client_V1</string><ProtectedString name="Source">--[[
 ═══════════════════════════════════════════════════════════════════════════
   HAWKING COSMIC SHURIKEN RADIATION — CLIENT V1
   Tool: "Sword of Cosmic Entity (Revamped)"  (Cosmic Sword Revamp)
@@ -8002,13 +8002,13 @@ local Vivos, PorId, contador = {}, {}, 0
 
 local function proximo()
 	contador = contador + 1
-	if contador > 100000 then contador = 1 end
+	if contador &gt; 100000 then contador = 1 end
 	return contador
 end
 
 local function registrar(inst, vida)
 	table.insert(Vivos, inst)
-	if #Vivos > CFG.LIMITE_VIVOS then
+	if #Vivos &gt; CFG.LIMITE_VIVOS then
 		local velho = table.remove(Vivos, 1)
 		if velho and velho.Parent then velho.Parent = nil end
 	end
@@ -8079,7 +8079,7 @@ local function tremorProprio(forca, duracao)
 	local passado = 0
 	tremorAtivo = RunService.RenderStepped:Connect(function(dt)
 		passado = passado + dt
-		if passado >= duracao or not workspace.CurrentCamera then
+		if passado &gt;= duracao or not workspace.CurrentCamera then
 			if tremorAtivo then
 				tremorAtivo:Disconnect()
 				tremorAtivo = nil
@@ -8244,7 +8244,7 @@ function Efeitos.HAWKING_SHURIKEN(d)
 	local conexao
 	conexao = RunService.RenderStepped:Connect(function(dt)
 		passado = passado + dt
-		if passado >= (d.duracao or 4) then
+		if passado &gt;= (d.duracao or 4) then
 			conexao:Disconnect()
 			return
 		end
@@ -8273,7 +8273,7 @@ function Efeitos.HAWKING_SHURIKEN(d)
 	local sugador
 	sugador = RunService.Heartbeat:Connect(function(dt)
 		puxando = puxando + dt
-		if puxando >= (d.duracao or 4) then
+		if puxando &gt;= (d.duracao or 4) then
 			sugador:Disconnect()
 			return
 		end
@@ -8357,7 +8357,7 @@ function Efeitos.HAWKING_COLOSSAL(d)
 	-- anéis do modelo, em tempos diferentes: escala, e não borrão
 	local aneis = { MoldeNovaCirc, MoldeMegaWave }
 	local i = 0
-	while i < #aneis do
+	while i &lt; #aneis do
 		local molde = aneis[i + 1]
 		local atraso = i * 0.14
 		if molde and molde:IsA("BasePart") then
@@ -8573,7 +8573,212 @@ end
 
 if Jogador.Character then ligarMorte(Jogador.Character) end
 Jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString></Properties></Item></Item>
+</ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_DEP_5068425314488732300"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source">-- DepositoVFX.lua
+-- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
+--
+-- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
+--
+--   Na ENTREGA, os moldes de geometria são filhos da Tool.
+--   Ao chegar ao jogador — mochila OU mão —, eles saem da Tool e vão para
+--   `ReplicatedStorage/RetroVerse_VFX/&lt;ChaveVFX&gt;/`.
+--   Quando a Tool é destruída, `_refs` desce; zerou, a pasta some.
+--
+-- POR QUE UM MÓDULO E NÃO CÓDIGO COLADO EM 94 SERVERS
+--
+--   Porque isto tem três partes que têm de combinar: quem instala, quem
+--   desinstala e quem lê. Espalhar as três por 94 arquivos é garantir que uma
+--   delas fique para trás em algum deles — e o modo de falhar é silencioso, que
+--   é a família de defeito que mais custou neste repositório.
+--
+--   O módulo é filho da Tool como o `Poses` e o `R6CFrameAnimator`. A Regra
+--   nº 1 continua satisfeita: ele veio dentro dela.
+--
+-- QUEM INSTALA É O SERVIDOR, SEMPRE
+--
+--   `ReplicatedStorage` replica do servidor para os clientes. Um cliente que
+--   mova instância para lá move SÓ PARA ELE — os outros não veem nada, e o
+--   efeito volta a ser local. Esse bug já custou uma leva inteira aqui, e é por
+--   isso que `instalar` sai cedo quando não está rodando no servidor.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Deposito = {}
+
+local RAIZ = "RetroVerse_VFX"
+--- O que sai da Tool. `Efeitos` e `Moldes` são as pastas de geometria; `Pack`
+--- é o pack de VFX, que mora dentro do `VFXModule` e não na raiz da Tool.
+local PASTAS = { "Efeitos", "Moldes" }
+local PACK_EM_MODULO = { "VFXModule", "Pack" }
+
+local ligadas = {}
+
+--- A chave é do MODELO, não da instância.
+---
+--- Duas pessoas com a mesma Tool compartilham UMA pasta. Se a chave fosse por
+--- instância, o depósito teria oito cópias do mesmo `MeshPart` e não teríamos
+--- resolvido nada — que é exatamente o problema que a regra nº 2 existe para
+--- resolver.
+---
+--- Nome de Tool não serve sozinho: dois modelos podem se chamar `Aura`.
+local function chaveDe(tool)
+	local valor = tool:FindFirstChild("ChaveVFX")
+	if valor and valor:IsA("StringValue") and valor.Value ~= "" then
+		return valor.Value
+	end
+	return tool.Name
+end
+
+local function raizDoDeposito(criar)
+	local raiz = ReplicatedStorage:FindFirstChild(RAIZ)
+	if raiz or not criar then return raiz end
+	raiz = Instance.new("Folder")
+	raiz.Name = RAIZ
+	raiz.Parent = ReplicatedStorage
+	return raiz
+end
+
+--- A pasta desta Tool no depósito, se existir. Nunca cria.
+function Deposito.pasta(tool)
+	local raiz = raizDoDeposito(false)
+	if not (raiz and tool) then return nil end
+	return raiz:FindFirstChild(chaveDe(tool))
+end
+
+--═══════════════════════════════════════════════════════════════
+-- LER — DUAS PORTAS, NESTA ORDEM
+--═══════════════════════════════════════════════════════════════
+
+--- Acha uma pasta de molde: primeiro no depósito, depois dentro da Tool.
+---
+--- A segunda porta NÃO é redundância defensiva. É o que mantém verdadeiro o
+--- teste da Regra nº 1: num place vazio ninguém montou depósito nenhum, e até
+--- o primeiro `Equipped` o molde ainda está dentro da Tool. É de lá que ele
+--- tem de sair, e a Tool tem de funcionar por inteiro assim.
+---
+--- `de` é o script que está perguntando — dele sai a Tool por ancestral.
+function Deposito.achar(de, nome)
+	local tool = de and de:FindFirstAncestorOfClass("Tool")
+	if not tool then return nil end
+
+	local minha = Deposito.pasta(tool)
+	local achado = minha and minha:FindFirstChild(nome)
+	if achado then return achado end
+
+	-- porta 2: ainda dentro da Tool
+	achado = tool:FindFirstChild(nome)
+	if achado then return achado end
+
+	-- e o `Pack`, que mora dentro do `VFXModule`
+	local modulo = tool:FindFirstChild(PACK_EM_MODULO[1])
+	return modulo and modulo:FindFirstChild(nome) or nil
+end
+
+--═══════════════════════════════════════════════════════════════
+-- INSTALAR E DESINSTALAR
+--═══════════════════════════════════════════════════════════════
+
+local function mover(tool, minha)
+	for _, nome in ipairs(PASTAS) do
+		local pasta = tool:FindFirstChild(nome)
+		if pasta then pasta.Parent = minha end
+	end
+	local modulo = tool:FindFirstChild(PACK_EM_MODULO[1])
+	local pack = modulo and modulo:FindFirstChild(PACK_EM_MODULO[2])
+	if pack then pack.Parent = minha end
+end
+
+function Deposito.instalar(tool)
+	if not (tool and RunService:IsServer()) then return end
+	local estado = ligadas[tool]
+	if not estado or estado.instalado then return end
+	estado.instalado = true
+
+	local raiz = raizDoDeposito(true)
+	local chave = chaveDe(tool)
+	local minha = raiz:FindFirstChild(chave)
+
+	if not minha then
+		minha = Instance.new("Folder")
+		minha.Name = chave
+		local refs = Instance.new("IntValue")
+		refs.Name = "_refs"
+		refs.Value = 0
+		refs.Parent = minha
+		mover(tool, minha)
+		minha.Parent = raiz
+	end
+
+	local refs = minha:FindFirstChild("_refs")
+	if refs then refs.Value = refs.Value + 1 end
+end
+
+--- Desconta uma referência. Zerou, a pasta some.
+---
+--- `_refs` não é enfeite. A regra diz "a Tool é destruída, os moldes vão
+--- junto". Com UM jogador isso é literal; com DOIS, apagar no primeiro
+--- `Destroying` arrancaria o molde debaixo do segundo — a Tool dele
+--- continuaria viva e pararia de desenhar. "Vão junto com a Tool" quer dizer
+--- com a ÚLTIMA.
+function Deposito.desinstalar(tool)
+	if not (tool and RunService:IsServer()) then return end
+	local estado = ligadas[tool]
+	if not (estado and estado.instalado) then return end
+	estado.instalado = false
+
+	local raiz = raizDoDeposito(false)
+	local minha = raiz and raiz:FindFirstChild(chaveDe(tool))
+	if not minha then return end
+
+	local refs = minha:FindFirstChild("_refs")
+	if refs then refs.Value = refs.Value - 1 end
+
+	if not refs or refs.Value &lt;= 0 then
+		minha.Parent = nil
+		if #raiz:GetChildren() == 0 then
+			raiz.Parent = nil
+		end
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- LIGAR — a única linha que o Server precisa escrever
+--═══════════════════════════════════════════════════════════════
+
+--- Liga o ciclo inteiro: instala quando a Tool chega ao jogador, desinstala
+--- quando ela morre.
+---
+--- O gatilho é a TROCA DE PAI, não `Tool.Equipped`: a regra diz "mochila OU
+--- mão", e uma Tool que fica a partida toda na mochila sem ser equipada
+--- também precisa dos moldes no lugar — o dono não é o único que desenha.
+---
+--- `GetPropertyChangedSignal("Parent")` e não `AncestryChanged`: a proibição
+--- do `AncestryChanged` é para CLEANUP, e cleanup aqui é `Tool.Destroying`,
+--- que é o que a regra manda usar.
+function Deposito.ligar(tool)
+	if not (tool and RunService:IsServer()) then return end
+	if ligadas[tool] then return end
+	ligadas[tool] = { instalado = false }
+
+	local function aoTrocarDePai()
+		local pai = tool.Parent
+		if not pai then return end
+		if pai:IsA("Backpack") or pai:FindFirstChildOfClass("Humanoid") then
+			Deposito.instalar(tool)
+		end
+	end
+
+	tool:GetPropertyChangedSignal("Parent"):Connect(aoTrocarDePai)
+	tool.Destroying:Connect(function()
+		Deposito.desinstalar(tool)
+		ligadas[tool] = nil
+	end)
+
+	aoTrocarDePai()
+end
+
+return Deposito
+</ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5068425314488732300"><Properties><string name="Name">ChaveVFX</string><string name="Value">Sword_of_Cosmic_Entity_Revamped</string></Properties></Item></Item>
 	<SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="3mPE9Myv0n9N/sI0YAWOFQ==">Q1NHUEhTCAAAAAIAKLUv/WAEAPUEAEQGAgAAABAAAAAYAAAACAAAAAwALsBW0b4ApHe+wGCV
 v+BW0T4ApHc+CWCVP1Futyi3G6J3PgDOgr+gLtg8AIjSX5WADt47APlHvQCgd76QN4Q/oHe+
 MA+Aht+0bs1dpHc+kDeEPxyoEEdypcbGHKBQMFUeUFLdPAfEohBiBiXhh5suRHv2Npb6opye

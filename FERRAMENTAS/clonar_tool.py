@@ -210,6 +210,50 @@ PACK_VFX = os.path.join(RAIZ, "ACERVO_RETROVERSE", "Stella_VFX_Addon",
                         "VFX", "PACK_VFX.rbxmx")
 
 
+DEPOSITO_LUA = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "dados", "DepositoVFX.lua")
+
+
+def enxertar_deposito(tool, nome_tool):
+    """
+    Põe `DepositoVFX` (ModuleScript) e `ChaveVFX` (StringValue) dentro da Tool.
+
+    REGRA Nº 2. O módulo é filho da Tool como o `Poses` e o `R6CFrameAnimator` —
+    a Regra nº 1 continua satisfeita, ele veio dentro dela.
+
+    A CHAVE É DO MODELO, NÃO DA INSTÂNCIA. Duas pessoas com a mesma Tool
+    compartilham uma pasta no depósito; se a chave fosse por instância, o
+    depósito teria oito cópias do mesmo `MeshPart` e não teríamos resolvido o
+    problema que a regra existe para resolver.
+
+    Nome de Tool não serve sozinho — dois modelos podem se chamar `Aura` —,
+    então a chave é o nome normalizado, e o verificador cobra que seja única.
+
+    Idempotente: montar duas vezes não empilha dois módulos.
+    """
+    if not os.path.exists(DEPOSITO_LUA):
+        return 0
+
+    for filho in list(tool.findall("Item")):
+        if texto(filho, "Name") in ("DepositoVFX", "ChaveVFX"):
+            tool.remove(filho)
+
+    fonte = open(DEPOSITO_LUA, encoding="utf-8").read()
+    modulo = ET.SubElement(tool, "Item", {"class": "ModuleScript",
+                                          "referent": "RV_DEP_%s" % abs(hash(nome_tool))})
+    props = ET.SubElement(modulo, "Properties")
+    ET.SubElement(props, "string", {"name": "Name"}).text = "DepositoVFX"
+    ET.SubElement(props, "ProtectedString", {"name": "Source"}).text = fonte
+
+    chave = re.sub(r"[^A-Za-z0-9]+", "_", nome_tool).strip("_")
+    valor = ET.SubElement(tool, "Item", {"class": "StringValue",
+                                         "referent": "RV_CHV_%s" % abs(hash(nome_tool))})
+    props = ET.SubElement(valor, "Properties")
+    ET.SubElement(props, "string", {"name": "Name"}).text = "ChaveVFX"
+    ET.SubElement(props, "string", {"name": "Value"}).text = chave
+    return 1
+
+
 def enxertar_pack(tool):
     """
     Copia o pack de VFX do Acervo PARA DENTRO do VFXModule da Tool.
@@ -378,7 +422,7 @@ def montar(nomes, destino):
     para arrastar) e mais o conjunto com as Tools do modelo todo.
     """
     raiz = nova_raiz()
-    trocados, mantidos, enxertados, legendadas, convertidos = 0, 0, 0, 0, 0
+    trocados, mantidos, enxertados, depositos, legendadas, convertidos = 0, 0, 0, 0, 0, 0
     dessandbox = 0
     penduradas = []
 
@@ -422,6 +466,7 @@ def montar(nomes, destino):
                 mantidos = mantidos + 1
 
         enxertados = enxertados + enxertar_pack(tool)
+        depositos = depositos + enxertar_deposito(tool, nome)
 
         # Uma Tool, um arquivo — é assim que ela chega no Studio.
         sozinha = nova_raiz()
@@ -440,6 +485,8 @@ def montar(nomes, destino):
           % (trocados, mantidos))
     print("   %d efeito(s) do pack enxertados DENTRO das Tools (Regra nº 1)"
           % enxertados)
+    print("   %d DepositoVFX + ChaveVFX dentro das Tools (Regra nº 2)"
+          % depositos)
     print("   %d ToolTip preenchido(s) — a origem veio com o campo vazio"
           % legendadas)
     print("   %d Client LocalScript -> Script RunContext=Client (visibilidade)"

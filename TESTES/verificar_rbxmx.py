@@ -14,7 +14,7 @@ O que confere:
   2. CanBeDropped = false · RequiresHandle = true · ToolTip preenchido
   2b. O `.rbxm` binário existe e é mais novo que o `.rbxmx` — ele É a entrega
   3. Existe um Handle, com esse nome exato
-  4. DamageClass declarado (§12.4) — sem ele, bônus por classe fica inerte
+  4. (vago) — o `DamageClass` saiu junto com o Núcleo de Combate
   5. Todo script exigido pelo §12.10 está presente, com o nome de objeto certo
   6. A fonte embutida é BYTE A BYTE igual ao .lua do repositório
   6b. Nenhuma callback de beat compara o keyframe com string (o beat é `kf.marca`)
@@ -179,12 +179,12 @@ def verificar(nome):
     elif handle.get("class") not in ("Part", "MeshPart", "UnionOperation"):
         erros.append("Handle é %s, esperava Part/MeshPart" % handle.get("class"))
 
-    # 4. DamageClass
-    dc = achar(tool, "StringValue", "DamageClass")
-    if dc is None:
-        erros.append("sem DamageClass — todo bônus por classe fica inerte (§12.4)")
-    elif not (texto(dc, "Value") or "").strip():
-        erros.append("DamageClass vazio")
+    # 4. (vago) — aqui morava a cobrança do `DamageClass`.
+    #
+    # Ele existia para o Núcleo de Combate dar bônus por classe. O Núcleo saiu
+    # do repositório, e etiqueta que ninguém lê é peso morto: a Tool passava a
+    # carregar um `StringValue` que nenhum script do place consulta. A cobrança
+    # sai junto com o que ela servia.
 
     # 5 + 6. scripts, com fonte idêntica ao .lua do repositório
     #
@@ -464,13 +464,25 @@ def verificar(nome):
 
     moldes(tool, False, "")
 
-    # 10. Regra nº 1 — sem ressalva
+    # 10. Regra nº 1 — com UMA ressalva, e ela tem nome
+    #
+    # `DepositoVFX` é o módulo da Regra nº 2, e ele existe justamente para
+    # escrever em `ReplicatedStorage`. A ressalva é NOMINAL de propósito: vale
+    # para esse módulo e para nenhum outro, e o que ele faz lá é montar a pasta
+    # da PRÓPRIA Tool e desmontá-la quando ela morre.
+    #
+    # Qualquer outro script que toque em `ReplicatedStorage` continua sendo
+    # violação — inclusive um que se chame parecido.
     for nome_obj, codigo in fontes.items():
         limpo = sem_comentario(codigo)
+        curto = nome_obj.rsplit("/", 1)[-1]
         for termo in PROIBIDOS:
-            if termo in limpo:
-                erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
-                             % (nome_obj, termo))
+            if termo not in limpo:
+                continue
+            if curto == "DepositoVFX" and termo == "ReplicatedStorage":
+                continue
+            erros.append("%s referencia %s — fora da Tool (Regra nº 1)"
+                         % (nome_obj, termo))
 
     return erros
 

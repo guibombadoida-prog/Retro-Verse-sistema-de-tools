@@ -109,7 +109,22 @@ echo ""
 # saiu: os módulos de efeito não dependiam de nada e cabiam dentro da Tool
 # desde o começo. Quem não cabia era o loader do pack, e o loader não entra.
 # Ver FERRAMENTAS/conformar_pack_vfx.py.
-checar "sem ReplicatedStorage"          'ReplicatedStorage'
+# `ReplicatedStorage` tem UMA ressalva, e ela tem nome: `DepositoVFX`, o módulo
+# da Regra nº 2. Ele existe justamente para montar lá a pasta da PRÓPRIA Tool e
+# desmontá-la quando ela morre.
+#
+# A ressalva é NOMINAL de propósito — vale para esse arquivo e para nenhum
+# outro. Qualquer outro script que toque em `ReplicatedStorage` continua sendo
+# violação, inclusive um que se chame parecido.
+RS=$(printf '%s\n' "$PURO" | grep -E 'ReplicatedStorage' \
+	| grep -v '/DepositoVFX\.lua:' || true)
+if [ -n "$RS" ]; then
+	vermelho "✗ sem ReplicatedStorage fora do DepositoVFX"
+	printf '%s\n' "$RS" | sed 's|^|    |' | head -20
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ sem ReplicatedStorage fora do DepositoVFX"
+fi
 checar "sem ServerStorage"              'ServerStorage'
 checar "sem ServerScriptService"        'ServerScriptService'
 checar "sem StarterGui / StarterPack"   'StarterGui|StarterPack|StarterPlayer'

@@ -48,6 +48,8 @@
 local Debris       = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
+local Deposito = require(script.Parent:WaitForChild("DepositoVFX"))
+
 local VFX = {}
 
 local CFG = {
@@ -117,7 +119,11 @@ local function moldes()
 	if procurada then return pastaMoldes end
 	procurada = true
 	local tool = script.Parent
-	pastaMoldes = tool and tool:FindFirstChild("Moldes")
+	-- DUAS PORTAS (Regra nº 2): o depósito primeiro, o interior depois.
+	-- O depósito MOVE `Moldes` para fora da Tool quando ela chega ao jogador;
+	-- sem a primeira porta estas Tools parariam de achar a própria malha.
+	pastaMoldes = Deposito.achar(script, "Moldes")
+		or (tool and tool:FindFirstChild("Moldes"))
 	return pastaMoldes
 end
 
