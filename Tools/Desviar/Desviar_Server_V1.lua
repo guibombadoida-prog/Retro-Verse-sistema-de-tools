@@ -145,23 +145,18 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -172,10 +167,6 @@ end
 --- `workspace.DescendantAdded`. Aqui é consulta espacial sob demanda, e quem
 --- filtra time é o Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -288,10 +279,8 @@ end
 -- o Núcleo faz igual em `marcarCredito`. A informação já está aqui dentro;
 -- basta ler.
 --
--- ⚠️ NÃO é `_G.Combate.aoAplicarDano`. Aquilo é gancho global, e o próprio
---    Núcleo o declara "§12.5 regra global — para SISTEMAS, nunca para Tools".
---    Ler a etiqueta também funciona num place vazio, sem Núcleo nenhum, que é
---    o que a Regra nº 1 cobra.
+-- ⚠️ Nada de gancho global de sistema nenhum: a Tool não conhece sistema.
+--    Ler a etiqueta funciona num place vazio, que é o que a Regra nº 1 cobra.
 --═══════════════════════════════════════════════════════════════
 
 local function quemMeBateu()

@@ -303,38 +303,29 @@ end
 --%(regua)s
 -- DANO — a Tool declara, o Núcleo decide (§12.5 / §12.6)
 --
--- Toda chamada é OPCIONAL: `_G.Combate and _G.Combate.x(...) or <fallback>`.
+-- Toda chamada é OPCIONAL: `<fallback>`.
 -- A Tool sozinha num place vazio funciona por inteiro.
 --%(regua)s
 
 local function creditar(alvoHum)
-\tif _G.Combate and _G.Combate.registrarAtaque then
-\t\t_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-\telse
-\t\tlocal marca = alvoHum:FindFirstChild("creator")
-\t\tif marca then marca.Parent = nil end
-\t\tmarca = Instance.new("ObjectValue")
-\t\tmarca.Name = "creator"
-\t\tmarca.Value = jogador
-\t\tmarca.Parent = alvoHum
-\t\tDebris:AddItem(marca, 3)
-\tend
+\tlocal marca = alvoHum:FindFirstChild("creator")
+\tif marca then marca.Parent = nil end
+\tmarca = Instance.new("ObjectValue")
+\tmarca.Name = "creator"
+\tmarca.Value = jogador
+\tmarca.Parent = alvoHum
+\tDebris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 \tif not alvoHum or alvoHum.Health <= 0 then return 0 end
-\tlocal final = (_G.Combate and _G.Combate.calcular
-\t\tand _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+\tlocal final = bruto
 \tcreditar(alvoHum)
 \talvoHum:TakeDamage(final)
 \treturn final
 end
 
 local function alvosEm(posicao, raio, limite)
-\tif _G.Combate and _G.Combate.detectarHumanoides then
-\t\treturn _G.Combate.detectarHumanoides(
-\t\t\tposicao, raio, personagem, jogador, humanoide, limite or 14) or {}
-\tend
 
 \tlocal achados, vistos = {}, {}
 \tlocal filtro = OverlapParams.new()
@@ -486,24 +477,24 @@ end
 --%(regua)s
 
 local function montarRig()
-	if rig then return rig end
-	if not personagem then return nil end
-	rig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
-	return rig
+\tif rig then return rig end
+\tif not personagem then return nil end
+\trig = Animator.new(personagem, "%(sufixo)s", Poses, Poses.SEQUENCIAS)
+\treturn rig
 end
 
 local function animar()
-	local atual = montarRig()
-	if not atual then return end
-	atual:PlaySequence("%(seq)s", function(passo)
-		if passo.marca then vfx("BEAT", { marca = passo.marca }) end
-	end)
+\tlocal atual = montarRig()
+\tif not atual then return end
+\tatual:PlaySequence("%(seq)s", function(passo)
+\t\tif passo.marca then vfx("BEAT", { marca = passo.marca }) end
+\tend)
 end
 
 local function desmontarRig()
-	if not rig then return end
-	rig:CancelSequence()
-	rig:ReleaseLegs()
+\tif not rig then return end
+\trig:CancelSequence()
+\trig:ReleaseLegs()
 end
 
 --%(regua)s
@@ -536,11 +527,11 @@ end)
 --- `Destroying`, não `AncestryChanged`: guardar na mochila troca o pai sem
 --- destruir nada, e o cleanup não pode disparar aí.
 Tool.Destroying:Connect(function()
-	limpar()
-	if rig then
-		rig:Destroy()
-		rig = nil
-	end
+\tlimpar()
+\tif rig then
+\t\trig:Destroy()
+\t\trig = nil
+\tend
 end)
 '''
 
@@ -1401,25 +1392,25 @@ end
 local SFX = script.Parent:FindFirstChild("SFX")
 
 local function som(rotulo, posicao, pitch)
-	local base = SFX and SFX:FindFirstChild(rotulo)
-	if not base then return nil end
+\tlocal base = SFX and SFX:FindFirstChild(rotulo)
+\tif not base then return nil end
 
-	local ancora = Instance.new("Part")
-	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
-	ancora.Transparency = 1
-	ancora.Anchored, ancora.CanCollide = true, false
-	ancora.CFrame = CFrame.new(posicao or Vector3.new())
-	ancora.Parent = workspace
+\tlocal ancora = Instance.new("Part")
+\tancora.Size = Vector3.new(0.2, 0.2, 0.2)
+\tancora.Transparency = 1
+\tancora.Anchored, ancora.CanCollide = true, false
+\tancora.CFrame = CFrame.new(posicao or Vector3.new())
+\tancora.Parent = workspace
 
-	local copia = base:Clone()
-	if pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
-	copia.Parent = ancora
-	copia:Play()
+\tlocal copia = base:Clone()
+\tif pitch then copia.PlaybackSpeed = base.PlaybackSpeed * pitch end
+\tcopia.Parent = ancora
+\tcopia:Play()
 
-	table.insert(vivos, ancora)
-	local duracao = (copia.TimeLength > 0 and copia.TimeLength or 5) + 1
-	Debris:AddItem(ancora, duracao)
-	return copia
+\ttable.insert(vivos, ancora)
+\tlocal duracao = (copia.TimeLength > 0 and copia.TimeLength or 5) + 1
+\tDebris:AddItem(ancora, duracao)
+\treturn copia
 end
 
 --%(regua)s

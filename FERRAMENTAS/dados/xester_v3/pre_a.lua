@@ -18,7 +18,7 @@
 --   — procurar seria referência para fora, e a Regra nº 1 vence tudo.
 --
 --   O que ela faz é escrever um Attribute no Character: `XesterForma = 2`.
---   Quem lê, lê sob guarda e com padrão. É a mesma categoria do `_G.Combate`:
+--   Quem lê, lê sob guarda e com padrão. É estado opcional compartilhado:
 --   estado opcional compartilhado, não caminho de instância, não depósito de
 --   asset.
 --

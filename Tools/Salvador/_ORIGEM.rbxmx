@@ -393,7 +393,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -457,9 +457,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -477,8 +474,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -486,18 +482,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -655,9 +644,6 @@ local function ehAliado(alvoChar)
 	if not alvoChar or alvoChar == character then return false end
 	local hum = alvoChar:FindFirstChildOfClass("Humanoid")
 	if not (hum and hum.Health > 0) then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return not _G.Combate.podeCausarDano(owner, hum, humanoid)
-	end
 	-- Sem Núcleo: qualquer jogador vivo pode ser protegido.
 	return true
 end

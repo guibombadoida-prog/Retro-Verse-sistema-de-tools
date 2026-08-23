@@ -1,5 +1,5 @@
 # REGRA DA ANIMAÇÃO R6
-**Retro-Verse / Studios** · precedência: abaixo da autocontenção e da REGRA 12, acima da base
+**Retro-Verse / Studios** · precedência: abaixo da autocontenção e do ciclo de vida do VFX, acima da base
 
 ---
 
@@ -231,3 +231,27 @@ Manual, no Studio:
 - [ ] Desequipar no meio da sequência — nada fica preso
 - [ ] Morrer no meio da sequência — respawn limpo, sem `Weld` órfão
 - [ ] Duas Tools diferentes equipadas em sequência — nomes de `Weld` não colidem
+
+---
+
+## Ragdoll e o animator disputam as mesmas juntas
+
+Ragdoll passou a ser permitido (§10.12 da base). Ele desliga `Motor6D`; o
+`R6CFrameAnimator` V2 solda `Weld`s próprios. **São dois donos das mesmas juntas**, e o
+sintoma de dois donos já apareceu neste repositório: a pose treme e volta sozinha.
+
+Ordem obrigatória, sem exceção:
+
+```lua
+-- ANTES de ligar o ragdoll
+rig:CancelSequence()
+rig:ReleaseLegs()
+rig:LockCharacter(false)
+
+-- ... ragdoll ...
+
+-- DEPOIS de desligar, o rig volta a ser o dono
+```
+
+`ReleaseLegs()` não é opcional aqui. Perna soldada trava o corpo mole exatamente como
+trava a caminhada — é o mesmo `Weld`, e o mesmo defeito.

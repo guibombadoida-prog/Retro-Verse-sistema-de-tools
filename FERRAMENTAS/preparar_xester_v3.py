@@ -25,7 +25,7 @@ A TROCA DE FORMA, SEM UMA TOOL ALCANÇAR A OUTRA
 
     Ela não procura. O que `F` faz é escrever um **Attribute no Character**:
     `XesterForma = 2`. Quem lê é quem quiser, sob guarda, com padrão. É a mesma
-    categoria do `_G.Combate`: estado opcional compartilhado, não caminho de
+    categoria do estado opcional compartilhado: não é caminho de
     instância, não depósito de asset.
 
     O teste que decide continua passando: arraste QUALQUER uma das 13 sozinha

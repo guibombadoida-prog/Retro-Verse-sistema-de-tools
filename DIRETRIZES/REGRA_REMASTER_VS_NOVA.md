@@ -38,7 +38,7 @@ Melhorar **não** é trocar a habilidade. É a mesma habilidade funcionando melh
 - o que era `math.random` vira determinístico
 - o que era `:Destroy()` vira `Parent = nil` / `Debris`
 - o que o servidor movia por quadro passa a ser beat + desenho no cliente
-- o que matava por deleção passa pelo Núcleo e credita o abate
+- o que matava por deleção passa a usar `TakeDamage` e credita o abate pela etiqueta `creator`
 - o que era invisível para os outros jogadores passa a aparecer
 - VFX e SFX ganham camada, sem trocar de identidade
 

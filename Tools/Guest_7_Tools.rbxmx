@@ -213,29 +213,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -243,15 +237,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -260,10 +251,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -5314,29 +5301,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -5344,15 +5325,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -5361,10 +5339,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -10893,29 +10867,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -10923,15 +10891,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -10940,10 +10905,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -18629,29 +18590,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -18659,15 +18614,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -18676,10 +18628,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -23608,29 +23556,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -23638,15 +23580,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -23655,10 +23594,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -29113,29 +29048,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -29143,15 +29072,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -29160,10 +29086,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -33684,29 +33606,23 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro — é o
 -- teste que decide a Regra nº 1.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -33714,15 +33630,12 @@ end
 
 --- Cura. Passa pelo Núcleo como qualquer efeito de vida.
 ---
---- ATENÇÃO: `_G.Combate.curar` **não existe** no `NucleoCombate.lua` de hoje.
+--- A cura é da Tool: `Humanoid.Health` somado com teto em `MaxHealth`.
 --- Quem roda é o fallback. A guarda está aqui porque a regra manda toda
 --- chamada ao Núcleo ser opcional, e para que o dia em que o Núcleo ganhar uma
 --- `curar` as sete passem a usá-la sem tocar em nada.
 local function curar(alvoHum, quanto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	if _G.Combate and _G.Combate.curar then
-		return _G.Combate.curar(jogador, alvoHum, quanto) or 0
-	end
 	local antes = alvoHum.Health
 	alvoHum.Health = math.min(alvoHum.Health + quanto, alvoHum.MaxHealth)
 	return alvoHum.Health - antes
@@ -33731,10 +33644,6 @@ end
 --- Alvos num raio. O `Taco` original varria `workspace:GetDescendants()` a
 --- cada golpe; aqui é consulta espacial, e o filtro de time é do Núcleo.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 10) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()

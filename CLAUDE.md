@@ -5,12 +5,12 @@
 **Somente ferramentas (`Tool`) do Roblox Studio.** O trabalho é converter modelos em Tools conformes.
 
 Fora de escopo — recusar e redirecionar: NPCs, sistemas de mapa, economia, DataStore, UI de jogo,
-matchmaking, e qualquer sistema que não seja uma `Tool` ou o Núcleo de Combate que as serve.
+matchmaking, e qualquer sistema que não seja uma `Tool`. **Não há mais sistema central algum.**
 
 ## Ordem de precedência das regras
 
 1. `DIRETRIZES/REGRA_AUTOCONTENCAO_ABSOLUTA.md` — **regra nº 1, vence tudo**
-2. `DIRETRIZES/REGRA_12_NUCLEO_DE_COMBATE_V3.md` — vence a base em qualquer conflito
+2. `DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md` — **regra nº 2**, o depósito em `ReplicatedStorage`
 3. `DIRETRIZES/REGRA_DISTRIBUICAO_DE_TOOLS.md` — quantas Tools saem de um modelo
 4. `DIRETRIZES/REGRA_ENTREGA_RBXM.md` — todo modelo convertido sai como `.rbxm` binário
 5. `DIRETRIZES/REGRA_ANIMACAO_R6.md` — Weld C0, animator canônico, perna sob demanda
@@ -38,6 +38,7 @@ python3 TESTES/verificar_rbxmx.py       # confere fonte byte a byte
 python3 TESTES/verificar_poses.py       # poses × animator V2
 python3 TESTES/verificar_vfx_chamadas.py # chamada de VFX sem definição
 python3 TESTES/verificar_beats.py        # beat despachado que a sequência não tem
+python3 TESTES/verificar_deposito_vfx.py  # o depósito instala, conta e apaga
 ```
 
 ## Quantas Tools saem de um modelo
@@ -48,16 +49,28 @@ primária em `Tool.Activated`, Extra por tecla via `AcaoRemote`.
 
 ## Regra nº 1 — autocontenção absoluta
 
-> **Nada de referência de script FORA da Tool.** Todo script, animação, VFX, SFX, mesh,
-> MeshPart, textura, som, pose e módulo é **obrigatoriamente** filho da Tool.
+> **A Tool é a fronteira.** Todo script, animação, VFX, SFX, mesh, MeshPart, textura, som,
+> pose e módulo **nasce dentro dela**, e nada do que ela precisa vem de fora.
 
-**Teste que decide:** arraste a Tool sozinha para um place vazio — sem Acervo, sem Núcleo,
-sem `ReplicatedStorage`, sem `ServerStorage`. **Ela funciona por inteiro.**
+**Teste que decide:** arraste a Tool sozinha para um place vazio — sem Acervo, sem
+`ReplicatedStorage` povoado, sem `ServerStorage`. **Ela funciona por inteiro.**
 
-Não são violação: `_G.Combate` com guarda (global opcional, não caminho de instância),
-`parte.Parent = workspace` (escrever no mundo é saída; **ler** dele é dependência),
+Não são violação: `parte.Parent = workspace` (escrever no mundo é saída; **ler** dele é
+dependência), **o depósito que a própria Tool montou** em `ReplicatedStorage` (regra nº 2),
 `rbxassetid://` dentro de instância que já é filha da Tool, e `workspace.CurrentCamera`
 **em `LocalScript`** (singleton por cliente, como `Players.LocalPlayer` — não é depósito de asset).
+
+## Regra nº 2 — o VFX sai da Tool em runtime, e volta com ela
+
+> Na **entrega**, todo molde de `Part`/`MeshPart`/mesh é filho da Tool. Ao chegar ao jogador
+> — mochila **ou** mão —, o **Server** move os moldes para
+> `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. Em `Tool.Destroying`, `_refs` desce; zerou,
+> a pasta some.
+
+Quem lê tem **duas portas**, nesta ordem: o depósito, e o interior da Tool. A segunda é o
+que mantém o teste do place vazio verdadeiro.
+
+Verificar: `python3 TESTES/verificar_deposito_vfx.py`
 
 Verificar sempre antes de fechar: `bash TESTES/verificar_autocontencao.sh`
 
@@ -71,7 +84,7 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 |---|---|
 | **Tudo dentro da Tool** | `bash TESTES/verificar_autocontencao.sh` passa |
 | **Entrega é `.rbxmx`** | `python3 TESTES/verificar_rbxmx.py` passa |
-| Tool não conhece o Núcleo | Zero `require` de `NucleoCombate` em qualquer arquivo de `Tools/` |
+| Tool não conhece sistema nenhum | Zero `require` fora da Tool; **zero `_G.Combate`** em qualquer arquivo |
 | Tool é autocontida | Tool sozinha em place vazio funciona por inteiro |
 | Asset vem de dentro | `Sound` clonado de `Tool/SFX/`; molde de VFX de `Tool/Efeitos/` |
 | Animação R6 usa o animator canônico | Zero escrita em `Motor6D.C0`; poses no formato `Weld` (RightArm/LeftArm/Head/HRP/RightLeg/LeftLeg) |
@@ -79,9 +92,9 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | Perna volta ao `Humanoid` | `ReleaseLegs` no fim; perna soldada permanentemente trava a caminhada |
 | Câmera é 100% cliente | Zero `Camera` em Server Script; servidor manda beat por `RemoteEvent` |
 | Câmera presa é devolvida | Quem escreve `CameraType` liga `Tool.Unequipped` **e** `Tool.Destroying` |
-| Núcleo é a única porta de regra de combate | Zero `canDamage` / `IsTeamMate` / `TagHumanoid` fora de `NucleoCombate.lua` |
-| Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `_G.Combate.transmitirVFX` + `VFXRemote` |
-| Toda chamada ao Núcleo é opcional | Sempre `_G.Combate and _G.Combate.x(...) or <fallback>` |
+| O VFX volta para casa | `ChaveVFX` presente; `_refs` sobe e desce; `Tool.Destroying` apaga a pasta |
+| Servidor nunca emite VFX | Zero `:Emit(` em Server Script; `VFXRemote:FireAllClients` |
+| Ragdoll e efeito de status voltam | O valor de ANTES é guardado e devolvido; guarda contra empilhar |
 
 ## Proibições de sintaxe (valem em todo `.lua` do repositório)
 
@@ -91,9 +104,8 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | `tick()` | `os.clock()` para recarga; acumulador `dt` a partir de zero para animação |
 | `part:Destroy()` · `:Remove()` | `Parent = nil` ou `Debris:AddItem` |
 | `AncestryChanged` para cleanup | `Tool.Destroying` |
-| `math.random` em gameplay | Ângulo áureo / Vogel, jitter senoidal por contador, índice sequencial |
 | `+=` · `-=` · `continue` | Sintaxe expandida: `x = x + 1`, `if/else` aninhado |
-| `Instance.new("Explosion")` | `_G.Combate.detectarHumanoides` |
+| `Instance.new("Explosion")` | `workspace:GetPartBoundsInRadius` com `OverlapParams` |
 | `Health = Health - dano` | `TakeDamage` (respeita `ForceField`) |
 | `ScreenGui` · `ColorCorrection` · `Sky` dentro da Tool | Efeito só no mundo 3D |
 | `require(<id numérico>)` | Módulo copiado para dentro da Tool |
@@ -102,6 +114,15 @@ proibições existem porque o oposto já causou bug em produção (ordem de `Nam
 | `task.wait(passo.duracao)` para encadear beat | `rig:PlaySequence` (Tween.Completed) ou `rig:PlayTrack` (acumulador `dt`) |
 | `Camera` em Server Script | `RemoteEvent` com beat nomeado; quem enquadra é o `LocalScript` |
 | Animator escrito na hora, dentro de uma Tool | O canônico do Acervo, copiado para dentro |
+
+### O que passou a ser PERMITIDO
+
+| Antes proibido | Agora | Ressalva |
+|---|---|---|
+| `math.random` | **liberado** | no cliente, cada um sorteia diferente e vê cena diferente — onde a cena precisa combinar, use o ângulo áureo |
+| Ragdoll | **liberado** | `BallSocketConstraint`, sempre reversível; `rig:CancelSequence()` + `ReleaseLegs()` antes |
+
+`BreakJoints` continua proibido: ragdoll sem volta é `BreakJoints` com outro nome.
 
 Números mágicos espalhados pelo corpo do script são violação: bloco `CFG` único no topo,
 junto do `ARQUETIPO`.
@@ -120,7 +141,6 @@ Entrega sem Delta do Acervo é entrega incompleta.
 ## Nomenclatura
 
 ```
-NucleoCombate.lua                  Script central — nome SEM versão
 [NomeDaTool]_Server_V[X].lua       script de servidor da Tool
 Poses_[Modelo]_V[X].lua            tabela de poses R6 CFrame
 "[NomeDaTool]_[Habilidade]"        chave de recarga global — ex.: "AstralPulsar_X"
@@ -135,4 +155,4 @@ Versionamento sequencial V1 → V2 → V3, incrementado a cada modificação. O 
 ## Git
 
 Branch de desenvolvimento: `claude/roblox-tools-repository-zn3r68`.
-Commits em português, descritivos, no escopo de uma Tool ou do Núcleo por vez.
+Commits em português, descritivos, no escopo de um conjunto de Tools por vez.

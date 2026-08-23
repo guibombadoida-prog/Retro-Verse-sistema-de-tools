@@ -176,15 +176,7 @@ local function __RV_dano(hum, quanto)
 	local jog = nil
 	if d then jog = __RV_Players:GetPlayerFromCharacter(d) end
 
-	if _G.Combate and _G.Combate.canDamage and jog then
-		if not _G.Combate.canDamage(jog, hum) then return false end
-	end
-
 	local final = quanto
-	if _G.Combate and _G.Combate.calcular and jog then
-		final = _G.Combate.calcular(jog, hum, quanto) or quanto
-	end
-
 	if jog then
 		local marca = hum:FindFirstChild("creator")
 		if marca then marca.Parent = nil end

@@ -14,7 +14,7 @@
 -- O QUE MUDOU, E POR QUÊ
 --   `Humanoid.Health = 10`  -> TakeDamage. Escrever em Health ignora ForceField
 --                              e a redução registrada pelo Núcleo (§12.5).
---   IsTeamMate/TagHumanoid  -> `_G.Combate`. Regra de combate tem uma porta só.
+--   IsTeamMate/TagHumanoid  -> consulta espacial e etiqueta `creator`, na Tool.
 --   `math.random`           -> índice sequencial e ângulo áureo.
 --   `tick()`                -> `os.clock()`.
 --   `wait/spawn/delay`      -> `task.*`.
@@ -116,23 +116,18 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -142,10 +137,6 @@ end
 --- `Players:GetPlayers()` não enxerga NPC nenhum, e foi assim que uma leva
 --- inteira saiu sem acertar inimigo de mapa.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
@@ -246,9 +237,7 @@ local function pulsar()
 	-- respeita ForceField e a redução do Núcleo. `Health = 10` matava quem
 	-- tinha acabado de nascer.
     if humanoide and humanoide.Health > 0 then
-		local reduzido = (_G.Combate and _G.Combate.calcular
-			and _G.Combate.calcular(jogador, humanoide, CFG.CUSTO_PULSAR))
-			or CFG.CUSTO_PULSAR
+		local reduzido = CFG.CUSTO_PULSAR
 		humanoide:TakeDamage(reduzido)
 	end
 

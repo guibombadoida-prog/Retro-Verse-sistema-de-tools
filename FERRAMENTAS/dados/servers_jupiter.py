@@ -814,10 +814,6 @@ function extraT(_mira)
 			vfx("BLINDAGEM", { id = escudoId, posicao = raiz.Position,
 				raio = CFG.RAIO_ESCUDO, escala = 1, vida = CFG.VIDA_ESCUDO })
 			tocar("BLINDA", 0.75)
-			if _G.Combate and _G.Combate.registrarReducao then
-				cancelarReducao = _G.Combate.registrarReducao(
-					personagem, CFG.REDUCAO, CFG.VIDA_ESCUDO)
-			end
 			repelir(math.floor(CFG.VIDA_ESCUDO / CFG.INTERVALO_BLINDA))
 		end },
 	}), function() ocupado = false end)

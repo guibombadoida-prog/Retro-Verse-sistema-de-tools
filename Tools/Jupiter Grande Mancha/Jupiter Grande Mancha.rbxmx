@@ -198,23 +198,18 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -227,10 +222,6 @@ end
 --- meio mapa: quem estivesse do outro lado do place levava dano de uma espada
 --- que nunca viu.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()

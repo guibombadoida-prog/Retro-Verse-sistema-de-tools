@@ -216,111 +216,19 @@ else
 	verde "✓ câmera presa é sempre devolvida"
 fi
 
-# --- Assinatura das funções do Núcleo ----------------------------------------
-#
-# Errar a aridade de uma função de _G.Combate NÃO dá erro: o Lua aceita, e a
-# função devolve lixo ou um no-op. Foi assim que as 7 Tools de escudo saíram
-# com dano ZERO — chamavam registrarAtaque (que só grava atribuição de abate)
-# no lugar de calcular, e aoAplicarDano com um Humanoid no lugar da função.
-checar "registrarAtaque não é aplicador de dano" '_G\.Combate\.registrarAtaque\([^)]*,[^)]*,[^)]*,'
-checar "aoAplicarDano recebe só a função"        '_G\.Combate\.aoAplicarDano\(\s*[a-z]\w*\s*,'
-# detectarHumanoides(posicao, raio, ignorar, jogador, humanoideDono, limite):
-# seis argumentos, cinco vírgulas. Com menos, `jogador` fica nil e o filtro de
-# time do podeCausarDano é PULADO — aliado vira alvo válido.
-#
-# A chamada pode estar quebrada em linhas — é a forma legível quando os seis
-# argumentos não cabem em 80 colunas. Contar vírgulas só da primeira linha
-# acusava justamente a chamada correta, então a chamada é JUNTADA até fechar
-# o parêntese antes de contar.
-CURTA=$(printf '%s\n' "$PURO" | awk '
-	{
-		corpo = $0
-		sub(/^[^:]*:[0-9]+:/, "", corpo)
-
-		if (juntando) {
-			acumulado = acumulado " " corpo
-			abertos = abertos + gsub(/\(/, "(", corpo) - gsub(/\)/, ")", corpo)
-			if (abertos <= 0) {
-				juntando = 0
-				n = gsub(/,/, ",", acumulado)
-				if (n < 5) { print marca ":" acumulado }
-			}
-			next
-		}
-
-		if (corpo ~ /_G\.Combate\.detectarHumanoides\(/) {
-			marca = $0
-			sub(/:[^:]*$/, "", marca)
-			acumulado = corpo
-			abertos = gsub(/\(/, "(", corpo) - gsub(/\)/, ")", corpo)
-			if (abertos > 0) { juntando = 1; next }
-			n = gsub(/,/, ",", acumulado)
-			if (n < 5) { print marca ":" acumulado }
-		}
-	}
-')
-if [ -n "$CURTA" ]; then
-	vermelho "✗ detectarHumanoides com 6 argumentos"
-	printf '%s\n' "$CURTA" | sed 's|^|    |'
-	cinza "    Faltando jogador/humanoideDono: o filtro de time não roda."
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ detectarHumanoides com 6 argumentos"
-fi
-
-# Detecção de alvo por Players:GetPlayers() não enxerga NPC: NPC é Model com
-# Humanoid no workspace, não é Player. Quem varre área usa consulta espacial.
-VARRE_PLAYERS=$(printf '%s\n' "$PURO" \
-	| grep -E '_Server_V[0-9]+\.lua:' \
-	| grep -E 'Players:GetPlayers\(\)' || true)
-if [ -n "$VARRE_PLAYERS" ]; then
-	ACHOU_ESPACIAL=$(printf '%s\n' "$PURO" | grep -cE 'GetPartBoundsInRadius' || true)
-	if [ "$ACHOU_ESPACIAL" -eq 0 ]; then
-		vermelho "✗ detecção de alvo enxerga NPC"
-		printf '%s\n' "$VARRE_PLAYERS" | sed 's|^|    |'
-		cinza "    Players:GetPlayers() não vê NPC. Use GetPartBoundsInRadius."
-		FALHAS=$((FALHAS + 1))
-	else
-		verde "✓ detecção de alvo enxerga NPC"
-	fi
-else
-	verde "✓ detecção de alvo enxerga NPC"
-fi
-
-# --- Fluidez: nada de mover geometria pelo servidor ---------------------------
-#
-# Part ancorada cujo CFrame é escrito por script de SERVIDOR replica a ~20 Hz e
-# o cliente NÃO interpola: o movimento chega em passos discretos. Foi isso que
-# deixou a órbita, o voo do disco e a marca do vínculo "não fluidos".
-#
-# Movimento contínuo é do cliente, a 60 Hz, a partir de um beat com parâmetros.
-# O servidor segue dono do dano, calculando a MESMA fórmula sem geometria.
-MOVE_NO_SERVIDOR=$(printf '%s\n' "$PURO" | awk -F: '
-	{
-		arquivo = $1
-		corpo   = substr($0, index($0, $3))
-
-		if (arquivo !~ /_Server_V[0-9]+\.lua/) { next }
-		if (corpo ~ /Heartbeat:Connect|RenderStepped:Connect|Stepped:Connect/) {
-			dentro[arquivo] = 1
-		}
-		if (dentro[arquivo] && corpo ~ /\.CFrame[ \t]*=/) {
-			print arquivo ":" $2 ":" corpo
-		}
-	}
-')
-if [ -n "$MOVE_NO_SERVIDOR" ]; then
-	vermelho "✗ servidor não move geometria por frame"
-	printf '%s\n' "$MOVE_NO_SERVIDOR" | sed 's|^|    |'
-	cinza "    Replica a ~20 Hz sem interpolação. Mande beat; quem desenha é o cliente."
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ servidor não move geometria por frame"
-fi
-
 # --- Código de fora ----------------------------------------------------------
 checar "sem require de id numérico"     'require\(\s*[0-9]'
-checar "sem require do Núcleo"          'require\(.*NucleoCombate'
+
+# --- A global do Núcleo foi APOSENTADA ---------------------------------------
+#
+# Ela era permitida sob guarda — global opcional, sempre com `and`. Não é mais:
+# o Núcleo saiu do repositório inteiro. Uma Tool que se comporta de dois jeitos
+# conforme exista ou não um script em outro lugar do place não é a Tool que o
+# modelo de origem era, e o legado da origem vale mais que o bônus.
+#
+# O que era fallback virou o caminho único, e ele já estava escrito e verificado
+# nas 94 — nenhuma Tool perdeu habilidade quando o de cima saiu.
+checar "sem _G.Combate — a global foi aposentada" '_G\.Combate'
 
 # --- Todo require aponta para módulo da própria Tool -------------------------
 # O handle da Tool aparece como `Tool` ou `tool` conforme o autor — a regra é
@@ -335,57 +243,6 @@ if [ -n "$FORA" ]; then
 	FALHAS=$((FALHAS + 1))
 else
 	verde "✓ todo require aponta para módulo da própria Tool"
-fi
-
-# --- Chamadas ao Núcleo sempre sob guarda ------------------------------------
-# Guarda válida: na mesma linha (_G.Combate and), num "if _G.Combate" aberto até
-# 15 linhas acima, ou numa expressão que COMEÇOU guardada e continua na linha
-# seguinte. Heurística de lint — o checklist manual continua valendo.
-#
-# A continuação não é detalhe: a forma canônica da chamada opcional é
-#     local final = (_G.Combate and _G.Combate.calcular
-#         and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
-# e a segunda linha, lida sozinha, parece uma chamada nua. Sem esta regra o
-# verificador acusava justamente o código que segue a diretriz.
-SEM_GUARDA=$(printf '%s\n' "$PURO" | awk -F: '
-	{
-		arquivo = $1
-		numero  = $2
-		corpo   = substr($0, index($0, $3))
-
-		if (arquivo != anterior) { guarda = -999; aberta = 0; anterior = arquivo }
-		if (corpo ~ /if +_G\.Combate/) { guarda = numero }
-
-		# Uma linha que COMEÇA com and/or/)/,/.. é continuação da anterior —
-		# é assim que a quebra canônica se apresenta, com o `and` na frente.
-		inicio = corpo
-		sub(/^[ \t]*/, "", inicio)
-		emContinuacao = (inicio ~ /^(and|or|\)|,|\.\.)/)
-
-		herdada = (aberta && emContinuacao)
-
-		if (corpo ~ /_G\.Combate and/ || herdada) {
-			aberta = 1
-		} else if (!emContinuacao) {
-			aberta = 0
-		}
-
-		if (corpo ~ /_G\.Combate\./) {
-			if (corpo ~ /_G\.Combate and/) next
-			if (corpo ~ /if +_G\.Combate/) next
-			if (herdada) next
-			if (numero - guarda <= 15) next
-			print arquivo ":" numero ":" corpo
-		}
-	}
-')
-if [ -n "$SEM_GUARDA" ]; then
-	vermelho "✗ toda chamada a _G.Combate está sob guarda"
-	printf '%s\n' "$SEM_GUARDA" | sed 's|^|    |'
-	cinza "    A Tool tem de funcionar com o NucleoCombate deletado do place."
-	FALHAS=$((FALHAS + 1))
-else
-	verde "✓ toda chamada a _G.Combate está sob guarda"
 fi
 
 echo ""

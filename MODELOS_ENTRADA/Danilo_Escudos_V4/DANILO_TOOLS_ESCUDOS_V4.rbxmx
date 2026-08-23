@@ -397,7 +397,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -461,9 +461,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -481,8 +478,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -490,18 +486,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -659,9 +648,6 @@ local function ehAliado(alvoChar)
 	if not alvoChar or alvoChar == character then return false end
 	local hum = alvoChar:FindFirstChildOfClass("Humanoid")
 	if not (hum and hum.Health > 0) then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return not _G.Combate.podeCausarDano(owner, hum, humanoid)
-	end
 	-- Sem Núcleo: qualquer jogador vivo pode ser protegido.
 	return true
 end
@@ -3474,7 +3460,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -3538,9 +3524,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -3558,8 +3541,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -3567,18 +3549,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -6517,7 +6492,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -6581,9 +6556,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -6601,8 +6573,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -6610,18 +6581,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -9552,7 +9516,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -9616,9 +9580,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -9636,8 +9597,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -9645,18 +9605,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -12674,7 +12627,7 @@ return VFX
 --   [FIX] Welds manuais + lerp -> R6CFrameAnimator + Poses (§10)
 --   [FIX] efeitos criados no servidor -> VFXRemote (§12.11)
 --   [FIX] workspace:GetChildren() por frame -> detectar() (§12.8)
---   [MIG] A redução passa a ser registrada em _G.Combate.registrarReducao
+--   [MIG] A redução é mecânica da própria Tool, com volta garantida
 --         (§12.10 — redução é regra compartilhada, sai da Tool).
 --         Sem o NucleoCombate instalado, cai num FALLBACK local que corrige
 --         apenas a vida do PORTADOR, com trava anti-recursão. Esse fallback
@@ -12708,7 +12661,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -12772,9 +12725,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -12792,8 +12742,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -12801,18 +12750,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -12987,10 +12929,6 @@ local function ligarPassivo()
 	if not (humanoid and rootpart) then return end
 
 	-- Caminho correto (§12.10): a redução é regra do Núcleo.
-	if _G.Combate and _G.Combate.registrarReducao then
-		local cancelar = _G.Combate.registrarReducao(character, CFG.REDUCAO_PORTADOR)
-		guardarCancelamento(cancelar)
-	end
 
 	vidaAnterior = humanoid.Health
 
@@ -13004,14 +12942,12 @@ local function ligarPassivo()
 
 		-- FALLBACK §12.8 — só quando NÃO existe Núcleo. Corrige apenas a
 		-- vida do PORTADOR; nenhuma regra de alvo é reimplementada aqui.
-		if not (_G.Combate and _G.Combate.registrarReducao) then
-			corrigindoVida = true
-			local devolver = sofrido * CFG.REDUCAO_PORTADOR
-			humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + devolver)
-			vidaAnterior = humanoid.Health
-			task.wait()
-			corrigindoVida = false
-		end
+		corrigindoVida = true
+		local devolver = sofrido * CFG.REDUCAO_PORTADOR
+		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + devolver)
+		vidaAnterior = humanoid.Health
+		task.wait()
+		corrigindoVida = false
 
 		-- Reflexão: devolve parte do golpe ao inimigo mais próximo
 		tocarSfx("sfx_impacto", rootpart, 1.0)
@@ -15719,7 +15655,7 @@ return VFX
 --
 -- CONFORMIDADE
 --   §12.4  Values DamageClass / EnergyCost / RecargaGlobal / ChaveRecarga
---   §12.6  modo preciso: _G.Combate.calcular antes do TakeDamage
+--   dano sempre por TakeDamage, que respeita ForceField
 --   §12.7  tag creator com Name -> Value -> Parent nessa ordem
 --   §12.9  recarga global por chave (imune a clone na mochila)
 --   §12.11 servidor só transmite VFX; zero :Emit() aqui
@@ -15773,7 +15709,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -15837,9 +15773,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -15857,8 +15790,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -15866,18 +15798,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then
@@ -18904,7 +18829,7 @@ return VFX
 --
 -- CONFORMIDADE
 --   §12.4  Values DamageClass / EnergyCost / RecargaGlobal / ChaveRecarga
---   §12.6  modo preciso: _G.Combate.calcular antes do TakeDamage
+--   dano sempre por TakeDamage, que respeita ForceField
 --   §12.7  tag creator com Name -> Value -> Parent nessa ordem
 --   §12.9  recarga global por chave (imune a clone na mochila)
 --   §12.11 servidor só transmite VFX; zero :Emit() aqui
@@ -18961,7 +18886,7 @@ local CFG = {
 
 --═══════════════════════════════════════════════════════════════
 -- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
--- Nada aqui reimplementa regra de combate: quando _G.Combate existe,
+-- Nada aqui reimplementa regra de combate de terceiro:
 -- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
 -- e diferente do portador) — TakeDamage já respeita ForceField nativo.
 --═══════════════════════════════════════════════════════════════
@@ -19025,9 +18950,6 @@ local function podeAtingir(alvoHum, alvoChar)
 	if not (alvoHum and alvoChar) then return false end
 	if alvoChar == character then return false end
 	if alvoHum.Health <= 0 then return false end
-	if _G.Combate and _G.Combate.podeCausarDano then
-		return _G.Combate.podeCausarDano(owner, alvoHum, humanoid) and true or false
-	end
 	return true
 end
 
@@ -19045,8 +18967,7 @@ end
 
 --── Dano: modo preciso, uma linha, sem require (§12.6) ──
 local function aplicarDano(alvoHum, bruto)
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(owner, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -19054,18 +18975,11 @@ end
 
 --── Recarga global anti-clone (§12.9) ──
 local function recarga(chave, segundos)
-	if _G.Combate and _G.Combate.recargaGlobal then
-		return _G.Combate.recargaGlobal(owner, chave, segundos)
-	end
 	return true, 0
 end
 
 --── Detecção em área (§12.8) ──
 local function detectar(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		local achados = _G.Combate.detectarHumanoides(posicao, raio, character, owner, humanoid, limite)
-		if achados then return achados end
-	end
 	local lista = {}
 	for _, modelo in ipairs(workspace:GetChildren()) do
 		if modelo:IsA("Model") and modelo ~= character then

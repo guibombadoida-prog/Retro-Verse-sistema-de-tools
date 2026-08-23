@@ -43,7 +43,7 @@ exatamente o desperdício que o Acervo foi criado para acabar (§12.16.5).
 | Sons e IDs de áudio | ✅ | `ACERVO/[Modelo]/SFX/` |
 | Animações R6 em CFrame, tabelas de pose | ✅ | `ACERVO/[Modelo]/R6_CFRAME/` |
 | Handle / geometria da arma | ✅ | direto na Tool |
-| Lógica de dano, alvo, status | ❌ | **descartada** — o Núcleo é a única porta |
+| Lógica de dano, alvo, status | ❌ | **descartada** — reescrita no preâmbulo da Tool |
 | NPCs, módulos de gear | ❌ | descartados |
 | `require(<id numérico>)` | ❌ | descartado ou reescrito |
 | `Animation` / `AnimationTrack` asset | ❌ | convertido em poses CFrame |
@@ -75,7 +75,7 @@ grep -rn '+=\|-=\|continue' .
 | `tick()` | Acumulador `dt` a partir de zero |
 | `:Destroy()` em part/bodymover | `Parent = nil` ou `Debris` |
 | `AncestryChanged` | `Tool.Destroying` |
-| `Instance.new("Explosion")` | `_G.Combate.detectarHumanoides` |
+| `Instance.new("Explosion")` | `workspace:GetPartBoundsInRadius` com `OverlapParams` |
 | `ScreenGui` / overlay | Removido — o efeito vive só no mundo 3D |
 | Clone para `ServerStorage` / `ReplicatedStorage` | Material fica dentro da Tool |
 | `+=` / `continue` | Sintaxe expandida |
@@ -161,7 +161,7 @@ proibido — cria divergência silenciosa entre repositório e Studio.
 | Alvo com `ForceField` | Não recebe dano |
 | Morte por esta Tool | Tag `creator` aparece no Humanoid, com o jogador certo |
 | **Acervo deletado do place** | **Toda Tool continua funcionando** (§12.16.4) |
-| Núcleo removido do place | Tool continua funcionando, sem os bônus (guardas `_G.Combate and`) |
+| Place vazio, nada montado fora | Tool funciona por inteiro; ela monta o depósito dela |
 
 O último par de testes é o que separa uma Tool conforme de uma Tool que só parece conforme.
 

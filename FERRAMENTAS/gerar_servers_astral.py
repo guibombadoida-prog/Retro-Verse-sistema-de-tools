@@ -106,23 +106,18 @@ end
 --%(regua)s
 
 local function creditar(alvoHum)
-\tif _G.Combate and _G.Combate.registrarAtaque then
-\t\t_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-\telse
-\t\tlocal marca = alvoHum:FindFirstChild("creator")
-\t\tif marca then marca.Parent = nil end
-\t\tmarca = Instance.new("ObjectValue")
-\t\tmarca.Name = "creator"
-\t\tmarca.Value = jogador
-\t\tmarca.Parent = alvoHum
-\t\tDebris:AddItem(marca, 3)
-\tend
+\tlocal marca = alvoHum:FindFirstChild("creator")
+\tif marca then marca.Parent = nil end
+\tmarca = Instance.new("ObjectValue")
+\tmarca.Name = "creator"
+\tmarca.Value = jogador
+\tmarca.Parent = alvoHum
+\tDebris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 \tif not alvoHum or alvoHum.Health <= 0 then return 0 end
-\tlocal final = (_G.Combate and _G.Combate.calcular
-\t\tand _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+\tlocal final = bruto
 \tcreditar(alvoHum)
 \talvoHum:TakeDamage(final)
 \treturn final
@@ -132,10 +127,6 @@ end
 --- enxerga NPC nenhum, e foi assim que uma leva inteira saiu sem acertar
 --- inimigo de mapa.
 local function alvosEm(posicao, raio, limite)
-\tif _G.Combate and _G.Combate.detectarHumanoides then
-\t\treturn _G.Combate.detectarHumanoides(
-\t\t\tposicao, raio, personagem, jogador, humanoide, limite or 12) or {}
-\tend
 
 \tlocal achados, vistos = {}, {}
 \tlocal filtro = OverlapParams.new()

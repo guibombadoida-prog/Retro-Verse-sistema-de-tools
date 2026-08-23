@@ -19,7 +19,7 @@
 --   — procurar seria referência para fora, e a Regra nº 1 vence tudo.
 --
 --   O que ela faz é escrever um Attribute no Character: `XesterForma = 2`.
---   Quem lê, lê sob guarda e com padrão. É a mesma categoria do `_G.Combate`:
+--   Quem lê, lê sob guarda e com padrão. É estado opcional compartilhado:
 --   estado opcional compartilhado, não caminho de instância, não depósito de
 --   asset.
 --
@@ -248,7 +248,7 @@ function acabarCena() end
 --
 -- `SetAttribute` / `GetAttribute` no personagem é escrita e leitura de ESTADO,
 -- não de instância: nenhum caminho, nenhum asset, nenhum script fora da Tool.
--- É a mesma categoria do `_G.Combate`, e como ele vem sempre com guarda e
+-- É estado opcional compartilhado, lido sempre com guarda e com padrão, e
 -- padrão — sozinha num place vazio, a Tool cria o atributo e segue.
 --═══════════════════════════════════════════════════════════════
 
@@ -407,22 +407,17 @@ end
 --═══════════════════════════════════════════════════════════════
 -- DANO — a Tool declara, o Núcleo aplica (§12.5 / §12.6)
 --
--- Toda chamada ao Núcleo é OPCIONAL: `_G.Combate and _G.Combate.x(...) or
--- <fallback>`. A Tool sozinha num place vazio funciona por inteiro.
+-- Toda chamada ao Núcleo é OPCIONAL: `-- <fallback>`. A Tool sozinha num place vazio funciona por inteiro.
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 --- O bônus da Carta Coringa entra AQUI, numa porta só: `bonusAtivo` é ligado
@@ -431,8 +426,7 @@ end
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
 	local pedido = bonusAtivo and (bruto * CFG.BONUS_DANO) or bruto
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, pedido)) or pedido
+	local final = pedido
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -444,10 +438,6 @@ end
 --- `personagem` é EXCLUÍDO da consulta: é o que garante que nenhuma das treze
 --- fere o próprio portador, mesmo as que estouram em cima dele.
 local function alvosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 12) or {}
-	end
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()
 	filtro.FilterType = Enum.RaycastFilterType.Exclude

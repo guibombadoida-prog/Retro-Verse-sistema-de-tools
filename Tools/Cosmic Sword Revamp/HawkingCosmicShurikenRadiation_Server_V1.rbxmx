@@ -25,7 +25,7 @@
     cada uma onde faz sentido.
 
   ANTI-FRIENDLY-FIRE
-    Pelo Núcleo (`_G.Combate.detectarHumanoides`), que já aplica o filtro de
+    Por consulta espacial (`GetPartBoundsInRadius`), que já aplica o filtro de
     time e nunca devolve o dono. As Tools deste repositório NÃO carregam
     `IsAlly` próprio: a função foi removida na conversão porque regra de
     combate tem uma porta só (REGRA 12). Sem o Núcleo instalado, o fallback
@@ -194,23 +194,18 @@ end
 --═══════════════════════════════════════════════════════════════
 
 local function creditar(alvoHum)
-	if _G.Combate and _G.Combate.registrarAtaque then
-		_G.Combate.registrarAtaque(jogador, Tool, ARQUETIPO)
-	else
-		local marca = alvoHum:FindFirstChild("creator")
-		if marca then marca.Parent = nil end
-		marca = Instance.new("ObjectValue")
-		marca.Name = "creator"
-		marca.Value = jogador
-		marca.Parent = alvoHum
-		Debris:AddItem(marca, 3)
-	end
+	local marca = alvoHum:FindFirstChild("creator")
+	if marca then marca.Parent = nil end
+	marca = Instance.new("ObjectValue")
+	marca.Name = "creator"
+	marca.Value = jogador
+	marca.Parent = alvoHum
+	Debris:AddItem(marca, 3)
 end
 
 local function aplicarDano(alvoHum, bruto)
 	if not alvoHum or alvoHum.Health <= 0 then return 0 end
-	local final = (_G.Combate and _G.Combate.calcular
-		and _G.Combate.calcular(jogador, alvoHum, bruto)) or bruto
+	local final = bruto
 	creditar(alvoHum)
 	alvoHum:TakeDamage(final)
 	return final
@@ -219,10 +214,6 @@ end
 --- Inimigos num raio. NPC é Model com Humanoid, NÃO é Player — varrer
 --- `Players:GetPlayers()` não enxergaria NPC nenhum.
 local function inimigosEm(posicao, raio, limite)
-	if _G.Combate and _G.Combate.detectarHumanoides then
-		return _G.Combate.detectarHumanoides(
-			posicao, raio, personagem, jogador, humanoide, limite or 20) or {}
-	end
 
 	local achados, vistos = {}, {}
 	local filtro = OverlapParams.new()

@@ -541,7 +541,7 @@ CONJUNTOS = [
     #
     # `F` troca de forma sem nenhuma Tool alcançar a outra: ela escreve o
     # Attribute `XesterForma` no Character, que é estado — mesma categoria do
-    # `_G.Combate` —, não caminho de instância.
+    # estado opcional compartilhado —, não caminho de instância.
     ("Xester_Forma1_7_Tools.rbxmx", "Xester_Forma1", [
         "Xester Curtain Call",
         "Xester Four Suits Arsenal",

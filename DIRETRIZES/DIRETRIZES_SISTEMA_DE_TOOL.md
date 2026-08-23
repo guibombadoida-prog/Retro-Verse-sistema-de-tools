@@ -56,7 +56,7 @@ A estrutura mínima da base é ampliada pela §12.10 da REGRA 12 V3:
 Tool
 ├── Handle (Part ou MeshPart)                  ← OBRIGATÓRIO
 ├── DamageClass / EnergyCost / RecargaGlobal   ← Values (§12.4)
-├── [NomeDaTool]_Server_V[X]                   ← Server Script — SEM require do Núcleo
+├── [NomeDaTool]_Server_V[X]                   ← Server Script — sem require de nada de fora
 ├── Client                                     ← LocalScript — input + recepção de VFX
 ├── VFXRemote                                  ← RemoteEvent unidirecional
 ├── R6CFrameAnimator                           ← ModuleScript
@@ -135,7 +135,7 @@ end)
 SFX → física → VFX → dano
 ```
 
-Recarga que precisa sobreviver a clones na mochila é **recarga global**, no Núcleo (§12.9),
+Recarga que precisa sobreviver a clones na mochila mora num `Attribute` do PERSONAGEM,
 não `Tool.Enabled`.
 
 ---
@@ -153,20 +153,50 @@ não `Tool.Enabled`.
 | Proibido | Alternativa |
 |---|---|
 | `part:Destroy()` / `object:Remove()` | `part.Parent = nil` ou `Debris:AddItem` |
-| `math.random()` em gameplay | Ângulo áureo / Vogel, jitter senoidal por contador, índice sequencial |
 | Destruir Humanoides diretamente | `TakeDamage` — respeita `ForceField` |
 | `Health = Health - dano` | `TakeDamage` |
+| `BreakJoints` | ragdoll por `BallSocketConstraint` — §10.12 |
 | GUIs completas (`ScreenGui` + Frames) | Botão simples, só para habilidade Extra |
 | `wait()` / `spawn()` / `delay()` | `task.wait` / `task.spawn` / `task.delay` |
 | `tick()` | `os.clock()` para recarga; acumulador `dt` para animação (§10.11.7) |
 | `AncestryChanged` para cleanup | `Tool.Destroying` |
 | `Animation` / `LoadAnimation` | Poses CFrame sob `R6CFrameAnimator` |
 | `+=` / `-=` / `continue` | Sintaxe expandida |
+| `require` de sistema central | nada — a Tool não conhece sistema nenhum |
+
+### §10.10 — `math.random` é PERMITIDO
+
+Ele era proibido. Não é mais.
+
+O motivo da proibição continua sendo verdade, e vale saber onde ele morde: **num
+`VFXModule`, que roda em todo cliente, cada cliente sorteia um número diferente e vê uma
+cena diferente.** Não quebra nada; só deixa de ser a mesma cena para todo mundo.
+
+Onde isso importa, o determinismo continua disponível e continua sendo o padrão da casa —
+ângulo áureo (`2.399963`), jitter senoidal por contador, índice sequencial. Onde não
+importa, `math.random` é mais curto e mais legível, e agora pode.
+
+Regra prática: **servidor sorteia à vontade** (um sorteio, resultado replicado);
+**cliente sorteia o que não precisa combinar** (variação de fumaça, sim; posição do
+estilhaço que marca onde o golpe caiu, melhor não).
+
+### §10.12 — Ragdoll é PERMITIDO
+
+`BallSocketConstraint` por junta, com `Motor6D.Enabled = false` enquanto durar.
+
+**Sempre reversível.** Guardar o valor de antes e devolver AQUELE, nunca um número fixo —
+o mesmo princípio de `afrouxar()` e `atordoar()`. Ragdoll sem volta é `BreakJoints` com
+outro nome, e esse continua proibido.
+
+⚠️ **Ragdoll e `R6CFrameAnimator` disputam as mesmas juntas.** Antes de ligar o ragdoll:
+`rig:CancelSequence()` e `rig:ReleaseLegs()`. Perna soldada trava o corpo mole do mesmo
+jeito que trava a caminhada.
 
 ### §10.11 — Animação é autoral
 
 Pose, ritmo e dramaturgia devem ser **diferentes** entre Tools. O que deve ser **idêntico** é
-regra de combate, e isso vive no Núcleo (§12.1).
+a forma de aplicar dano — `TakeDamage`, etiqueta `creator`, consulta espacial sob demanda —
+e isso vive no preâmbulo do Server de cada Tool, copiado, não requerido.
 
 **§10.11.7 — acumulador `dt`:** toda animação procedural acumula tempo a partir de **zero**,
 localmente. `tick()` e `os.time()` nunca alimentam `CFrame`: são valores grandes e absolutos,
@@ -193,22 +223,26 @@ Varinha_Magia_V3.lua
 ```
 
 Versionamento sequencial: V1 → V2 → V3. Incrementar a cada modificação.
-Ver §12.15 para as chaves de recarga, modificadores, tipos de VFX e pastas do Acervo.
+Ver `CLAUDE.md` para as chaves de recarga, tipos de VFX e pastas do Acervo.
 
 ---
 
-## 12. NÚCLEO DE COMBATE
+## 12. CICLO DE VIDA DO VFX
 
-Ver [`REGRA_12_NUCLEO_DE_COMBATE_V3.md`](REGRA_12_NUCLEO_DE_COMBATE_V3.md) — documento completo.
+Ver [`REGRA_CICLO_DE_VIDA_DO_VFX.md`](REGRA_CICLO_DE_VIDA_DO_VFX.md) — documento completo.
 
 Resumo operacional:
 
-- A Tool **declara intenção** com `Value`s; o Núcleo **aplica regra**.
-- Zero `require` do Núcleo dentro da Tool. A porta é `_G.Combate`, sempre com guarda.
-- `DamageClass` é a etiqueta mais barata e a mais esquecida. Sem ela, todo bônus por classe
-  do jogo fica inerte.
+- Na **entrega**, os moldes são filhos da Tool, em `Tool/Efeitos/`.
+- Ao chegar ao jogador — mochila ou mão —, o **Server** move os moldes para
+  `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`.
+- Quem lê tem **duas portas**: o depósito primeiro, o interior da Tool depois.
+- `Tool.Destroying` desconta `_refs`; zerou, a pasta some.
 
----
+> ⛔ **O que estava aqui antes era o NÚCLEO DE COMBATE, e ele foi removido do repositório.**
+> Nem regra, nem `_G.Combate`, nem `ServerScriptService/NucleoCombate.lua`. Uma Tool que se
+> comporta diferente conforme exista um script em outro lugar do place não é a Tool que o
+> modelo de origem era. O que era fallback virou o caminho único.
 
 ## 13. FORMATO DE ENTREGA
 
@@ -251,7 +285,7 @@ Scripts Reutilizados:
 - [ ] Propriedades `Grip` configuradas no servidor
 - [ ] Tool testada em equip / unequip / activate
 
-O checklist completo, incluindo Núcleo e Acervo, está em
+O checklist completo, incluindo depósito de VFX e Acervo, está em
 [`CHECKLIST_ENTREGA.md`](CHECKLIST_ENTREGA.md).
 
 ---

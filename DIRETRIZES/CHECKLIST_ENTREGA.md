@@ -1,7 +1,7 @@
 # CHECKLIST DE ENTREGA
 **Retro-Verse / Studios** · copiar e preencher a cada Tool entregue
 
-Consolida a Regra nº 1, o §14 das DIRETRIZES base e o §12.14 da REGRA 12 V3.
+Consolida a Regra nº 1, a Regra nº 2 (ciclo de vida do VFX) e o §14 das DIRETRIZES base.
 
 ---
 
@@ -22,13 +22,13 @@ bash TESTES/verificar_autocontencao.sh
 - [ ] Todo `Sound` é filho da Tool (`Tool/SFX/`), clonado — nunca buscado fora
 - [ ] Todo mesh, MeshPart, textura, `ParticleEmitter`, `Beam` e `Trail` é filho da Tool
 - [ ] Toda pose/animação é tabela CFrame no ModuleScript `Poses`, dentro da Tool
-- [ ] Toda chamada a `_G.Combate` está sob guarda
+- [ ] **Zero** menção a `_G.Combate` — a global foi aposentada
 
 **Teste manual que decide:**
 
 - [ ] **Tool sozinha em place vazio → funciona por inteiro**
 - [ ] `ACERVO_RETROVERSE` deletado → funciona
-- [ ] `NucleoCombate` deletado → funciona, sem os bônus
+- [ ] Place vazio, sem `RetroVerse_VFX` montado → a Tool monta o dela e funciona
 - [ ] `ReplicatedStorage` e `ServerStorage` vazios → funciona
 
 ---
@@ -109,34 +109,40 @@ Só se a Tool tiver cutscene. Se não tiver, pular a seção inteira.
 - [ ] Versionamento e nomenclatura corretos
 - [ ] Testada em equip / unequip / activate
 
-## Núcleo (§12.14)
+## Depósito de VFX (Regra nº 2)
 
-- [ ] `NucleoCombate` (Script) em `ServerScriptService`, **um só**, não Disabled
-- [ ] `_G.Combate` disponível — confirmado no Output: `[NucleoCombate] _G.Combate pronto — v3`
-- [ ] Zero ModuleScript de combate exigido por Tool
+- [ ] `ChaveVFX` (StringValue) presente na Tool, e a chave é única no repositório
+- [ ] Quem instala é **Server**, nunca Client — Client não replica
+- [ ] `Tool.Equipped` instala; `Tool.Destroying` desinstala
+- [ ] `_refs` sobe na instalação e desce na saída, no mesmo arquivo
+- [ ] Quem lê tem **duas portas**: depósito primeiro, interior da Tool depois
+- [ ] Depois de apagar a Tool, `ReplicatedStorage` volta a ficar vazio
 
 ## Todas as Tools
 
-- [ ] Zero `require` do Núcleo
+- [ ] Zero `require` de qualquer coisa fora da Tool
 - [ ] Zero `require(<id numérico>)` externo
-- [ ] **`DamageClass` declarado** ← sem ele, todo bônus por classe fica inerte
-- [ ] Zero `canDamage` / `IsTeamMate` / `TagHumanoid` reimplementados
+- [ ] Zero menção a `_G.Combate` — a global foi aposentada
 - [ ] Bloco `CFG` no topo; **zero números mágicos** no corpo
 - [ ] `ARQUETIPO` declarado
 - [ ] Zero efeito colateral fora da Tool
 - [ ] Zero leitura do Acervo em runtime
 
-## Modo preciso (§12.6) — opcional, mas esperado em gear editável
+## Dano
 
-- [ ] `_G.Combate.calcular` antes do `TakeDamage`, com guarda `_G.Combate and`
-- [ ] `Instance.new("Explosion")` substituído por `detectarHumanoides`
+- [ ] `TakeDamage`, nunca `Health = Health - x` — `TakeDamage` respeita `ForceField`
+- [ ] Etiqueta `creator` escrita na vítima, com prazo pelo `Debris`
+- [ ] Alvo por `workspace:GetPartBoundsInRadius` com `OverlapParams`, nunca varredura do mundo
+- [ ] `Instance.new("Explosion")` substituído por consulta espacial
 
-## Escudo, redução ou buff
+## Escudo, redução, buff ou ragdoll — tudo que TEM VOLTA
 
-- [ ] Registro via `_G.Combate.registrar*`
-- [ ] Função de cancelamento guardada em variável local
-- [ ] Cancelamento em `Tool.Destroying`, `Humanoid.Died` **e em todo caminho de saída**
-- [ ] Zero registro órfão (registro sem cancelamento = escudo permanente)
+- [ ] O valor de ANTES é guardado, e é ELE que volta — nunca um número fixo
+- [ ] Guarda contra empilhar (atributo ou flag): dois efeitos em cima do mesmo alvo
+      não podem gravar o estado já modificado como "o de antes"
+- [ ] A volta acontece em `Tool.Destroying`, `Humanoid.Died` **e em todo caminho de saída**
+- [ ] Zero registro órfão (efeito sem volta = permanente)
+- [ ] Ragdoll: `rig:CancelSequence()` + `rig:ReleaseLegs()` ANTES de ligar
 
 ## VFX
 
@@ -175,7 +181,7 @@ grep -rn 'require(' Tools/[NomeDaTool]/       # só Poses / VFXModule / R6CFrame
 
 - [ ] **Tool sozinha em place vazio → funciona por inteiro** (Regra nº 1)
 - [ ] **Acervo deletado do place → toda Tool continua funcionando**
-- [ ] **Núcleo removido → a Tool continua funcionando, só sem os bônus**
+- [ ] **Place vazio → a Tool funciona por inteiro, sem nada montado fora dela**
 - [ ] Duas cópias na mochila → a recarga global trava as duas
 - [ ] Desequipar durante a recarga → a recarga não zera
 - [ ] Aliado do mesmo time e alvo com `ForceField` → não recebem dano

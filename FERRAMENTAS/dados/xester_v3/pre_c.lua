@@ -4,7 +4,7 @@
 --
 -- `SetAttribute` / `GetAttribute` no personagem é escrita e leitura de ESTADO,
 -- não de instância: nenhum caminho, nenhum asset, nenhum script fora da Tool.
--- É a mesma categoria do `_G.Combate`, e como ele vem sempre com guarda e
+-- É estado opcional compartilhado, lido sempre com guarda e com padrão, e
 -- padrão — sozinha num place vazio, a Tool cria o atributo e segue.
 --═══════════════════════════════════════════════════════════════
 
