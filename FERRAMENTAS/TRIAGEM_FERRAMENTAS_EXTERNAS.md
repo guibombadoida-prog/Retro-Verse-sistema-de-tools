@@ -1,5 +1,10 @@
 # Triagem — ferramentas externas de autoria
 
+> **Segunda leva — quatro motores de física:** ver
+> [`TRIAGEM_FISICA.md`](TRIAGEM_FISICA.md). Critério igual, escrutínio maior — aqueles
+> são ferramentas de autoria e param no Studio; os de física rodam junto com a
+> habilidade. E lá está o primeiro material **GPL** que chegou ao repositório.
+
 Data: 2026-08-18 · três repositórios avaliados a pedido, clonados e lidos no código.
 
 O critério é um só, e é a **regra nº 1**: o que a ferramenta produz precisa caber
