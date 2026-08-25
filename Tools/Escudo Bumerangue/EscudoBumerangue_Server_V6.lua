@@ -47,6 +47,9 @@ local CFG = {
 
 	-- ===== DETECÇÃO =====
 	RAIO_ACERTO      = 5,
+	-- Tique do voo no servidor. A 30 Hz o passo é menor que RAIO_ACERTO,
+	-- então ninguém passa despercebido entre dois tiques.
+	PASSO_VOO       = 1 / 30,
 	REACERTO_IDA     = 0.5,
 
 	-- ===== VISUAL =====
@@ -298,27 +301,29 @@ end
 -- ESTADO
 --═══════════════════════════════════════════════════════════════
 
-local relogio     = 0        -- acumulador dt global (nunca tick())
+--- A janela de combo mede RECARGA, não animação, e recarga é `os.clock()`.
+---
+--- Era um acumulador `dt` alimentado por um `Heartbeat:Connect` que existia só
+--- para somar. Uma conexão por quadro, no servidor, para fazer o que uma
+--- chamada de função faz — e ela ainda fazia o verificador de fluidez marcar
+--- este arquivo como "move geometria por frame", porque a heurística dele é
+--- por ARQUIVO: qualquer `.CFrame =` num arquivo que tenha um `Heartbeat`.
 local combo       = 0
 local marcaCombo  = -99
 local voando      = 0        -- quantos escudos estão no ar
 local npcRecarga  = false
 local travaNormal, travaCarregado, travaMulti = false, false, false
 
-guardarConexao(RunService.Heartbeat:Connect(function(dt)
-	relogio = relogio + dt
-end))
-
 --═══════════════════════════════════════════════════════════════
 -- COMBO
 --═══════════════════════════════════════════════════════════════
 
 local function atualizarCombo()
-	if relogio - marcaCombo > CFG.JANELA_COMBO then
+	if os.clock() - marcaCombo > CFG.JANELA_COMBO then
 		combo = 0
 	end
 	combo = combo + 1
-	marcaCombo = relogio
+	marcaCombo = os.clock()
 	return math.min(1 + combo * CFG.BONUS_COMBO, CFG.TETO_COMBO)
 end
 
@@ -326,23 +331,58 @@ end
 -- ARREMESSO
 --═══════════════════════════════════════════════════════════════
 
-local function criarBumerangue(corProjetil)
-	local b = Handle:Clone()
-	b.Name         = "EscudoBumerangue"
-	b.Transparency = 0
-	b.CanCollide   = false
-	b.CanTouch     = false
-	b.CanQuery     = false
-	b.Anchored     = true
-	b.Massless     = true
-	b.Color        = corProjetil
-	b.Material     = Enum.Material.Neon
-	for _, filho in ipairs(b:GetChildren()) do
-		if filho:IsA("Sound") then filho.Parent = nil end
-	end
-	b.Parent = workspace
-	guardarParte(b, 12)
-	return b
+--- O projétil NÃO existe mais como `Part` do servidor.
+---
+--- Ele era `Handle:Clone()` ancorado, com o `CFrame` reescrito a cada
+--- `Heartbeat`. Geometria movida pelo servidor replica a ~20 Hz e o cliente
+--- não interpola: o voo chegava em passos, e era esse o "não fluido" que
+--- sobreviveu a três levas.
+---
+--- Agora o servidor manda UM beat com origem, direção, velocidade e alcance —
+--- tudo o que ele já sabia antes de criar peça alguma — e calcula a MESMA
+--- trajetória por aritmética para saber em quem bater. Quem voa a 60 Hz é o
+--- `PROJETIL` do VFXModule, no cliente.
+
+--═══════════════════════════════════════════════════════════════
+-- SOM NUM PONTO, SEM PEÇA PARA PENDURAR
+--
+-- Os dois de cima penduram o `Sound` numa instância. Enquanto o projétil era
+-- uma `Part` do servidor, ela servia de suporte; agora não há peça nenhuma —
+-- quem voa é desenho de cliente.
+--
+-- Um `Sound` só toca enquanto tem pai no DataModel, então a saída é uma âncora
+-- invisível própria, com prazo pelo `Debris`. É o mesmo `tocarEm` que o resto
+-- do repositório usa, e existe pelo mesmo motivo.
+--═══════════════════════════════════════════════════════════════
+
+local function ancoraEm(posicao, prazo)
+	local a = Instance.new("Part")
+	a.Size = Vector3.new(0.2, 0.2, 0.2)
+	a.Transparency = 1
+	a.Anchored = true
+	a.CanCollide, a.CanQuery, a.CanTouch = false, false, false
+	a.CFrame = CFrame.new(posicao or Vector3.new())
+	a.Parent = workspace
+	Debris:AddItem(a, prazo or 6)
+	return a
+end
+
+local function tocarSfxEm(nome, posicao, pitch)
+	return tocarSfx(nome, ancoraEm(posicao, 12), pitch)
+end
+
+local function tocarBlocoEm(lista, posicao, pitch)
+	return tocarBloco(lista, ancoraEm(posicao, 6), pitch)
+end
+
+--- Contador de voo: cada arremesso precisa de um `id` só dele, senão dois
+--- bumerangues no ar dividem o mesmo registro e o `PARAR` do primeiro apaga o
+--- desenho do segundo.
+local contadorVoo = 0
+local function proximoVoo()
+	contadorVoo = contadorVoo + 1
+	if contadorVoo > 100000 then contadorVoo = 1 end
+	return contadorVoo
 end
 
 local function arremessar(destino, modo)
@@ -384,22 +424,38 @@ local function arremessar(destino, modo)
 	end
 	direcao = direcao.Unit
 
-	local projetil = criarBumerangue(corProjetil)
-	projetil.CFrame = CFrame.new(origem, origem + direcao)
+	local idVoo = "BUMER_" .. RIG_SUFIXO .. "_" .. tostring(proximoVoo())
+	vfx("PROJETIL", {
+		id         = idVoo,
+		posicao    = origem,
+		direcao    = direcao,
+		velocidade = velocidade,
+		alcance    = alcance,
+		cor        = corProjetil,
+		escala     = modo == "carregado" and 1.25 or 1,
+		giro       = 16,
+		pecaNome   = personagem and personagem.Name or nil,
+	})
 
-	tocarSfx("sfx_carga", projetil, modo == "carregado" and 0.85 or 1.2)
-	tocarBloco(somImpacto, projetil, modo == "carregado" and 0.8 or 1.5)
+	-- O som sai de uma âncora no ponto de saída: sem `Part` de projétil, não há
+	-- onde pendurá-lo, e som pendurado em peça que some morre no quadro em que
+	-- nasce.
+	tocarSfxEm("sfx_carga", origem, modo == "carregado" and 0.85 or 1.2)
+	tocarBlocoEm(somImpacto, origem, modo == "carregado" and 0.8 or 1.5)
 	-- [JC] rajada cônica no ponto de saída
+	tocarSfx("sfx_expansao", Handle, 1.0)
 	vfx("RAJADA", {
 		posicao = origem, cor = corProjetil,
 		escala = modo == "carregado" and 1.2 or 0.8, direcao = direcao,
 	})
 
 	local atingidos = {}
-	local giro = 0
 
-	local function checar(fase)
-		local alvos = detectar(projetil.Position, CFG.RAIO_ACERTO, 6)
+	--- `onde` é calculado, não lido de uma peça: a mesma fórmula que o cliente
+	--- desenha, avaliada no servidor. É isto que mantém o dano no servidor sem
+	--- geometria nenhuma.
+	local function checar(fase, onde)
+		local alvos = detectar(onde, CFG.RAIO_ACERTO, 6)
 		for _, hum in ipairs(alvos) do
 			if not atingidos[hum] then
 				atingidos[hum] = true
@@ -412,9 +468,11 @@ local function arremessar(destino, modo)
 					-- SFX -> física -> VFX -> dano (§8 V2)
 					tocarSfx("sfx_impacto", raiz, alto and 0.85 or 1.2)
 					tocarBloco(somImpacto, raiz, 2.0)
-					empurrar(raiz, (raiz.Position - projetil.Position), recuo, 0.2)
+					empurrar(raiz, (raiz.Position - onde), recuo, 0.2)
 					if alto then
+						tocarSfx("sfx_execucao", Handle, 0.9)
 						vfx("IMPACTO_NOVA", { posicao = raiz.Position, cor = corHit, escala = 1.1 })
+						tocarSfx("sfx_corte", Handle, 1.15)
 						vfx("CORTE_X", { posicao = raiz.Position, cor = corHit, escala = 1 })
 						vfx("TREMOR", { preset = "BUMP" })
 					else
@@ -433,51 +491,61 @@ local function arremessar(destino, modo)
 		end
 	end
 
+	--═══════════════════════════════════════════════════════════════
+	-- O VOO, DO LADO DO SERVIDOR: aritmética, e nada de `Part`
+	--
+	-- A posição é `origem + direcao * percorrido` na ida, e a interpolação até
+	-- o `Handle` na volta. Exatamente a mesma fórmula que o `PROJETIL` desenha
+	-- no cliente — só que aqui ela serve para uma coisa só: saber em quem
+	-- bater.
+	--
+	-- O tique é `PASSO_VOO`, não `Heartbeat`. A 30 Hz o passo do bumerangue é
+	-- menor que `RAIO_ACERTO`, então ninguém passa despercebido entre dois
+	-- tiques — e o servidor deixa de acordar 60 vezes por segundo por projétil.
+	--═══════════════════════════════════════════════════════════════
 	task.spawn(function()
 		-- FASE 1: ida
 		local percorrido = 0
-		while projetil.Parent and percorrido < alcance do
-			local dt = RunService.Heartbeat:Wait()
-			local passo = velocidade * dt
-			percorrido = percorrido + passo
-			giro = giro + dt * 16
-			local nova = projetil.Position + direcao * passo
-			projetil.CFrame = CFrame.new(nova, nova + direcao) * CFrame.Angles(0, giro, 0)
-			checar("ida")
+		local onde = origem
+		while percorrido < alcance do
+			task.wait(CFG.PASSO_VOO)
+			if not (Handle and Handle.Parent) then break end
+			percorrido = percorrido + velocidade * CFG.PASSO_VOO
+			onde = origem + direcao * math.min(percorrido, alcance)
+			checar("ida", onde)
 		end
 
-		tocarBloco(somImpacto, projetil, 1.0)
+		tocarBlocoEm(somImpacto, onde, 1.0)
 
-		-- FASE 2: volta
-		while projetil.Parent and Handle and Handle.Parent do
-			local dt = RunService.Heartbeat:Wait()
-			local volta = (Handle.Position - projetil.Position)
+		-- FASE 2: volta — o alvo é o `Handle`, que anda com o jogador
+		while Handle and Handle.Parent do
+			task.wait(CFG.PASSO_VOO)
+			if not (Handle and Handle.Parent) then break end
+			local volta = Handle.Position - onde
 			if volta.Magnitude < 3 then break end
-			local passo = velocidade * 0.75 * dt
-			giro = giro + dt * 16
-			local nova = projetil.Position + volta.Unit * passo
-			projetil.CFrame = CFrame.new(nova, nova + volta.Unit) * CFrame.Angles(0, giro, 0)
-			checar("volta")
+			onde = onde + volta.Unit * (velocidade * 0.75 * CFG.PASSO_VOO)
+			checar("volta", onde)
 		end
 
-		if projetil.Parent then
-			vfx("IMPACTO_NOVA", {
-				posicao = projetil.Position,
-				cor     = corProjetil,
-				escala  = modo == "carregado" and 1.5 or 1,
+		-- o desenho morre sozinho quando chega; o `PARAR` cobre o caso de a
+		-- Tool sumir no meio da viagem
+		vfx("PARAR", { id = idVoo })
+		vfx("IMPACTO_NOVA", {
+			posicao = onde,
+			cor     = corProjetil,
+			escala  = modo == "carregado" and 1.5 or 1,
+		})
+		if modo == "carregado" then
+			-- [JC] anel de destroços no retorno do arremesso pesado
+			tocarSfx("sfx_dominio", Handle, 0.85)
+			vfx("DESTROCOS", {
+				posicao    = onde - Vector3.new(0, 2.6, 0),
+				cor        = corProjetil,
+				escala     = 0.9,
+				quantidade = 12,
+				raio       = 16,
 			})
-			if modo == "carregado" then
-				-- [JC] anel de destroços no retorno do arremesso pesado
-				vfx("DESTROCOS", {
-					posicao    = projetil.Position - Vector3.new(0, 2.6, 0),
-					cor        = corProjetil,
-					escala     = 0.9,
-					quantidade = 12,
-					raio       = 16,
-				})
-				vfx("TREMOR", { preset = "EXPLOSAO_PEQUENA" })
-			end
-			projetil.Parent = nil
+			vfx("TREMOR", { preset = "EXPLOSAO_PEQUENA" })
 		end
 
 		voando = math.max(0, voando - 1)

@@ -25,6 +25,9 @@ local CFG = {
 	ESCALA_ESCUDO   = 0.6,
 	ALTURA_ESCUDO   = 3,
 	VEL_ROTACAO     = 3,        -- rad/s
+	-- Intervalo do tique de vínculo. Era 60 Hz porque o mesmo laço movia o
+	-- escudo; agora ele só mede distância, e 0.2 s basta.
+	PASSO_VINCULO   = 0.2,
 
 	COR             = Color3.fromRGB(255, 60, 60),
 	COR_ESCUDO      = Color3.fromRGB(255, 90, 90),
@@ -276,6 +279,7 @@ end
 local vinculoAtivo = false
 local npcRecarga   = false
 local ID_AURA      = "AURA_" .. RIG_SUFIXO
+local ID_ESCUDO    = "ESCUDO_" .. RIG_SUFIXO
 
 --═══════════════════════════════════════════════════════════════
 -- ALIADO VÁLIDO
@@ -325,25 +329,24 @@ local function ativarSalvador(alvoChar)
 
 	vinculoAtivo = true
 
-	-- Escudo flutuante sobre o aliado
-	local escudo = Handle:Clone()
-	escudo.Name         = "EscudoSalvador"
-	escudo.CanCollide   = false
-	escudo.CanTouch     = false
-	escudo.CanQuery     = false
-	escudo.Anchored     = true
-	escudo.Massless     = true
-	escudo.Material     = Enum.Material.Neon
-	escudo.Color        = CFG.COR_ESCUDO
-	escudo.Transparency = 0.25
-	for _, filho in ipairs(escudo:GetChildren()) do
-		if filho:IsA("Sound") then filho.Parent = nil end
-	end
-	local malha = escudo:FindFirstChildOfClass("SpecialMesh")
-	if malha then malha.Scale = malha.Scale * CFG.ESCALA_ESCUDO end
-	escudo.CFrame = CFrame.new(alvoCabeca.Position + Vector3.new(0, CFG.ALTURA_ESCUDO, 0))
-	escudo.Parent = workspace
-	guardarParte(escudo)
+	-- Escudo flutuante sobre o aliado — DESENHADO PELO CLIENTE.
+	--
+	-- Ele era uma `Part` ancorada do servidor, com o `CFrame` reescrito a cada
+	-- `Heartbeat`. Geometria movida pelo servidor replica a ~20 Hz e o cliente
+	-- não interpola: o escudo chegava em passos, e era essa a órbita "dura" que
+	-- sobreviveu a três levas.
+	--
+	-- Agora o servidor manda UM beat com os parâmetros e não cria peça nenhuma.
+	-- Quem gira, a 60 Hz e localmente, é o `SEGUE` do VFXModule.
+	vfx("SEGUE", {
+		id         = ID_ESCUDO,
+		alvoNome   = alvoChar.Name,
+		cor        = CFG.COR_ESCUDO,
+		escala     = CFG.ESCALA_ESCUDO,
+		altura     = CFG.ALTURA_ESCUDO,
+		giro       = CFG.VEL_ROTACAO,
+		inclinacao = 12,
+	})
 
 	-- Aura contínua no aliado (roda no cliente)
 	vfx("AURA", {
@@ -354,7 +357,6 @@ local function ativarSalvador(alvoChar)
 		intensidade = 28,
 	})
 
-	local giro = 0
 	local encerrado = false
 	local transferindo = false
 	local danoConn
@@ -366,9 +368,12 @@ local function ativarSalvador(alvoChar)
 		if danoConn then danoConn:Disconnect() end
 		if somSacrificio then somSacrificio:Stop() end
 		vfx("PARAR", { id = ID_AURA })
-		if escudo and escudo.Parent then
-			vfx("IMPACTO", { posicao = escudo.Position, cor = CFG.COR, escala = 1 })
-			escudo.Parent = nil
+		vfx("PARAR", { id = ID_ESCUDO })
+		if alvoCabeca and alvoCabeca.Parent then
+			vfx("IMPACTO", {
+				posicao = alvoCabeca.Position + Vector3.new(0, CFG.ALTURA_ESCUDO, 0),
+				cor = CFG.COR, escala = 1,
+			})
 		end
 		if rig then rig:PlayPose("IDLE", 0.3) end
 	end
@@ -384,6 +389,7 @@ local function ativarSalvador(alvoChar)
 			alvoHum.Health = antiga
 			humanoid:TakeDamage(sofrido)
 			vfx("BLOQUEIO", { posicao = alvoRaiz.Position, cor = CFG.COR, escala = 1.1 })
+			tocarSfx("sfx_corte", Handle, 1.1)
 			vfx("FEIXE", {
 				origem  = alvoRaiz.Position,
 				destino = rootpart.Position,
@@ -399,20 +405,24 @@ local function ativarSalvador(alvoChar)
 		end
 	end))
 
-	-- Órbita + feixe de vínculo, por acumulador dt
-	guardarConexao(RunService.Heartbeat:Connect(function(dt)
-		if encerrado then return end
-		if not (escudo.Parent and rootpart and rootpart.Parent and alvoCabeca.Parent) then
-			encerrar()
-			return
+	-- O que sobrou para o servidor: saber se os dois ainda estão perto.
+	--
+	-- Isso NÃO pede 60 Hz. `PASSO_VINCULO` é o intervalo, e a 0.2 s a regra
+	-- continua justa — ninguém atravessa `DIST_MAXIMA` studs em dois décimos
+	-- sem que o jogador perceba o vínculo se rompendo.
+	task.spawn(function()
+		while not encerrado do
+			if not (rootpart and rootpart.Parent and alvoCabeca.Parent) then
+				encerrar()
+				return
+			end
+			if (alvoRaiz.Position - rootpart.Position).Magnitude > CFG.DIST_MAXIMA then
+				encerrar()
+				return
+			end
+			task.wait(CFG.PASSO_VINCULO)
 		end
-		giro = giro + dt * CFG.VEL_ROTACAO
-		escudo.CFrame = CFrame.new(alvoCabeca.Position + Vector3.new(0, CFG.ALTURA_ESCUDO, 0))
-			* CFrame.Angles(0, giro, math.rad(12))
-		if (alvoRaiz.Position - rootpart.Position).Magnitude > CFG.DIST_MAXIMA then
-			encerrar()
-		end
-	end))
+	end)
 
 	if rig then
 		rig:PlaySequence("SACRIFICIO", function(kf)
@@ -430,11 +440,13 @@ local function ativarSalvador(alvoChar)
 					escala  = 1.1,
 					direcao = Vector3.new(0, 1, 0),
 				})
+				tocarSfx("sfx_execucao", Handle, 0.9)
 				vfx("ZOOM", { fov = 55, subida = 0.2, espera = 0.5 })
 				vfx("FEIXE", {
 					origem = rootpart.Position, destino = alvoRaiz.Position,
 					cor = CFG.COR, escala = 2, duracao = 0.5,
 				})
+				tocarSfx("sfx_expansao", Handle, 1.0)
 				vfx("ONDA_CHOQUE", {
 					posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
 					cor = CFG.COR, escala = 0.9,

@@ -332,6 +332,7 @@ local function ativarSkate()
 	solda.Parent = pernaDireita
 	guardarParte(solda)
 
+	tocarSfx("sfx_dominio", Handle, 0.85)
 	vfx("AURA", {
 		id = ID_AURA, alvoNome = character.Name,
 		cor = CFG.COR, escala = 0.7, intensidade = 30,
@@ -355,6 +356,7 @@ local function ativarSkate()
 		end
 		if solda and solda.Parent then solda.Parent = nil end
 		if prancha and prancha.Parent then
+			tocarSfx("sfx_execucao", Handle, 0.95)
 			vfx("POEIRA", { posicao = prancha.Position, cor = CFG.COR, escala = 1.2 })
 			prancha.Parent = nil
 		end
@@ -412,6 +414,7 @@ local function ativarSkate()
 
 	if rig then
 		rig:PlayPose("SKATE", 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tocarSfx("sfx_expansao", Handle, 1.0)
 		vfx("ONDA_CHOQUE", {
 			posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
 			cor     = CFG.COR,
@@ -428,6 +431,7 @@ local function ativarSkate()
 			escala  = 0.8,
 			direcao = -rootpart.CFrame.LookVector,
 		})
+		tocarSfx("sfx_corte", Handle, 1.15)
 		vfx("DESTROCOS", {
 			posicao    = rootpart.Position - Vector3.new(0, 2.8, 0),
 			cor        = CFG.COR,

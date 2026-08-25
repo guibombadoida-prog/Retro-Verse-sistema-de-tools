@@ -350,6 +350,7 @@ local function ligarPassivo()
 				})
 				vfx("IMPACTO", { posicao = raiz.Position, cor = CFG.COR_REFLEXO, escala = 0.9 })
 				-- [DE] a reflexão devolve o golpe como corte em X
+				tocarSfx("sfx_corte", Handle, 1.15)
 				vfx("CORTE_X", { posicao = raiz.Position, cor = CFG.COR_REFLEXO, escala = 0.9 })
 				aplicarDano(atacante, sofrido * CFG.REFLEXAO_ATAQUE)
 			end
@@ -371,6 +372,7 @@ local function protegerAliado()
 	local raizAlvo = alvo and raizDe(alvo) or nil
 	local posicaoOriginal = rootpart.CFrame
 
+	tocarSfx("sfx_dominio", Handle, 0.85)
 	vfx("AURA", {
 		id = ID_AURA, alvoNome = character.Name,
 		cor = CFG.COR_PROTECAO, escala = 0.9, intensidade = 30,
@@ -401,6 +403,7 @@ local function protegerAliado()
 						Vector3.new(destino.X, raizAlvo.Position.Y, destino.Z),
 						raizAlvo.Position
 					)
+					tocarSfx("sfx_expansao", Handle, 1.0)
 					vfx("ONDA_CHOQUE", {
 						posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
 						cor = CFG.COR_PROTECAO, escala = 1,
@@ -417,6 +420,7 @@ local function protegerAliado()
 						(raizAlvo.Position - rootpart.Position) + Vector3.new(0, 0.5, 0),
 						CFG.FORCA_REPULSAO, 0.35
 					)
+					tocarSfx("sfx_execucao", Handle, 0.9)
 					vfx("IMPACTO_NOVA", {
 						posicao = raizAlvo.Position, cor = CFG.COR_PROTECAO, escala = 1.3,
 					})

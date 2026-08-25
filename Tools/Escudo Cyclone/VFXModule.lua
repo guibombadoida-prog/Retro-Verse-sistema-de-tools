@@ -899,6 +899,248 @@ function Efeitos.CICLONE(d)
 end
 
 --═══════════════════════════════════════════════════════════════
+-- MOVIMENTO CONTÍNUO — do CLIENTE, a 60 Hz
+--
+-- Os dois efeitos abaixo existem para tirar geometria do servidor.
+--
+-- `Part` ancorada cujo `CFrame` é escrito por script de SERVIDOR replica a
+-- ~20 Hz e o cliente NÃO interpola: o movimento chega em passos discretos. Foi
+-- isso que deixou a órbita do `Salvador`, o voo do bumerangue e a lâmina do
+-- `Escudo Partido` duros — a reclamação de "não fluido" que sobreviveu a três
+-- levas e que o `verificar_autocontencao.sh` cobra desde então.
+--
+-- A divisão é: o SERVIDOR continua dono do dano, calculando a MESMA trajetória
+-- por aritmética, sem criar `Part` nenhuma. O CLIENTE recebe UM beat com os
+-- parâmetros e desenha os 60 Hz por conta própria.
+--═══════════════════════════════════════════════════════════════
+
+--- Um projétil que voa em linha reta e, se `peca` vier, VOLTA para ela.
+---
+--- Recebe origem, direção, velocidade e alcance — tudo o que o servidor já
+--- sabia antes de mover coisa alguma. O `id` permite ao servidor apagá-lo
+--- antes da hora (`APAGAR`), e o cliente também o apaga sozinho quando a
+--- viagem acaba: efeito que só morre por ordem de fora fica pendurado se a
+--- ordem se perder.
+function Efeitos.PROJETIL(d)
+	local id = d and d.id
+	if not id then return end
+	local origem = pos(d)
+	local direcao = (d and d.direcao) or Vector3.new(0, 0, -1)
+	if direcao.Magnitude < 0.01 then return end
+	direcao = direcao.Unit
+
+	local velocidade = (d and d.velocidade) or 90
+	local alcance = (d and d.alcance) or 60
+	local volta = (d and d.peca) or nil
+	local giroPorSeg = (d and d.giro) or 16
+	local c = cor(d)
+	local e = escala(d)
+	local reg = abrirId(id)
+
+	local corpo = novaParte({
+		Size = Vector3.new(4.4, 4.4, 0.5) * e,
+		Color = c,
+		Material = Enum.Material.Neon,
+		Transparency = 0.1,
+		CFrame = CFrame.new(origem, origem + direcao),
+	})
+	table.insert(reg.partes, corpo)
+
+	local att = Instance.new("Attachment")
+	att.Parent = corpo
+	local rastro = Instance.new("Trail")
+	local frente = Instance.new("Attachment")
+	frente.Position = Vector3.new(0, 2.2 * e, 0)
+	frente.Parent = corpo
+	local tras = Instance.new("Attachment")
+	tras.Position = Vector3.new(0, -2.2 * e, 0)
+	tras.Parent = corpo
+	rastro.Attachment0, rastro.Attachment1 = frente, tras
+	rastro.Color = ColorSequence.new(branco(c, 0.4), c)
+	rastro.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	rastro.Lifetime = 0.3
+	rastro.FaceCamera = true
+	rastro.Parent = corpo
+
+	-- acumulador `dt` a partir de ZERO, nunca `tick()`
+	local percorrido, giro, voltando = 0, 0, false
+	local conn
+	conn = RunService.Heartbeat:Connect(function(dt)
+		if not corpo.Parent then return end
+		giro = giro + dt * giroPorSeg
+
+		if not voltando then
+			local passo = velocidade * dt
+			percorrido = percorrido + passo
+			local nova = corpo.Position + direcao * passo
+			corpo.CFrame = CFrame.new(nova, nova + direcao)
+				* CFrame.Angles(0, giro, 0)
+			if percorrido >= alcance then
+				voltando = true
+				if not volta then VFX.Parar(id) end
+			end
+			return
+		end
+
+		-- fase de volta: persegue a peça que o servidor mandou
+		if not (volta and volta.Parent) then
+			VFX.Parar(id)
+			return
+		end
+		local delta = volta.Position - corpo.Position
+		if delta.Magnitude < 3 then
+			VFX.Parar(id)
+			return
+		end
+		local passo = velocidade * 0.75 * dt
+		local nova = corpo.Position + delta.Unit * passo
+		corpo.CFrame = CFrame.new(nova, nova + delta.Unit)
+			* CFrame.Angles(0, giro, 0)
+	end)
+	table.insert(reg.conexoes, conn)
+end
+
+--- Uma peça que ACOMPANHA outra, com deslocamento e giro próprios.
+---
+--- É a órbita do `Salvador`: o escudo paira sobre a cabeça de quem foi
+--- protegido. O servidor não precisa disso para nada — ele só precisa saber, de
+--- vez em quando, se os dois ainda estão perto o bastante, e isso não pede
+--- 60 Hz.
+function Efeitos.SEGUE(d)
+	local id = d and d.id
+	local alvo = d and d.alvo
+	if not (id and alvo and alvo:IsA("BasePart")) then return end
+
+	local altura = (d and d.altura) or 3.2
+	local giroPorSeg = (d and d.giro) or 2.4
+	local inclinacao = (d and d.inclinacao) or 12
+	local c = cor(d)
+	local e = escala(d)
+	local reg = abrirId(id)
+
+	local corpo = novaParte({
+		Size = Vector3.new(4, 4, 0.45) * e,
+		Color = c,
+		Material = Enum.Material.Neon,
+		Transparency = 0.15,
+		CFrame = CFrame.new(alvo.Position + Vector3.new(0, altura, 0)),
+	})
+	table.insert(reg.partes, corpo)
+
+	local luz = Instance.new("PointLight")
+	luz.Color, luz.Brightness, luz.Range = c, 3, 12 * e
+	luz.Parent = corpo
+
+	local t = 0
+	local conn = RunService.Heartbeat:Connect(function(dt)
+		if not (corpo.Parent and alvo.Parent) then return end
+		t = t + dt
+		corpo.CFrame = CFrame.new(alvo.Position + Vector3.new(0, altura, 0))
+			* CFrame.Angles(0, t * giroPorSeg, math.rad(inclinacao))
+	end)
+	table.insert(reg.conexoes, conn)
+end
+
+--- Uma peça que ORBITA outra, e que sabe se virar para um lado sob comando.
+---
+--- É o escudo do `Proteção`. Ele gira em volta do dono e, quando algo vem, se
+--- põe na FRENTE — e essa segunda metade é a razão de o efeito existir em vez
+--- de reusar o `SEGUE`.
+---
+--- A mira NÃO chega por quadro. O servidor manda um `ORBITA_MIRA` quando
+--- detecta o projétil, com a direção e por quanto tempo segurar; o cliente
+--- interpola até lá e volta a girar sozinho quando o prazo vence. Uma mensagem
+--- por interceptação, não sessenta por segundo.
+function Efeitos.ORBITA(d)
+	local id = d and d.id
+	local alvo = d and d.alvo
+	if not (id and alvo and alvo:IsA("BasePart")) then return end
+
+	local raio = (d and d.raio) or 6
+	local altura = (d and d.altura) or 2
+	local giroPorSeg = (d and d.giro) or 2.2
+	local c = cor(d)
+	local e = escala(d)
+	local reg = abrirId(id)
+
+	local corpo = novaParte({
+		Size = Vector3.new(4, 4, 0.45) * e,
+		Color = c,
+		Material = Enum.Material.Neon,
+		Transparency = 0.15,
+		CFrame = CFrame.new(alvo.Position + Vector3.new(0, altura, 0)),
+	})
+	table.insert(reg.partes, corpo)
+
+	local luz = Instance.new("PointLight")
+	luz.Color, luz.Brightness, luz.Range = c, 3, 12 * e
+	luz.Parent = corpo
+
+	local angulo = 0
+	local conn = RunService.Heartbeat:Connect(function(dt)
+		if not (corpo.Parent and alvo.Parent) then return end
+		local base = alvo.Position + Vector3.new(0, altura, 0)
+
+		-- mira ativa: fica na frente do que vem, e olha para lá
+		if reg.miraAte and os.clock() < reg.miraAte and reg.miraDir then
+			corpo.CFrame = CFrame.new(base + reg.miraDir * raio,
+				base + reg.miraDir * (raio * 3))
+			return
+		end
+
+		angulo = angulo + giroPorSeg * dt
+		corpo.CFrame = CFrame.new(
+			base + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * raio
+		) * CFrame.Angles(0, -angulo, math.rad(10))
+	end)
+	table.insert(reg.conexoes, conn)
+end
+
+--- Manda a órbita se posicionar numa direção por um prazo curto.
+function Efeitos.ORBITA_MIRA(d)
+	local reg = d and d.id and PorId[d.id]
+	if not reg then return end
+	local dir = d and d.direcao
+	if not dir or dir.Magnitude < 0.01 then return end
+	reg.miraDir = dir.Unit
+	reg.miraAte = os.clock() + ((d and d.prazo) or 0.35)
+end
+
+--- Duas lâminas gêmeas que atravessam um ponto em X, em 0.14 s.
+---
+--- É o retalho do `Escudo Partido`. Era feito com duas `Part` do servidor
+--- animadas por `Heartbeat` — e não havia nem motivo: o servidor não lia a
+--- posição delas para nada. Puro desenho, no lugar errado.
+function Efeitos.LAMINAS_X(d)
+	local centro = pos(d)
+	local ang = (d and d.angulo) or 0
+	local c = cor(d)
+	local e = escala(d)
+
+	for lado = 0, 1 do
+		local a = ang + lado * math.pi * 0.5
+		local eixo = Vector3.new(math.cos(a), math.sin(a) * 0.5, math.sin(a)).Unit
+		local lamina = novaParte({
+			Size = Vector3.new(0.4, 5.5, 0.9) * e,
+			Color = c,
+			Material = Enum.Material.Neon,
+			Transparency = 0.05,
+			CFrame = CFrame.new(centro - eixo * 6, centro) * CFrame.Angles(0, 0, a),
+		})
+		-- tween em vez de laço: 0.14 s de travessia é exatamente o que o
+		-- TweenService faz melhor, e sem uma conexão por quadro
+		tween(lamina, 0.14, { CFrame = CFrame.new(centro + eixo * 6, centro + eixo * 12)
+			* CFrame.Angles(0, 0, a) }, "Linear", "Out")
+		tween(lamina, 0.2, { Transparency = 1 }, "Quad", "Out")
+		registrar(lamina, 0.3)
+	end
+	camadaFlash(centro, c, 3 * e, 1)
+end
+
+--═══════════════════════════════════════════════════════════════
 -- BLOCO IMPORTADO — §12.12 / §12.16
 --
 -- Modelos de origem:

@@ -487,6 +487,7 @@ local function invocarCiclone()
 					escala  = 1.5,
 					direcao = Vector3.new(0, 1, 0),
 				})
+				tocarSfx("sfx_execucao", Handle, 0.9)
 				vfx("ZOOM", { fov = 82, subida = 0.25, espera = 0.5 })
 				vfx("TREMOR", { preset = "EXPLOSAO" })
 
@@ -499,6 +500,7 @@ local function invocarCiclone()
 					quantidade = CFG.QTD_DESTROCOS,
 					raio       = CFG.RAIO_DESTROCOS,
 				})
+				tocarSfx("sfx_corte", Handle, 1.1)
 				vfx("RACHADURA_SOLO", {
 					posicao    = rootpart.Position - Vector3.new(0, 2.8, 0),
 					cor        = CFG.COR,

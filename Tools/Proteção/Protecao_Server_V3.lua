@@ -14,6 +14,7 @@
 
 local ARQUETIPO  = "SUPORTE"
 local RIG_SUFIXO = "Protecao"
+local ID_ESCUDO    = "ESCUDO_" .. RIG_SUFIXO
 
 local CFG = {
 	DURACAO         = 4,
@@ -21,6 +22,9 @@ local CFG = {
 
 	RAIO_ORBITA     = 4,
 	VEL_ORBITA      = 8,        -- rad/s
+	-- Tique da guarda. Era 60 Hz porque o mesmo laço movia o escudo; agora
+	-- ele só procura projétil, e a 30 Hz pega o mesmo.
+	PASSO_GUARDA    = 1 / 30,
 	ALTURA_ORBITA   = 1,
 	ESCALA_ESCUDO   = 0.7,
 
@@ -286,6 +290,32 @@ local ID_AURA       = "AURA_" .. RIG_SUFIXO
 
 -- Projétil = BasePart solta em workspace, sem Humanoid no pai, com
 -- velocidade relevante e vindo em direção ao portador.
+--- Som num PONTO, sem peça para pendurar.
+---
+--- Enquanto o escudo era `Part` do servidor, ele servia de suporte para o
+--- `Sound`. Agora não há peça: quem gira é desenho de cliente. Um `Sound` só
+--- toca enquanto tem pai no DataModel, então a saída é uma âncora invisível
+--- própria, com prazo pelo `Debris`.
+local function ancoraEm(posicao, prazo)
+	local a = Instance.new("Part")
+	a.Size = Vector3.new(0.2, 0.2, 0.2)
+	a.Transparency = 1
+	a.Anchored = true
+	a.CanCollide, a.CanQuery, a.CanTouch = false, false, false
+	a.CFrame = CFrame.new(posicao or Vector3.new())
+	a.Parent = workspace
+	Debris:AddItem(a, prazo or 6)
+	return a
+end
+
+local function tocarSfxEm(nome, posicao, pitch)
+	return tocarSfx(nome, ancoraEm(posicao, 12), pitch)
+end
+
+local function tocarBlocoEm(lista, posicao, pitch)
+	return tocarBloco(lista, ancoraEm(posicao, 6), pitch)
+end
+
 local function projeteisProximos()
 	local achados = {}
 	if not (rootpart and rootpart.Parent) then return achados end
@@ -333,25 +363,26 @@ local function ativarProtecao()
 	barreiraAtiva = true
 	if somProtecao then somProtecao:Play() end
 
-	local escudo = Handle:Clone()
-	escudo.Name         = "EscudoProtecao"
-	escudo.CanCollide   = false
-	escudo.CanTouch     = false
-	escudo.CanQuery     = false
-	escudo.Anchored     = true
-	escudo.Massless     = true
-	escudo.Material     = Enum.Material.ForceField
-	escudo.Color        = CFG.COR
-	escudo.Transparency = 0.2
-	for _, filho in ipairs(escudo:GetChildren()) do
-		if filho:IsA("Sound") then filho.Parent = nil end
-	end
-	local malha = escudo:FindFirstChildOfClass("SpecialMesh")
-	if malha then malha.Scale = malha.Scale * CFG.ESCALA_ESCUDO end
-	escudo.CFrame = rootpart.CFrame
-	escudo.Parent = workspace
-	guardarParte(escudo)
+	-- Escudo orbital — DESENHADO PELO CLIENTE.
+	--
+	-- Era `Part` ancorada com o `CFrame` reescrito a cada `Heartbeat`. Geometria
+	-- movida pelo servidor replica a ~20 Hz e o cliente não interpola: a órbita
+	-- chegava em passos.
+	--
+	-- Agora vai um beat com os parâmetros, e quem gira a 60 Hz é o `ORBITA`.
+	-- Quando algo vem, o servidor manda `ORBITA_MIRA` com a direção — uma
+	-- mensagem por interceptação, não sessenta por segundo.
+	vfx("ORBITA", {
+		id     = ID_ESCUDO,
+		alvoNome = personagem and personagem.Name or nil,
+		cor    = CFG.COR,
+		escala = 1,
+		raio   = CFG.RAIO_ORBITA,
+		altura = CFG.ALTURA_ORBITA,
+		giro   = CFG.VEL_ORBITA,
+	})
 
+	tocarSfx("sfx_dominio", Handle, 0.85)
 	vfx("AURA", {
 		id = ID_AURA, alvoNome = character.Name,
 		cor = CFG.COR, escala = 0.8, intensidade = 22,
@@ -368,70 +399,83 @@ local function ativarProtecao()
 		barreiraAtiva = false
 		if somProtecao then somProtecao:Stop() end
 		vfx("PARAR", { id = ID_AURA })
-		if escudo and escudo.Parent then
-			vfx("BLOQUEIO", { posicao = escudo.Position, cor = CFG.COR, escala = 1.2 })
-			escudo.Parent = nil
+		vfx("PARAR", { id = ID_ESCUDO })
+		if rootpart and rootpart.Parent then
+			vfx("BLOQUEIO", {
+				posicao = rootpart.Position + Vector3.new(0, CFG.ALTURA_ORBITA, 0),
+				cor = CFG.COR, escala = 1.2,
+			})
 		end
 		if rig then rig:PlayPose("IDLE", 0.3) end
 	end
 
-	guardarConexao(RunService.Heartbeat:Connect(function(dt)
-		if encerrado then return end
-		if not (escudo.Parent and rootpart and rootpart.Parent) then encerrar(); return end
+	--═══════════════════════════════════════════════════════════════
+	-- O que sobrou para o servidor: PROCURAR projétil e REFLETIR.
+	--
+	-- Nada disso é geometria. `PASSO_GUARDA` é o tique, e a 30 Hz ele continua
+	-- pegando o que pegava — o que a 60 Hz não acrescentava era precisão, era
+	-- só o dobro de acordar.
+	--═══════════════════════════════════════════════════════════════
+	task.spawn(function()
+		local decorridoGuarda = 0
+		while not encerrado do
+			task.wait(CFG.PASSO_GUARDA)
+			if encerrado then return end
+			if not (rootpart and rootpart.Parent) then encerrar(); return end
 
-		decorrido = decorrido + dt
-		if decorrido >= CFG.DURACAO then encerrar(); return end
+			decorridoGuarda = decorridoGuarda + CFG.PASSO_GUARDA
+			if decorridoGuarda >= CFG.DURACAO then encerrar(); return end
 
-		angulo = angulo + CFG.VEL_ORBITA * dt
-		local base = rootpart.Position + Vector3.new(0, CFG.ALTURA_ORBITA, 0)
-		local projeteis = projeteisProximos()
-
-		if #projeteis > 0 then
-			-- Escolhe o mais próximo e posiciona o escudo na frente dele
-			local alvo, menor = projeteis[1], math.huge
-			for _, p in ipairs(projeteis) do
-				local d = (p.Position - rootpart.Position).Magnitude
-				if d < menor then alvo, menor = p, d end
-			end
-
-			local dir = (alvo.Position - rootpart.Position)
-			if dir.Magnitude > 0.1 then
-				escudo.CFrame = CFrame.new(base + dir.Unit * CFG.RAIO_ORBITA, alvo.Position)
-			end
-
-			if menor < CFG.RAIO_ORBITA + 2 and not refletidos[alvo] then
-				refletidos[alvo] = true
-				local inimigo = inimigoMaisProximo()
-				local saida = inimigo
-					and (inimigo.Position - alvo.Position).Unit
-					or rootpart.CFrame.LookVector
-
-				-- SFX -> física -> VFX -> dano (§8 V2)
-				tocarSfx("sfx_corte", escudo, 1.4)
-				tocarBloco(somImpacto, escudo, 1.25)
-				alvo.AssemblyLinearVelocity = saida * CFG.FORCA_REFLEXO
-				vfx("BLOQUEIO", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 1 })
-				-- [DE] o projétil devolvido sai cortado em X
-				vfx("CORTE_X", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 0.85 })
-				vfx("TREMOR", { preset = "BUMP_PEQUENO" })
-				vfx("LINHAS_VELOCIDADE", {
-					posicao = alvo.Position, cor = CFG.COR_REFLEXO,
-					escala = 0.8, quantidade = 7,
-				})
-
-				local perto = detectar(alvo.Position, CFG.RAIO_REFLEXO, 4)
-				for _, hum in ipairs(perto) do
-					aplicarDano(hum, CFG.DANO_REFLEXO)
+			local projeteis = projeteisProximos()
+			if #projeteis == 0 then
+				-- nada vindo: o cliente segue girando sozinho
+			else
+				local alvo, menor = projeteis[1], math.huge
+				for _, p in ipairs(projeteis) do
+					local d = (p.Position - rootpart.Position).Magnitude
+					if d < menor then alvo, menor = p, d end
 				end
 
-				task.delay(1, function() refletidos[alvo] = nil end)
+				-- o escudo se põe na frente: UMA mensagem, com a direção
+				local dir = alvo.Position - rootpart.Position
+				if dir.Magnitude > 0.1 then
+					vfx("ORBITA_MIRA", {
+						id = ID_ESCUDO, direcao = dir.Unit, prazo = 0.35,
+					})
+				end
+
+				if menor < CFG.RAIO_ORBITA + 2 and not refletidos[alvo] then
+					refletidos[alvo] = true
+					local inimigo = inimigoMaisProximo()
+					local saida = inimigo
+						and (inimigo.Position - alvo.Position).Unit
+						or rootpart.CFrame.LookVector
+
+					-- SFX -> física -> VFX -> dano (§8 V2)
+					tocarSfxEm("sfx_corte", alvo.Position, 1.4)
+					tocarBlocoEm(somImpacto, alvo.Position, 1.25)
+					alvo.AssemblyLinearVelocity = saida * CFG.FORCA_REFLEXO
+					vfx("BLOQUEIO", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 1 })
+					-- [DE] o projétil devolvido sai cortado em X
+					tocarSfx("sfx_execucao", Handle, 0.95)
+					vfx("CORTE_X", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 0.85 })
+					vfx("TREMOR", { preset = "BUMP_PEQUENO" })
+					tocarSfx("sfx_impacto", Handle, 1.2)
+					vfx("LINHAS_VELOCIDADE", {
+						posicao = alvo.Position, cor = CFG.COR_REFLEXO,
+						escala = 0.8, quantidade = 7,
+					})
+
+					local perto = detectar(alvo.Position, CFG.RAIO_REFLEXO, 4)
+					for _, hum in ipairs(perto) do
+						aplicarDano(hum, CFG.DANO_REFLEXO)
+					end
+
+					task.delay(1, function() refletidos[alvo] = nil end)
+				end
 			end
-		else
-			escudo.CFrame = CFrame.new(
-				base + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * CFG.RAIO_ORBITA
-			) * CFrame.Angles(0, -angulo, math.rad(10))
 		end
-	end))
+	end)
 
 	if rig then
 		rig:PlaySequence("BARREIRA", function(kf)
@@ -448,6 +492,7 @@ local function ativarProtecao()
 					escala  = 0.9,
 					direcao = Vector3.new(0, 1, 0),
 				})
+				tocarSfx("sfx_expansao", Handle, 1.0)
 				vfx("ONDA_CHOQUE", {
 					posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
 					cor = CFG.COR, escala = 0.8,

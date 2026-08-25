@@ -314,71 +314,63 @@ local comboLocal     = false
 local execLocal      = false
 local emCutscene     = false
 local npcRecarga     = false
-local relogio        = 0          -- acumulador dt (nunca tick())
-
-guardarConexao(RunService.Heartbeat:Connect(function(dt)
-	relogio = relogio + dt
-end))
+-- Havia aqui um `relogio` alimentado por um `Heartbeat:Connect`. Ele era
+-- ESCRITO e nunca LIDO: uma conexão por quadro, no servidor, para somar num
+-- número que ninguém consultava. Saiu inteiro.
 
 --═══════════════════════════════════════════════════════════════
--- LÂMINA VOADORA (clone do Handle que corta e NÃO volta)
+-- LÂMINA VOADORA — o desenho é do cliente
+--
+-- Havia aqui um `criarLamina` que clonava o Handle numa `Part` ancorada. Ele
+-- ficou órfão quando o voo virou beat: quem desenha a lâmina é o `PROJETIL`
+-- do VFXModule, a 60 Hz e localmente. O servidor calcula a mesma trajetória
+-- por aritmética, só para saber em quem cortar.
 --═══════════════════════════════════════════════════════════════
-
-local function criarLamina(escalaMalha, corLamina)
-	local l = Handle:Clone()
-	l.Name         = "LaminaEscudo"
-	l.Transparency = 0
-	l.CanCollide   = false
-	l.CanTouch     = false
-	l.CanQuery     = false
-	l.Anchored     = true
-	l.Massless     = true
-	l.Color        = corLamina or CFG.COR
-	l.Material     = Enum.Material.Neon
-	for _, filho in ipairs(l:GetChildren()) do
-		if filho:IsA("Sound") then filho.Parent = nil end
-	end
-	local malha = l:FindFirstChildOfClass("SpecialMesh")
-	if malha then
-		malha.Scale = malha.Scale * (escalaMalha or 0.75)
-	end
-	l.Parent = workspace
-	guardarParte(l, 6)
-	return l
-end
 
 --[[
 	lancarLamina(direcao, opcoes)
 	Voa em linha reta, corta quem passa por perto e SOME no fim do alcance.
 	opcoes.aoAcertar(hum, raiz) -> se devolver true, a lâmina para ali.
 ]]
+--- Cada lâmina no ar precisa de um `id` só dela: duas voando juntas com o
+--- mesmo id fariam o `PARAR` da primeira apagar o desenho da segunda.
+local contadorLamina = 0
+local function proximaLamina()
+	contadorLamina = contadorLamina + 1
+	if contadorLamina > 100000 then contadorLamina = 1 end
+	return contadorLamina
+end
+
 local function lancarLamina(direcao, opcoes)
 	opcoes = opcoes or {}
 	local origem = Handle.Position + Vector3.new(0, 1, 0)
-	local lamina = criarLamina(opcoes.escala, opcoes.cor)
-	lamina.CFrame = CFrame.new(origem, origem + direcao)
+	local alcance = opcoes.alcance or CFG.ALCANCE_CORTE
+	local velocidade = opcoes.velocidade or CFG.VEL_CORTE
+
+	-- A lâmina NÃO existe mais como `Part` do servidor. Vai um beat com origem,
+	-- direção, velocidade e alcance; quem voa a 60 Hz é o `PROJETIL`, no
+	-- cliente. Aqui a trajetória é a MESMA fórmula, por aritmética, e serve só
+	-- para saber em quem cortar.
+	local idVoo = "LAMINA_" .. RIG_SUFIXO .. "_" .. tostring(proximaLamina())
+	vfx("PROJETIL", {
+		id         = idVoo,
+		posicao    = origem,
+		direcao    = direcao.Unit,
+		velocidade = velocidade,
+		alcance    = alcance,
+		cor        = opcoes.cor or CFG.COR,
+		escala     = opcoes.escala or CFG.ESCALA_LAMINA,
+		giro       = 18,
+	})
 
 	local atingidos = {}
 	local percorrido = 0
-	local giro = 0
 
 	task.spawn(function()
-		while lamina and lamina.Parent and percorrido < (opcoes.alcance or CFG.ALCANCE_CORTE) do
-			local dt = RunService.Heartbeat:Wait()
-			local passo = (opcoes.velocidade or CFG.VEL_CORTE) * dt
-			percorrido = percorrido + passo
-			giro = giro + dt * 18
-
-			local nova = lamina.Position + direcao.Unit * passo
-			lamina.CFrame = CFrame.new(nova, nova + direcao) * CFrame.Angles(0, 0, giro)
-
-			vfx("CORTE", {
-				posicao = nova,
-				cor     = opcoes.cor or CFG.COR,
-				escala  = 0.55,
-				direcao = direcao.Unit,
-				giro    = giro,
-			})
+		while percorrido < alcance do
+			task.wait(CFG.PASSO_VOO)
+			percorrido = percorrido + velocidade * CFG.PASSO_VOO
+			local nova = origem + direcao.Unit * math.min(percorrido, alcance)
 
 			local alvos = detectar(nova, opcoes.raio or CFG.RAIO_CORTE, 6)
 			for _, hum in ipairs(alvos) do
@@ -395,7 +387,7 @@ local function lancarLamina(direcao, opcoes)
 
 						if opcoes.aoAcertar then
 							if opcoes.aoAcertar(hum, raiz) then
-								if lamina and lamina.Parent then lamina.Parent = nil end
+								vfx("PARAR", { id = idVoo })
 								return
 							end
 						else
@@ -406,18 +398,16 @@ local function lancarLamina(direcao, opcoes)
 			end
 		end
 
-		if lamina and lamina.Parent then
-			vfx("LINHAS_VELOCIDADE", {
-				posicao    = lamina.Position,
-				cor        = opcoes.cor or CFG.COR,
-				escala     = 0.7,
-				quantidade = 6,
-			})
-			lamina.Parent = nil   -- não volta: dissipa no fim do alcance
-		end
+		-- dissipa no fim do alcance: o desenho morre sozinho, e o `PARAR` cobre
+		-- o caso de a Tool sumir no meio do voo
+		vfx("PARAR", { id = idVoo })
+		vfx("LINHAS_VELOCIDADE", {
+			posicao    = origem + direcao.Unit * alcance,
+			cor        = opcoes.cor or CFG.COR,
+			escala     = 0.7,
+			quantidade = 6,
+		})
 	end)
-
-	return lamina
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -511,26 +501,11 @@ local function retalharVitima(centro)
 	retalhoIndice = retalhoIndice + 1
 	local ang = retalhoIndice * math.rad(137.507764)   -- ângulo áureo
 
-	for lado = 0, 1 do
-		local a = ang + lado * math.pi * 0.5
-		local eixo = Vector3.new(math.cos(a), math.sin(a) * 0.5, math.sin(a)).Unit
-		local lamina = criarLamina(CFG.ESCALA_LAMINA, CFG.COR)
-		lamina.CFrame = CFrame.new(centro - eixo * 6, centro)
-
-		local t = 0
-		task.spawn(function()
-			while lamina and lamina.Parent and t < 0.14 do
-				local dt = RunService.Heartbeat:Wait()
-				t = t + dt
-				local prog = math.clamp(t / 0.14, 0, 1)
-				lamina.CFrame = CFrame.new(
-					(centro - eixo * 6):Lerp(centro + eixo * 6, prog),
-					centro + eixo
-				) * CFrame.Angles(0, 0, a)
-			end
-			if lamina and lamina.Parent then lamina.Parent = nil end
-		end)
-	end
+	-- As duas lâminas cruzando eram `Part` do servidor animadas por
+	-- `Heartbeat`, e o servidor não lia a posição delas para NADA: puro
+	-- desenho, no lugar errado. Viraram um beat só.
+	vfx("LAMINAS_X", { posicao = centro, angulo = ang, cor = CFG.COR,
+		escala = CFG.ESCALA_LAMINA })
 
 	-- [DE] os dois cortes cruzados em X, do Domain Expansion
 	vfx("CORTE_X", { posicao = centro, cor = CFG.COR, escala = 1.15, giro = ang })
@@ -624,6 +599,7 @@ local function executarCutscene(vitimaHum, vitimaRaiz)
 
 		elseif kf.marca == "GRADE" then
 			-- [JC] beat 3: a grade de planos de vidro fica suspensa no ar.
+			tocarSfx("sfx_dominio", Handle, 0.85)
 			vfx("GRADE_CORTES", {
 				posicao    = centro,
 				cor        = CFG.COR,
