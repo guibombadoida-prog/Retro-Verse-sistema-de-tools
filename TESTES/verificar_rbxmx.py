@@ -420,7 +420,16 @@ def verificar(nome):
     # CUTSCENE_FIM são CONTROLE, e o Client os intercepta antes de chegar ao
     # VFXModule. Cobrar implementação deles seria acusar o desenho correto — a
     # lista de controle sai do próprio Client, não de uma constante aqui.
-    controle = set(re.findall(r'if\s+tipo\s*==\s*"([A-Z0-9_]+)"',
+    # O regex antigo exigia `if` COLADO no `tipo ==`, e por isso só via o
+    # PRIMEIRO nome de um Client que intercepta dois:
+    #
+    #     if tipo == "APAGAR" or tipo == "PARAR" then
+    #
+    # `PARAR` ficava de fora da lista de controle e era cobrado como efeito não
+    # implementado — o verificador acusando o desenho correto. Agora vale
+    # qualquer comparação de `tipo` com literal dentro do Client, que é o que a
+    # regra sempre quis dizer.
+    controle = set(re.findall(r'\btipo\s*==\s*"([A-Z0-9_]+)"',
                               sem_comentario(fontes.get("Client", ""))))
 
     limpo_srv = sem_comentario(servidor)
@@ -580,6 +589,19 @@ CONJUNTOS = [
     # 7 Tools de pressão, do `Jupiter_Great_Pressure_Sword`. Da origem vieram
     # os ASSETS — 19 SoundId, a malha do planeta, seis texturas de emissor,
     # todos pela ficha do Acervo. A lógica dos 31 scripts dela ficou de fora.
+    # 7 Tools AUTORAIS do TV Man Titan. Não há modelo de origem: o conjunto
+    # nasce aqui, como o `collector`. Os 21 SoundId saem do catálogo do Acervo
+    # (§12.16.2, reuso), a geometria é primitiva soldada, e a lógica é escrita
+    # no repositório.
+    ("Titan_7_Tools.rbxmx", "Titan_TV_Man", [
+        "Titan Estatica",
+        "Titan Raio Catodico",
+        "Titan Antena",
+        "Titan Alto Falante",
+        "Titan Lamina",
+        "Titan Propulsor",
+        "Titan Sobrecarga",
+    ]),
     ("Jupiter_7_Tools.rbxmx", "Jupiter_Great_Pressure_Sword", [
         "Jupiter Grande Mancha",
         "Jupiter Pressao Esmagadora",

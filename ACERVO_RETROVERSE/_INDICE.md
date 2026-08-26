@@ -1,11 +1,25 @@
 # _INDICE — Acervo Retro-Verse
 
-> **73 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **101 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
 > **6 do `collector` — o conjunto AUTORAL**, que não sai de modelo nenhum: sai
 > daqui. Ver `Tools/README.md`.
+>
+> **7 do `Titan_TV_Man` — o SEGUNDO conjunto autoral.** Também não sai de modelo
+> nenhum: a geometria das sete é primitiva soldada, montada em
+> `FERRAMENTAS/preparar_titan.py`, e as 21 habilidades são escritas no
+> repositório. O que ele CONSOME daqui são **21 `SoundId` do catálogo** — de
+> `VFX_Library_V2`, `Jupiter`, `Trident`, `Dano_Verdadeiro`, `Canhao_Satelite`,
+> `Guest_Tools`, `Xester_Forma2`, `YorrSlayer` e `Sword_of_Cosmic_Entity`.
+> Nenhum id foi inventado: id chutado é som mudo que nenhum verificador
+> estático pega, e o `.rbxmx` fica válido com o jogo em silêncio.
+>
+> Ele **não deposita VFX novo**. As cinco camadas do `VFXModule_Titan` —
+> varredura de CRT, chuvisco, feixe, anel de som e faísca — são `Part` Neon
+> montadas em código, não `ParticleEmitter` de terceiro, e por isso não há
+> emissor a catalogar.
 >
 > A única entrada do Acervo que elas consomem é o **`Stella_VFX_Addon`**, cujos
 > 10 efeitos conformados são **copiados para dentro** de cada Tool na montagem
