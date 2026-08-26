@@ -1,54 +1,46 @@
---[[
-═══════════════════════════════════════════════════════════════════════════
-  HAWKING COSMIC SHURIKEN RADIATION — CLIENT V1
-  Tool: "Sword of Cosmic Entity (Revamped)"  (Cosmic Sword Revamp)
-═══════════════════════════════════════════════════════════════════════════
-
-  ONDE COLAR
-    Como LocalScript dentro da Tool, com o nome
-    `HawkingCosmicShurikenRadiation_Client_V1`.
-
-  O QUE ESTE ARQUIVO FAZ
-    1. `Tool.Activated` dispara o RemoteEvent. SEM GUI, sem botão — não há
-       segunda habilidade, então o ícone da Tool já é o botão, e ele funciona
-       no toque do celular sem nada a mais.
-    2. Desenha a shuriken gigante: clona o `ShurikenModel` real do
-       `CosmicVFX2`, escala para o tamanho pedido, pinta de buraco negro e
-       GIRA a 60 Hz.
-    3. Desenha a explosão colossal e as 5 mini shurikens.
-    4. Sacode a câmera reaproveitando o `Shake_Camera` do Jupiter quando ele
-       estiver disponível; se não estiver, usa um tremor próprio.
-
-  POR QUE O GIRO É AQUI E NÃO NO SERVIDOR
-    Girar é mudar CFrame todo frame. Feito no servidor, replica a ~20 Hz sem
-    interpolação — o giro rápido que a habilidade pede viraria tranco. Aqui
-    roda a 60 Hz na máquina de quem vê.
-
-  VFX REAPROVEITADO, com os nomes reais do arquivo enviado
-    Sword of Cosmic Entity (Revamped):
-      CosmicVFX2/ShurikenModel   corpo da shuriken (mesh + 4 Trails + emissores)
-      CosmicVFX2/Explosion_Sphere  esfera da explosão colossal
-      CosmicVFX2/Explosion_Wind    sopro da explosão
-      CosmicVFX2/Nova_Circle, Nova_Wave, MegaWave  anéis da explosão
-      Server/Launch_Trail          rastro das mini shurikens
-    Jupiter Great Pressure Sword:
-      GearScript/JupiterOmni/CAMShake/Shake_Camera   tremor de câmera
-      GearScript/JupiterOmni/VFXModule/Spiral_Explosion  espiral da explosão
-      GearScript/JupiterOmni/VFXModule/Orbs/Orb_Trail    rastro orbital
-      GearScript/JupiterOmni/VFXModule/Impact_Frame/Impact_Sound
-
-  DOIS NOMES QUE VOCÊ CITOU E QUE **NÃO EXISTEM** NO ARQUIVO ENVIADO
-    `BlackHole` e `Bpull`. O buraco negro é montado aqui a partir do
-    ShurikenModel pintado de preto Neon com um núcleo escuro; o puxão é
-    física no servidor, que era como você queria de qualquer jeito. Tudo o
-    que é opcional passa por busca com timeout curto e cai num equivalente
-    próprio se faltar — nada quebra.
-
-  PROIBIÇÕES RESPEITADAS
-    Zero `math.random` (ângulo áureo). Zero `:Destroy()` (Parent = nil e
-    Debris). Zero `tick()` (acumulador de dt a partir de zero).
-═══════════════════════════════════════════════════════════════════════════
---]]
+-- VFXModule.lua
+-- ModuleScript "VFXModule" — Cosmic Sword Revamp
+--
+-- TODO EFEITO DESTA TOOL DESENHA AQUI, E DESENHA NO CLIENTE.
+--
+--═══════════════════════════════════════════════════════════════
+-- POR QUE ESTE ARQUIVO EXISTE
+--═══════════════════════════════════════════════════════════════
+--
+--   Os quatro efeitos `HAWKING_*` e o `PARAR` já estavam escritos — mas
+--   moravam dentro de um `LocalScript`. `LocalScript` dentro de Tool só roda
+--   para quem SEGURA a Tool: todo mundo mais via o portador girando o braço
+--   no vazio. Era o mesmo bug que já custou o conjunto do escudo.
+--
+--   Aqui eles são módulo, e quem escuta é um `Script` com
+--   `RunContext = Client`, que roda em TODO cliente.
+--
+--   Os cinco efeitos das habilidades originais (`CORTE`, `SUPERNOVA`,
+--   `SHURIKEN_VOO`, `SHURIKEN_ESTOURO`, `DOBRA`) eram feitos de outro jeito:
+--   o servidor clonava a peça de `ServerStorage` e pendurava nela um `Script`
+--   de tween que rodava NO SERVIDOR. Geometria movida pelo servidor replica a
+--   ~20 Hz sem interpolação — era a queixa de "os VFX não estão fluidos".
+--   Os mesmos tweens estão aqui, com os mesmos números, a 60 Hz.
+--
+--═══════════════════════════════════════════════════════════════
+-- O REQUIRE QUE SAIU
+--═══════════════════════════════════════════════════════════════
+--
+--   O `Server` da origem abria com `require(125275839196878)` — asset remoto
+--   buscado por id e executado NO SERVIDOR — e usava o resultado só para três
+--   chamadas de `Slash_Trail` no M1. Quem controlasse aquele asset controlava
+--   o servidor de quem equipasse a Tool. O rastro é `Efeitos.CORTE`, logo
+--   abaixo, e o require não existe mais em lugar nenhum da Tool.
+--
+--═══════════════════════════════════════════════════════════════
+-- PROIBIÇÕES RESPEITADAS
+--═══════════════════════════════════════════════════════════════
+--
+--   Zero `math.random` — ângulo áureo, para que todos os clientes desenhem a
+--   MESMA cena (sorteio por cliente lê como lag). Zero `:Destroy()` —
+--   `Parent = nil` e `Debris`. Zero `tick()` — acumulador de `dt` a partir de
+--   zero. `workspace.CurrentCamera` é lido só para o tremor, e o valor de
+--   antes é sempre devolvido.
 
 local Players      = game:GetService("Players")
 local Debris       = game:GetService("Debris")
@@ -56,11 +48,7 @@ local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Tool = script.Parent
-
-Tool.CanBeDropped   = false
-Tool.RequiresHandle = true
-
-local Jogador = Players.LocalPlayer
+local Deposito = require(script.Parent:WaitForChild("DepositoVFX"))
 
 --═══════════════════════════════════════════════════════════════
 -- CFG
@@ -70,9 +58,10 @@ local CFG = {
 	ESPERA_CURTA = 2,     -- timeout de toda busca opcional
 	ANGULO_AUREO = math.rad(137.507764),
 
-	COR_EVENTO   = Color3.fromRGB(12, 0, 24),    -- o corpo do buraco negro
+	COR_EVENTO   = Color3.fromRGB(12, 0, 24),     -- o corpo do buraco negro
 	COR_BORDA    = Color3.fromRGB(150, 90, 255),  -- a radiação na borda
 	COR_NUCLEO   = Color3.fromRGB(255, 240, 255),
+	COR_COSMICA  = Color3.fromRGB(255, 255, 255), -- o branco da origem
 
 	TREMOR_FORCA = 0.55,
 	TREMOR_TEMPO = 0.9,
@@ -80,43 +69,38 @@ local CFG = {
 }
 
 --═══════════════════════════════════════════════════════════════
--- REMOTES
+-- OS MOLDES — AS DUAS PORTAS (Regra nº 2)
+--
+-- Primeiro o depósito em `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`, para
+-- onde o Server manda a pasta `CosmicVFX2` assim que a Tool chega ao jogador.
+-- Depois o interior da Tool, que é o que mantém verdadeiro o teste do place
+-- vazio: enquanto ninguém equipou, não há depósito nenhum e o molde ainda
+-- está aqui dentro.
+--
+-- A busca é PREGUIÇOSA e o resultado só é guardado enquanto tiver pai. O
+-- código antigo resolvia os oito moldes na carga do script, o que dava nil
+-- quando a replicação chegava atrasada — e nil na carga é efeito que nunca
+-- mais desenha, porque ninguém procura de novo.
 --═══════════════════════════════════════════════════════════════
 
-local Remote    = Tool:WaitForChild("Remote", 10)
-local VFXRemote = Tool:WaitForChild("HawkingVFXRemote", 10)
+local cacheMolde = {}
 
---═══════════════════════════════════════════════════════════════
--- ACHAR OS MOLDES REAIS — busca com timeout curto, sem quebrar
---═══════════════════════════════════════════════════════════════
+local function molde(nome)
+	local guardado = cacheMolde[nome]
+	if guardado and guardado.Parent then return guardado end
 
---- Procura por nome em qualquer profundidade da Tool. Devolve nil se não
---- achar; TODO chamador trata nil.
-local function acharNaTool(nome)
-	local achado = Tool:FindFirstChild(nome, true)
-	if achado then return achado end
-	local esperado = Tool:WaitForChild(nome, CFG.ESPERA_CURTA)
-	return esperado
-end
-
-local MoldeShuriken   = acharNaTool("ShurikenModel")
-local MoldeEsfera     = acharNaTool("Explosion_Sphere")
-local MoldeVento      = acharNaTool("Explosion_Wind")
-local MoldeNovaCirc   = acharNaTool("Nova_Circle")
-local MoldeMegaWave   = acharNaTool("MegaWave")
-local MoldeLaunch     = acharNaTool("Launch_Trail")
-local MoldeOrbTrail   = acharNaTool("Orb_Trail")
-local SomImpacto      = acharNaTool("Impact_Sound")
-
---- `Shake_Camera` do Jupiter é um ModuleScript. Se ele existir e devolver
---- uma função, é ele quem sacode; senão, o tremor próprio entra no lugar.
-local ShakeJupiter = nil
-do
-	local mod = acharNaTool("Shake_Camera")
-	if mod and mod:IsA("ModuleScript") then
-		local ok, valor = pcall(require, mod)
-		if ok then ShakeJupiter = valor end
+	local achado = Deposito.achar(script, nome)         -- porta 1
+	if not achado then
+		achado = Tool:FindFirstChild(nome, true)        -- porta 2
 	end
+	if not achado then
+		local pack = Deposito.achar(script, "CosmicVFX2")
+			or Tool:FindFirstChild("CosmicVFX2")
+		achado = pack and pack:FindFirstChild(nome, true) or nil
+	end
+
+	cacheMolde[nome] = achado
+	return achado
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -223,22 +207,6 @@ local function tremorProprio(forca, duracao)
 	end)
 end
 
-local function sacudir(forca, duracao)
-	if ShakeJupiter then
-		local ok = pcall(function()
-			if type(ShakeJupiter) == "function" then
-				ShakeJupiter(forca, duracao)
-			elseif type(ShakeJupiter) == "table" then
-				local fn = ShakeJupiter.Shake or ShakeJupiter.shake
-					or ShakeJupiter.Start or ShakeJupiter.New
-				if fn then fn(forca, duracao) end
-			end
-		end)
-		if ok then return end
-	end
-	tremorProprio(forca, duracao)
-end
-
 --═══════════════════════════════════════════════════════════════
 -- MONTAR A SHURIKEN BURACO NEGRO
 --═══════════════════════════════════════════════════════════════
@@ -311,11 +279,11 @@ function Efeitos.HAWKING_SHURIKEN(d)
 	local giro   = d.giro or 20
 	local id     = d.id
 
-	sacudir(CFG.TREMOR_FORCA * 0.5, 0.45)
+	tremorProprio(CFG.TREMOR_FORCA * 0.5, 0.45)
 
 	local corpo = nil
-	if MoldeShuriken and MoldeShuriken:IsA("Model") then
-		corpo = MoldeShuriken:Clone()
+	if molde("ShurikenModel") and molde("ShurikenModel"):IsA("Model") then
+		corpo = molde("ShurikenModel"):Clone()
 		corpo.Name = "HawkingShuriken"
 		corpo.Parent = workspace
 		pcall(function() corpo:PivotTo(CFrame.new(centro)) end)
@@ -430,10 +398,10 @@ function Efeitos.HAWKING_COLOSSAL(d)
 	local centro = d.posicao or Vector3.new()
 	local escala = d.escala or 4
 
-	sacudir(CFG.TREMOR_FORCA, CFG.TREMOR_TEMPO)
+	tremorProprio(CFG.TREMOR_FORCA, CFG.TREMOR_TEMPO)
 
-	if SomImpacto and SomImpacto:IsA("Sound") then
-		local som = SomImpacto:Clone()
+	if molde("Impact_Sound") and molde("Impact_Sound"):IsA("Sound") then
+		local som = molde("Impact_Sound"):Clone()
 		som.Parent = workspace
 		som:Play()
 		Debris:AddItem(som, 6)
@@ -455,8 +423,8 @@ function Efeitos.HAWKING_COLOSSAL(d)
 	registrar(clarao, 0.4)
 
 	-- a esfera real do modelo, se existir
-	if MoldeEsfera and MoldeEsfera:IsA("BasePart") then
-		local esfera = MoldeEsfera:Clone()
+	if molde("Explosion_Sphere") and molde("Explosion_Sphere"):IsA("BasePart") then
+		local esfera = molde("Explosion_Sphere"):Clone()
 		esfera.Anchored = true
 		esfera.CanCollide, esfera.CanTouch, esfera.CanQuery = false, false, false
 		esfera.CFrame = CFrame.new(centro)
@@ -467,8 +435,8 @@ function Efeitos.HAWKING_COLOSSAL(d)
 		registrar(esfera, 1.2)
 	end
 
-	if MoldeVento and MoldeVento:IsA("BasePart") then
-		local vento = MoldeVento:Clone()
+	if molde("Explosion_Wind") and molde("Explosion_Wind"):IsA("BasePart") then
+		local vento = molde("Explosion_Wind"):Clone()
 		vento.Anchored = true
 		vento.CanCollide, vento.CanTouch, vento.CanQuery = false, false, false
 		vento.CFrame = CFrame.new(centro)
@@ -480,7 +448,7 @@ function Efeitos.HAWKING_COLOSSAL(d)
 	end
 
 	-- anéis do modelo, em tempos diferentes: escala, e não borrão
-	local aneis = { MoldeNovaCirc, MoldeMegaWave }
+	local aneis = { molde("Nova_Circle"), molde("MegaWave") }
 	local i = 0
 	while i < #aneis do
 		local molde = aneis[i + 1]
@@ -542,8 +510,8 @@ function Efeitos.HAWKING_MINI(d)
 	if not alvo or not alvo:IsA("BasePart") then return end
 
 	local corpo = nil
-	if MoldeShuriken and MoldeShuriken:IsA("Model") then
-		corpo = MoldeShuriken:Clone()
+	if molde("ShurikenModel") and molde("ShurikenModel"):IsA("Model") then
+		corpo = molde("ShurikenModel"):Clone()
 		corpo.Name = "HawkingMiniShuriken"
 		corpo.Parent = workspace
 		pcall(function() corpo:PivotTo(alvo.CFrame) end)
@@ -553,14 +521,14 @@ function Efeitos.HAWKING_MINI(d)
 		anotar(id, corpo)
 	end
 
-	if MoldeLaunch and MoldeLaunch:IsA("Trail") then
+	if molde("Launch_Trail") and molde("Launch_Trail"):IsA("Trail") then
 		local a0 = Instance.new("Attachment")
 		a0.Position = Vector3.new(0, 1.2 * escala, 0)
 		a0.Parent = alvo
 		local a1 = Instance.new("Attachment")
 		a1.Position = Vector3.new(0, -1.2 * escala, 0)
 		a1.Parent = alvo
-		local rastro = MoldeLaunch:Clone()
+		local rastro = molde("Launch_Trail"):Clone()
 		rastro.Attachment0, rastro.Attachment1 = a0, a1
 		rastro.Enabled = true
 		rastro.Parent = alvo
@@ -619,7 +587,7 @@ function Efeitos.HAWKING_MINI_EXPLODE(d)
 		Transparency = 1 }, Enum.EasingStyle.Quint)
 	registrar(anel, 0.7)
 
-	sacudir(CFG.TREMOR_FORCA * 0.22, 0.3)
+	tremorProprio(CFG.TREMOR_FORCA * 0.22, 0.3)
 end
 
 --═══════════════════════════════════════════════════════════════
@@ -656,45 +624,317 @@ local function limparTudo()
 end
 
 --═══════════════════════════════════════════════════════════════
--- ENTRADA E RECEPÇÃO
+-- OS EFEITOS DAS QUATRO HABILIDADES ORIGINAIS
+--
+-- Os NÚMEROS destes tweens não foram inventados: são os mesmos dos oito
+-- `Script` de tween que a origem pendurava no clone e rodava no servidor —
+-- `tween1` (Size 130,5,130 em 1.6 s Quart/Out; fade 0.8 s Sine/In), `Tween2`
+-- (Size 150,10,150, giro de 200° em 3 s), `Tween3`, `tween4` (0.4 s / 0.2 s) e
+-- `tweenring` (Scale 7,3,7). O que mudou foi ONDE eles rodam.
 --═══════════════════════════════════════════════════════════════
 
--- SEM GUI e SEM botão: só o clique/toque no ícone da Tool. Não há segunda
--- habilidade, então não há nada a mapear em tecla.
-Tool.Activated:Connect(function()
-	if Remote then Remote:FireServer() end
-end)
-
-if VFXRemote then
-	VFXRemote.OnClientEvent:Connect(function(tipo, dados)
-		dados = dados or {}
-		if tipo == "PARAR" then
-			parar(dados.id)
-			return
+--- Prepara um clone de molde para viver solto no mundo: nada colide, nada
+--- consulta, nada projeta sombra. Sem isto um `Explosion_Sphere` de 150 studs
+--- empurra todo mundo que estiver perto.
+local function soltar(clone, posicao)
+	for _, peca in ipairs(clone:GetDescendants()) do
+		if peca:IsA("BasePart") then
+			peca.Anchored = true
+			peca.CanCollide = false
+			peca.CanTouch = false
+			peca.CanQuery = false
+			peca.CastShadow = false
+			peca.Massless = true
 		end
-		local fn = Efeitos[tipo]
-		if not fn then return end
-		local ok, err = pcall(fn, dados)
-		if not ok then
-			warn("[HawkingShuriken] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+	end
+	if clone:IsA("BasePart") then
+		clone.Anchored = true
+		clone.CanCollide = false
+		clone.CanTouch = false
+		clone.CanQuery = false
+		clone.CastShadow = false
+		clone.Position = posicao
+	elseif clone:IsA("Model") then
+		clone:PivotTo(CFrame.new(posicao))
+	end
+	clone.Parent = workspace
+	return clone
+end
+
+--- Dispara os emissores de um `Attachment` chamado `Center`, como a origem
+--- fazia — mas SEM o `wait()` entre um e outro, que no servidor custava um
+--- quadro por emissor.
+local function emitirCentro(clone, quantidade)
+	local centro = clone:FindFirstChild("Center", true)
+	if not centro then return end
+	for _, peca in ipairs(centro:GetDescendants()) do
+		if peca:IsA("ParticleEmitter") then
+			peca:Emit(quantidade or 30)
+		end
+	end
+end
+
+--- Um molde clonado, solto no mundo, com prazo. Devolve nil sem reclamar se o
+--- molde não existir — num place vazio a Tool continua funcionando.
+local function clonarMolde(nome, posicao, vida)
+	local base = molde(nome)
+	if not base then return nil end
+	local clone = base:Clone()
+	soltar(clone, posicao)
+	registrar(clone, vida or 7)
+	return clone
+end
+
+--- O E: Nova_Circle sobe e abre, Nova_Wave abre girando.
+function Efeitos.SUPERNOVA(d)
+	local centro = d.posicao or Vector3.new()
+	local cor = d.cor or CFG.COR_COSMICA
+
+	local circulo = clonarMolde("Nova_Circle", centro + Vector3.new(0, 3, 0), 7)
+	if circulo then
+		if circulo:IsA("BasePart") then circulo.Color = cor end
+		tween(circulo, 1.6, { Size = Vector3.new(130, 5, 130) },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(circulo, 0.8, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		emitirCentro(circulo, 30)
+	end
+
+	local onda = clonarMolde("Nova_Wave", centro, 7)
+	if onda then
+		if onda:IsA("BasePart") then onda.Color = cor end
+		tween(onda, 1.6, { Size = Vector3.new(150, 10, 150) },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(onda, 3, { Orientation = Vector3.new(0, 200, 0) },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		tween(onda, 0.8, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+	end
+
+	tremorProprio(CFG.TREMOR_FORCA, CFG.TREMOR_TEMPO)
+end
+
+--- O M1: o rastro do corte.
+---
+--- Isto é o que substitui `require(125275839196878)`. A origem pedia ao módulo
+--- remoto um `Slash_Trail` com raio 19, espessura 1.3, branco, 0.25 s de vida
+--- e um ângulo de rotação. Os mesmos números estão aqui, e o arco é montado
+--- com peças próprias.
+function Efeitos.CORTE(d)
+	local origem = d.posicao or Vector3.new()
+	local direcao = d.direcao or Vector3.new(0, 0, -1)
+	local giro = d.giro or 0
+	local raio = d.raio or 6
+	local cor = d.cor or CFG.COR_COSMICA
+	local vida = d.vida or 0.25
+
+	if direcao.Magnitude < 0.01 then direcao = Vector3.new(0, 0, -1) end
+	local base = CFrame.lookAt(origem, origem + direcao.Unit)
+		* CFrame.Angles(0, 0, giro)
+
+	-- Onze lascas ao longo de um arco de 150°. Uma peça só não lê como corte:
+	-- o que lê é a sequência delas apagando de uma ponta à outra.
+	local LASCAS = 11
+	for i = 0, LASCAS - 1 do
+		local fracao = i / (LASCAS - 1)
+		local angulo = math.rad(-75 + 150 * fracao)
+		local ponto = base * CFrame.Angles(angulo, 0, 0)
+			* CFrame.new(0, 0, -raio)
+		local lasca = novaParte({
+			Size = Vector3.new(0.28, 1.3, 2.6),
+			Color = cor,
+			Transparency = 0.1,
+			CFrame = ponto * CFrame.Angles(0, 0, math.rad(90)),
+		})
+		registrar(lasca, vida + 0.2)
+		tween(lasca, vida, {
+			Transparency = 1,
+			Size = Vector3.new(0.05, 0.3, 3.4),
+		}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end
+
+	local clarao = novaParte({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(1.6, 1.6, 1.6),
+		Color = cor,
+		Transparency = 0.35,
+		CFrame = CFrame.new(origem + direcao.Unit * (raio * 0.5)),
+	})
+	registrar(clarao, 0.3)
+	tween(clarao, 0.18, { Transparency = 1, Size = Vector3.new(4.2, 4.2, 4.2) })
+end
+
+--- O Q, fase 1: a shuriken do espaço voando até o ponto.
+---
+--- O voo é do CLIENTE, a 60 Hz. O servidor calcula a mesma reta por aritmética
+--- para saber onde bate — ele não move peça nenhuma por quadro.
+function Efeitos.SHURIKEN_VOO(d)
+	local base = molde("ShurikenModel")
+	if not base then return end
+
+	local origem = d.posicao or Vector3.new()
+	local destino = d.destino or (origem + Vector3.new(0, 0, -60))
+	local escala = d.escala or 3
+	local duracao = math.max(d.duracao or 0.9, 0.05)
+	local giro = d.giro or 26
+
+	local clone = base:Clone()
+	soltar(clone, origem)
+	if escala ~= 1 then escalarModelo(clone, escala) end
+	registrar(clone, duracao + 1)
+	anotar(d.id, clone)
+
+	-- O `Summon` viaja DENTRO do ShurikenModel, pendurado no `Outline`. Ele
+	-- veio com o modelo e estava mudo desde sempre: ninguém o tocava. Como o
+	-- clone é do cliente e cada cliente faz o seu, o som sai da posição certa
+	-- para todo mundo, sem âncora nenhuma.
+	local nascer = clone:FindFirstChild("Summon", true)
+	if nascer and nascer:IsA("Sound") then
+		nascer:Play()
+	end
+
+	local delta = destino - origem
+	local passado = 0
+	local conexao
+	conexao = RunService.RenderStepped:Connect(function(dt)
+		passado = passado + dt
+		local fracao = math.min(passado / duracao, 1)
+		local onde = origem + delta * fracao
+		local ok = pcall(function()
+			clone:PivotTo(CFrame.new(onde)
+				* CFrame.Angles(0, 0, passado * giro))
+		end)
+		if fracao >= 1 or not ok or not clone.Parent then
+			conexao:Disconnect()
 		end
 	end)
+	anotar(d.id, nil, conexao)
+end
+
+--- O Q, fase 2: o estouro. Core, MainCore, WindWave e MegaWave — os mesmos
+--- quatro moldes que a origem usava, com os números do `Tween3`/`tween4`.
+function Efeitos.SHURIKEN_ESTOURO(d)
+	local centro = d.posicao or Vector3.new()
+	local escala = d.escala or 1
+	local cor = d.cor or CFG.COR_COSMICA
+
+	local nucleo = clonarMolde("Core", centro, 5)
+	if nucleo then
+		if nucleo:IsA("BasePart") then nucleo.Color = cor end
+		tween(nucleo, 0.4, { Size = Vector3.new(18, 18, 18) * escala },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(nucleo, 0.2, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		emitirCentro(nucleo, 30)
+	end
+
+	local miolo = clonarMolde("MainCore", centro, 5)
+	if miolo then
+		tween(miolo, 0.4, { Size = Vector3.new(10, 10, 10) * escala },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(miolo, 0.2, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+	end
+
+	local vento = clonarMolde("WindWave", centro, 6)
+	if vento then
+		tween(vento, 1.6, { Size = Vector3.new(70, 22, 70) * escala },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(vento, 1.6, { Orientation = Vector3.new(0, 200, 0) },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		tween(vento, 1.6, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+	end
+
+	local mega = clonarMolde("MegaWave", centro, 6)
+	if mega then
+		tween(mega, 1.6, { Size = Vector3.new(96, 14, 96) * escala },
+			Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+		tween(mega, 1.6, { Transparency = 1 },
+			Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+	end
+
+	tremorProprio(CFG.TREMOR_FORCA * 0.7, CFG.TREMOR_TEMPO * 0.7)
+end
+
+--- O X: a dobra. Explosion_Sphere e Explosion_Wind nas DUAS pontas, e um
+--- caminho de estrelas entre elas.
+---
+--- O rastro da origem nascia de um laço no servidor que criava uma peça por
+--- salto e escrevia `hrp.CFrame` no meio. Aqui as estrelas são todas do
+--- cliente e o servidor só manda as duas pontas.
+function Efeitos.DOBRA(d)
+	local saida = d.posicao or Vector3.new()
+	local chegada = d.destino or saida
+	local cor = d.cor or CFG.COR_BORDA
+
+	for _, ponta in ipairs({ saida, chegada }) do
+		local esfera = clonarMolde("Explosion_Sphere", ponta, 3)
+		if esfera then
+			tween(esfera, 0.4, { Size = Vector3.new(14, 14, 14) },
+				Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			tween(esfera, 0.2, { Transparency = 1 },
+				Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+			emitirCentro(esfera, 20)
+		end
+		local vento = clonarMolde("Explosion_Wind", ponta, 3)
+		if vento then
+			tween(vento, 0.4, { Size = Vector3.new(22, 8, 22) },
+				Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+			tween(vento, 0.2, { Transparency = 1 },
+				Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+		end
+	end
+
+	-- O caminho: uma estrela a cada trecho, apagando de trás para a frente.
+	local delta = chegada - saida
+	local distancia = delta.Magnitude
+	if distancia < 1 then return end
+
+	local ESTRELAS = math.clamp(math.floor(distancia / 8), 2, 14)
+	for i = 0, ESTRELAS do
+		local fracao = i / ESTRELAS
+		local ponto = saida + delta * fracao
+		local estrela = novaParte({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.1, 1.1, 1.1),
+			Color = cor,
+			Transparency = 0.2,
+			CFrame = CFrame.new(ponto),
+		})
+		registrar(estrela, 0.9)
+		tween(estrela, 0.28 + fracao * 0.3, {
+			Transparency = 1,
+			Size = Vector3.new(0.15, 0.15, 0.15),
+		}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end
 end
 
 --═══════════════════════════════════════════════════════════════
--- CLEANUP
+-- A API DO MÓDULO
 --
--- Desequipar NÃO limpa: a shuriken já lançada continua no ar, igual às
--- bombas já lançadas. Só a morte do dono e a destruição da Tool limpam.
+-- Três funções, as mesmas de todo VFXModule do repositório. O `Client` não
+-- conhece nem `Efeitos` nem `PorId` — ele manda o nome e os dados.
 --═══════════════════════════════════════════════════════════════
 
-Tool.Destroying:Connect(limparTudo)
-Jogador.CharacterRemoving:Connect(limparTudo)
+local M = {}
 
-local function ligarMorte(personagem)
-	local humanoide = personagem:FindFirstChildOfClass("Humanoid")
-	if humanoide then humanoide.Died:Connect(limparTudo) end
+function M.Executar(tipo, dados)
+	local fn = Efeitos[tipo]
+	if not fn then return false end
+	local ok, err = pcall(fn, dados or {})
+	if not ok then
+		warn("[CosmicSword] falha em " .. tostring(tipo) .. ": " .. tostring(err))
+	end
+	return ok
 end
 
-if Jogador.Character then ligarMorte(Jogador.Character) end
-Jogador.CharacterAdded:Connect(ligarMorte)
+function M.Parar(id)
+	if id then parar(id) end
+end
+
+function M.LimparTudo()
+	limparTudo()
+end
+
+return M

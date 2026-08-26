@@ -320,7 +320,13 @@ def verificar(nome):
     if nomes_som:
         citados = set()
         for fonte in fontes.values():
-            citados.update(re.findall(r"[\"'](\w+)[\"']", sem_comentario(fonte)))
+            # `\w+` NÃO casa espaço, e vários Sound do Roblox têm nome com
+            # espaço — "Power Up", "Locked On", "User Sparkle". Com o regex
+            # antigo eles nunca podiam ser vistos como citados: o Server
+            # tocava o som e o verificador jurava que ele estava mudo. Um
+            # aviso que não pode ser zerado deixa de ser aviso.
+            citados.update(re.findall(r"[\"']([^\"'\n]+)[\"']",
+                                      sem_comentario(fonte)))
         mudos = sorted(n for n in nomes_som if n not in citados)
         if mudos:
             # AVISO, não erro: a checagem é nova e encontrou o mesmo defeito em
