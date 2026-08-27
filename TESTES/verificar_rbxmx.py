@@ -589,6 +589,20 @@ CONJUNTOS = [
     # 7 Tools de pressão, do `Jupiter_Great_Pressure_Sword`. Da origem vieram
     # os ASSETS — 19 SoundId, a malha do planeta, seis texturas de emissor,
     # todos pela ficha do Acervo. A lógica dos 31 scripts dela ficou de fora.
+    # 7 Tools AUTORAIS do PODER DA CRIAÇÃO — o quarto conjunto sem modelo de
+    # origem, e o PRIMEIRO que põe no mundo `Part` de SERVIDOR: a muralha
+    # bloqueia, a torre levanta, o cipó prende. Por isso ele é o único com um
+    # registro de recolhimento — peça de servidor que fica é lixo permanente
+    # no mapa.
+    ("Criacao_7_Tools.rbxmx", "Poder_da_Criacao", [
+        "Forja",
+        "Alvenaria",
+        "Semente",
+        "Projeto",
+        "Prototipo",
+        "Genese",
+        "Demiurgo",
+    ]),
     # 7 Tools do `timetools.rbxmx` — TRÊS Tools de origem viraram sete, e duas
     # delas herdam o Handle INTEIRO da origem (`Cajado Celeste` leva o
     # CelestialStaffModel com 33 peças e 2 MeshPart; `Reversao` leva o do

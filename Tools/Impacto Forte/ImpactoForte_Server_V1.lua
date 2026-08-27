@@ -19,7 +19,7 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
-local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
+local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 
 --═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -234,6 +234,26 @@ local function tombar(alvoHum, tempo)
 	task.delay(tempo or 1.2, function()
 		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
 			alvoHum.PlatformStand = false
+		end
+	end)
+end
+
+--- Lentidão com volta GARANTIDA.
+---
+--- ELE FALTAVA. O `Corte Frio` chamava `afrouxar` em DOIS lugares — no beat do
+--- corte e no gelo do chão — e ele não existia em lugar nenhum do arquivo:
+--- `attempt to call a nil value`, e as duas habilidades morriam caladas. Só
+--- apareceu quando a lista `AJUDANTES` do `verificar_beats.py` cresceu.
+---
+--- Guarda a velocidade de ANTES e devolve ESSA, nunca 16 fixo: o alvo pode ter
+--- velocidade própria, e devolver um número chapado quebra quem tinha.
+local function afrouxar(alvoHum, fator, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	local antes = alvoHum.WalkSpeed
+	alvoHum.WalkSpeed = antes * (fator or 0.5)
+	task.delay(tempo or 3, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.WalkSpeed = antes
 		end
 	end)
 end
@@ -548,13 +568,17 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- Ao chegar ao jogador — mochila OU mão —, os moldes vão para
+-- `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. A pasta CRIA ou REUTILIZA, e
+-- fica lá até o servidor cair.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- ISTO ESTAVA FORA DO GERADOR. A ligação tinha sido enxertada nos arquivos
+-- prontos por `FERRAMENTAS/ligar_deposito.py`, e por isso a primeira
+-- regeneração do DRAMA a perdeu — as sete Tools voltaram a não ter depósito, e
+-- só o `verificar_deposito_vfx.py` percebeu. Enxerto que não volta para o
+-- gerador é conserto que dura até a próxima geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)

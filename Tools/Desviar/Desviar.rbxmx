@@ -90,7 +90,7 @@ local VFXRemote  = Tool:WaitForChild("VFXRemote")
 local AcaoRemote = Tool:WaitForChild("AcaoRemote")
 local Poses      = require(Tool:WaitForChild("Poses"))
 local Animator   = require(Tool:WaitForChild("R6CFrameAnimator"))
-local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
+local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 
 --═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -296,6 +296,26 @@ local function tombar(alvoHum, tempo)
 	task.delay(tempo or 1.2, function()
 		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
 			alvoHum.PlatformStand = false
+		end
+	end)
+end
+
+--- Lentidão com volta GARANTIDA.
+---
+--- ELE FALTAVA. O `Corte Frio` chamava `afrouxar` em DOIS lugares — no beat do
+--- corte e no gelo do chão — e ele não existia em lugar nenhum do arquivo:
+--- `attempt to call a nil value`, e as duas habilidades morriam caladas. Só
+--- apareceu quando a lista `AJUDANTES` do `verificar_beats.py` cresceu.
+---
+--- Guarda a velocidade de ANTES e devolve ESSA, nunca 16 fixo: o alvo pode ter
+--- velocidade própria, e devolver um número chapado quebra quem tinha.
+local function afrouxar(alvoHum, fator, tempo)
+	if not alvoHum or alvoHum.Health <= 0 then return end
+	local antes = alvoHum.WalkSpeed
+	alvoHum.WalkSpeed = antes * (fator or 0.5)
+	task.delay(tempo or 3, function()
+		if alvoHum and alvoHum.Parent and alvoHum.Health > 0 then
+			alvoHum.WalkSpeed = antes
 		end
 	end)
 end
@@ -603,13 +623,17 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- Ao chegar ao jogador — mochila OU mão —, os moldes vão para
+-- `ReplicatedStorage/RetroVerse_VFX/<ChaveVFX>/`. A pasta CRIA ou REUTILIZA, e
+-- fica lá até o servidor cair.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- ISTO ESTAVA FORA DO GERADOR. A ligação tinha sido enxertada nos arquivos
+-- prontos por `FERRAMENTAS/ligar_deposito.py`, e por isso a primeira
+-- regeneração do DRAMA a perdeu — as sete Tools voltaram a não ter depósito, e
+-- só o `verificar_deposito_vfx.py` percebeu. Enxerto que não volta para o
+-- gerador é conserto que dura até a próxima geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -4869,7 +4893,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_9040262921500737265"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_2200261559266962703"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5057,7 +5081,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9040262921500737265"><Properties><string name="Name">ChaveVFX</string><string name="Value">Desviar</string></Properties></Item></Item>
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2200261559266962703"><Properties><string name="Name">ChaveVFX</string><string name="Value">Desviar</string></Properties></Item></Item>
 	<SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk

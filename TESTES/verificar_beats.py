@@ -122,6 +122,21 @@ def despachos(texto):
 AJUDANTES = (
     "despachar", "marcaDe", "tocar", "tocarEm", "aplicarDano", "alvosEm",
     "raizDe", "frente", "empurrar", "tombar", "creditar", "vfx",
+    # ── acrescentados depois, cada um por um susto ──────────────────────────
+    # `noChao` e `alvosNoCone` foram CHAMADOS e não definidos no primeiro
+    # gerador do conjunto CRIAÇÃO: ele nasceu de uma cópia do gerador do
+    # TEMPO, cujo preâmbulo não tinha os dois. Quatro habilidades morriam com
+    # `attempt to call a nil value` na primeira linha do `faz`.
+    #
+    # É EXATAMENTE o defeito das 28 Tools, repetido por outro caminho: lá o
+    # gerador emitia a chamada e esquecia a definição; aqui o gerador foi
+    # clonado de outro que tinha menos ajudantes. A lista só protege contra os
+    # nomes que estão nela — por isso ela cresce sempre que um gerador novo
+    # usa um ajudante novo.
+    "noChao", "alvosNoCone", "alvosNaReta", "golpearArea", "estourar",
+    "avancar", "criar", "recolher", "recolherTudo", "levantar",
+    "congelarHumanoide", "descongelarHumanoide", "restaurarTudo",
+    "iniciarGravacao", "pararGravacao", "reverterPara", "afrouxar",
 )
 
 #: qualquer literal MAIÚSCULO no Server. Serve só para o AVISO de sequência não
@@ -209,8 +224,21 @@ def verificar(pasta):
             chama = re.search(r"(?<![\w.:])%s\(" % ajudante, fonte)
             if not chama:
                 continue
+            # A DEFINIÇÃO VALE EM QUALQUER INDENTAÇÃO.
+            #
+            # O padrão antigo exigia coluna 0 (`^local function x(`), e por
+            # isso acusava `Atraso Mortal`, que define `estourar` ANINHADO
+            # dentro da habilidade e o chama duas linhas abaixo — em escopo, e
+            # correto. Falso positivo em verificador ensina quem escreve a
+            # ignorá-lo, que é pior que checagem nenhuma.
+            #
+            # O preço é conhecido e aceito: uma definição aninhada CHAMADA DE
+            # FORA do escopo dela passa batida. É um caso raro; o caso comum —
+            # e o que custou 28 Tools — é o nome que não existe em lugar
+            # nenhum do arquivo.
             define = re.search(
-                r"(?m)^(?:local )?function %s\(|^local %s\b" % (ajudante, ajudante),
+                r"(?m)^\s*(?:local\s+)?function\s+%s\s*\(|^\s*local\s+%s\b"
+                % (ajudante, ajudante),
                 fonte)
             if not define:
                 erros.append("%s chama %s() e NÃO o define — `attempt to call "

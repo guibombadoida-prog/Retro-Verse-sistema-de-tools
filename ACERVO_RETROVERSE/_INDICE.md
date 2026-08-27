@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **115 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **122 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -31,6 +31,23 @@
 > `Trident`, `Guest_Tools`, `Dano_Verdadeiro`, `Canhao_Satelite` e
 > `Sword_of_Cosmic_Entity`. Também **não deposita VFX novo**: as oito camadas
 > do `VFXModule_Bombas7` são `Part` em código.
+>
+> **7 do `Poder_da_Criacao` — o QUARTO conjunto autoral, e o primeiro que cria
+> matéria.** Sem modelo de origem. As sete põem no mundo `Part` de **servidor**
+> — a muralha bloqueia, a torre levanta quem está em cima, o cipó prende —, e
+> por isso ele é o único do repositório com um **registro de recolhimento**:
+> nada é criado fora de `criar()`, tudo tem prazo, e o registro sai por três
+> portas (prazo, `Unequipped`, `Destroying`). Peça de servidor que fica é lixo
+> permanente no mapa.
+>
+> Consome **21 `SoundId` do catálogo** e **não deposita VFX novo** — as sete
+> camadas são `Part` em código.
+>
+> O que ele acrescenta ao repertório é o **nascimento em três tempos**:
+> andaime em 0.18 s, matéria preenchendo **de baixo para cima** em 0.35 s, e o
+> pó em 0.9 s. Coisa que aparece pronta lê como bug; coisa que se desenha lê
+> como construída. E o `RECOLHER` é o simétrico exato — a peça volta a ser
+> andaime e apaga, que é a única leitura possível de "o prazo venceu".
 >
 > **7 do `Time_Tools`** — três Tools de origem viraram sete, e **duas herdam o
 > Handle INTEIRO**: o `Cajado Celeste` leva o `CelestialStaffModel` com 33 peças
