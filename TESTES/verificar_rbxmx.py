@@ -589,6 +589,20 @@ CONJUNTOS = [
     # 7 Tools de pressão, do `Jupiter_Great_Pressure_Sword`. Da origem vieram
     # os ASSETS — 19 SoundId, a malha do planeta, seis texturas de emissor,
     # todos pela ficha do Acervo. A lógica dos 31 scripts dela ficou de fora.
+    # 7 Tools AUTORAIS de PODERES DE BOMBA — o terceiro conjunto sem modelo
+    # de origem. NÃO repete o `Bomba_V4`: as seis de lá são split, nuke,
+    # meteoro, quique, kamikaze e gelo; o eixo daqui é PLANTAR E DETONAR, e as
+    # duas habilidades de cada Tool são um PAR (o M1 arma o que o R dispara).
+    # Quatro delas têm cutscene.
+    ("Bomba_7_Tools.rbxmx", "Poderes_de_Bomba", [
+        "Fila de Bombas",
+        "Explosao Nuclear",
+        "Coca Explosiva",
+        "Bomba Orbital",
+        "Bomba de Implosao",
+        "Bomba em Corrente",
+        "Bomba do Juizo",
+    ]),
     # 7 Tools AUTORAIS do TV Man Titan. Não há modelo de origem: o conjunto
     # nasce aqui, como o `collector`. Os 21 SoundId saem do catálogo do Acervo
     # (§12.16.2, reuso), a geometria é primitiva soldada, e a lógica é escrita

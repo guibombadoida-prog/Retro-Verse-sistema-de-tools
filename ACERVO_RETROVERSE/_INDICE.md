@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **101 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **108 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -20,6 +20,22 @@
 > varredura de CRT, chuvisco, feixe, anel de som e faísca — são `Part` Neon
 > montadas em código, não `ParticleEmitter` de terceiro, e por isso não há
 > emissor a catalogar.
+>
+> **7 do `Poderes_de_Bomba` — o TERCEIRO conjunto autoral.** Também sem modelo
+> de origem, e ele **não repete o `Bomba_V4`**: as seis de lá são split, nuke,
+> meteoro, quique, kamikaze e gelo; o eixo daqui é **plantar e detonar**, e as
+> duas habilidades de cada Tool são um PAR (o M1 arma o que o R dispara).
+> Quatro delas têm cutscene.
+>
+> Consome **21 `SoundId` do catálogo** — de `VFX_Library_V2`, `Jupiter`,
+> `Trident`, `Guest_Tools`, `Dano_Verdadeiro`, `Canhao_Satelite` e
+> `Sword_of_Cosmic_Entity`. Também **não deposita VFX novo**: as oito camadas
+> do `VFXModule_Bombas7` são `Part` em código.
+>
+> O que ele acrescenta ao repertório do repositório é a **explosão de três
+> tempos** — clarão em 0.06 s, onda atrasada em 0.04 s, poeira atrasada em
+> 0.12 s. Os dois atrasos são o efeito inteiro: sem eles as três camadas
+> nascem no mesmo quadro e o olho lê uma coisa só, mais brilhante.
 >
 > A única entrada do Acervo que elas consomem é o **`Stella_VFX_Addon`**, cujos
 > 10 efeitos conformados são **copiados para dentro** de cada Tool na montagem
