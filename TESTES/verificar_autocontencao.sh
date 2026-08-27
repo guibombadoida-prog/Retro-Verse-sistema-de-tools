@@ -14,6 +14,42 @@
 set -u
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AUTOTESTE — `bash TESTES/verificar_autocontencao.sh --autoteste`
+#
+# A checagem `servidor não move geometria por frame` já parou de funcionar UMA
+# VEZ sem avisar: um conserto no `awk` fez a contagem dar sempre zero, e ela
+# passou a imprimir verde para tudo — inclusive para o defeito que existe para
+# pegar. Verificador quebrado é pior que verificador ausente, porque dá
+# confiança falsa.
+#
+# As duas fixtures em `TESTES/fixtures/move_no_servidor/` são o antídoto: uma
+# TEM o defeito e outra não, e o autoteste falha se qualquer das duas for
+# classificada errado.
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "${1:-}" = "--autoteste" ]; then
+	base="$RAIZ/TESTES/fixtures/move_no_servidor"
+	saida_ruim=$(bash "$0" "$base/Ruim" 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+	saida_boa=$(bash "$0" "$base/Boa" 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+	falhou=0
+
+	if ! printf '%s' "$saida_ruim" | grep -q '✗ servidor não move geometria por frame'; then
+		printf '\033[31m%s\033[0m\n' "✗ AUTOTESTE: a fixture COM o defeito NÃO foi acusada"
+		falhou=1
+	else
+		printf '\033[32m%s\033[0m\n' "✓ autoteste: a fixture com o defeito foi acusada"
+	fi
+
+	if printf '%s' "$saida_boa" | grep -q '✗ servidor não move geometria por frame'; then
+		printf '\033[31m%s\033[0m\n' "✗ AUTOTESTE: a fixture SEM o defeito foi acusada (falso positivo)"
+		falhou=1
+	else
+		printf '\033[32m%s\033[0m\n' "✓ autoteste: a fixture sem o defeito passou"
+	fi
+
+	exit $falhou
+fi
 ALVO="${1:-$RAIZ/Tools}"
 FALHAS=0
 
@@ -128,7 +164,50 @@ fi
 checar "sem ServerStorage"              'ServerStorage'
 checar "sem ServerScriptService"        'ServerScriptService'
 checar "sem StarterGui / StarterPack"   'StarterGui|StarterPack|StarterPlayer'
-checar "sem Lighting"                   'GetService\("Lighting"\)|game\.Lighting'
+# `Lighting` continua barrado — mas com UMA exceção nomeada: as duas consultas
+# de direção de astro.
+#
+#   Lighting:GetSunDirection()   Lighting:GetMoonDirection()
+#
+# As duas são LEITURA de um singleton que existe em todo place e nunca falta —
+# a mesma natureza de `workspace.CurrentCamera` num LocalScript, que a Regra
+# nº 1 já lista como não-violação. Elas não guardam asset, não são depósito, e
+# não alteram nada: num place vazio a Tool que as usa funciona por inteiro.
+#
+# O que continua proibido é o que a origem do `timetools` fazia: pendurar
+# `ColorCorrectionEffect` e `BlurEffect` em `Lighting`. Isso é ESCRITA em
+# estado do place inteiro, e a checagem `sem escrever Lighting global` logo
+# abaixo é quem cobra.
+#
+# A exceção é estreita de propósito: `GetService("Lighting")` sozinho, sem uma
+# das duas chamadas no mesmo arquivo, continua sendo erro.
+# A varredura usa `$PURO` como todas as outras: comentário não é violação, e
+# este arquivo documenta a proibição em texto várias vezes.
+lighting_bruto=$(printf '%s\n' "$PURO" \
+	| awk '{
+		corpo = $0
+		sub(/^[^:]*:[0-9]+:/, "", corpo)
+		if (corpo ~ /GetService\("Lighting"\)|game\.Lighting/) print $0
+	  }' || true)
+
+lighting_suspeitos=""
+if [ -n "$lighting_bruto" ]; then
+	while IFS= read -r linha; do
+		arq="${linha%%:*}"
+		if ! grep -qE 'Lighting:Get(Sun|Moon)Direction\(' "$arq" 2>/dev/null; then
+			lighting_suspeitos="${lighting_suspeitos}${linha}"$'\n'
+		fi
+	done <<< "$lighting_bruto"
+fi
+
+if [ -n "$lighting_suspeitos" ]; then
+	vermelho "✗ sem Lighting"
+	printf '%s' "$lighting_suspeitos" | sed 's|^|    |'
+	cinza "    Só GetSunDirection/GetMoonDirection são leitura permitida."
+	FALHAS=$((FALHAS + 1))
+else
+	verde "✓ sem Lighting, fora as duas consultas de astro"
+fi
 checar "sem SoundService como depósito" 'GetService\("SoundService"\)|game\.SoundService'
 
 # --- Estado GLOBAL do servidor -----------------------------------------------
@@ -239,17 +318,54 @@ fi
 #
 # Movimento contínuo é do cliente, a 60 Hz, a partir de um beat com parâmetros.
 # O servidor segue dono do dano, calculando a MESMA fórmula sem geometria.
+# O LATCH TEM ESCOPO DE BLOCO, NÃO DE ARQUIVO.
+#
+# A primeira versão desta checagem ligava `dentro[arquivo] = 1` no primeiro
+# `Heartbeat:Connect` e nunca mais desligava: dali em diante, TODA escrita de
+# `.CFrame` no arquivo era acusada — inclusive uma escrita única, num teleporte,
+# quinhentas linhas abaixo e fora de laço nenhum.
+#
+# Isso não é rigor, é falso positivo. E falso positivo em verificador é pior
+# que checagem ausente, porque ensina quem escreve a contornar o verificador em
+# vez de escrever certo — foi o que quase aconteceu com a reversão do conjunto
+# TEMPO, que faz UM salto e estava sendo acusada de mover por quadro.
+#
+# Agora a profundidade é contada: `function` abre, `end` fecha, e o latch cai
+# quando o corpo do `Connect` termina. O que a checagem cobra continua sendo
+# exatamente o que ela sempre quis cobrar — `.CFrame =` DENTRO do laço.
 MOVE_NO_SERVIDOR=$(printf '%s\n' "$PURO" | awk -F: '
+	# O PADRÃO VEM COMO STRING, NÃO COMO /regex/.
+	#
+	# awk não tem regex como valor de primeira classe: `conta(x, /function/)`
+	# avalia `$0 ~ /function/` PRIMEIRO e passa 0 ou 1, e o `gsub` acaba
+	# contando ocorrências do dígito. A contagem dava sempre zero, o latch caía
+	# na primeira linha, e a checagem parou de pegar o defeito que ela existe
+	# para pegar — sem nenhum aviso, porque continuava imprimindo verde.
+	function conta(texto, alvo,   copia) {
+		copia = texto
+		return gsub(alvo, "", copia)
+	}
 	{
 		arquivo = $1
 		corpo   = substr($0, index($0, $3))
 
 		if (arquivo !~ /_Server_V[0-9]+\.lua/) { next }
-		if (corpo ~ /Heartbeat:Connect|RenderStepped:Connect|Stepped:Connect/) {
+
+		if (!dentro[arquivo] &&
+				corpo ~ /Heartbeat:Connect|RenderStepped:Connect|Stepped:Connect/) {
 			dentro[arquivo] = 1
+			prof[arquivo] = 0
 		}
-		if (dentro[arquivo] && corpo ~ /\.CFrame[ \t]*=/) {
-			print arquivo ":" $2 ":" corpo
+
+		if (dentro[arquivo]) {
+			if (corpo ~ /\.CFrame[ \t]*=/) {
+				print arquivo ":" $2 ":" corpo
+			}
+			prof[arquivo] += conta(corpo, "function")
+			prof[arquivo] -= conta(corpo, "(^|[^a-zA-Z0-9_])end([^a-zA-Z0-9_]|$)")
+			if (prof[arquivo] <= 0) {
+				dentro[arquivo] = 0
+			}
 		}
 	}
 ')

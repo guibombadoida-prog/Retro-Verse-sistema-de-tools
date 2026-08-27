@@ -589,6 +589,20 @@ CONJUNTOS = [
     # 7 Tools de pressão, do `Jupiter_Great_Pressure_Sword`. Da origem vieram
     # os ASSETS — 19 SoundId, a malha do planeta, seis texturas de emissor,
     # todos pela ficha do Acervo. A lógica dos 31 scripts dela ficou de fora.
+    # 7 Tools do `timetools.rbxmx` — TRÊS Tools de origem viraram sete, e duas
+    # delas herdam o Handle INTEIRO da origem (`Cajado Celeste` leva o
+    # CelestialStaffModel com 33 peças e 2 MeshPart; `Reversao` leva o do
+    # `reverter!!`). O modelo passou limpo na varredura de backdoor: zero
+    # require numérico, zero HTTP, zero loadstring.
+    ("Tempo_7_Tools.rbxmx", "Time_Tools", [
+        "Instante Parado",
+        "Reversao",
+        "Cajado Celeste",
+        "Aceleracao",
+        "Lentidao",
+        "Paradoxo",
+        "Fim do Relogio",
+    ]),
     # 7 Tools AUTORAIS de PODERES DE BOMBA — o terceiro conjunto sem modelo
     # de origem. NÃO repete o `Bomba_V4`: as seis de lá são split, nuke,
     # meteoro, quique, kamikaze e gelo; o eixo daqui é PLANTAR E DETONAR, e as
@@ -771,6 +785,29 @@ def verificar_conjunto(arquivo, nomes):
     return erros
 
 
+def nomes_repetidos():
+    """Nome de Tool que aparece em MAIS DE UM conjunto.
+
+    ISTO NÃO É PEDANTISMO. A pasta de uma Tool é `Tools/<Nome>/`, e o nome é a
+    chave. Dois conjuntos que reivindiquem o mesmo nome escrevem no MESMO
+    lugar: o segundo a rodar sobrescreve o `Poses.lua`, o `Server`, o `Client`
+    e o `VFXModule` do primeiro, e a Tool antiga vira a nova sem que nada
+    reclame — os dois conjuntos continuam montando, e um deles entrega outra
+    coisa.
+
+    Aconteceu: o conjunto TEMPO nasceu com uma `Parada do Tempo`, que já era o
+    nome de uma Tool do `Noob_Despertado`. O que apontou foi o `diverge do
+    .rbxmx individual`, e só porque o conjunto do Noob foi montado depois.
+    Fosse a ordem inversa, o repositório teria ficado verde com uma Tool a
+    menos do que dizia ter.
+    """
+    de_quem = {}
+    for _arquivo, modelo, nomes in CONJUNTOS:
+        for nome in nomes:
+            de_quem.setdefault(nome, []).append(modelo)
+    return {n: c for n, c in de_quem.items() if len(c) > 1}
+
+
 def main():
     nomes = sorted(d for d in os.listdir(TOOLS)
                    if os.path.isdir(os.path.join(TOOLS, d))
@@ -783,6 +820,13 @@ def main():
 
     total = 0
     avisados = []
+    repetidos = nomes_repetidos()
+    if repetidos:
+        print(VERMELHO % "NOME DE TOOL EM DOIS CONJUNTOS — um sobrescreve o outro")
+        for nome, conjuntos in sorted(repetidos.items()):
+            print(VERMELHO % ("  %-24s %s" % (nome, ", ".join(conjuntos))))
+        print("")
+
     for nome in nomes:
         achados = verificar(nome)
         erros = [e for e in achados if not e.startswith("AVISO:")]

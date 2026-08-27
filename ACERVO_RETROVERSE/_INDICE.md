@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **108 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **115 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -31,6 +31,27 @@
 > `Trident`, `Guest_Tools`, `Dano_Verdadeiro`, `Canhao_Satelite` e
 > `Sword_of_Cosmic_Entity`. Também **não deposita VFX novo**: as oito camadas
 > do `VFXModule_Bombas7` são `Part` em código.
+>
+> **7 do `Time_Tools`** — três Tools de origem viraram sete, e **duas herdam o
+> Handle INTEIRO**: o `Cajado Celeste` leva o `CelestialStaffModel` com 33 peças
+> soldadas e as duas `MeshPart`, e a `Reversao` leva o Handle do `reverter!!`
+> com os `Sound` `Epitaph` e `Erase`, tocados nos mesmos dois momentos da
+> origem.
+>
+> ✅ **O modelo passou LIMPO na varredura de backdoor** — zero `require`
+> numérico, zero HTTP, zero `loadstring`, zero `MarketplaceService`. Ao
+> contrário do `reality_tools`, ele pode ser aberto no Studio.
+>
+> Ele traz duas ideias que o repositório não tinha, e as duas ficaram:
+> **`Enum.Material.ForceField` para o que está congelado** (sobre um objeto
+> parado, o quadriculado lê como "suspenso"; Neon leria como "aceso") e o
+> **fantasma vermelho adiantado no tempo** — um clone a 0.5 de transparência,
+> 40 quadros à frente de quem está voltando, que é o que faz a reversão ser
+> legível. Esse fantasma virou o eixo da Tool `Paradoxo` inteira.
+>
+> E a única mecânica de **HORA DO DIA** do repositório: `GetSunDirection` e
+> `GetMoonDirection` decidem qual habilidade o M1 do `Cajado Celeste` é —
+> chuva de fótons no sol, lâmina no luar.
 >
 > O que ele acrescenta ao repertório do repositório é a **explosão de três
 > tempos** — clarão em 0.06 s, onda atrasada em 0.04 s, poeira atrasada em
