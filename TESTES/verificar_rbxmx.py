@@ -778,6 +778,20 @@ def verificar_conjunto(arquivo, nomes):
             continue
         individual = os.path.join(TOOLS, nome, "%s.rbxmx" % nome)
         if not os.path.exists(individual):
+            # ISTO ERA UM `continue`, e o `continue` era um buraco.
+            #
+            # `main()` só verifica pasta que EXISTE em `Tools/`. Então uma Tool
+            # registrada no conjunto mas sem pasta nenhuma não era vista por
+            # `verificar()` (não há pasta para listar) NEM aqui (o `continue`
+            # a pulava em silêncio). O conjunto imprimia ✓ com o arquivo
+            # montado numa versão antiga e ZERO fonte versionada no
+            # repositório: ninguém consegue remontar o que não tem `.lua`.
+            #
+            # Aconteceu com o `Reality_Gui`: 5 Tools registradas, 5 pastas
+            # ausentes, verificador verde.
+            erros.append("a Tool %r não tem Tools/%s/%s.rbxmx — o conjunto "
+                         "existe mas a fonte dela não está no repositório"
+                         % (nome, nome, nome))
             continue
         r2 = ET.parse(individual).getroot()
         t2 = [i for i in r2.findall("Item") if i.get("class") == "Tool"][0]

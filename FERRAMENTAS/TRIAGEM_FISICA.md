@@ -271,3 +271,132 @@ Especificamente sem confirmação em jogo:
 - se trocar `BodyVelocity` por `LinearVelocity` muda a sensação dos 160 empurrões
   existentes. A API é diferente na unidade (`Velocity` vs `VectorVelocity` + `MaxForce`),
   então **não é substituição um-para-um**.
+
+---
+
+---
+
+# Segunda leva — 2026-08-29
+
+Pedido: **"pesquise repositórios que tenham física avançada"**, em serviço de refazer o
+conjunto REALITY do zero. A primeira leva era sobre *corpo mole* e *estrutura*; esta é
+sobre **projétil** e **força**, que é o que faltava.
+
+| Repositório | Licença | O que resolve | Veredito |
+|---|---|---|---|
+| [FastCast2](https://github.com/EtiTheSpirit/FastCastAPIDocs) | **MIT** (+ ART) | bala que não é `Part` física | ✅ **adotar o método** |
+| roPhysics | **MIT** | balística fechada — alcance e altura sem simular | ✅ **adotar as fórmulas** |
+| Constraints da própria Roblox | — | o substituto de `BodyMover` | ✅ **é o padrão daqui em diante** |
+
+## ✅ FastCast — o projétil que não é peça
+
+O problema que ele ataca é o mesmo que este repositório tem em 92 Tools: uma bala feita de
+`Part` com `Velocity` **atravessa parede** quando é rápida, porque entre dois quadros ela
+já passou do outro lado. A `ClassicSuperball` da origem do REALITY é exatamente isso:
+`missile.Velocity = direction * 200`, e a 60 Hz isso é um salto de 3,3 studs por quadro.
+
+O método do FastCast: **a bala não existe como física.** Existe um ponto, integrado à mão
+a cada `Heartbeat`
+
+```
+    pos_novo = pos + vel*dt + 0.5*a*dt²
+    vel_novo = vel + a*dt
+```
+
+e entre `pos` e `pos_novo` vai um **raycast**. O que se vê é uma peça cosmética,
+`CanCollide = false`, `Anchored`, arrastada atrás do ponto. Nunca há tunelamento porque o
+raio cobre o trecho inteiro, e a bala não empurra nada por acidente.
+
+O que **não** atravessa para cá: a biblioteca. São ~900 linhas com `Signal` e `ObjectCache`
+de dependência, copiadas sete vezes seria 6 300 linhas de terceiro dentro das Tools. O
+método são **doze linhas**, e é o que o `BLOCO_FISICA` deste conjunto implementa em
+`dispararProjetil()`.
+
+## ✅ roPhysics — a balística fechada
+
+Três fórmulas, sem simulação:
+
+```
+    alcance = v² · sen(2θ) / g          altura = v² · sen²(θ) / (2g)
+    tempo   = 2 · v · sen(θ) / g
+```
+
+Servem para **mirar**: dado um alvo e uma gravidade, qual o ângulo. É o que faz um tiro em
+arco acertar sem chutar número. Entra como `anguloParaAlcance()` no preâmbulo.
+
+## ✅ O substituto de `BodyMover`, com nome e número
+
+Levantado na documentação oficial, porque é onde a resposta é normativa:
+
+| Velho (obsoleto) | Novo | A diferença que morde |
+|---|---|---|
+| `BodyVelocity` | `LinearVelocity` | `VectorVelocity` + `MaxForce`; precisa de `Attachment` |
+| `BodyPosition` | `AlignPosition` | `ForceLimitMode` = `Magnitude`/`PerAxis`; `Responsiveness` no lugar de `P`/`D` |
+| `BodyGyro` | `AlignOrientation` | idem, com `MaxTorque` |
+| `BodyForce` | `VectorForce` | `RelativeTo` decide se a força gira com a peça |
+| `BodyAngularVelocity` | `AngularVelocity` | `MaxTorque` em vez de `maxTorque` |
+| `BodyThrust` | `VectorForce` + `Attachment` | a posição do `Attachment` vira alavanca |
+| *(sem equivalente)* | `RopeConstraint` · `SpringConstraint` | corda e mola de verdade |
+
+**Não é substituição um-para-um.** Todo o novo exige `Attachment`, e o velho não.
+
+---
+
+# As três decisões que este conjunto fecha
+
+As outras três (#1 `RECUSADO`, #5 animator × juntas, #6 linha de biblioteca) continuam
+propostas.
+
+## Decisão #2 — resolvida assim: constraint é o padrão, e o velho fica onde está
+
+**Nem migrar tudo, nem declarar `BodyMover` como padrão.** A saída é a terceira, e ela é
+explícita — que era o defeito do "meio a meio", não a proporção:
+
+> **`LinearVelocity`, `AlignPosition`, `AlignOrientation`, `VectorForce`, `AngularVelocity`,
+> `Torque`, `RopeConstraint` e `SpringConstraint` são a família da casa. Toda Tool NOVA usa
+> essa. As 244 chamadas de `BodyMover` nas 92 Tools existentes ficam como estão até alguém
+> pedir, porque trocá-las muda a SENSAÇÃO de 160 empurrões que hoje funcionam, e isso é
+> decisão de jogo, não de conformidade.**
+
+A diferença entre isto e a deriva de antes é que a deriva não estava escrita em lugar
+nenhum. Agora está, com data e motivo. O REALITY é a primeira entrega inteiramente da
+família nova, e serve de medida: se a sensação dele for melhor, a migração das 92 vira um
+pedido com evidência.
+
+## Decisão #3 — resolvida: existem TRÊS pesos de queda, e eles têm nome
+
+A regra dizia "nunca `BreakJoints`" e parava. Agora diz o que é cada um:
+
+| Nome | O que faz | Volta como |
+|---|---|---|
+| `empurrar(alvo, dir, força)` | só desloca — o alvo continua de pé e no controle | sozinho, o impulso acaba |
+| `tombar(alvo, tempo)` | `PlatformStand` — fica mole, juntas rígidas. Boneco de pau caindo | o valor de ANTES, por prazo |
+| `desabar(alvo, tempo)` | `BallSocketConstraint` por junta — o corpo desmonta de verdade | `levantar()`, que religa cada `Motor6D` |
+
+As 143 chamadas de `PlatformStand` existentes são `tombar`, e continuam certas — a maioria
+das habilidades quer o tombo leve. `desabar` é para o golpe que é o clímax da Tool.
+
+`desabar` guarda `Enabled` de cada `Motor6D` e devolve **aquele valor**, nunca `true` fixo,
+e sempre desliga o `R6CFrameAnimator` antes — dois donos por junta já deu bug aqui.
+
+## Decisão #4 — resolvida: corda entra, e é um ajudante do preâmbulo
+
+`amarrar(peca, ancora, comprimento)` devolve uma função que desamarra. Por baixo é
+`RopeConstraint` com `Restitution`, dois `Attachment`, e o desamarrar tira os três. Entra na
+mesma prateleira que `atrair` e `suspender`.
+
+Quem puxa **para dentro** usa `SpringConstraint` com `FreeLength` menor que a distância —
+a mola encurta sozinha, e o alvo chega balançando em vez de deslizar em linha reta.
+
+---
+
+## O que continua sem verificação em jogo
+
+Tudo abaixo é leitura estática. Nada rodou no Studio.
+
+- Se `desabar()` cai **bem** com a escala e a massa R6 daqui — os ângulos do blueprint são
+  de outro jogo, e nunca foram medidos aqui.
+- Se `RopeConstraint` amarrado a um personagem replica sem tremer para os outros clientes.
+- Se o passo de integração de `dispararProjetil()` (um `Heartbeat`) é fino o bastante para
+  a velocidade que o `Canhao Satelite` usa. O FastCast tem `HighFidelitySegmentSize` para
+  esse caso; aqui o passo é fixo.
