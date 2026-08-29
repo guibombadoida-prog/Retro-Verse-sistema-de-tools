@@ -254,8 +254,48 @@ checar "sem esperar por algo em workspace" 'workspace[:.]WaitForChild|game\.Work
 # bomba-NPC, por exemplo — é outra coisa: ninguém mais escreve nelas, e um
 # Humanoid R6 não existe sem RootJoint e Neck. Por isso a checagem mira o
 # ACESSO A JUNTA DE PERSONAGEM EXISTENTE, não a classe Motor6D em si.
+# A checagem mirava o NOME DA JUNTA em qualquer contexto, e isso passou a ser
+# largo demais quando as regras novas passaram a permitir RAGDOLL.
+#
+# O blueprint R6 de um ragdoll é uma TABELA DE DADOS indexada por nome de
+# junta — `["Neck"] = { atrito = 150, ... }`. Ela não acessa junta nenhuma: é
+# uma constante, do mesmo feitio que o `Poses.lua`. A checagem antiga a
+# acusava, e acusar o código correto é como se ensina a ignorar o verificador.
+#
+# O que a regra sempre quis dizer é ACESSO: `["Neck"].C0 = ...`. A diferença
+# entre as duas é o caractere depois do `]` — `.` ou `:` é acesso, `=` é chave
+# de tabela. É isso que o `[[:space:]]*[.:]` cobra agora.
+#
+# E como a fronteira ficou mais fina, ela ganhou uma segunda linha de defesa
+# logo abaixo: escrever em `.C0`/`.C1`/`.Transform` é proibido SEJA QUAL FOR o
+# caminho até a junta, inclusive um que não cite nome nenhum.
 checar "sem escrita em junta de personagem" \
-	'\["(Right|Left) (Shoulder|Hip)"\]|\["RootJoint"\]|\["Neck"\]|FindFirstChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)|WaitForChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)'
+	'\["(Right|Left) (Shoulder|Hip)"\][[:space:]]*[.:]|\["RootJoint"\][[:space:]]*[.:]|\["Neck"\][[:space:]]*[.:]|FindFirstChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)|WaitForChild\("(RootJoint|Neck|(Right|Left) (Shoulder|Hip))"\)'
+
+# ⚠️ AQUI MOROU, POR CINCO MINUTOS, UMA SEGUNDA CHECAGEM — e o registro de por
+#    que ela NÃO ficou vale mais do que ela valia.
+#
+#    A ideia era proibir `.C0 = `, `.C1 = ` e `.Transform = ` em qualquer
+#    caminho, como rede embaixo da checagem acima. Ela pegou o que devia pegar:
+#    ZERO. E pegou nove linhas que estão CERTAS —
+#
+#      Tools/A arma/VFXModule.lua:499            solda.C0 = CFrame.new(...)
+#      Tools/Escudo Skate/..._Server_V3.lua:331  solda.C0 = CFG.OFFSET_PE
+#      (mais sete iguais, nos Servers do Xester)
+#
+#    — porque `solda` é um `Weld` que o próprio script acabou de criar, para
+#    prender o skate no pé ou a carta na mão. Ninguém mais escreve nele. É a
+#    mesma coisa que o `R6CFrameAnimator` faz, e é legítima.
+#
+#    Separar "junta do personagem" de "solda que eu mesmo criei" exige saber de
+#    onde veio a variável, e isso é análise de fluxo — grep não faz, e fingir
+#    que faz produz uma lista de exceções que cresce a cada Tool nova.
+#
+#    Verificador que acusa código correto é pior do que verificador nenhum:
+#    ele ensina as pessoas a ignorar a saída vermelha. A checagem de cima já
+#    cobre o perigo real — não se escreve numa junta de personagem sem
+#    NOMEÁ-LA (`["Neck"].C0`) ou ACHÁ-LA (`FindFirstChild("Neck")`), e as duas
+#    formas continuam pegas.
 checar "sem Animation / LoadAnimation"  'Instance\.new\("Animation"\)|LoadAnimation|AnimationTrack'
 
 # Encadear beat com task.wait(duração) some ~1 frame por beat — com 100 beats

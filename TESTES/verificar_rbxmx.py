@@ -688,12 +688,23 @@ CONJUNTOS = [
         "Deu Ruim",
     ]),
 
-    ("Reality Gui.rbxmx", "Reality_Gui", [
+    # O REALITY foi refeito DO ZERO sob o tema de física dinâmica, e passou de
+    # 5 Tools para 7: saíram `Trem` e `Danca Provocadora` (removidas a pedido),
+    # entraram `Arma de Fisica` e `Indutor de Gravidade` — as duas Tools de
+    # física de verdade que a origem tem e a versão anterior não aproveitou.
+    #
+    # É o primeiro conjunto inteiramente na família NOVA de física:
+    # `LinearVelocity`, `AlignPosition`, `AlignOrientation`, `VectorForce`,
+    # `AngularVelocity`, `RopeConstraint` e `BallSocketConstraint`. Zero
+    # `BodyMover`. Ver FERRAMENTAS/TRIAGEM_FISICA.md, decisões #2, #3 e #4.
+    ("Reality_7_Tools.rbxmx", "Reality", [
         "Lapada Seca",
         "Canhao Satelite",
         "Arvore Maligna",
         "Gato Ajudante Boss",
         "Samsungus",
+        "Arma de Fisica",
+        "Indutor de Gravidade",
     ]),
     # 7 Tools a partir do `noob_despertado.rbxmx`, que NÃO é uma Tool: é um
     # Script de 2650 linhas solto na raiz. Nove ataques viraram 7 primárias e
