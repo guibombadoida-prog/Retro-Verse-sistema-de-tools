@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **122 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **129 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -42,6 +42,31 @@
 >
 > Consome **21 `SoundId` do catálogo** e **não deposita VFX novo** — as sete
 > camadas são `Part` em código.
+>
+> **7 do `Reality` — refeito DO ZERO, e o primeiro conjunto de FÍSICA.** Ele
+> substitui as 5 do antigo `Reality_Gui`: saíram `Trem` e `Danca Provocadora`
+> (removidas a pedido), entraram **`Arma de Fisica`** e **`Indutor de
+> Gravidade`** — as duas Tools de física de verdade que a origem tem e a versão
+> anterior não aproveitou. Uma habilidade por Tool, no clique.
+>
+> É o **primeiro conjunto inteiramente na família nova de física**:
+> `LinearVelocity`, `AngularVelocity`, `AlignPosition`, `AlignOrientation`,
+> `VectorForce`, `RopeConstraint` e `BallSocketConstraint`. Zero `BodyMover`
+> — as 244 chamadas dele nas 92 Tools antigas ficam onde estão, por decisão
+> explícita (`FERRAMENTAS/TRIAGEM_FISICA.md`, §"Decisão #2").
+>
+> Três coisas estreiam aqui e servem ao repositório inteiro: **`amarrar()`**
+> (`RopeConstraint`, a primeira do acervo), **`desabar()`/`levantar()`**
+> (ragdoll reversível pelo blueprint R6 de seis juntas, método do
+> `ragdoll-system` MIT) e **`dispararProjetil()`** (o método do FastCast: a
+> bala é um ponto integrado à mão, com raycast entre dois passos).
+>
+> ⛔ **A origem, `reality_tools.rbxmx`, tem TRÊS vetores de execução remota** —
+> `assetimport.org` via `HttpService` na `Physics Gun`, `require(206209239)` no
+> `TrenchGun`, e `chipmunkav.com` no `RbxUtility`. **Não arraste o arquivo para
+> place nenhum, nem para testar.** O que atravessou foram **20 `Sound`, as
+> `UnionOperation` da árvore, o modelo do gato e os Handles** — geometria e
+> dado. Zero script.
 >
 > O que ele acrescenta ao repertório é o **nascimento em três tempos**:
 > andaime em 0.18 s, matéria preenchendo **de baixo para cima** em 0.35 s, e o
