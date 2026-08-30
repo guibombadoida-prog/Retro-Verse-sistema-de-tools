@@ -47,11 +47,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -349,14 +370,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end

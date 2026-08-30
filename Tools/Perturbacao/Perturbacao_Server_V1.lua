@@ -268,13 +268,13 @@ end
 
 local desfeito = false
 local absorvido = 0
-local laçoVida = nil
+local lacoVida = nil
 
 local function refazer(devolver)
 	if not desfeito then return end
 	desfeito = false
-	if laçoVida and laçoVida.Connected then laçoVida:Disconnect() end
-	laçoVida = nil
+	if lacoVida and lacoVida.Connected then lacoVida:Disconnect() end
+	lacoVida = nil
 
 	local troco = math.min(absorvido, CFG.TETO)
 	absorvido = 0
@@ -303,7 +303,7 @@ local function primaria()
 	local vidaAntes = humanoide.Health
 	vfx("PERTURBA_DESFAZ", { duracao = CFG.DURACAO })
 
-	laçoVida = humanoide.HealthChanged:Connect(function(agora)
+	lacoVida = humanoide.HealthChanged:Connect(function(agora)
 		if not desfeito then return end
 		if agora >= vidaAntes then
 			vidaAntes = agora
@@ -315,7 +315,7 @@ local function primaria()
 		humanoide.Health = math.min(vidaAntes, humanoide.MaxHealth)
 		vfx("PERTURBA_ABSORVE", { posicao = raiz and raiz.Position or nil })
 	end)
-	guardar(laçoVida)
+	guardar(lacoVida)
 
 	task.delay(CFG.DURACAO, function()
 		refazer(true)
@@ -395,13 +395,16 @@ Tool.Destroying:Connect(function()
 end)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o mesmo defeito que o DRAMA teve, e pela mesma
+-- causa: a ligação foi enxertada nos arquivos PRONTOS por
+-- `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a perdeu. As 6
+-- Tools voltaram a não ter depósito, e só o `verificar_deposito_vfx.py`
+-- percebeu.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração. Agora ele mora aqui.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)

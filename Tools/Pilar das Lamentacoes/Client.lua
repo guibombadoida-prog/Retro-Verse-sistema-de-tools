@@ -128,3 +128,4 @@ Tool.AncestryChanged:Connect(function()
 end)
 
 Tool.Destroying:Connect(aoGuardar)
+

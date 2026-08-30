@@ -92,9 +92,60 @@ end
 --- punha o Sound dentro da bomba, e a linha seguinte tirava a bomba do mundo.
 --- O som morria no quadro em que nascia. Um `Sound` só toca enquanto tem pai
 --- no DataModel, então ele precisa de um pai que sobreviva a ele.
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Handle/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso (`NumberValue` "Weight"). Tool
+--- antiga não muda de comportamento.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o clone é
+--- parenteado no `Handle` pelo servidor, então a INSTÂNCIA replica e todo
+--- mundo ouve a mesma. Cliente sorteando = duas pessoas ouvindo sons
+--- diferentes para o mesmo golpe.
+---
+--- ⚠️ O último `return` do sorteio não é paranoia: `math.random() * total`
+---    pode sobrar por arredondamento e cair fora do laço. A implementação de
+---    onde a ideia veio devolve `nil` aí — um som mudo, calado, de vez em
+---    quando.
+---
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function somDe(nome)
+	local achado = Handle:FindFirstChild(nome)
+	if not achado then
+		local pasta = Tool:FindFirstChild("SFX")
+		achado = pasta and pasta:FindFirstChild(nome)
+	end
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
+	return nil
+end
+
 local function tocarEm(nome, posicao, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 
 	local ancora = Instance.new("Part")
 	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
@@ -122,8 +173,8 @@ local function tocar(nome, onde, pitch, corte)
 		-- qualquer peça que não seja o Handle pode sumir no meio do som
 		return tocarEm(nome, alvo.Position, pitch, corte)
 	end
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 	local som = base:Clone()
 	som.PlaybackSpeed = pitch or 1
 	som.Parent = Handle
@@ -417,14 +468,21 @@ end
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
+
+
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ⚠️ ISTO VIVIA FORA DO GERADOR, e o defeito estava em NOVE conjuntos.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--    A ligação tinha sido enxertada nos arquivos PRONTOS por
+--    `FERRAMENTAS/ligar_deposito.py`, uma vez. Enquanto ninguém regerasse,
+--    tudo passava. A primeira regeneração de cada conjunto a perdia — em
+--    silêncio, porque o Server continua funcionando sem ela; o que para é o
+--    VFX sair da Tool.
+--
+--    Enxerto que não volta para o gerador é conserto que dura até a próxima
+--    geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)

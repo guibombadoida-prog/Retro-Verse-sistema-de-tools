@@ -66,3 +66,18 @@ end
 
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
+
+--═══════════════════════════════════════════════════════════════
+-- O DEPÓSITO (Regra nº 2)
+--
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
+--
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)

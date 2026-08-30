@@ -273,7 +273,7 @@ local sentenca = nil
 local function encerrarSentenca(motivo)
 	if not sentenca then return end
 	local alvo = sentenca.alvo
-	for _, conexao in ipairs(sentenca.laços) do
+	for _, conexao in ipairs(sentenca.lacos) do
 		if conexao.Connected then conexao:Disconnect() end
 	end
 	sentenca = nil
@@ -302,19 +302,19 @@ local function primaria(destino)
 	encerrarSentenca("substituida")
 
 	local corpo = alvo.Parent
-	sentenca = { alvo = alvo, restam = CFG.SELOS, laços = {} }
+	sentenca = { alvo = alvo, restam = CFG.SELOS, lacos = {} }
 
 	vfx("SELO_POE", { alvo = corpo, selos = CFG.SELOS,
 		altura = CFG.ALTURA_SELO, raio = CFG.RAIO_SELO })
 
 	-- o alvo morreu antes do prazo: sentença cumprida por outra via
-	table.insert(sentenca.laços, alvo.Died:Connect(function()
+	table.insert(sentenca.lacos, alvo.Died:Connect(function()
 		encerrarSentenca("alvo caiu")
 	end))
 
 	-- o portador morreu: o alvo cumpriu a condição, a sentença some
 	if humanoide then
-		table.insert(sentenca.laços, humanoide.Died:Connect(function()
+		table.insert(sentenca.lacos, humanoide.Died:Connect(function()
 			encerrarSentenca("portador caiu")
 		end))
 	end
@@ -416,13 +416,16 @@ Tool.Destroying:Connect(function()
 end)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o mesmo defeito que o DRAMA teve, e pela mesma
+-- causa: a ligação foi enxertada nos arquivos PRONTOS por
+-- `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a perdeu. As 6
+-- Tools voltaram a não ter depósito, e só o `verificar_deposito_vfx.py`
+-- percebeu.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração. Agora ele mora aqui.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)

@@ -47,11 +47,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -349,14 +376,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end

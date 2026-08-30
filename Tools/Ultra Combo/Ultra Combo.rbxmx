@@ -703,8 +703,8 @@ end
 --- Um `Sound` só toca enquanto tem pai no DataModel. Pendurar o som na peça que
 --- some no quadro seguinte mata o som no quadro em que ele nasce.
 local function tocarEm(nome, posicao, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 
 	local ancora = Instance.new("Part")
 	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
@@ -725,9 +725,60 @@ local function tocarEm(nome, posicao, pitch, corte)
 	return som
 end
 
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Handle/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso (`NumberValue` "Weight"). Tool
+--- antiga não muda de comportamento.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o clone é
+--- parenteado no `Handle` pelo servidor, então a INSTÂNCIA replica e todo
+--- mundo ouve a mesma. Cliente sorteando = duas pessoas ouvindo sons
+--- diferentes para o mesmo golpe.
+---
+--- ⚠️ O último `return` do sorteio não é paranoia: `math.random() * total`
+---    pode sobrar por arredondamento e cair fora do laço. A implementação de
+---    onde a ideia veio devolve `nil` aí — um som mudo, calado, de vez em
+---    quando.
+---
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function somDe(nome)
+	local achado = Handle:FindFirstChild(nome)
+	if not achado then
+		local pasta = Tool:FindFirstChild("SFX")
+		achado = pasta and pasta:FindFirstChild(nome)
+	end
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
+	return nil
+end
+
 local function tocar(nome, pitch, corte)
-	local base = Handle:FindFirstChild(nome)
-	if not base or not base:IsA("Sound") then return nil end
+	local base = somDe(nome)
+	if not base then return nil end
 	local som = base:Clone()
 	som.PlaybackSpeed = pitch or 1
 	som.Parent = Handle
@@ -1085,13 +1136,18 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ⚠️ ISTO VIVIA FORA DO GERADOR, e o defeito estava em NOVE conjuntos.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--    A ligação tinha sido enxertada nos arquivos PRONTOS por
+--    `FERRAMENTAS/ligar_deposito.py`, uma vez. Enquanto ninguém regerasse,
+--    tudo passava. A primeira regeneração de cada conjunto a perdia — em
+--    silêncio, porque o Server continua funcionando sem ela; o que para é o
+--    VFX sair da Tool.
+--
+--    Enxerto que não volta para o gerador é conserto que dura até a próxima
+--    geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -1211,6 +1267,8 @@ end
 
 Tool.Unequipped:Connect(aoGuardar)
 Tool.Destroying:Connect(aoGuardar)
+
+
 ]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="FK_R6CFrameAnim_01"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source"><![CDATA[-- R6CFrameAnimator_V2.lua
 -- ModuleScript — sistema de animação R6 procedural em CFrame (Retro-Verse)
 -- Superset do V1: pernas sob demanda, timelines (PlaySequence), tremor, lock.
@@ -1260,11 +1318,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -1562,14 +1647,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -5173,7 +5273,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1817050822689925329"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_488075440856365245"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5361,7 +5461,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1817050822689925329"><Properties><string name="Name">ChaveVFX</string><string name="Value">Ultra_Combo</string></Properties></Item></Item>
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_488075440856365245"><Properties><string name="Name">ChaveVFX</string><string name="Value">Ultra_Combo</string></Properties></Item></Item>
 	<SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk

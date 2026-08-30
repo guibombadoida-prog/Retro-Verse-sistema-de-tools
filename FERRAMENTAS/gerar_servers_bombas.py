@@ -55,6 +55,7 @@ local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Poses     = require(Tool:WaitForChild("Poses"))
 local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 
 --%(regua)s
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -96,9 +97,60 @@ end
 --- punha o Sound dentro da bomba, e a linha seguinte tirava a bomba do mundo.
 --- O som morria no quadro em que nascia. Um `Sound` só toca enquanto tem pai
 --- no DataModel, então ele precisa de um pai que sobreviva a ele.
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Handle/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso (`NumberValue` "Weight"). Tool
+--- antiga não muda de comportamento.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o clone é
+--- parenteado no `Handle` pelo servidor, então a INSTÂNCIA replica e todo
+--- mundo ouve a mesma. Cliente sorteando = duas pessoas ouvindo sons
+--- diferentes para o mesmo golpe.
+---
+--- ⚠️ O último `return` do sorteio não é paranoia: `math.random() * total`
+---    pode sobrar por arredondamento e cair fora do laço. A implementação de
+---    onde a ideia veio devolve `nil` aí — um som mudo, calado, de vez em
+---    quando.
+---
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1.
+local function sortearNoGrupo(pasta)
+\tlocal candidatos, total = {}, 0
+\tfor _, filho in ipairs(pasta:GetChildren()) do
+\t\tif filho:IsA("Sound") then
+\t\t\tlocal w = filho:FindFirstChild("Weight")
+\t\t\tlocal peso = 1
+\t\t\tif w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+\t\t\ttable.insert(candidatos, { som = filho, peso = peso })
+\t\t\ttotal = total + peso
+\t\tend
+\tend
+\tif #candidatos == 0 then return nil end
+\tif #candidatos == 1 then return candidatos[1].som end
+
+\tlocal sorteio = math.random() * total
+\tfor _, c in ipairs(candidatos) do
+\t\tif sorteio < c.peso then return c.som end
+\t\tsorteio = sorteio - c.peso
+\tend
+\treturn candidatos[#candidatos].som
+end
+
+local function somDe(nome)
+\tlocal achado = Handle:FindFirstChild(nome)
+\tif not achado then
+\t\tlocal pasta = Tool:FindFirstChild("SFX")
+\t\tachado = pasta and pasta:FindFirstChild(nome)
+\tend
+\tif not achado then return nil end
+\tif achado:IsA("Sound") then return achado end
+\tif achado:IsA("Folder") then return sortearNoGrupo(achado) end
+\treturn nil
+end
+
 local function tocarEm(nome, posicao, pitch, corte)
-\tlocal base = Handle:FindFirstChild(nome)
-\tif not base or not base:IsA("Sound") then return nil end
+\tlocal base = somDe(nome)
+\tif not base then return nil end
 
 \tlocal ancora = Instance.new("Part")
 \tancora.Size = Vector3.new(0.2, 0.2, 0.2)
@@ -126,8 +178,8 @@ local function tocar(nome, onde, pitch, corte)
 \t\t-- qualquer peça que não seja o Handle pode sumir no meio do som
 \t\treturn tocarEm(nome, alvo.Position, pitch, corte)
 \tend
-\tlocal base = Handle:FindFirstChild(nome)
-\tif not base or not base:IsA("Sound") then return nil end
+\tlocal base = somDe(nome)
+\tif not base then return nil end
 \tlocal som = base:Clone()
 \tsom.PlaybackSpeed = pitch or 1
 \tsom.Parent = Handle
@@ -364,6 +416,25 @@ end
 
 Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
+
+
+
+--═══════════════════════════════════════════════════════════════
+-- O DEPÓSITO (Regra nº 2)
+--
+-- ⚠️ ISTO VIVIA FORA DO GERADOR, e o defeito estava em NOVE conjuntos.
+--
+--    A ligação tinha sido enxertada nos arquivos PRONTOS por
+--    `FERRAMENTAS/ligar_deposito.py`, uma vez. Enquanto ninguém regerasse,
+--    tudo passava. A primeira regeneração de cada conjunto a perdia — em
+--    silêncio, porque o Server continua funcionando sem ela; o que para é o
+--    VFX sair da Tool.
+--
+--    Enxerto que não volta para o gerador é conserto que dura até a próxima
+--    geração.
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)
 '''
 
 

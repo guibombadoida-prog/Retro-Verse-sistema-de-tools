@@ -87,9 +87,19 @@ não custa asset nenhum novo, porque **as gravações já estão nos modelos**.
 > uma `Folder` em vez de um `Sound`, ele sorteia entre os filhos, com peso. Um `Sound`
 > avulso continua funcionando igual — a mudança é retrocompatível com as 129.
 >
-> `math.random` é permitido pelas regras novas. **Mas o sorteio tem de ser no SERVIDOR**, e
-> o nome escolhido viajar no payload: se cada cliente sortear, duas pessoas ouvem sons
-> diferentes para o mesmo golpe.
+> `math.random` é permitido pelas regras novas. **E o sorteio tem de ser no SERVIDOR** —
+> se cada cliente sortear, duas pessoas ouvem sons diferentes para o mesmo golpe.
+>
+> **Correção do que eu escrevi acima na primeira versão deste documento:** eu disse que o
+> nome escolhido precisaria viajar no payload. **Não precisa.** O `tocar()` daqui clona o
+> `Sound` e o parenteia no `Handle` *pelo servidor* — a INSTÂNCIA replica, e todo mundo
+> ouve exatamente aquela. O sorteio no servidor já basta, e a implementação ficou mais
+> simples do que a proposta.
+
+> **IMPLEMENTADO** em 2026-08-29, nos 17 geradores. `Tool/SFX/TAPA` ou `Handle/TAPA` pode
+> ser um `Sound` (como sempre) ou uma `Folder` com vários; `Folder` sorteia com peso.
+> Retrocompatível: nenhuma das 129 Tools mudou de comportamento, porque todas ainda têm
+> `Sound` avulso. O que mudou é que agora **dá para** aproveitar as 76 variantes.
 
 ## 2. ⛔ `LockCharacter` zera `JumpPower` e não zera `JumpHeight`
 
@@ -405,8 +415,8 @@ Nenhuma mudança foi feita. São propostas, em ordem de retorno pelo custo:
 
 | # | Proposta | Onde | Custo |
 |---|---|---|---|
-| 1 | `tocar()` aceita **grupo de variação** com peso; sorteio no servidor | preâmbulo dos Servers + `preparar_*.py` | médio — mexe nos 33 geradores |
-| 2 | `LockCharacter` guarda e zera **`JumpHeight`** | `R6CFrameAnimator` (1 arquivo canônico) | **baixo** |
+| 1 | ✅ **FEITO** — `tocar()` aceita grupo de variação com peso | 17 geradores | — |
+| 2 | ✅ **FEITO** — `LockCharacter` guarda e zera `JumpHeight` | animator, 129 Tools + o do Acervo | — |
 | 3 | `controls:Disable()` nas Tools com cutscene | `Client` das Tools com `CutsceneCam` | baixo |
 | 4 | `when` ∈ [0,1] no keyframe, além da `marca` | `Poses.lua` + despachante | médio |
 | 5 | `BulkMoveTo` no `camadaDestroco` | um `VFXModule` de cada vez | baixo |

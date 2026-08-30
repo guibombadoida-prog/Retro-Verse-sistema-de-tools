@@ -121,3 +121,5 @@ end
 
 Tool.Unequipped:Connect(aoGuardar)
 Tool.Destroying:Connect(aoGuardar)
+
+

@@ -407,13 +407,16 @@ Tool.Destroying:Connect(function()
 end)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o mesmo defeito que o DRAMA teve, e pela mesma
+-- causa: a ligação foi enxertada nos arquivos PRONTOS por
+-- `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a perdeu. As 6
+-- Tools voltaram a não ter depósito, e só o `verificar_deposito_vfx.py`
+-- percebeu.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração. Agora ele mora aqui.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -547,6 +550,7 @@ Tool.AncestryChanged:Connect(function()
 end)
 
 Tool.Destroying:Connect(aoGuardar)
+
 ]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_Poses_PortaldoSubmundo"><Properties><string name="Name">Poses</string><ProtectedString name="Source"><![CDATA[-- Poses.lua
 -- ModuleScript "Poses" — conjunto COLLECTOR
 --
@@ -766,11 +770,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -1068,14 +1093,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -1200,9 +1231,16 @@ local raizPack, packProcurado, moduloDoPack = nil, false, {}
 local function deposito()
 	if packProcurado then return raizPack end
 	packProcurado = true
-	-- DUAS PORTAS (Regra nº 2): o depósito primeiro, o interior depois.
-	-- A segunda não é redundância — num place vazio ninguém montou depósito
-	-- nenhum, e até o primeiro `Equipped` o molde ainda está aqui dentro.
+	-- DUAS PORTAS (Regra nº 2): o depósito PRIMEIRO, o interior depois.
+	--
+	-- ⚠️ A primeira porta faltava aqui, e não era detalhe: o `DepositoVFX`
+	--    MOVE a pasta `Pack` para fora da Tool assim que ela chega ao
+	--    jogador. Sem consultar o depósito, este módulo parava de achar o
+	--    próprio pack no instante em que a Tool era equipada — e falhava
+	--    em SILÊNCIO, desenhando nada.
+	--
+	--    Estava certo nos arquivos prontos (enxertado por
+	--    `ligar_deposito.py`) e errado no gerador. A regeneração desfazia.
 	raizPack = Deposito.achar(script, PACK.PASTA)
 		or script:FindFirstChild(PACK.PASTA)
 	return raizPack
@@ -6067,7 +6105,7 @@ end]]></ProtectedString>
 							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						</Properties>
 					</Item>
-				</Item><Item class="Part" referent="RV_ELO_PortaldoSubmundo"><Properties><string name="Name">Elo</string><Vector3 name="size"><X>1.4</X><Y>1.4</Y><Z>0.5</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="SpecialMesh" referent="RV_ELOM_PortaldoSubmundo"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://3270017</url></Content></Properties></Item></Item></Item><Item class="Folder" referent="RV_SFX_PortaldoSubmundo"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNABRE_PortaldoSubmundo"><Properties><string name="Name">ABRE</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNCORRENTE_PortaldoSubmundo"><Properties><string name="Name">CORRENTE</string><Content name="SoundId"><url>rbxassetid://413682983</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNFECHA_PortaldoSubmundo"><Properties><string name="Name">FECHA</string><Content name="SoundId"><url>rbxassetid://54111471</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_5314361916315029220"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item><Item class="Part" referent="RV_ELO_PortaldoSubmundo"><Properties><string name="Name">Elo</string><Vector3 name="size"><X>1.4</X><Y>1.4</Y><Z>0.5</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><float name="Transparency">1</float><token name="Material">288</token><int name="BrickColor">1003</int></Properties><Item class="SpecialMesh" referent="RV_ELOM_PortaldoSubmundo"><Properties><string name="Name">Mesh</string><token name="MeshType">5</token><Content name="MeshId"><url>rbxassetid://3270017</url></Content></Properties></Item></Item></Item><Item class="Folder" referent="RV_SFX_PortaldoSubmundo"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNABRE_PortaldoSubmundo"><Properties><string name="Name">ABRE</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNCORRENTE_PortaldoSubmundo"><Properties><string name="Name">CORRENTE</string><Content name="SoundId"><url>rbxassetid://413682983</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNFECHA_PortaldoSubmundo"><Properties><string name="Name">FECHA</string><Content name="SoundId"><url>rbxassetid://54111471</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_3700840419700676593"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -6255,7 +6293,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5314361916315029220"><Properties><string name="Name">ChaveVFX</string><string name="Value">Portal_do_Submundo</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3700840419700676593"><Properties><string name="Name">ChaveVFX</string><string name="Value">Portal_do_Submundo</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

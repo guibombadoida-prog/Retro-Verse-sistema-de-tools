@@ -47,6 +47,7 @@ local Handle    = Tool:WaitForChild("Handle")
 local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Poses     = require(Tool:WaitForChild("Poses"))
 local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 {remotes}
 --═══════════════════════════════════════════════════════════════
 -- CFG — número mágico espalhado pelo corpo é violação

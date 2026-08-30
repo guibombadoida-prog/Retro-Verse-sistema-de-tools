@@ -126,11 +126,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -764,11 +818,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -1066,14 +1147,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -5025,7 +5121,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8867805727484593135"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3086618614017855634"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5213,7 +5309,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8867805727484593135"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Lamina</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3086618614017855634"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Lamina</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu

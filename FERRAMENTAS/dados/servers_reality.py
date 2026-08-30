@@ -39,7 +39,7 @@ A LÓGICA É A DA ORIGEM, COM AS PARTES PERIGOSAS FORA
     | `ScreenGui` · `PlayerGui` | caem — proibido dentro de Tool | 4 |
 
     E a ANIMAÇÃO é a da origem, inteira: 40 e 361 keyframes sem amostragem, e
-    os laços de `Weld.C0` do `samsung` e do LOIC lidos verbatim. Ver
+    os lacos de `Weld.C0` do `samsung` e do LOIC lidos verbatim. Ver
     `gerar_poses_reality.py`.
 
 ════════════════════════════════════════════════════════════════════════
@@ -225,7 +225,7 @@ T("Canhao Satelite",
 --%s
 -- A CHAMADA DE ÓRBITA — com cutscene
 --
--- A ANIMAÇÃO É A DA ORIGEM. Os seis laços de `Weld.C0` do Script do LOIC saem
+-- A ANIMAÇÃO É A DA ORIGEM. Os seis lacos de `Weld.C0` do Script do LOIC saem
 -- em `Poses.lua` verbatim: braço e cabeça sobem, seguram 2.5 s, ajustam,
 -- seguram 1.5 s, e descem. 6.05 s, que é o que o autor escreveu.
 --
@@ -846,7 +846,7 @@ function primaria(_mira)
 	rig:PlaySequence(qual, function(passo)
 		local marca = marcaDe(passo)
 		if marca == "SOPRO" then
-			-- `swooshsound2:Play()` e `swooshsound:Play()`, entre os dois laços
+			-- `swooshsound2:Play()` e `swooshsound:Play()`, entre os dois lacos
 			tocar("GIRO", 1 + jitter(0.2) * 0.2)
 		elseif marca == "GOLPE" then
 			bater()

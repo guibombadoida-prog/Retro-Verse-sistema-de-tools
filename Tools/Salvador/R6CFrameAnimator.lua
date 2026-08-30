@@ -274,14 +274,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end

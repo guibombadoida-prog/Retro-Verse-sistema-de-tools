@@ -37,9 +37,16 @@ local raizPack, packProcurado, moduloDoPack = nil, false, {}
 local function deposito()
 	if packProcurado then return raizPack end
 	packProcurado = true
-	-- DUAS PORTAS (Regra nº 2): o depósito primeiro, o interior depois.
-	-- A segunda não é redundância — num place vazio ninguém montou depósito
-	-- nenhum, e até o primeiro `Equipped` o molde ainda está aqui dentro.
+	-- DUAS PORTAS (Regra nº 2): o depósito PRIMEIRO, o interior depois.
+	--
+	-- ⚠️ A primeira porta faltava aqui, e não era detalhe: o `DepositoVFX`
+	--    MOVE a pasta `Pack` para fora da Tool assim que ela chega ao
+	--    jogador. Sem consultar o depósito, este módulo parava de achar o
+	--    próprio pack no instante em que a Tool era equipada — e falhava
+	--    em SILÊNCIO, desenhando nada.
+	--
+	--    Estava certo nos arquivos prontos (enxertado por
+	--    `ligar_deposito.py`) e errado no gerador. A regeneração desfazia.
 	raizPack = Deposito.achar(script, PACK.PASTA)
 		or script:FindFirstChild(PACK.PASTA)
 	return raizPack

@@ -241,6 +241,7 @@ local VFXRemote = Tool:WaitForChild("VFXRemote")
 local Moldes    = Tool:WaitForChild("Moldes")
 local Poses     = require(Tool:WaitForChild("Poses"))
 local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 %(mira_remote)s
 --%(regua)s
 -- CFG — número mágico espalhado pelo corpo é violação
@@ -533,6 +534,21 @@ Tool.Destroying:Connect(function()
 \t\trig = nil
 \tend
 end)
+
+--═══════════════════════════════════════════════════════════════
+-- O DEPÓSITO (Regra nº 2)
+--
+-- ISTO ESTAVA FORA DO GERADOR — o mesmo defeito que o DRAMA teve, e pela mesma
+-- causa: a ligação foi enxertada nos arquivos PRONTOS por
+-- `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a perdeu. As 6
+-- Tools voltaram a não ter depósito, e só o `verificar_deposito_vfx.py`
+-- percebeu.
+--
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração. Agora ele mora aqui.
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)
 '''
 
 ESCUTA_MIRA = '''
@@ -635,7 +651,7 @@ local sentenca = nil
 local function encerrarSentenca(motivo)
 \tif not sentenca then return end
 \tlocal alvo = sentenca.alvo
-\tfor _, conexao in ipairs(sentenca.laços) do
+\tfor _, conexao in ipairs(sentenca.lacos) do
 \t\tif conexao.Connected then conexao:Disconnect() end
 \tend
 \tsentenca = nil
@@ -664,19 +680,19 @@ local function primaria(destino)
 \tencerrarSentenca("substituida")
 
 \tlocal corpo = alvo.Parent
-\tsentenca = { alvo = alvo, restam = CFG.SELOS, laços = {} }
+\tsentenca = { alvo = alvo, restam = CFG.SELOS, lacos = {} }
 
 \tvfx("SELO_POE", { alvo = corpo, selos = CFG.SELOS,
 \t\taltura = CFG.ALTURA_SELO, raio = CFG.RAIO_SELO })
 
 \t-- o alvo morreu antes do prazo: sentença cumprida por outra via
-\ttable.insert(sentenca.laços, alvo.Died:Connect(function()
+\ttable.insert(sentenca.lacos, alvo.Died:Connect(function()
 \t\tencerrarSentenca("alvo caiu")
 \tend))
 
 \t-- o portador morreu: o alvo cumpriu a condição, a sentença some
 \tif humanoide then
-\t\ttable.insert(sentenca.laços, humanoide.Died:Connect(function()
+\t\ttable.insert(sentenca.lacos, humanoide.Died:Connect(function()
 \t\t\tencerrarSentenca("portador caiu")
 \t\tend))
 \tend
@@ -858,13 +874,13 @@ CORPOS["Perturbacao"] = '''--%(regua)s
 
 local desfeito = false
 local absorvido = 0
-local laçoVida = nil
+local lacoVida = nil
 
 local function refazer(devolver)
 \tif not desfeito then return end
 \tdesfeito = false
-\tif laçoVida and laçoVida.Connected then laçoVida:Disconnect() end
-\tlaçoVida = nil
+\tif lacoVida and lacoVida.Connected then lacoVida:Disconnect() end
+\tlacoVida = nil
 
 \tlocal troco = math.min(absorvido, CFG.TETO)
 \tabsorvido = 0
@@ -893,7 +909,7 @@ local function primaria()
 \tlocal vidaAntes = humanoide.Health
 \tvfx("PERTURBA_DESFAZ", { duracao = CFG.DURACAO })
 
-\tlaçoVida = humanoide.HealthChanged:Connect(function(agora)
+\tlacoVida = humanoide.HealthChanged:Connect(function(agora)
 \t\tif not desfeito then return end
 \t\tif agora >= vidaAntes then
 \t\t\tvidaAntes = agora
@@ -905,7 +921,7 @@ local function primaria()
 \t\thumanoide.Health = math.min(vidaAntes, humanoide.MaxHealth)
 \t\tvfx("PERTURBA_ABSORVE", { posicao = raiz and raiz.Position or nil })
 \tend)
-\tguardar(laçoVida)
+\tguardar(lacoVida)
 
 \ttask.delay(CFG.DURACAO, function()
 \t\trefazer(true)
@@ -1288,6 +1304,7 @@ Tool.AncestryChanged:Connect(function()
 end)
 
 Tool.Destroying:Connect(aoGuardar)
+
 '''
 
 # ═══════════════════════════════════════════════════════════════
@@ -1333,7 +1350,18 @@ local raizPack, packProcurado, moduloDoPack = nil, false, {}
 local function deposito()
 \tif packProcurado then return raizPack end
 \tpackProcurado = true
-\traizPack = script:FindFirstChild(PACK.PASTA)
+\t-- DUAS PORTAS (Regra nº 2): o depósito PRIMEIRO, o interior depois.
+\t--
+\t-- ⚠️ A primeira porta faltava aqui, e não era detalhe: o `DepositoVFX`
+\t--    MOVE a pasta `Pack` para fora da Tool assim que ela chega ao
+\t--    jogador. Sem consultar o depósito, este módulo parava de achar o
+\t--    próprio pack no instante em que a Tool era equipada — e falhava
+\t--    em SILÊNCIO, desenhando nada.
+\t--
+\t--    Estava certo nos arquivos prontos (enxertado por
+\t--    `ligar_deposito.py`) e errado no gerador. A regeneração desfazia.
+\traizPack = Deposito.achar(script, PACK.PASTA)
+\t\tor script:FindFirstChild(PACK.PASTA)
 \treturn raizPack
 end
 
@@ -1716,6 +1744,8 @@ end
 --%(regua)s
 -- O CATÁLOGO
 --%(regua)s
+
+local Deposito = require(script.Parent:WaitForChild("DepositoVFX"))
 
 local VFX = {}
 

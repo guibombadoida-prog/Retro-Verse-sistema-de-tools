@@ -125,11 +125,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -800,11 +854,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -1102,14 +1183,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -5051,7 +5147,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_9081700348761615350"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_5218751008765010632"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5239,7 +5335,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9081700348761615350"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Estatica</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Catodico"><Properties><string name="Name">Titan Raio Catodico</string><string name="ToolTip">Faisca curta do tubo. R e o feixe reto; T abre o leque de raios.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Catodico_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>2</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Catodico_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Tubo</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Catodico_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>3.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Lente</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Catodico_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Bobina</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Catodico_Tubo"><Properties><string name="Name">Tubo</string><Vector3 name="size"><X>1.3</X><Y>2.6</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Catodico_Lente"><Properties><string name="Name">Lente</string><Vector3 name="size"><X>1.1</X><Y>1.1</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Catodico_Bobina"><Properties><string name="Name">Bobina</string><Vector3 name="size"><X>1.6</X><Y>0.24</Y><Z>1.6</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Catodico"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Catodico_FAISCA"><Properties><string name="Name">FAISCA</string><Content name="SoundId"><url>rbxassetid://2273224484</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Catodico_FEIXE"><Properties><string name="Name">FEIXE</string><Content name="SoundId"><url>rbxassetid://782353443</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Catodico_LEQUE"><Properties><string name="Name">LEQUE</string><Content name="SoundId"><url>rbxassetid://80214468</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Catodico_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_TV_Catodico_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Catodico</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Catodico_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Catodico_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Catodico"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Catodico"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Catodico_TitanRaioC"><Properties><string name="Name">TitanRaioCatodico_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanRaioCatodico_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5218751008765010632"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Estatica</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Catodico"><Properties><string name="Name">Titan Raio Catodico</string><string name="ToolTip">Faisca curta do tubo. R e o feixe reto; T abre o leque de raios.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Catodico_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>2</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Catodico_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Tubo</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Catodico_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>3.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Lente</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Catodico_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Catodico_Handle</Ref><Ref name="Part1">RV_TP_Catodico_Bobina</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Catodico_Tubo"><Properties><string name="Name">Tubo</string><Vector3 name="size"><X>1.3</X><Y>2.6</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Catodico_Lente"><Properties><string name="Name">Lente</string><Vector3 name="size"><X>1.1</X><Y>1.1</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Catodico_Bobina"><Properties><string name="Name">Bobina</string><Vector3 name="size"><X>1.6</X><Y>0.24</Y><Z>1.6</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Catodico"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Catodico_FAISCA"><Properties><string name="Name">FAISCA</string><Content name="SoundId"><url>rbxassetid://2273224484</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Catodico_FEIXE"><Properties><string name="Name">FEIXE</string><Content name="SoundId"><url>rbxassetid://782353443</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Catodico_LEQUE"><Properties><string name="Name">LEQUE</string><Content name="SoundId"><url>rbxassetid://80214468</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Catodico_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_TV_Catodico_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Catodico</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Catodico_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Catodico_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Catodico"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Catodico"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Catodico_TitanRaioC"><Properties><string name="Name">TitanRaioCatodico_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanRaioCatodico_Server_V1.lua
 -- Script de servidor — Titan Raio Catodico  (conjunto TITAN)
 --
 --   M1   Faisca
@@ -5364,11 +5460,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -6007,11 +6157,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -6309,14 +6486,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -10256,7 +10448,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3247976463487019837"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1113613250287120545"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -10444,7 +10636,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3247976463487019837"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Raio_Catodico</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Antena"><Properties><string name="Name">Titan Antena</string><string name="ToolTip">Chicote de antena, longo. R planta a torre que marca; T interfere.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Antena_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.35</X><Y>1.8</Y><Z>0.35</Z></Vector3><Color3 name="Color3uint8"><R>0.305882</R><G>0.227451</G><B>0.172549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1280</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Antena_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>3.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Haste</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Antena_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Prato</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Antena_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>6.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Ponta</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Antena_Haste"><Properties><string name="Name">Haste</string><Vector3 name="size"><X>0.14</X><Y>5.4</Y><Z>0.14</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Antena_Prato"><Properties><string name="Name">Prato</string><Vector3 name="size"><X>1.8</X><Y>0.12</Y><Z>1.8</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Antena_Ponta"><Properties><string name="Name">Ponta</string><Vector3 name="size"><X>0.42</X><Y>0.42</Y><Z>0.42</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Antena"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Antena_CHICOTE"><Properties><string name="Name">CHICOTE</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Antena_SINAL"><Properties><string name="Name">SINAL</string><Content name="SoundId"><url>rbxassetid://1310929645</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Antena_INTERFERE"><Properties><string name="Name">INTERFERE</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Antena_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Antena_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Antena</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Antena_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Antena_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Antena"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Antena"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Antena_TitanAnten"><Properties><string name="Name">TitanAntena_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanAntena_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1113613250287120545"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Raio_Catodico</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Antena"><Properties><string name="Name">Titan Antena</string><string name="ToolTip">Chicote de antena, longo. R planta a torre que marca; T interfere.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Antena_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.35</X><Y>1.8</Y><Z>0.35</Z></Vector3><Color3 name="Color3uint8"><R>0.305882</R><G>0.227451</G><B>0.172549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1280</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Antena_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>3.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Haste</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Antena_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Prato</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Antena_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>6.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Antena_Handle</Ref><Ref name="Part1">RV_TP_Antena_Ponta</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Antena_Haste"><Properties><string name="Name">Haste</string><Vector3 name="size"><X>0.14</X><Y>5.4</Y><Z>0.14</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Antena_Prato"><Properties><string name="Name">Prato</string><Vector3 name="size"><X>1.8</X><Y>0.12</Y><Z>1.8</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Antena_Ponta"><Properties><string name="Name">Ponta</string><Vector3 name="size"><X>0.42</X><Y>0.42</Y><Z>0.42</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Antena"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Antena_CHICOTE"><Properties><string name="Name">CHICOTE</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Antena_SINAL"><Properties><string name="Name">SINAL</string><Content name="SoundId"><url>rbxassetid://1310929645</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Antena_INTERFERE"><Properties><string name="Name">INTERFERE</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Antena_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Antena_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Antena</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Antena_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Antena_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Antena"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Antena"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Antena_TitanAnten"><Properties><string name="Name">TitanAntena_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanAntena_Server_V1.lua
 -- Script de servidor — Titan Antena  (conjunto TITAN)
 --
 --   M1   Chicote
@@ -10570,11 +10762,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -11235,11 +11481,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -11537,14 +11810,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -15493,7 +15781,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6955410931613149841"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3466435781618995545"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -15681,7 +15969,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6955410931613149841"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Antena</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Falante"><Properties><string name="Name">Titan Alto Falante</string><string name="ToolTip">Batida sonica. R e o cone de choque; T e o grito que derruba.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Falante_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.9</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Falante_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Caixa</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Falante_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>-0.8</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Cone</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Falante_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>-1</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Cupula</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Falante_Caixa"><Properties><string name="Name">Caixa</string><Vector3 name="size"><X>2.2</X><Y>2.2</Y><Z>1.4</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Falante_Cone"><Properties><string name="Name">Cone</string><Vector3 name="size"><X>1.7</X><Y>0.5</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>0.305882</R><G>0.227451</G><B>0.172549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1280</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Falante_Cupula"><Properties><string name="Name">Cupula</string><Vector3 name="size"><X>0.7</X><Y>0.7</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Falante"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Falante_BATIDA"><Properties><string name="Name">BATIDA</string><Content name="SoundId"><url>rbxassetid://145486953</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Falante_CONE"><Properties><string name="Name">CONE</string><Content name="SoundId"><url>rbxassetid://9125402735</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Falante_GRITO"><Properties><string name="Name">GRITO</string><Content name="SoundId"><url>rbxassetid://7127123554</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Falante_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Falante_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Falante</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Falante_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Falante_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.9</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Falante"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Falante"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Falante_TitanAltoF"><Properties><string name="Name">TitanAltoFalante_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanAltoFalante_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3466435781618995545"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Antena</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Falante"><Properties><string name="Name">Titan Alto Falante</string><string name="ToolTip">Batida sonica. R e o cone de choque; T e o grito que derruba.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Falante_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.9</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Falante_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Caixa</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Falante_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>-0.8</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Cone</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Falante_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>-1</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Falante_Handle</Ref><Ref name="Part1">RV_TP_Falante_Cupula</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Falante_Caixa"><Properties><string name="Name">Caixa</string><Vector3 name="size"><X>2.2</X><Y>2.2</Y><Z>1.4</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Falante_Cone"><Properties><string name="Name">Cone</string><Vector3 name="size"><X>1.7</X><Y>0.5</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>0.305882</R><G>0.227451</G><B>0.172549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1280</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Falante_Cupula"><Properties><string name="Name">Cupula</string><Vector3 name="size"><X>0.7</X><Y>0.7</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Falante"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Falante_BATIDA"><Properties><string name="Name">BATIDA</string><Content name="SoundId"><url>rbxassetid://145486953</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Falante_CONE"><Properties><string name="Name">CONE</string><Content name="SoundId"><url>rbxassetid://9125402735</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Falante_GRITO"><Properties><string name="Name">GRITO</string><Content name="SoundId"><url>rbxassetid://7127123554</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Falante_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Falante_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Falante</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Falante_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Falante_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.9</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Falante"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Falante"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Falante_TitanAltoF"><Properties><string name="Name">TitanAltoFalante_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanAltoFalante_Server_V1.lua
 -- Script de servidor — Titan Alto Falante  (conjunto TITAN)
 --
 --   M1   Batida
@@ -15808,11 +16096,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -16413,11 +16755,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -16715,14 +17084,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -20673,7 +21057,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_2877880953439504849"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8681853644017368349"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -20861,7 +21245,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2877880953439504849"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Alto_Falante</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Lamina"><Properties><string name="Name">Titan Lamina</string><string name="ToolTip">Corte pesado em tres tempos. R e a estocada; T e o corte que abre o chao.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Lamina_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.42</X><Y>1.6</Y><Z>0.42</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Lamina_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Lamina</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0.42</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Fio</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Guarda</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_4"><Properties><string name="Name">SoldaT4</string><CoordinateFrame name="C0"><X>0</X><Y>-0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Contrapeso</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Lamina_Lamina"><Properties><string name="Name">Lamina</string><Vector3 name="size"><X>0.26</X><Y>6</Y><Z>1.2</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Fio"><Properties><string name="Name">Fio</string><Vector3 name="size"><X>0.12</X><Y>5.8</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Guarda"><Properties><string name="Name">Guarda</string><Vector3 name="size"><X>2.1</X><Y>0.3</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Contrapeso"><Properties><string name="Name">Contrapeso</string><Vector3 name="size"><X>0.5</X><Y>0.5</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Lamina"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Lamina_CORTE"><Properties><string name="Name">CORTE</string><Content name="SoundId"><url>rbxassetid://4958430453</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Lamina_ESTOCADA"><Properties><string name="Name">ESTOCADA</string><Content name="SoundId"><url>rbxassetid://8145344127</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Lamina_DESCE"><Properties><string name="Name">DESCE</string><Content name="SoundId"><url>rbxassetid://5287092000</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Lamina_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_TV_Lamina_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Lamina</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Lamina_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Lamina_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.7</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Lamina"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Lamina"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Lamina_TitanLamin"><Properties><string name="Name">TitanLamina_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanLamina_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8681853644017368349"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Alto_Falante</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Lamina"><Properties><string name="Name">Titan Lamina</string><string name="ToolTip">Corte pesado em tres tempos. R e a estocada; T e o corte que abre o chao.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Lamina_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.42</X><Y>1.6</Y><Z>0.42</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Lamina_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Lamina</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0.42</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Fio</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Guarda</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Lamina_4"><Properties><string name="Name">SoldaT4</string><CoordinateFrame name="C0"><X>0</X><Y>-0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Lamina_Handle</Ref><Ref name="Part1">RV_TP_Lamina_Contrapeso</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Lamina_Lamina"><Properties><string name="Name">Lamina</string><Vector3 name="size"><X>0.26</X><Y>6</Y><Z>1.2</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Fio"><Properties><string name="Name">Fio</string><Vector3 name="size"><X>0.12</X><Y>5.8</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Guarda"><Properties><string name="Name">Guarda</string><Vector3 name="size"><X>2.1</X><Y>0.3</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Lamina_Contrapeso"><Properties><string name="Name">Contrapeso</string><Vector3 name="size"><X>0.5</X><Y>0.5</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Lamina"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Lamina_CORTE"><Properties><string name="Name">CORTE</string><Content name="SoundId"><url>rbxassetid://4958430453</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Lamina_ESTOCADA"><Properties><string name="Name">ESTOCADA</string><Content name="SoundId"><url>rbxassetid://8145344127</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Lamina_DESCE"><Properties><string name="Name">DESCE</string><Content name="SoundId"><url>rbxassetid://5287092000</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Lamina_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_TV_Lamina_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Lamina</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Lamina_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Lamina_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.7</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Lamina"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Lamina"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Lamina_TitanLamin"><Properties><string name="Name">TitanLamina_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanLamina_Server_V1.lua
 -- Script de servidor — Titan Lamina  (conjunto TITAN)
 --
 --   M1   Corte
@@ -20989,11 +21373,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -21627,11 +22065,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -21929,14 +22394,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -25888,7 +26368,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8867805727484593135"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3086618614017855634"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -26076,7 +26556,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8867805727484593135"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Lamina</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Propulsor"><Properties><string name="Name">Titan Propulsor</string><string name="ToolTip">Investida com turbina. R e o voo curto com pouso; T e o desvio lateral.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Propulsor_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Propulsor_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Turbina</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Propulsor_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Bocal</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Propulsor_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Chama</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Propulsor_Turbina"><Properties><string name="Name">Turbina</string><Vector3 name="size"><X>1.5</X><Y>2.4</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Propulsor_Bocal"><Properties><string name="Name">Bocal</string><Vector3 name="size"><X>1.1</X><Y>0.9</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Propulsor_Chama"><Properties><string name="Name">Chama</string><Vector3 name="size"><X>0.9</X><Y>0.9</Y><Z>0.9</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.580392</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Propulsor"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Propulsor_INVESTIDA"><Properties><string name="Name">INVESTIDA</string><Content name="SoundId"><url>rbxassetid://9126231485</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Propulsor_VOO"><Properties><string name="Name">VOO</string><Content name="SoundId"><url>rbxassetid://8186570431</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Propulsor_DESVIO"><Properties><string name="Name">DESVIO</string><Content name="SoundId"><url>rbxassetid://7449437048</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Propulsor_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_TV_Propulsor_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Propulsor</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Propulsor_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Propulsor_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Propulsor"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Propulsor"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Propulsor_TitanPropu"><Properties><string name="Name">TitanPropulsor_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanPropulsor_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3086618614017855634"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Lamina</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Propulsor"><Properties><string name="Name">Titan Propulsor</string><string name="ToolTip">Investida com turbina. R e o voo curto com pouso; T e o desvio lateral.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Propulsor_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Propulsor_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>1.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Turbina</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Propulsor_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>0.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Bocal</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Propulsor_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Propulsor_Handle</Ref><Ref name="Part1">RV_TP_Propulsor_Chama</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Propulsor_Turbina"><Properties><string name="Name">Turbina</string><Vector3 name="size"><X>1.5</X><Y>2.4</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Propulsor_Bocal"><Properties><string name="Name">Bocal</string><Vector3 name="size"><X>1.1</X><Y>0.9</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Propulsor_Chama"><Properties><string name="Name">Chama</string><Vector3 name="size"><X>0.9</X><Y>0.9</Y><Z>0.9</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.580392</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Propulsor"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Propulsor_INVESTIDA"><Properties><string name="Name">INVESTIDA</string><Content name="SoundId"><url>rbxassetid://9126231485</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Propulsor_VOO"><Properties><string name="Name">VOO</string><Content name="SoundId"><url>rbxassetid://8186570431</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Propulsor_DESVIO"><Properties><string name="Name">DESVIO</string><Content name="SoundId"><url>rbxassetid://7449437048</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Propulsor_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_TV_Propulsor_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Propulsor</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Propulsor_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Propulsor_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Propulsor"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Propulsor"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Propulsor_TitanPropu"><Properties><string name="Name">TitanPropulsor_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanPropulsor_Server_V1.lua
 -- Script de servidor — Titan Propulsor  (conjunto TITAN)
 --
 --   M1   Investida
@@ -26205,11 +26685,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -26846,11 +27380,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -27148,14 +27709,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -31098,7 +31674,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_970361333355355616"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4264233725497318130"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -31286,7 +31862,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_970361333355355616"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Propulsor</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Sobrecarga"><Properties><string name="Name">Titan Sobrecarga</string><string name="ToolTip">Descarga na mao. R e a sobrecarga do campo; T e o reinicio.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Sobrecarga_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Sobrecarga_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Sobrecarga_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Aro</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Sobrecarga_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Grade</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Sobrecarga_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.7</X><Y>1.7</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Sobrecarga_Aro"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>2.6</X><Y>0.2</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Sobrecarga_Grade"><Properties><string name="Name">Grade</string><Vector3 name="size"><X>2</X><Y>0.16</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Sobrecarga"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Sobrecarga_DESCARGA"><Properties><string name="Name">DESCARGA</string><Content name="SoundId"><url>rbxassetid://6523812578</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Sobrecarga_SOBRECARGA"><Properties><string name="Name">SOBRECARGA</string><Content name="SoundId"><url>rbxassetid://814635481</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Sobrecarga_REINICIO"><Properties><string name="Name">REINICIO</string><Content name="SoundId"><url>rbxassetid://18872474050</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Sobrecarga_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Sobrecarga_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Sobrecarga</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Sobrecarga_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Sobrecarga_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Sobrecarga"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Sobrecarga"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Sobrecarga_TitanSobre"><Properties><string name="Name">TitanSobrecarga_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanSobrecarga_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4264233725497318130"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Propulsor</string></Properties></Item></Item><Item class="Tool" referent="RV_TT_Sobrecarga"><Properties><string name="Name">Titan Sobrecarga</string><string name="ToolTip">Descarga na mao. R e a sobrecarga do campo; T e o reinicio.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_TP_Sobrecarga_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_TW_Sobrecarga_1"><Properties><string name="Name">SoldaT1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Sobrecarga_2"><Properties><string name="Name">SoldaT2</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Aro</Ref></Properties></Item><Item class="Weld" referent="RV_TW_Sobrecarga_3"><Properties><string name="Name">SoldaT3</string><CoordinateFrame name="C0"><X>0</X><Y>1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_TP_Sobrecarga_Handle</Ref><Ref name="Part1">RV_TP_Sobrecarga_Grade</Ref></Properties></Item></Item><Item class="Part" referent="RV_TP_Sobrecarga_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.7</X><Y>1.7</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.282353</G><B>0.282353</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Sobrecarga_Aro"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>2.6</X><Y>0.2</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_TP_Sobrecarga_Grade"><Properties><string name="Name">Grade</string><Vector3 name="size"><X>2</X><Y>0.16</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.109804</G><B>0.12549</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_TSFX_Sobrecarga"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_TS_Sobrecarga_DESCARGA"><Properties><string name="Name">DESCARGA</string><Content name="SoundId"><url>rbxassetid://6523812578</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Sobrecarga_SOBRECARGA"><Properties><string name="Name">SOBRECARGA</string><Content name="SoundId"><url>rbxassetid://814635481</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">240</float></Properties></Item><Item class="Sound" referent="RV_TS_Sobrecarga_REINICIO"><Properties><string name="Name">REINICIO</string><Content name="SoundId"><url>rbxassetid://18872474050</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">240</float></Properties></Item></Item><Item class="StringValue" referent="RV_TV_Sobrecarga_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_TV_Sobrecarga_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Titan_Sobrecarga</string></Properties></Item><Item class="NumberValue" referent="RV_TV_Sobrecarga_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_TV_Sobrecarga_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_TVFX_Sobrecarga"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_TACAO_Sobrecarga"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_TSC_Sobrecarga_TitanSobre"><Properties><string name="Name">TitanSobrecarga_Server_V1</string><ProtectedString name="Source"><![CDATA[-- TitanSobrecarga_Server_V1.lua
 -- Script de servidor — Titan Sobrecarga  (conjunto TITAN)
 --
 --   M1   Descarga
@@ -31417,11 +31993,65 @@ end
 -- `tocarEm` cria uma âncora própria.
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)
@@ -32050,11 +32680,38 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ REGRESSÃO CONSERTADA: `Enum.EasingStyle["Qaud"]` LANÇA ERRO no Roblox —
+-- ele NÃO devolve `nil`. Então o `or Enum.EasingStyle.Quad` que estava aqui
+-- nunca chegava a rodar: um typo numa sequência de `Poses` derrubava a
+-- animação inteira, e o `or` dava a falsa impressão de haver rede.
+--
+-- A tabela branca existia na versão que ficou com as 7 Tools de escudo, com
+-- este comentário. A versão mais nova — a que ganhou `PlayTrack` — a perdeu no
+-- caminho. Está de volta: nome desconhecido vira o padrão, calado.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -32352,14 +33009,29 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM, e este é o conserto.
+		--
+		-- `Humanoid` tem DOIS modos de pulo, e quem decide é `UseJumpPower`.
+		-- Zerar só o `JumpPower` trava o pulo em place antigo e não trava em
+		-- place novo — o Studio cria `UseJumpPower = false` por padrão há
+		-- anos, e aí quem manda é `JumpHeight`.
+		--
+		-- Sintoma: o jogador PULA NO MEIO DA CUTSCENE. A trava parecia
+		-- funcionar porque quem testou tinha um place com o padrão antigo.
+		-- Achado ao ler o `Easy-Roblox-Cutscenes` (FERRAMENTAS/
+		-- TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §2).
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		-- devolve o valor DE ANTES; 7.2 é o padrão do motor, não um chute
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -36308,7 +36980,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_7844367467122723969"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1108489630687639662"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -36496,7 +37168,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7844367467122723969"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Sobrecarga</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1108489630687639662"><Properties><string name="Name">ChaveVFX</string><string name="Value">Titan_Sobrecarga</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu

@@ -186,13 +186,65 @@ end
 -- SOM — mora no Handle, e veio da origem
 --═══════════════════════════════════════════════════════════════
 
-local function somDe(nome)
-	local achado = Handle:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
-	local pasta = Tool:FindFirstChild("SFX")
-	achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {{}}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, {{ som = filho, peso = peso }})
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocar(nome, pitch, corte)

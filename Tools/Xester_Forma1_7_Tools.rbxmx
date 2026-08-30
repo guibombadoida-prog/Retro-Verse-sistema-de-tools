@@ -744,13 +744,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -958,11 +961,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -1260,14 +1284,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -7799,7 +7829,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterCurtainCall"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNCORTINA_XesterCurtainCall"><Properties><string name="Name">CORTINA</string><Content name="SoundId"><url>rbxassetid://1898092341</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNVOLTA_XesterCurtainCall"><Properties><string name="Name">VOLTA</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.3</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterCurtainCall"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_6575853912989330851"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterCurtainCall"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNCORTINA_XesterCurtainCall"><Properties><string name="Name">CORTINA</string><Content name="SoundId"><url>rbxassetid://1898092341</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNVOLTA_XesterCurtainCall"><Properties><string name="Name">VOLTA</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.3</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterCurtainCall"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_6947258046883056794"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -7987,7 +8017,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6575853912989330851"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Curtain_Call</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterFourSuitsArsenal"><Properties><string name="Name">Xester Four Suits Arsenal</string><string name="ToolTip">Oito cartas orbitando. Clique de novo dispara o naipe da vez.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterFourSuitsArsenal"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterFourSuitsArsenal"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterFourSuitsArsenal"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_FourSuitsArsenal</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterFourSuitsArsenal"><Properties><string name="Name">EnergyCost</string><float name="Value">26</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterFourSuitsArsenal"><Properties><string name="Name">RecargaGlobal</string><float name="Value">16</float></Properties></Item><Item class="Script" referent="RV_XesterFourSuit_XesterFourSuitsArsenal"><Properties><string name="Name">XesterFourSuitsArsenal_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterFourSuitsArsenal_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6947258046883056794"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Curtain_Call</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterFourSuitsArsenal"><Properties><string name="Name">Xester Four Suits Arsenal</string><string name="ToolTip">Oito cartas orbitando. Clique de novo dispara o naipe da vez.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterFourSuitsArsenal"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterFourSuitsArsenal"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterFourSuitsArsenal"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_FourSuitsArsenal</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterFourSuitsArsenal"><Properties><string name="Name">EnergyCost</string><float name="Value">26</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterFourSuitsArsenal"><Properties><string name="Name">RecargaGlobal</string><float name="Value">16</float></Properties></Item><Item class="Script" referent="RV_XesterFourSuit_XesterFourSuitsArsenal"><Properties><string name="Name">XesterFourSuitsArsenal_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterFourSuitsArsenal_Server_V1.lua
 -- Script de servidor — Xester Four Suits Arsenal  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -8786,13 +8816,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -9017,11 +9050,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -9319,14 +9373,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -15858,7 +15918,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterFourSuitsArsenal"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNARSENAL_XesterFourSuitsArsenal"><Properties><string name="Name">ARSENAL</string><Content name="SoundId"><url>rbxassetid://1882057730</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNNAIPE_XesterFourSuitsArsenal"><Properties><string name="Name">NAIPE</string><Content name="SoundId"><url>rbxassetid://1499747506</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterFourSuitsArsenal"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_6907431352265569219"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterFourSuitsArsenal"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNARSENAL_XesterFourSuitsArsenal"><Properties><string name="Name">ARSENAL</string><Content name="SoundId"><url>rbxassetid://1882057730</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNNAIPE_XesterFourSuitsArsenal"><Properties><string name="Name">NAIPE</string><Content name="SoundId"><url>rbxassetid://1499747506</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterFourSuitsArsenal"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_306869726930158454"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -16046,7 +16106,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6907431352265569219"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Four_Suits_Arsenal</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterJokersLabyrinth"><Properties><string name="Name">Xester Jokers Labyrinth</string><string name="ToolTip">Cartas gigantes cercam, embaralham os inimigos e fecham no centro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterJokersLabyrinth"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterJokersLabyrinth"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterJokersLabyrinth"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_JokersLabyrinth</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterJokersLabyrinth"><Properties><string name="Name">EnergyCost</string><float name="Value">34</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterJokersLabyrinth"><Properties><string name="Name">RecargaGlobal</string><float name="Value">24</float></Properties></Item><Item class="Script" referent="RV_XesterJokersLa_XesterJokersLabyrinth"><Properties><string name="Name">XesterJokersLabyrinth_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterJokersLabyrinth_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_306869726930158454"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Four_Suits_Arsenal</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterJokersLabyrinth"><Properties><string name="Name">Xester Jokers Labyrinth</string><string name="ToolTip">Cartas gigantes cercam, embaralham os inimigos e fecham no centro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterJokersLabyrinth"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterJokersLabyrinth"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterJokersLabyrinth"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_JokersLabyrinth</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterJokersLabyrinth"><Properties><string name="Name">EnergyCost</string><float name="Value">34</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterJokersLabyrinth"><Properties><string name="Name">RecargaGlobal</string><float name="Value">24</float></Properties></Item><Item class="Script" referent="RV_XesterJokersLa_XesterJokersLabyrinth"><Properties><string name="Name">XesterJokersLabyrinth_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterJokersLabyrinth_Server_V1.lua
 -- Script de servidor — Xester Jokers Labyrinth  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -16772,13 +16832,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -16986,11 +17049,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -17288,14 +17372,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -23827,7 +23917,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterJokersLabyrinth"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNLABIRINTO_XesterJokersLabyrinth"><Properties><string name="Name">LABIRINTO</string><Content name="SoundId"><url>rbxassetid://342337569</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNEMBARALHA_XesterJokersLabyrinth"><Properties><string name="Name">EMBARALHA</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterJokersLabyrinth"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_4397152951808515230"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterJokersLabyrinth"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNLABIRINTO_XesterJokersLabyrinth"><Properties><string name="Name">LABIRINTO</string><Content name="SoundId"><url>rbxassetid://342337569</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNEMBARALHA_XesterJokersLabyrinth"><Properties><string name="Name">EMBARALHA</string><Content name="SoundId"><url>rbxassetid://1888686669</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterJokersLabyrinth"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_5306422834044071742"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -24015,7 +24105,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4397152951808515230"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Jokers_Labyrinth</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterAceGate"><Properties><string name="Name">Xester Ace Gate</string><string name="ToolTip">Crava um As. Clique de novo teleporta ate ele.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterAceGate"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterAceGate"><Properties><string name="Name">DamageClass</string><string name="Value">ESPECTRAL</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterAceGate"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_AceGate</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterAceGate"><Properties><string name="Name">EnergyCost</string><float name="Value">18</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterAceGate"><Properties><string name="Name">RecargaGlobal</string><float name="Value">10</float></Properties></Item><Item class="Script" referent="RV_XesterAceGate__XesterAceGate"><Properties><string name="Name">XesterAceGate_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterAceGate_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5306422834044071742"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Jokers_Labyrinth</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterAceGate"><Properties><string name="Name">Xester Ace Gate</string><string name="ToolTip">Crava um As. Clique de novo teleporta ate ele.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterAceGate"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterAceGate"><Properties><string name="Name">DamageClass</string><string name="Value">ESPECTRAL</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterAceGate"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_AceGate</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterAceGate"><Properties><string name="Name">EnergyCost</string><float name="Value">18</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterAceGate"><Properties><string name="Name">RecargaGlobal</string><float name="Value">10</float></Properties></Item><Item class="Script" referent="RV_XesterAceGate__XesterAceGate"><Properties><string name="Name">XesterAceGate_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterAceGate_Server_V1.lua
 -- Script de servidor — Xester Ace Gate  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -24759,13 +24849,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -24990,11 +25083,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -25292,14 +25406,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -31831,7 +31951,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterAceGate"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNAS_XesterAceGate"><Properties><string name="Name">AS</string><Content name="SoundId"><url>rbxassetid://1843578719</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNPORTAO_XesterAceGate"><Properties><string name="Name">PORTAO</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterAceGate"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_224908969678864264"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterAceGate"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNAS_XesterAceGate"><Properties><string name="Name">AS</string><Content name="SoundId"><url>rbxassetid://1843578719</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNPORTAO_XesterAceGate"><Properties><string name="Name">PORTAO</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterAceGate"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_4681080440269802730"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -32019,7 +32139,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_224908969678864264"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Ace_Gate</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterHouseCollapse"><Properties><string name="Name">Xester House Collapse</string><string name="ToolTip">Ergue um castelo de cartas. Clique de novo derruba na direcao do mouse.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterHouseCollapse"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterHouseCollapse"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterHouseCollapse"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_HouseCollapse</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterHouseCollapse"><Properties><string name="Name">EnergyCost</string><float name="Value">30</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterHouseCollapse"><Properties><string name="Name">RecargaGlobal</string><float name="Value">20</float></Properties></Item><Item class="Script" referent="RV_XesterHouseCol_XesterHouseCollapse"><Properties><string name="Name">XesterHouseCollapse_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterHouseCollapse_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4681080440269802730"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Ace_Gate</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterHouseCollapse"><Properties><string name="Name">Xester House Collapse</string><string name="ToolTip">Ergue um castelo de cartas. Clique de novo derruba na direcao do mouse.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterHouseCollapse"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterHouseCollapse"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterHouseCollapse"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_HouseCollapse</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterHouseCollapse"><Properties><string name="Name">EnergyCost</string><float name="Value">30</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterHouseCollapse"><Properties><string name="Name">RecargaGlobal</string><float name="Value">20</float></Properties></Item><Item class="Script" referent="RV_XesterHouseCol_XesterHouseCollapse"><Properties><string name="Name">XesterHouseCollapse_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterHouseCollapse_Server_V1.lua
 -- Script de servidor — Xester House Collapse  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -32769,13 +32889,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -32993,11 +33116,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -33295,14 +33439,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -39834,7 +39984,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterHouseCollapse"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNCASTELO_XesterHouseCollapse"><Properties><string name="Name">CASTELO</string><Content name="SoundId"><url>rbxassetid://236989198</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNDESABA_XesterHouseCollapse"><Properties><string name="Name">DESABA</string><Content name="SoundId"><url>rbxassetid://765590102</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterHouseCollapse"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_7920308432835231266"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterHouseCollapse"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNCASTELO_XesterHouseCollapse"><Properties><string name="Name">CASTELO</string><Content name="SoundId"><url>rbxassetid://236989198</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNDESABA_XesterHouseCollapse"><Properties><string name="Name">DESABA</string><Content name="SoundId"><url>rbxassetid://765590102</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterHouseCollapse"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_913751499241428660"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -40022,7 +40172,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7920308432835231266"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_House_Collapse</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterEclipseDeck"><Properties><string name="Name">Xester Eclipse Deck</string><string name="ToolTip">Carta negra no ceu que marca e traz todos de volta ao centro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterEclipseDeck"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterEclipseDeck"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_CUT_XesterEclipseDeck"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterEclipseDeck"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterEclipseDeck"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_TrocaDeForma</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterEclipseDeck"><Properties><string name="Name">EnergyCost</string><float name="Value">40</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterEclipseDeck"><Properties><string name="Name">RecargaGlobal</string><float name="Value">34</float></Properties></Item><Item class="Script" referent="RV_XesterEclipseD_XesterEclipseDeck"><Properties><string name="Name">XesterEclipseDeck_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterEclipseDeck_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_913751499241428660"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_House_Collapse</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterEclipseDeck"><Properties><string name="Name">Xester Eclipse Deck</string><string name="ToolTip">Carta negra no ceu que marca e traz todos de volta ao centro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterEclipseDeck"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterEclipseDeck"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_CUT_XesterEclipseDeck"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterEclipseDeck"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterEclipseDeck"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_TrocaDeForma</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterEclipseDeck"><Properties><string name="Name">EnergyCost</string><float name="Value">40</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterEclipseDeck"><Properties><string name="Name">RecargaGlobal</string><float name="Value">34</float></Properties></Item><Item class="Script" referent="RV_XesterEclipseD_XesterEclipseDeck"><Properties><string name="Name">XesterEclipseDeck_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterEclipseDeck_Server_V1.lua
 -- Script de servidor — Xester Eclipse Deck  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -40843,13 +40993,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -41126,11 +41279,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -41428,14 +41602,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -48312,7 +48492,7 @@ jogador.CharacterRemoving:Connect(soltar)
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterEclipseDeck"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNECLIPSE_XesterEclipseDeck"><Properties><string name="Name">ECLIPSE</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNRETORNO_XesterEclipseDeck"><Properties><string name="Name">RETORNO</string><Content name="SoundId"><url>rbxassetid://142070127</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNNAIPES_XesterEclipseDeck"><Properties><string name="Name">NAIPES</string><Content name="SoundId"><url>rbxassetid://1499747506</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNQUEIMA_XesterEclipseDeck"><Properties><string name="Name">QUEIMA</string><Content name="SoundId"><url>rbxassetid://3292075199</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNRASGA_XesterEclipseDeck"><Properties><string name="Name">RASGA</string><Content name="SoundId"><url>rbxassetid://413682983</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNTITULO_XesterEclipseDeck"><Properties><string name="Name">TITULO</string><Content name="SoundId"><url>rbxassetid://4571960003</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterEclipseDeck"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_7414848639206585590"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterEclipseDeck"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNECLIPSE_XesterEclipseDeck"><Properties><string name="Name">ECLIPSE</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNRETORNO_XesterEclipseDeck"><Properties><string name="Name">RETORNO</string><Content name="SoundId"><url>rbxassetid://142070127</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNNAIPES_XesterEclipseDeck"><Properties><string name="Name">NAIPES</string><Content name="SoundId"><url>rbxassetid://1499747506</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNQUEIMA_XesterEclipseDeck"><Properties><string name="Name">QUEIMA</string><Content name="SoundId"><url>rbxassetid://3292075199</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNRASGA_XesterEclipseDeck"><Properties><string name="Name">RASGA</string><Content name="SoundId"><url>rbxassetid://413682983</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNTITULO_XesterEclipseDeck"><Properties><string name="Name">TITULO</string><Content name="SoundId"><url>rbxassetid://4571960003</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterEclipseDeck"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_1748770769631148649"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -48500,7 +48680,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7414848639206585590"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Eclipse_Deck</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterRoyalGuard"><Properties><string name="Name">Xester Royal Guard</string><string name="ToolTip">Quatro Reis de guarda. Clique lanca um; a tecla R baixa os quatro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterRoyalGuard"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterRoyalGuard"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterRoyalGuard"><Properties><string name="Name">DamageClass</string><string name="Value">SUPORTE</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterRoyalGuard"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_RoyalGuard</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterRoyalGuard"><Properties><string name="Name">EnergyCost</string><float name="Value">28</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterRoyalGuard"><Properties><string name="Name">RecargaGlobal</string><float name="Value">18</float></Properties></Item><Item class="Script" referent="RV_XesterRoyalGua_XesterRoyalGuard"><Properties><string name="Name">XesterRoyalGuard_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterRoyalGuard_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1748770769631148649"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Eclipse_Deck</string></Properties></Item></Item><Item class="Tool" referent="RV_T_XesterRoyalGuard"><Properties><string name="Name">Xester Royal Guard</string><string name="ToolTip">Quatro Reis de guarda. Clique lanca um; a tecla R baixa os quatro.</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="RemoteEvent" referent="RV_VFX_XesterRoyalGuard"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_ACA_XesterRoyalGuard"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="StringValue" referent="RV_Damage_XesterRoyalGuard"><Properties><string name="Name">DamageClass</string><string name="Value">SUPORTE</string></Properties></Item><Item class="StringValue" referent="RV_ChaveR_XesterRoyalGuard"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Xester_RoyalGuard</string></Properties></Item><Item class="NumberValue" referent="RV_Energy_XesterRoyalGuard"><Properties><string name="Name">EnergyCost</string><float name="Value">28</float></Properties></Item><Item class="NumberValue" referent="RV_Recarg_XesterRoyalGuard"><Properties><string name="Name">RecargaGlobal</string><float name="Value">18</float></Properties></Item><Item class="Script" referent="RV_XesterRoyalGua_XesterRoyalGuard"><Properties><string name="Name">XesterRoyalGuard_Server_V1</string><ProtectedString name="Source"><![CDATA[-- XesterRoyalGuard_Server_V1.lua
 -- Script de servidor — Xester Royal Guard  (Xester, Forma 1)
 --
 --═══════════════════════════════════════════════════════════════
@@ -49274,13 +49454,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
@@ -49559,11 +49742,32 @@ local LEG_BASE = {
 	LeftLeg  = CFrame.new(-0.5, -2, 0),
 }
 
+-- ⚠️ `Enum.EasingStyle["Qaud"]` LANÇA ERRO — não devolve `nil`. O `or` abaixo
+-- nunca chegava a rodar: um typo numa sequência derrubava a animação inteira.
+local ESTILOS = {
+	Linear = Enum.EasingStyle.Linear,
+	Sine = Enum.EasingStyle.Sine,
+	Back = Enum.EasingStyle.Back,
+	Quad = Enum.EasingStyle.Quad,
+	Quart = Enum.EasingStyle.Quart,
+	Quint = Enum.EasingStyle.Quint,
+	Cubic = Enum.EasingStyle.Cubic,
+	Circular = Enum.EasingStyle.Circular,
+	Bounce = Enum.EasingStyle.Bounce,
+	Elastic = Enum.EasingStyle.Elastic,
+	Exponential = Enum.EasingStyle.Exponential,
+}
+local DIRECOES = {
+	In = Enum.EasingDirection.In,
+	Out = Enum.EasingDirection.Out,
+	InOut = Enum.EasingDirection.InOut,
+}
+
 local function resolveStyle(name)
-	return (name and Enum.EasingStyle[name]) or Enum.EasingStyle.Quad
+	return (name and ESTILOS[name]) or Enum.EasingStyle.Quad
 end
 local function resolveDir(name)
-	return (name and Enum.EasingDirection[name]) or Enum.EasingDirection.Out
+	return (name and DIRECOES[name]) or Enum.EasingDirection.Out
 end
 
 --[[
@@ -49861,14 +50065,20 @@ function Animator:LockCharacter(lock)
 		self.Locked      = true
 		self.SavedWalk   = hum.WalkSpeed
 		self.SavedJump   = hum.JumpPower
+		-- ⚠️ `JumpHeight` TAMBÉM. `Humanoid` tem DOIS modos de pulo e quem decide
+		-- é `UseJumpPower`; em place novo ele vem falso, e aí zerar só o
+		-- `JumpPower` não trava nada: o jogador PULA NO MEIO DA CUTSCENE.
+		self.SavedAltura = hum.JumpHeight
 		self.SavedRotate = hum.AutoRotate
 		hum.WalkSpeed  = 0
 		hum.JumpPower  = 0
+		hum.JumpHeight = 0
 		hum.AutoRotate = false
 	elseif (not lock) and self.Locked then
 		self.Locked = false
 		hum.WalkSpeed  = self.SavedWalk or 16
 		hum.JumpPower  = self.SavedJump or 50
+		hum.JumpHeight = self.SavedAltura or 7.2
 		hum.AutoRotate = (self.SavedRotate == nil) and true or self.SavedRotate
 	end
 end
@@ -56400,7 +56610,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterRoyalGuard"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNGUARDA_XesterRoyalGuard"><Properties><string name="Name">GUARDA</string><Content name="SoundId"><url>rbxassetid://3855293277</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNREI_XesterRoyalGuard"><Properties><string name="Name">REI</string><Content name="SoundId"><url>rbxassetid://288641686</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterRoyalGuard"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_7490152645121043557"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterRoyalGuard"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNGUARDA_XesterRoyalGuard"><Properties><string name="Name">GUARDA</string><Content name="SoundId"><url>rbxassetid://3855293277</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNREI_XesterRoyalGuard"><Properties><string name="Name">REI</string><Content name="SoundId"><url>rbxassetid://288641686</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterRoyalGuard"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_74014620548653431"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -56588,7 +56798,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7490152645121043557"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Royal_Guard</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_74014620548653431"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Royal_Guard</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

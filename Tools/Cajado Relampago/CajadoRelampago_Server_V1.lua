@@ -134,11 +134,65 @@ end
 --- some no quadro seguinte mata o som no quadro em que ele nasce.
 --- No JODRO o som mora em `Tool/SFX/`, não pendurado no Handle: são três por
 --- Tool e a pasta deixa claro que são irmãos.
-local function somDe(nome)
-	local pasta = Tool:FindFirstChild("SFX")
-	local achado = pasta and pasta:FindFirstChild(nome)
-	if achado and achado:IsA("Sound") then return achado end
+--- Sorteia DENTRO de um grupo de variação, com peso.
+---
+--- Um `Sound` com um `NumberValue` chamado `Weight` sai mais (ou menos) que os
+--- irmãos. Serve para o take bom sair 3× mais que o esquisito sem ter de
+--- apagar o esquisito.
+---
+--- ⚠️ A última linha NÃO é paranoia. `math.random() * total` pode, por
+---    arredondamento de ponto flutuante, sobrar depois de subtrair todos os
+---    pesos e cair fora do laço. A implementação de onde a ideia veio devolve
+---    `nil` nesse caso — que é um som MUDO, em silêncio, uma vez a cada muitas.
+local function sortearNoGrupo(pasta)
+	local candidatos, total = {}, 0
+	for _, filho in ipairs(pasta:GetChildren()) do
+		if filho:IsA("Sound") then
+			local w = filho:FindFirstChild("Weight")
+			local peso = 1
+			if w and w:IsA("NumberValue") and w.Value > 0 then peso = w.Value end
+			table.insert(candidatos, { som = filho, peso = peso })
+			total = total + peso
+		end
+	end
+	if #candidatos == 0 then return nil end
+	if #candidatos == 1 then return candidatos[1].som end
+
+	local sorteio = math.random() * total
+	for _, c in ipairs(candidatos) do
+		if sorteio < c.peso then return c.som end
+		sorteio = sorteio - c.peso
+	end
+	return candidatos[#candidatos].som
+end
+
+local function acharSom(onde, nome)
+	local achado = onde and onde:FindFirstChild(nome)
+	if not achado then return nil end
+	if achado:IsA("Sound") then return achado end
+	-- `Folder` com o nome do papel É o grupo de variação
+	if achado:IsA("Folder") then return sortearNoGrupo(achado) end
 	return nil
+end
+
+--- GRUPO DE VARIAÇÃO — o mesmo golpe não soa igual cem vezes seguidas.
+---
+--- `Tool/SFX/TAPA` pode ser um `Sound` (como sempre foi) OU uma `Folder` com
+--- vários. Se for `Folder`, sorteia com peso. Tool antiga não muda de
+--- comportamento: `Sound` avulso cai no primeiro `return`.
+---
+--- O SORTEIO É NO SERVIDOR, e é o único lugar onde pode ser: o `Sound` que
+--- `tocar()` clona é parenteado no `Handle` pelo servidor, então a INSTÂNCIA
+--- replica e todo mundo ouve a mesma. Se cada cliente sorteasse, duas pessoas
+--- ouviriam sons diferentes para o mesmo golpe.
+---
+--- Achado ao ler o `ROBLOX-Audio-Manager` — ver
+--- FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md, Parte I §1. Os modelos de
+--- entrada já trazem 76 variantes que ninguém usava (`block1`..`block22` só no
+--- Danilo, `Swing1`..`Swing5` no Reality).
+local function somDe(nome)
+	return acharSom(Tool:FindFirstChild("SFX"), nome)
+		or acharSom(Handle, nome)
 end
 
 local function tocarEm(nome, posicao, pitch, corte)
@@ -695,13 +749,18 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ⚠️ ISTO VIVIA FORA DO GERADOR, e o defeito estava em NOVE conjuntos.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--    A ligação tinha sido enxertada nos arquivos PRONTOS por
+--    `FERRAMENTAS/ligar_deposito.py`, uma vez. Enquanto ninguém regerasse,
+--    tudo passava. A primeira regeneração de cada conjunto a perdia — em
+--    silêncio, porque o Server continua funcionando sem ela; o que para é o
+--    VFX sair da Tool.
+--
+--    Enxerto que não volta para o gerador é conserto que dura até a próxima
+--    geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)

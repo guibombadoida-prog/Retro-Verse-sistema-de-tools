@@ -736,13 +736,16 @@ Tool.Unequipped:Connect(desmontar)
 Tool.Destroying:Connect(desmontar)
 
 --═══════════════════════════════════════════════════════════════
--- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+-- O DEPÓSITO (Regra nº 2)
 --
--- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
--- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
--- para não arrancar o molde debaixo de quem ainda está com a Tool.
+-- ISTO ESTAVA FORA DO GERADOR — o terceiro conjunto com o mesmo defeito
+-- (DRAMA, COLLECTOR e agora XESTER). A ligação foi enxertada nos arquivos
+-- PRONTOS por `FERRAMENTAS/ligar_deposito.py`, e a primeira regeneração a
+-- perdia: as 13 Tools voltavam a não ter depósito, e só o
+-- `verificar_deposito_vfx.py` percebia.
 --
--- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+-- Enxerto que não volta para o gerador é conserto que dura até a próxima
+-- geração.
 --═══════════════════════════════════════════════════════════════
 
 Deposito.ligar(Tool)
