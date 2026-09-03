@@ -697,6 +697,20 @@ CONJUNTOS = [
     # `LinearVelocity`, `AlignPosition`, `AlignOrientation`, `VectorForce`,
     # `AngularVelocity`, `RopeConstraint` e `BallSocketConstraint`. Zero
     # `BodyMover`. Ver FERRAMENTAS/TRIAGEM_FISICA.md, decisões #2, #3 e #4.
+    # O QUINTO conjunto autoral, e o primeiro em que uma Tool depende do que
+    # OUTRA fez: a polaridade (NORTE/SUL) mora num Attribute do alvo e as sete
+    # a leem. Também o primeiro com GRUPO DE VARIAÇÃO de SFX, com `quando` no
+    # keyframe, e com `workspace:BulkMoveTo` — os três achados da
+    # FERRAMENTAS/TRIAGEM_VFX_SFX_ANIMACAO_CUTSCENE.md postos para funcionar.
+    ("Magnetismo_7_Tools.rbxmx", "Magnetismo", [
+        "Polo Norte",
+        "Polo Sul",
+        "Ferrovia Magnetica",
+        "Sucata",
+        "Bobina de Tesla",
+        "Levitacao",
+        "Colapso Magnetico",
+    ]),
     ("Reality_7_Tools.rbxmx", "Reality", [
         "Lapada Seca",
         "Canhao Satelite",

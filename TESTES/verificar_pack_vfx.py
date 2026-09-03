@@ -107,6 +107,47 @@ def tipo_do_argumento(txt):
     return None
 
 
+
+ABERTURA_LONGA = re.compile(r"--\[(=*)\[")
+
+
+def sem_comentario(codigo):
+    """Tira comentário de linha e de bloco, respeitando o NÍVEL do bloco longo.
+
+    ⚠️ ESTE ERA O ÚNICO VERIFICADOR DA CASA SEM ISTO, e o buraco apareceu do
+       jeito mais irônico possível: um comentário que EXPLICAVA um nome de
+       efeito errado — `-- AQUI ESTAVA pk("Supernova"), que não existe` — foi
+       lido como chamada de verdade, e o verificador acusou sete Tools de
+       chamarem exatamente o que o comentário dizia que elas tinham deixado de
+       chamar.
+
+       Verificador que lê prosa como código não verifica código.
+    """
+    saida, nivel = [], None
+    for linha in codigo.splitlines():
+        if nivel is not None:
+            fecha = "]" + nivel + "]"
+            i = linha.find(fecha)
+            if i >= 0:
+                linha, nivel = linha[i + len(fecha):], None
+            else:
+                linha = ""
+        if nivel is None:
+            m = ABERTURA_LONGA.search(linha)
+            if m:
+                fecha = "]" + m.group(1) + "]"
+                resto = linha[m.end():]
+                i = resto.find(fecha)
+                if i >= 0:
+                    linha = linha[:m.start()] + resto[i + len(fecha):]
+                else:
+                    nivel = m.group(1)
+                    linha = linha[:m.start()]
+            linha = re.sub(r"--.*$", "", linha)
+        saida.append(linha)
+    return "\n".join(saida)
+
+
 def main():
     if not os.path.isdir(PACK):
         print("pack não encontrado: %s" % PACK)
@@ -163,7 +204,7 @@ def main():
         caminho = os.path.join(TOOLS, pasta, "VFXModule.lua")
         if not os.path.exists(caminho):
             continue
-        texto = open(caminho, encoding="utf-8").read()
+        texto = sem_comentario(open(caminho, encoding="utf-8").read())
         achados = []
         for efeito, corpo in chamadas(texto):
             if efeito not in esperado:

@@ -10807,7 +10807,7 @@ function Animator:Destroy()
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_DEP_5358171970587979862"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RV_DEP_1178402516389867994"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -10995,7 +10995,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5358171970587979862"><Properties><string name="Name">ChaveVFX</string><string name="Value">Cosmic_Sword_Revamp</string></Properties></Item></Item>
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1178402516389867994"><Properties><string name="Name">ChaveVFX</string><string name="Value">Cosmic_Sword_Revamp</string></Properties></Item></Item>
 	<SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="3mPE9Myv0n9N/sI0YAWOFQ==">Q1NHUEhTCAAAAAIAKLUv/WAEAPUEAEQGAgAAABAAAAAYAAAACAAAAAwALsBW0b4ApHe+wGCV
 v+BW0T4ApHc+CWCVP1Futyi3G6J3PgDOgr+gLtg8AIjSX5WADt47APlHvQCgd76QN4Q/oHe+
 MA+Aht+0bs1dpHc+kDeEPxyoEEdypcbGHKBQMFUeUFLdPAfEohBiBiXhh5suRHv2Npb6opye

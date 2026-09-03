@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **129 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **136 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -60,6 +60,33 @@
 > (ragdoll reversível pelo blueprint R6 de seis juntas, método do
 > `ragdoll-system` MIT) e **`dispararProjetil()`** (o método do FastCast: a
 > bala é um ponto integrado à mão, com raycast entre dois passos).
+>
+> **7 do `Magnetismo` — o QUINTO conjunto autoral, e o primeiro em que uma Tool
+> depende do que OUTRA fez.** Sem modelo de origem: geometria primitiva soldada,
+> e 30 `SoundId` do catálogo. M1 + R + T em cada.
+>
+> A **polaridade** atravessa as sete. Quem é atingido fica carregado `NORTE` ou
+> `SUL` por 8 s, num `Attribute` do próprio `Humanoid` — marca de entidade em
+> campo, a mesma natureza da tag `creator`, não depósito nem global. Carga igual
+> repele mais forte (×1.55); oposta atrai mais forte (×1.75). A `Bobina de
+> Tesla` e o `Colapso Magnetico` são as duas que COBRAM isso: a descarga só
+> atinge quem está carregado.
+>
+> Ele é a prova dos achados da triagem de VFX/SFX/animação/cutscene, e é por
+> isso que ele existe além do tema:
+>
+> · **Grupo de variação de SFX** — `Tool/SFX/<PAPEL>` é `Folder` quando há mais
+>   de uma gravação. 36 `Sound` em 7 grupos. O `ARCO` da bobina tem **seis**:
+>   `Lightning1`..`Lightning6`, catalogados no Acervo há meses e nunca usados
+>   juntos por nada.
+> · **`workspace:BulkMoveTo`** — a limalha de ferro são centenas de agulhas
+>   alinhadas à linha de campo, movidas todo quadro em UMA chamada. Era o único
+>   `BulkMoveTo` que faltava no repositório, e a limalha não seria viável sem.
+> · **LOD por distância de câmera** — 240 agulhas a 30 studs, 36 a 200.
+> · **`quando` no keyframe** — 30 beats que caem no MEIO do passo, não na borda.
+>
+> Ele **não deposita VFX novo**: as sete camadas do `VFXModule_Magnetismo` são
+> `Part` em código, mais um molde de agulha por Tool.
 >
 > ⛔ **A origem, `reality_tools.rbxmx`, tem TRÊS vetores de execução remota** —
 > `assetimport.org` via `HttpService` na `Physics Gun`, `require(206209239)` no

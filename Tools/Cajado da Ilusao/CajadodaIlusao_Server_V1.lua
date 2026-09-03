@@ -477,6 +477,21 @@ end
 -- FERRAMENTAS/TRIAGEM_FERRAMENTAS_EXTERNAS.md.
 --═══════════════════════════════════════════════════════════════
 
+--- ⚠️ `beatCena` DECLARADO, mesmo nas Tools sem cutscene.
+---
+--- A guarda do despachante é `if kf.cam and beatCena then`, e sem esta linha
+--- `beatCena` é uma GLOBAL IMPLÍCITA: em Lua ler global inexistente devolve
+--- `nil`, então o curto-circuito segura e nada quebra — hoje.
+---
+--- O risco não é este arquivo: é qualquer script do place que um dia crie uma
+--- global com esse nome. A partir daí `kf.cam` verdadeiro chamaria função de
+--- estranho, com os argumentos desta Tool.
+---
+--- Nas Tools COM cutscene, o `local function beatCena` mais abaixo sombreia
+--- este `nil` — que é o comportamento certo, e é por isso que a declaração
+--- pode ser incondicional.
+local beatCena = nil
+
 local function despachar(quadros)
 	return function(passo)
 		local marca = marcaDe(passo)
