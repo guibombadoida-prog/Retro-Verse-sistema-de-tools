@@ -239,14 +239,62 @@ local function raizDe(hum)
 	return m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso")
 end
 
---── Empurrão padronizado (BodyVelocity temporário, sem :Destroy) ──
+--═══════════════════════════════════════════════════════════════
+-- EMPURRÃO — `LinearVelocity`, e com DUAS guardas que faltavam
+--
+-- ⚠️ 1. `direcao.Unit` COM DIREÇÃO ZERO DEVOLVE NaN, e não é caso teórico:
+--       o `Escudo Bumerangue` chama `empurrar(raiz, raiz.Position - onde, ...)`
+--       e, quando o escudo pousa exatamente em cima do dono, esses dois pontos
+--       são o MESMO. `Velocity = NaN` envenena a assembly — a peça vai para
+--       coordenada absurda, ou trava. Sem erro, sem aviso: NaN não lança.
+--
+--       Este NaN não precisa de cliente modificado. Vem da geometria do jogo.
+--
+--    2. `MaxForce` era FIXO em 1e5. Com teto fixo, alvo pesado quase não sai
+--       do lugar e alvo leve voa — o mesmo empurrão, resultados opostos. O
+--       teto passa a ser proporcional à massa, que é como o `BLOCO_FISICA` do
+--       repositório já faz.
+--
+-- POR QUE `LinearVelocity` E NÃO `ApplyImpulse`
+--
+--    A revisão sugeriu `ApplyImpulse`, e para knockback puro ele é mais
+--    correto. Mas `BodyVelocity` SUSTENTA a velocidade pelos 0.2 s — segura o
+--    alvo no ar contra a gravidade —, e `ApplyImpulse` dá um tranco só e
+--    solta. A diferença é sentida, e trocar a SENSAÇÃO de sete Tools que
+--    funcionam não é conserto, é redesign.
+--
+--    `LinearVelocity` com prazo faz o que o `BodyVelocity` fazia, sem a classe
+--    obsoleta e sem o teto fixo. Fica igual de jogar, e certo por dentro.
+--
+--    Revisão do Codex no PR #1, item P1.3.
+--═══════════════════════════════════════════════════════════════
 local function empurrar(parte, direcao, forca, duracao)
 	if not (parte and parte.Parent) then return end
-	local bv = Instance.new("BodyVelocity")
-	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-	bv.Velocity = direcao.Unit * forca
-	bv.Parent   = parte
-	Debris:AddItem(bv, duracao or 0.2)
+	if parte.Anchored then return end
+
+	local mag = direcao.Magnitude
+	-- `mag ~= mag` é NaN; o teto corta Inf. Direção nula não empurra nada.
+	if mag ~= mag or mag < 1e-4 or mag == math.huge then return end
+	if forca ~= forca or math.abs(forca) == math.huge then return end
+
+	local massa = parte.AssemblyMass
+	if massa ~= massa or massa <= 0 then massa = 1 end
+
+	local ponto = parte:FindFirstChild("EscudoEmpurrao")
+	if not (ponto and ponto:IsA("Attachment")) then
+		ponto = Instance.new("Attachment")
+		ponto.Name = "EscudoEmpurrao"
+		ponto.Parent = parte
+	end
+
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = ponto
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	lv.MaxForce = massa * 260
+	lv.VectorVelocity = direcao.Unit * forca
+	lv.Parent = parte
+	Debris:AddItem(lv, duracao or 0.2)
 end
 
 --── Sons: sequenciais, nunca math.random ──
@@ -566,9 +614,22 @@ local function arremessar(destino, modo)
 		local percorrido = 0
 		local onde = origem
 		while percorrido < alcance do
-			task.wait(CFG.PASSO_VOO)
+			-- ⚠️ `task.wait(x)` NÃO dorme `x`: dorme PELO MENOS `x`, e sob
+			--    carga dorme bem mais. O passo era calculado com o valor
+			--    PEDIDO (`CFG.PASSO_VOO`) e não com o que passou de verdade,
+			--    então o projétil do SERVIDOR andava mais devagar em tempo
+			--    real que o do CLIENTE, que usa o `dt` do `Heartbeat`.
+			--
+			--    O sintoma: o jogador vê o escudo acertar e o dano não sai —
+			--    ele sai depois, quando a hitbox finalmente chega ali.
+			--
+			--    `task.wait` DEVOLVE o tempo real decorrido. Usar o retorno é
+			--    o conserto inteiro. (A sincronia por tempo absoluto que a
+			--    revisão pede — `GetServerTimeNow` + posição analítica —
+			--    continua em aberto: ela mexe também no Client.)
+			local passou = task.wait(CFG.PASSO_VOO)
 			if not (Handle and Handle.Parent) then break end
-			percorrido = percorrido + velocidade * CFG.PASSO_VOO
+			percorrido = percorrido + velocidade * passou
 			onde = origem + direcao * math.min(percorrido, alcance)
 			checar("ida", onde)
 		end
@@ -577,11 +638,12 @@ local function arremessar(destino, modo)
 
 		-- FASE 2: volta — o alvo é o `Handle`, que anda com o jogador
 		while Handle and Handle.Parent do
-			task.wait(CFG.PASSO_VOO)
+			local passouVolta = task.wait(CFG.PASSO_VOO)
 			if not (Handle and Handle.Parent) then break end
 			local volta = Handle.Position - onde
 			if volta.Magnitude < 3 then break end
-			onde = onde + volta.Unit * (velocidade * 0.75 * CFG.PASSO_VOO)
+			-- mesmo motivo da ida: o tempo REAL, não o pedido
+			onde = onde + volta.Unit * (velocidade * 0.75 * passouVolta)
 			checar("volta", onde)
 		end
 

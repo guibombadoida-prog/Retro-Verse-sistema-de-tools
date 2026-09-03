@@ -213,14 +213,62 @@ local function raizDe(hum)
 	return m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso")
 end
 
---── Empurrão padronizado (BodyVelocity temporário, sem :Destroy) ──
+--═══════════════════════════════════════════════════════════════
+-- EMPURRÃO — `LinearVelocity`, e com DUAS guardas que faltavam
+--
+-- ⚠️ 1. `direcao.Unit` COM DIREÇÃO ZERO DEVOLVE NaN, e não é caso teórico:
+--       o `Escudo Bumerangue` chama `empurrar(raiz, raiz.Position - onde, ...)`
+--       e, quando o escudo pousa exatamente em cima do dono, esses dois pontos
+--       são o MESMO. `Velocity = NaN` envenena a assembly — a peça vai para
+--       coordenada absurda, ou trava. Sem erro, sem aviso: NaN não lança.
+--
+--       Este NaN não precisa de cliente modificado. Vem da geometria do jogo.
+--
+--    2. `MaxForce` era FIXO em 1e5. Com teto fixo, alvo pesado quase não sai
+--       do lugar e alvo leve voa — o mesmo empurrão, resultados opostos. O
+--       teto passa a ser proporcional à massa, que é como o `BLOCO_FISICA` do
+--       repositório já faz.
+--
+-- POR QUE `LinearVelocity` E NÃO `ApplyImpulse`
+--
+--    A revisão sugeriu `ApplyImpulse`, e para knockback puro ele é mais
+--    correto. Mas `BodyVelocity` SUSTENTA a velocidade pelos 0.2 s — segura o
+--    alvo no ar contra a gravidade —, e `ApplyImpulse` dá um tranco só e
+--    solta. A diferença é sentida, e trocar a SENSAÇÃO de sete Tools que
+--    funcionam não é conserto, é redesign.
+--
+--    `LinearVelocity` com prazo faz o que o `BodyVelocity` fazia, sem a classe
+--    obsoleta e sem o teto fixo. Fica igual de jogar, e certo por dentro.
+--
+--    Revisão do Codex no PR #1, item P1.3.
+--═══════════════════════════════════════════════════════════════
 local function empurrar(parte, direcao, forca, duracao)
 	if not (parte and parte.Parent) then return end
-	local bv = Instance.new("BodyVelocity")
-	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-	bv.Velocity = direcao.Unit * forca
-	bv.Parent   = parte
-	Debris:AddItem(bv, duracao or 0.2)
+	if parte.Anchored then return end
+
+	local mag = direcao.Magnitude
+	-- `mag ~= mag` é NaN; o teto corta Inf. Direção nula não empurra nada.
+	if mag ~= mag or mag < 1e-4 or mag == math.huge then return end
+	if forca ~= forca or math.abs(forca) == math.huge then return end
+
+	local massa = parte.AssemblyMass
+	if massa ~= massa or massa <= 0 then massa = 1 end
+
+	local ponto = parte:FindFirstChild("EscudoEmpurrao")
+	if not (ponto and ponto:IsA("Attachment")) then
+		ponto = Instance.new("Attachment")
+		ponto.Name = "EscudoEmpurrao"
+		ponto.Parent = parte
+	end
+
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = ponto
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	lv.MaxForce = massa * 260
+	lv.VectorVelocity = direcao.Unit * forca
+	lv.Parent = parte
+	Debris:AddItem(lv, duracao or 0.2)
 end
 
 --── Sons: sequenciais, nunca math.random ──

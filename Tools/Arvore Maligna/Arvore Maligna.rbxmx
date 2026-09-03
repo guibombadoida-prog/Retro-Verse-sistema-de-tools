@@ -6242,7 +6242,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1278425240224713487"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6110055198318555645"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -6430,7 +6430,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1278425240224713487"><Properties><string name="Name">ChaveVFX</string><string name="Value">Arvore_Maligna</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="1VTltvm7p4NDZLrhYIE3uA==">Q1NHUEhTBgAAAOIfgUEAAAAAAAAAAAAAAAAPpIlCAAAAAAAAAABec1tBAAAAANrSkUIQAAAA
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6110055198318555645"><Properties><string name="Name">ChaveVFX</string><string name="Value">Arvore_Maligna</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="1VTltvm7p4NDZLrhYIE3uA==">Q1NHUEhTBgAAAOIfgUEAAAAAAAAAAAAAAAAPpIlCAAAAAAAAAABec1tBAAAAANrSkUIQAAAA
 AAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAIA/UQAAAAQAAACUbLO+J9V5v6lx
 1b6YG1+/Q5yVvz44YryUbLO+Q5yVv8hr9b5FjHW/BHtHvz44YryUbLO+BHtHv/lz8b6wD0i/
 BHtHvzwvrb5B2D6/Q5yVv9Oig74HpmS/BHtHv1BUZb7j0hC/BHtHvwXo4r7k0la/Q5yVv8ZA

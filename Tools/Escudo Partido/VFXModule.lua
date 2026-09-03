@@ -1036,7 +1036,13 @@ function Efeitos.SEGUE(d)
 
 	local t = 0
 	local conn = RunService.Heartbeat:Connect(function(dt)
-		if not (corpo.Parent and alvo.Parent) then return end
+		-- ⚠️ ERA `return` SECO, e a conexão ficava viva para sempre: uma por
+		--    projétil/órbita, acordando 60 vezes por segundo para conferir que
+		--    o corpo ainda não existe. `VFX.Parar(id)` desconecta e recolhe.
+		if not (corpo.Parent and alvo.Parent) then
+			VFX.Parar(id)
+			return
+		end
 		t = t + dt
 		corpo.CFrame = CFrame.new(alvo.Position + Vector3.new(0, altura, 0))
 			* CFrame.Angles(0, t * giroPorSeg, math.rad(inclinacao))
@@ -1081,7 +1087,13 @@ function Efeitos.ORBITA(d)
 
 	local angulo = 0
 	local conn = RunService.Heartbeat:Connect(function(dt)
-		if not (corpo.Parent and alvo.Parent) then return end
+		-- ⚠️ ERA `return` SECO, e a conexão ficava viva para sempre: uma por
+		--    projétil/órbita, acordando 60 vezes por segundo para conferir que
+		--    o corpo ainda não existe. `VFX.Parar(id)` desconecta e recolhe.
+		if not (corpo.Parent and alvo.Parent) then
+			VFX.Parar(id)
+			return
+		end
 		local base = alvo.Position + Vector3.new(0, altura, 0)
 
 		-- mira ativa: fica na frente do que vem, e olha para lá
