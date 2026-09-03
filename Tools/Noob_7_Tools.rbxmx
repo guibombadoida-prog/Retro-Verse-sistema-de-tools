@@ -5171,7 +5171,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1722291867817134868"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3084129605955207438"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5359,7 +5359,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1722291867817134868"><Properties><string name="Name">ChaveVFX</string><string name="Value">Tiro_do_Vazio</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_02"><Properties><string name="Name">Chuva de Lava</string><string name="ToolTip">Laje de lava que sobe do chao e queima a area</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NB_HANDLE_02"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><float name="Transparency">1</float><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool></Properties><Item class="Sound" referent="NB_SFX_02_0"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://159882598</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_02_1"><Properties><string name="Name">GRAVE</string><Content name="SoundId"><url>rbxassetid://62339698</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_02_2"><Properties><string name="Name">ECO</string><Content name="SoundId"><url>rbxassetid://649634100</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="NB_MOLDES_02"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="NBM02_0_RBX85B66C16FE294A7287A97EEF61897B63">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3084129605955207438"><Properties><string name="Name">ChaveVFX</string><string name="Value">Tiro_do_Vazio</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_02"><Properties><string name="Name">Chuva de Lava</string><string name="ToolTip">Laje de lava que sobe do chao e queima a area</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NB_HANDLE_02"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><float name="Transparency">1</float><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool></Properties><Item class="Sound" referent="NB_SFX_02_0"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://159882598</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_02_1"><Properties><string name="Name">GRAVE</string><Content name="SoundId"><url>rbxassetid://62339698</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_02_2"><Properties><string name="Name">ECO</string><Content name="SoundId"><url>rbxassetid://649634100</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="NB_MOLDES_02"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="NBM02_0_RBX85B66C16FE294A7287A97EEF61897B63">
 			<Properties>
 				<token name="shape">1</token>
 				<token name="formFactorRaw">1</token>
@@ -10518,7 +10518,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_5281739282403404048"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_5198699055030376867"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -10706,7 +10706,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5281739282403404048"><Properties><string name="Name">ChaveVFX</string><string name="Value">Chuva_de_Lava</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_03"><Properties><string name="Name">Parada do Tempo</string><string name="ToolTip">Trava quem esta perto; a Extra e o relogio que estoura</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH03_RBX7391723F3FFC4A8DBD4CDC513FB243E7">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5198699055030376867"><Properties><string name="Name">ChaveVFX</string><string name="Value">Chuva_de_Lava</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_03"><Properties><string name="Name">Parada do Tempo</string><string name="ToolTip">Trava quem esta perto; a Extra e o relogio que estoura</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH03_RBX7391723F3FFC4A8DBD4CDC513FB243E7">
 			<Properties>
 				<token name="shape">1</token>
 				<token name="formFactorRaw">0</token>
@@ -15936,7 +15936,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8363026400055323672"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6728398935826238140"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -16124,7 +16124,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8363026400055323672"><Properties><string name="Name">ChaveVFX</string><string name="Value">Parada_do_Tempo</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_04"><Properties><string name="Name">Buraco Negro</string><string name="ToolTip">Esfera que puxa tudo para dentro e colapsa</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH04_RBX4798A099C9BA445C8C351CEB3D9B3017">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6728398935826238140"><Properties><string name="Name">ChaveVFX</string><string name="Value">Parada_do_Tempo</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_04"><Properties><string name="Name">Buraco Negro</string><string name="ToolTip">Esfera que puxa tudo para dentro e colapsa</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH04_RBX4798A099C9BA445C8C351CEB3D9B3017">
 			<Properties>
 				<token name="shape">1</token>
 				<token name="formFactorRaw">1</token>
@@ -21324,7 +21324,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6385176614522909472"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3102589094416699309"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -21512,7 +21512,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6385176614522909472"><Properties><string name="Name">ChaveVFX</string><string name="Value">Buraco_Negro</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_05"><Properties><string name="Name">Colar das Trevas</string><string name="ToolTip">Prende o alvo pelo pescoco e drena</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH05_RBX0FC621693CA0470D905823C4201162BF">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3102589094416699309"><Properties><string name="Name">ChaveVFX</string><string name="Value">Buraco_Negro</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_05"><Properties><string name="Name">Colar das Trevas</string><string name="ToolTip">Prende o alvo pelo pescoco e drena</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH05_RBX0FC621693CA0470D905823C4201162BF">
 			<Properties>
 				<token name="shape">1</token>
 				<token name="formFactorRaw">1</token>
@@ -26633,7 +26633,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3183212673535283840"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6451231712959972142"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -26821,7 +26821,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3183212673535283840"><Properties><string name="Name">ChaveVFX</string><string name="Value">Colar_das_Trevas</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_06"><Properties><string name="Name">Explosao Lunar</string><string name="ToolTip">Chama a lua sobre o ponto mirado</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NB_HANDLE_06"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><float name="Transparency">1</float><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool></Properties><Item class="Sound" referent="NB_SFX_06_0"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://340722848</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_06_1"><Properties><string name="Name">LUA</string><Content name="SoundId"><url>rbxassetid://168586621</url></Content><float name="Volume">1.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_06_2"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://159882598</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="NB_MOLDES_06"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="NBM06_0_RBXAD18B0194E39448E9F8662984C151BE6">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6451231712959972142"><Properties><string name="Name">ChaveVFX</string><string name="Value">Colar_das_Trevas</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_06"><Properties><string name="Name">Explosao Lunar</string><string name="ToolTip">Chama a lua sobre o ponto mirado</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NB_HANDLE_06"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><float name="Transparency">1</float><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool></Properties><Item class="Sound" referent="NB_SFX_06_0"><Properties><string name="Name">CARGA</string><Content name="SoundId"><url>rbxassetid://340722848</url></Content><float name="Volume">1.4</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_06_1"><Properties><string name="Name">LUA</string><Content name="SoundId"><url>rbxassetid://168586621</url></Content><float name="Volume">1.8</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="NB_SFX_06_2"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://159882598</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">180</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="NB_MOLDES_06"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="NBM06_0_RBXAD18B0194E39448E9F8662984C151BE6">
 			<Properties>
 				<token name="shape">0</token>
 				<token name="formFactorRaw">1</token>
@@ -31563,7 +31563,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_495718848015387641"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_221400316534581110"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -31751,7 +31751,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_495718848015387641"><Properties><string name="Name">ChaveVFX</string><string name="Value">Explosao_Lunar</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_07"><Properties><string name="Name">Super Dominus</string><string name="ToolTip">A coroa cai no alvo — ultimate com cutscene</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH07_RBX214603E7160A49D8B70950924814998D">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_221400316534581110"><Properties><string name="Name">ChaveVFX</string><string name="Value">Explosao_Lunar</string></Properties></Item></Item><Item class="Tool" referent="NB_TOOL_07"><Properties><string name="Name">Super Dominus</string><string name="ToolTip">A coroa cai no alvo — ultimate com cutscene</string><bool name="CanBeDropped">false</bool><bool name="RequiresHandle">true</bool></Properties><Item class="Part" referent="NBH07_RBX214603E7160A49D8B70950924814998D">
 			<Properties>
 				<token name="shape">1</token>
 				<token name="formFactorRaw">3</token>
@@ -37556,7 +37556,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_3762012322078169630"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_1396607662824662472"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -37744,7 +37744,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3762012322078169630"><Properties><string name="Name">ChaveVFX</string><string name="Value">Super_Dominus</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1396607662824662472"><Properties><string name="Name">ChaveVFX</string><string name="Value">Super_Dominus</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu

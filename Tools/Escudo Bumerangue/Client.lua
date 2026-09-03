@@ -134,6 +134,25 @@ VFXRemote.OnClientEvent:Connect(function(tipo, dados)
 		if not dados.alvo then return end
 	end
 
+	-- ⚠️ ISTO FALTAVA, e o bumerangue NÃO VOLTAVA.
+	--
+	--    O Server manda `pecaNome` no `PROJETIL` (a peça para onde o escudo
+	--    retorna), o `VFXModule` lê `d.peca` — e ninguém, no meio, transformava
+	--    o nome em instância. `volta` era sempre `nil`, e a linha
+	--    `if not volta then VFX.Parar(id) end` fazia o projétil SUMIR no
+	--    alcance máximo.
+	--
+	--    O servidor continuava fazendo o retorno e o dano; só o desenho parava.
+	--    Por isso nenhum verificador pegou: não há erro, não há aviso, e o
+	--    `.rbxmx` é válido. É a mesma família do `pk` de nome inexistente.
+	--
+	--    `TESTES/verificar_contrato_payload.py` passa a cobrar isto: todo
+	--    `<x>Nome` que um Server manda tem de ser resolvido pelo Client dele.
+	if dados.pecaNome then
+		dados.peca = parteDe(dados.pecaNome)
+		if not dados.peca then return end
+	end
+
 	VFX.Executar(tipo, dados)
 end)
 

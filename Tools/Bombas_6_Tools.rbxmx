@@ -4611,7 +4611,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_498957708467650694"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6815893346065469766"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -4799,7 +4799,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_498957708467650694"><Properties><string name="Name">ChaveVFX</string><string name="Value">Multiplas_Bombas</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaNuclear">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6815893346065469766"><Properties><string name="Name">ChaveVFX</string><string name="Value">Multiplas_Bombas</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaNuclear">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -9428,7 +9428,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8230012062988367737"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_580001021847282253"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -9616,7 +9616,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8230012062988367737"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Nuclear</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaMeteorica">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_580001021847282253"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Nuclear</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaMeteorica">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -14250,7 +14250,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4926671664995964867"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8535213856650607799"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -14438,7 +14438,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4926671664995964867"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Meteorica</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaBasquete">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8535213856650607799"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Meteorica</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaBasquete">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -19086,7 +19086,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6461357193620984652"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_737760512309393329"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -19274,7 +19274,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6461357193620984652"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Basquete</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaDoida">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_737760512309393329"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Basquete</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaDoida">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -24003,7 +24003,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_5150146321333489133"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_5630764089246378912"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -24191,7 +24191,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5150146321333489133"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Doida</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaGelada">
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5630764089246378912"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Doida</string></Properties></Item></Item><Item class="Tool" referent="RBX8DB37E28547D49D8867D92CC7D3438CC_BombaGelada">
 		<Properties>
 			<bool name="CanBeDropped">false</bool>
 			<bool name="Enabled">true</bool>
@@ -28881,7 +28881,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4000283012230884501"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_679883850841009905"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -29069,7 +29069,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4000283012230884501"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Gelada</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_679883850841009905"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Gelada</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu
