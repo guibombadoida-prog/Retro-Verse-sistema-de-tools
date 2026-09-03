@@ -250,6 +250,11 @@ local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "%(arquetipo)s"
 
 local CFG = {
+\t--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+\t--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+\t--- cliente que manda o pacote.
+\tMIRA_MAX = 400,
+\tPEDIDOS_POR_SEG = 30,
 %(cfg)s}
 
 --%(regua)s
@@ -257,6 +262,70 @@ local CFG = {
 --%(regua)s
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+\treturn type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+\tif typeof(v) ~= "Vector3" then return false end
+\treturn numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+\tif not miraValida(v) then return nil end
+\tif not raiz then return nil end
+\tlocal delta = v - raiz.Position
+\tlocal dist = delta.Magnitude
+\tif not numeroFinito(dist) then return nil end
+\tif dist < 0.001 then return v end
+\tif dist > CFG.MIRA_MAX then
+\t\treturn raiz.Position + delta.Unit * CFG.MIRA_MAX
+\tend
+\treturn v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+\tlocal agora = os.clock()
+\tif agora - janelaAbriu >= 1 then
+\t\tjanelaAbriu = agora
+\t\tnaJanela = 0
+\tend
+\tnaJanela = naJanela + 1
+\treturn naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoUso = 0
 local ultimaMira = nil
 local ativos = {}

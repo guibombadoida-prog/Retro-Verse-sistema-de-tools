@@ -112,13 +112,49 @@ def ler(caminho):
     return sem_comentario(open(caminho, encoding="utf-8").read())
 
 
+def fronteira(erros):
+    """🔒 Todo Server que ouve um `OnServerEvent` tem de sanear o que chega.
+
+    `typeof(v) == "Vector3"` não rejeita NaN nem Inf, e `Vector3.new(0/0,0/0,0/0)`
+    passa por ele. Um cliente modificado manda isso, `.Unit` devolve NaN, e
+    força NaN envenena a assembly do alvo — sem erro, sem aviso, sem `pcall`
+    que pegue.
+
+    E rate limit do CLIENTE não é rate limit: quem manda o pacote é o cliente.
+
+    Esta checagem existe para que Tool NOVA não nasça sem a fronteira. Ela
+    cobra duas coisas, e só de quem realmente ouve o remote.
+    """
+    for pasta in sorted(os.listdir(TOOLS)):
+        caminho = os.path.join(TOOLS, pasta)
+        if not os.path.isdir(caminho) or pasta.startswith("_"):
+            continue
+        servers = [f for f in sorted(os.listdir(caminho))
+                   if "_Server_V" in f and f.endswith(".lua")]
+        for arq in servers:
+            fonte = ler(os.path.join(caminho, arq))
+            if "OnServerEvent" not in fonte:
+                continue
+            if "local function taxaOk" not in fonte:
+                erros.append("%s/%s ouve OnServerEvent e não tem `taxaOk()` — "
+                             "o limite do Client não vale nada, quem manda o "
+                             "pacote é o cliente" % (pasta, arq))
+            # só cobra `sanearMira` de quem recebe um vetor pelo remote
+            if re.search(r"OnServerEvent:Connect\(function\([^)]*\bmira\b", fonte):
+                if "sanearMira(" not in fonte:
+                    erros.append("%s/%s recebe `mira` pelo remote e não a "
+                                 "saneia — `typeof` não rejeita NaN/Inf"
+                                 % (pasta, arq))
+
+
 def main():
     print("")
     print("CONTRATO DO PAYLOAD — Server → Client")
-    print(CINZA % "todo `<x>Nome` mandado tem de ser resolvido no Client da mesma Tool")
+    print(CINZA % "o `<x>Nome` mandado tem de ser resolvido; e o remote tem de sanear")
     print("")
 
     erros, avisos, conferidas = [], [], 0
+    fronteira(erros)
 
     for pasta in sorted(os.listdir(TOOLS)):
         caminho = os.path.join(TOOLS, pasta)

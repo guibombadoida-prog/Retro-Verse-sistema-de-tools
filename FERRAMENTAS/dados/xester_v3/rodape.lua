@@ -14,8 +14,10 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 {guarda_m1}	primaria(mira)
 end)
 {ligacao_extra}

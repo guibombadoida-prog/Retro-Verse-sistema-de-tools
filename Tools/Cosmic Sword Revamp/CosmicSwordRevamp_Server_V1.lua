@@ -173,6 +173,64 @@ local SPREADS_MINI = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA. `Vector3.new(0/0, 0/0, 0/0)` é um
+--    `Vector3` legítimo para o `typeof`; um cliente modificado manda isso,
+--    `.Unit` devolve NaN, e força NaN envenena a assembly do alvo. Nenhum
+--    `pcall` pega, porque não há erro — a conta só não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN em Lua: NaN é o único valor que não é
+--    igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda junto.
+--
+-- E RATE LIMIT É DO SERVIDOR. O `Client` limita a taxa dele e isso não vale
+-- nada: quem manda o pacote é o cliente, e cliente modificado manda o quanto
+-- quiser. O limite que conta é o daqui.
+--
+-- Revisão do Codex no PR #1, item P1.6.
+--═══════════════════════════════════════════════════════════════
+
+local MIRA_MAX = 400
+local PEDIDOS_POR_SEG = 30
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > MIRA_MAX then
+		return raiz.Position + delta.Unit * MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem abusa é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= PEDIDOS_POR_SEG
+end
 local ultimoM1, ultimoE, ultimoQ, ultimoX, ultimoH = 0, 0, 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -853,7 +911,11 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	-- ⚠️ AQUI NÃO HAVIA VALIDAÇÃO NENHUMA: `mira` ia direto para `corte()`.
+	mira = sanearMira(mira) or (raiz and raiz.Position) or Vector3.new()
+	if not podeAgir() then return end
 	if not pronto(ultimoM1, CFG.RECARGA_M1) then return end
 	ultimoM1 = os.clock()
 	corte(mira)
@@ -864,7 +926,11 @@ end)
 --- Confiar no cliente para dizer qual habilidade rodar seria dar a ele a
 --- escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	if type(tecla) ~= "string" then return end
+	mira = sanearMira(mira) or (raiz and raiz.Position) or Vector3.new()
+	if not podeAgir() then return end
 
 	if tecla == "E" then
 		if not pronto(ultimoE, CFG.RECARGA_E) then return end

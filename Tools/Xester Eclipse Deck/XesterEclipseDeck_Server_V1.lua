@@ -96,6 +96,58 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA. `Vector3.new(0/0, 0/0, 0/0)` é um
+--    `Vector3` legítimo para o `typeof`; um cliente modificado manda isso,
+--    `.Unit` devolve NaN, e força NaN envenena a assembly do alvo. Nenhum
+--    `pcall` pega, porque não há erro — a conta só não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN em Lua: NaN é o único valor que não é
+--    igual a si mesmo.
+--
+-- E RATE LIMIT É DO SERVIDOR. O `Client` limita a 20 Hz e isso não vale nada:
+-- quem manda o pacote é o cliente.
+--═══════════════════════════════════════════════════════════════
+
+local MIRA_MAX = 400
+local PEDIDOS_POR_SEG = 30
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > MIRA_MAX then
+		return raiz.Position + delta.Unit * MIRA_MAX
+	end
+	return v
+end
+
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= PEDIDOS_POR_SEG
+end
 local ocupado = false
 local ativos = {}
 local semente, idEfeito = 0, 0
@@ -755,16 +807,20 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 	if not pronto(ultimoM1, CFG.RECARGA) then return end
 	ultimoM1 = os.clock()
 	primaria(mira)
 end)
 
 AcaoRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
 	ultimoExtra = os.clock()
 	extra(mira)

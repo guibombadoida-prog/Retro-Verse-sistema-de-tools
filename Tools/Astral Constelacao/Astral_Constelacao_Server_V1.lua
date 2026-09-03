@@ -30,6 +30,11 @@ local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "ASTRAL"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	DANO_TRACO      = 24,
 	ALCANCE_TRACO   = 10,
 	DEBOUNCE_TRACO  = 0.4,
@@ -49,6 +54,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local podeExtra = true
 local ativos = {}
 local semente = 0
@@ -291,8 +360,10 @@ Tool.Activated:Connect(primaria)
 
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
 	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	-- a whitelist de ação: qualquer tecla fora desta é descartada
 	if tecla ~= "X" then return end
-	if typeof(mira) ~= "Vector3" then mira = raiz and raiz.Position or Vector3.new() end
+	mira = sanearMira(mira) or (raiz and raiz.Position) or Vector3.new()
 	extra(mira)
 end)
 

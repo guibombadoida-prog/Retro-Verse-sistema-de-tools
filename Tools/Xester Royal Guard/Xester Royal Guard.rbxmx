@@ -95,6 +95,58 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA. `Vector3.new(0/0, 0/0, 0/0)` é um
+--    `Vector3` legítimo para o `typeof`; um cliente modificado manda isso,
+--    `.Unit` devolve NaN, e força NaN envenena a assembly do alvo. Nenhum
+--    `pcall` pega, porque não há erro — a conta só não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN em Lua: NaN é o único valor que não é
+--    igual a si mesmo.
+--
+-- E RATE LIMIT É DO SERVIDOR. O `Client` limita a 20 Hz e isso não vale nada:
+-- quem manda o pacote é o cliente.
+--═══════════════════════════════════════════════════════════════
+
+local MIRA_MAX = 400
+local PEDIDOS_POR_SEG = 30
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > MIRA_MAX then
+		return raiz.Position + delta.Unit * MIRA_MAX
+	end
+	return v
+end
+
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= PEDIDOS_POR_SEG
+end
 local ocupado = false
 local ativos = {}
 local semente, idEfeito = 0, 0
@@ -704,8 +756,10 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 	-- a segunda etapa é a metade de trás da MESMA habilidade: cobrar recarga
 	-- de novo por ela a tornaria inalcançável na prática.
 	if not segundaEtapa() then
@@ -716,8 +770,10 @@ VFXRemote.OnServerEvent:Connect(function(quem, mira)
 end)
 
 AcaoRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
 	ultimoExtra = os.clock()
 	extra(mira)
@@ -7928,7 +7984,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_XesterRoyalGuard"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNGUARDA_XesterRoyalGuard"><Properties><string name="Name">GUARDA</string><Content name="SoundId"><url>rbxassetid://3855293277</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNREI_XesterRoyalGuard"><Properties><string name="Name">REI</string><Content name="SoundId"><url>rbxassetid://288641686</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterRoyalGuard"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_3146267938073718381"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_XesterRoyalGuard"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNGUARDA_XesterRoyalGuard"><Properties><string name="Name">GUARDA</string><Content name="SoundId"><url>rbxassetid://3855293277</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNREI_XesterRoyalGuard"><Properties><string name="Name">REI</string><Content name="SoundId"><url>rbxassetid://288641686</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">260</float></Properties></Item><Item class="Sound" referent="RV_SNCORINGA_XesterRoyalGuard"><Properties><string name="Name">CORINGA</string><Content name="SoundId"><url>rbxassetid://1072606965</url></Content><float name="Volume">3</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">260</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_721966459078698831"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -8116,7 +8172,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3146267938073718381"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Royal_Guard</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_721966459078698831"><Properties><string name="Name">ChaveVFX</string><string name="Value">Xester_Royal_Guard</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

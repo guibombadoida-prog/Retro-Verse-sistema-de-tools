@@ -31,6 +31,11 @@ local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "ESPECTRAL"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	RECARGA = 30,
 	ALCANCE = 40,
 	DURACAO = 6,
@@ -45,6 +50,70 @@ local CFG = {
 --══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoUso = 0
 local ultimaMira = nil
 local ativos = {}
@@ -5945,7 +6014,7 @@ end]]></ProtectedString>
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					</Properties>
-				</Item></Item><Item class="Folder" referent="RV_SFX_Perturbacao"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNDESFAZ_Perturbacao"><Properties><string name="Name">DESFAZ</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNDEVOLVE_Perturbacao"><Properties><string name="Name">DEVOLVE</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_3934281811267461804"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+				</Item></Item><Item class="Folder" referent="RV_SFX_Perturbacao"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_SNDESFAZ_Perturbacao"><Properties><string name="Name">DESFAZ</string><Content name="SoundId"><url>rbxassetid://1894958339</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">220</float></Properties></Item><Item class="Sound" referent="RV_SNDEVOLVE_Perturbacao"><Properties><string name="Name">DEVOLVE</string><Content name="SoundId"><url>rbxassetid://472579737</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">220</float></Properties></Item></Item><Item class="ModuleScript" referent="RV_DEP_5118988822546525598"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -6133,7 +6202,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3934281811267461804"><Properties><string name="Name">ChaveVFX</string><string name="Value">Perturbacao</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5118988822546525598"><Properties><string name="Name">ChaveVFX</string><string name="Value">Perturbacao</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="2hzm0nWLULtt/2AWLd9wCw==">Q1NHUEhTCAAAAAIAKLUv/WAwN60QAbq1XWgzEBCMGw5/3Dt8YVDlcozE3ztJO8fH2oAaMVDB
 vzXd9jQryrcDiUxI0IMlxiHotqmLN+o7pwZpBmoGNRo0Z2LdXVmznXZLwjOsVdr2ggYekmYo
 1uq5YDQEgc/6Ig3QTpfgSJezkux5YQ6gfDQRfQqwYwJ2wX80ZHWTXUnSLXScnwjFpU6xBeab
 TAyA4gKucTIAtsmq5PgmBT6ekqRECW3GDSc6RYXOesdp8NHJf1a0ddQAZmHQWRuYWXbUSypH

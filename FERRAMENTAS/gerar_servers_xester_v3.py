@@ -256,8 +256,10 @@ def escrever_servidor(tool, d):
     if canal == "acao":
         ligacao_extra = '''
 AcaoRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente(20) end
+	if quem ~= jogador then return end
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente(20)
+	if not podeAgir() then return end
 	if not pronto(ultimoExtra, CFG.RECARGA_EXTRA) then return end
 	ultimoExtra = os.clock()
 	extra(mira)

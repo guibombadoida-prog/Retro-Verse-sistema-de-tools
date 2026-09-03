@@ -888,7 +888,7 @@ CONJUNTO["Arma de Fisica"] = dict(
 local distancia = 0
 local alvoAtual = nil""",
     ao_equipar="",
-    ao_guardar="\tlargar(false)\n",
+    ao_guardar="\tlargar(false)\n\tdevolverTudo()\n",
     trata_acao='''	if acao == "PEGA" then
 		if not podeAgir() then return end
 		if not pronto(ultimoUso, CFG.RECARGA) then return end
@@ -914,6 +914,75 @@ local alvoAtual = nil""",
 --    Esta garra é reversível por construção: `soltarPeca()` tira SÓ o que esta
 --    Tool pendurou, e a peça volta a ser exatamente o que era.
 --══════════════════════════════════════════════════════════════
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 NETWORK OWNERSHIP — quem SIMULA a peça enquanto ela está na garra
+--
+-- ⚠️ Sem isto, a garra tinha um buraco silencioso: uma peça solta que um
+--    jogador estava simulando (porque estava perto dela) CONTINUA sendo
+--    simulada por ele depois de eu agarrá-la. O `AlignPosition` é do
+--    servidor, a simulação é do cliente dele — e quem manda na posição final
+--    é quem simula.
+--
+--    Na prática: um cliente modificado que "tem" a peça pode ignorar a
+--    constraint e mandar a peça para onde quiser, e o servidor aceita, porque
+--    ownership é justamente a permissão de dizer onde a peça está.
+--
+--    `SetNetworkOwner(nil)` põe a simulação no SERVIDOR enquanto a garra
+--    segura. Ao soltar, devolve — e devolver é obrigatório: peça presa ao
+--    servidor para sempre fica travada e engrossa o custo de simulação dele.
+--
+--    `CanSetNetworkOwnership()` tem de ser consultado antes: peça ancorada,
+--    ou dentro de um personagem, recusa — e chamar direto ERRA.
+--
+--    ⛔ E NÃO se força ownership de personagem. Tirar a simulação do corpo de
+--       alguém para dar um empurrão faz o movimento dele engasgar por um
+--       segundo inteiro. Empurrão vale menos que isso.
+--
+--    Revisão do Codex no PR #1, item P1.4.
+--═══════════════════════════════════════════════════════════════
+
+--- O dono ANTERIOR de cada peça que a garra tomou. Chave fraca: peça coletada
+--- some do registro junto.
+local donoAntes = setmetatable({}, { __mode = "k" })
+
+local function tomarSimulacao(peca)
+	if not (peca and peca.Parent) then return end
+	if peca.Anchored then return end
+	local ok, pode = pcall(function() return peca:CanSetNetworkOwnership() end)
+	if not (ok and pode) then return end
+
+	-- guarda o dono de ANTES, e o `false` marca "era automático" — `nil` já
+	-- significa "o servidor", então não dá para usá-lo como ausência
+	if donoAntes[peca] == nil then
+		local ok2, anterior = pcall(function() return peca:GetNetworkOwner() end)
+		donoAntes[peca] = (ok2 and anterior) or false
+	end
+	pcall(function() peca:SetNetworkOwner(nil) end)
+end
+
+local function devolverSimulacao(peca)
+	if not (peca and peca.Parent) then return end
+	local anterior = donoAntes[peca]
+	if anterior == nil then return end
+	donoAntes[peca] = nil
+
+	local ok, pode = pcall(function() return peca:CanSetNetworkOwnership() end)
+	if not (ok and pode) then return end
+	if anterior and anterior.Parent then
+		pcall(function() peca:SetNetworkOwner(anterior) end)
+	else
+		-- automático é o padrão do motor, e é o certo quando não havia dono
+		pcall(function() peca:SetNetworkOwnershipAuto() end)
+	end
+end
+
+local function devolverTudo()
+	for peca in pairs(donoAntes) do
+		devolverSimulacao(peca)
+	end
+	table.clear(donoAntes)
+end
 
 --- A peça que o raio da mira encontra, se ela puder ser pega.
 ---
@@ -965,6 +1034,9 @@ local function largar(arremessar)
 	if not (peca and peca.Parent) then return end
 
 	soltarPeca(peca)
+	--- devolve a simulação ANTES do impulso: o arremesso tem de ser sentido
+	--- por quem vai simular a peça daqui para a frente
+	devolverSimulacao(peca)
 
 	if arremessar and raiz then
 		local para = (alvoAtual or frente(20)) - peca.Position
@@ -1029,6 +1101,7 @@ function primaria(mira)
 	if not peca then return end
 
 	presa = peca
+	tomarSimulacao(peca)
 	alvoAtual = mira
 	distancia = math.clamp(
 		(onde - (raiz.Position + Vector3.new(0, 1.4, 0))).Magnitude,

@@ -52,6 +52,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Norte"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -104,6 +109,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -350,7 +419,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -376,8 +485,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -1289,8 +1399,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -1299,8 +1413,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -1322,6 +1440,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "PoloNorte", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -5777,7 +5899,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6160414517615491724"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_417701484373669479"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5965,7 +6087,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6160414517615491724"><Properties><string name="Name">ChaveVFX</string><string name="Value">Polo_Norte</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Sul"><Properties><string name="Name">Polo Sul</string><string name="ToolTip">Empurra tudo a frente e carrega o alvo de SUL. R e o escudo repulsor; T e a onda que limpa o circulo.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Sul_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Sul_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_Arco</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0.7</X><Y>2.75</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_HasteA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>-0.7</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_HasteB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0.7</X><Y>3.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_PontaS</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>-0.7</X><Y>3.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_PontaN</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Sul_Arco"><Properties><string name="Name">Arco</string><Vector3 name="size"><X>1.9</X><Y>0.6</Y><Z>0.6</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_HasteA"><Properties><string name="Name">HasteA</string><Vector3 name="size"><X>0.55</X><Y>1.9</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_HasteB"><Properties><string name="Name">HasteB</string><Vector3 name="size"><X>0.55</X><Y>1.2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_PontaS"><Properties><string name="Name">PontaS</string><Vector3 name="size"><X>0.62</X><Y>0.5</Y><Z>0.64</Z></Vector3><Color3 name="Color3uint8"><R>0.227451</R><G>0.478431</G><B>0.886275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_PontaN"><Properties><string name="Name">PontaN</string><Vector3 name="size"><X>0.62</X><Y>0.5</Y><Z>0.64</Z></Vector3><Color3 name="Color3uint8"><R>0.886275</R><G>0.243137</G><B>0.227451</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Sul"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Sul_EMPURRAR_G"><Properties><string name="Name">EMPURRAR</string></Properties><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_1"><Properties><string name="Name">EMPURRAR_1</string><Content name="SoundId"><url>rbxassetid://3755636638</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sul_EMPURRAR_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_2"><Properties><string name="Name">EMPURRAR_2</string><Content name="SoundId"><url>rbxassetid://3015952873</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sul_EMPURRAR_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_3"><Properties><string name="Name">EMPURRAR_3</string><Content name="SoundId"><url>rbxassetid://9126231485</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_ESCUDO"><Properties><string name="Name">ESCUDO</string><Content name="SoundId"><url>rbxassetid://127416781</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Sul_ONDA"><Properties><string name="Name">ONDA</string><Content name="SoundId"><url>rbxassetid://163064102</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Sul"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Sul"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Sul_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Sul_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Sul</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Sul_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Sul_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.9</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Sul"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Sul"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Sul_PoloSul_Se"><Properties><string name="Name">PoloSul_Server_V1</string><ProtectedString name="Source"><![CDATA[-- PoloSul_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_417701484373669479"><Properties><string name="Name">ChaveVFX</string><string name="Value">Polo_Norte</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Sul"><Properties><string name="Name">Polo Sul</string><string name="ToolTip">Empurra tudo a frente e carrega o alvo de SUL. R e o escudo repulsor; T e a onda que limpa o circulo.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Sul_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Sul_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_Arco</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0.7</X><Y>2.75</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_HasteA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>-0.7</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_HasteB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0.7</X><Y>3.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_PontaS</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sul_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>-0.7</X><Y>3.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sul_Handle</Ref><Ref name="Part1">RV_MP_Sul_PontaN</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Sul_Arco"><Properties><string name="Name">Arco</string><Vector3 name="size"><X>1.9</X><Y>0.6</Y><Z>0.6</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_HasteA"><Properties><string name="Name">HasteA</string><Vector3 name="size"><X>0.55</X><Y>1.9</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_HasteB"><Properties><string name="Name">HasteB</string><Vector3 name="size"><X>0.55</X><Y>1.2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_PontaS"><Properties><string name="Name">PontaS</string><Vector3 name="size"><X>0.62</X><Y>0.5</Y><Z>0.64</Z></Vector3><Color3 name="Color3uint8"><R>0.227451</R><G>0.478431</G><B>0.886275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sul_PontaN"><Properties><string name="Name">PontaN</string><Vector3 name="size"><X>0.62</X><Y>0.5</Y><Z>0.64</Z></Vector3><Color3 name="Color3uint8"><R>0.886275</R><G>0.243137</G><B>0.227451</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Sul"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Sul_EMPURRAR_G"><Properties><string name="Name">EMPURRAR</string></Properties><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_1"><Properties><string name="Name">EMPURRAR_1</string><Content name="SoundId"><url>rbxassetid://3755636638</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sul_EMPURRAR_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_2"><Properties><string name="Name">EMPURRAR_2</string><Content name="SoundId"><url>rbxassetid://3015952873</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sul_EMPURRAR_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_EMPURRAR_3"><Properties><string name="Name">EMPURRAR_3</string><Content name="SoundId"><url>rbxassetid://9126231485</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sul_ESCUDO"><Properties><string name="Name">ESCUDO</string><Content name="SoundId"><url>rbxassetid://127416781</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Sul_ONDA"><Properties><string name="Name">ONDA</string><Content name="SoundId"><url>rbxassetid://163064102</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Sul"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Sul"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Sul_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Sul_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Sul</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Sul_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Sul_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.9</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Sul"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Sul"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Sul_PoloSul_Se"><Properties><string name="Name">PoloSul_Server_V1</string><ProtectedString name="Source"><![CDATA[-- PoloSul_Server_V1.lua
 -- Script de servidor — Polo Sul  (conjunto MAGNETISMO)
 --
 --   M1   empurra o cone à frente, e carrega de SUL
@@ -6019,6 +6141,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Sul"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -6071,6 +6198,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -6317,7 +6508,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -6343,8 +6574,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -7222,8 +7454,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -7232,8 +7468,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -7255,6 +7495,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "PoloSul", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -11692,7 +11936,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4663719545309977930"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1640937537464552968"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -11880,7 +12124,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4663719545309977930"><Properties><string name="Name">ChaveVFX</string><string name="Value">Polo_Sul</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Ferrovia"><Properties><string name="Name">Ferrovia Magnetica</string><string name="ToolTip">Assenta um trilho que arrasta quem pisa. R lanca voce pelo proprio trilho; T cruza a malha inteira.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Ferrovia_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>1.8</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.494118</R><G>0.337255</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">512</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Ferrovia_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_Base</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0.28</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_TrilhoA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>-0.28</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_TrilhoB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_Faisca</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Ferrovia_Base"><Properties><string name="Name">Base</string><Vector3 name="size"><X>0.7</X><Y>0.3</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1072</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_TrilhoA"><Properties><string name="Name">TrilhoA</string><Vector3 name="size"><X>0.22</X><Y>0.5</Y><Z>3.4</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_TrilhoB"><Properties><string name="Name">TrilhoB</string><Vector3 name="size"><X>0.22</X><Y>0.5</Y><Z>3.4</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_Faisca"><Properties><string name="Name">Faisca</string><Vector3 name="size"><X>0.16</X><Y>0.16</Y><Z>3</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Ferrovia"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Ferrovia_TRILHO_G"><Properties><string name="Name">TRILHO</string></Properties><Item class="Sound" referent="RV_MS_Ferrovia_TRILHO_1"><Properties><string name="Name">TRILHO_1</string><Content name="SoundId"><url>rbxassetid://933780081</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Ferrovia_TRILHO_1_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Ferrovia_TRILHO_2"><Properties><string name="Name">TRILHO_2</string><Content name="SoundId"><url>rbxassetid://546410481</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Ferrovia_TRILHO_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item></Item><Item class="Sound" referent="RV_MS_Ferrovia_MONTAR"><Properties><string name="Name">MONTAR</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Ferrovia_MALHA"><Properties><string name="Name">MALHA</string><Content name="SoundId"><url>rbxassetid://814635481</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Ferrovia"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Ferrovia"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Ferrovia_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_MV_Ferrovia_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Ferrovia</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Ferrovia_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Ferrovia_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Ferrovia"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Ferrovia"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Ferrovia_FerroviaMa"><Properties><string name="Name">FerroviaMagnetica_Server_V1</string><ProtectedString name="Source"><![CDATA[-- FerroviaMagnetica_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1640937537464552968"><Properties><string name="Name">ChaveVFX</string><string name="Value">Polo_Sul</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Ferrovia"><Properties><string name="Name">Ferrovia Magnetica</string><string name="ToolTip">Assenta um trilho que arrasta quem pisa. R lanca voce pelo proprio trilho; T cruza a malha inteira.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Ferrovia_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>1.8</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.494118</R><G>0.337255</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">512</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Ferrovia_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_Base</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0.28</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_TrilhoA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>-0.28</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_TrilhoB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Ferrovia_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Ferrovia_Handle</Ref><Ref name="Part1">RV_MP_Ferrovia_Faisca</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Ferrovia_Base"><Properties><string name="Name">Base</string><Vector3 name="size"><X>0.7</X><Y>0.3</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1072</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_TrilhoA"><Properties><string name="Name">TrilhoA</string><Vector3 name="size"><X>0.22</X><Y>0.5</Y><Z>3.4</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_TrilhoB"><Properties><string name="Name">TrilhoB</string><Vector3 name="size"><X>0.22</X><Y>0.5</Y><Z>3.4</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Ferrovia_Faisca"><Properties><string name="Name">Faisca</string><Vector3 name="size"><X>0.16</X><Y>0.16</Y><Z>3</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Ferrovia"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Ferrovia_TRILHO_G"><Properties><string name="Name">TRILHO</string></Properties><Item class="Sound" referent="RV_MS_Ferrovia_TRILHO_1"><Properties><string name="Name">TRILHO_1</string><Content name="SoundId"><url>rbxassetid://933780081</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Ferrovia_TRILHO_1_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Ferrovia_TRILHO_2"><Properties><string name="Name">TRILHO_2</string><Content name="SoundId"><url>rbxassetid://546410481</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Ferrovia_TRILHO_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item></Item><Item class="Sound" referent="RV_MS_Ferrovia_MONTAR"><Properties><string name="Name">MONTAR</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Ferrovia_MALHA"><Properties><string name="Name">MALHA</string><Content name="SoundId"><url>rbxassetid://814635481</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Ferrovia"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Ferrovia"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Ferrovia_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">MELEE</string></Properties></Item><Item class="StringValue" referent="RV_MV_Ferrovia_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Ferrovia</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Ferrovia_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Ferrovia_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Ferrovia"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Ferrovia"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Ferrovia_FerroviaMa"><Properties><string name="Name">FerroviaMagnetica_Server_V1</string><ProtectedString name="Source"><![CDATA[-- FerroviaMagnetica_Server_V1.lua
 -- Script de servidor — Ferrovia Magnetica  (conjunto MAGNETISMO)
 --
 --   M1   assenta o trilho, que arrasta quem pisa
@@ -11934,6 +12178,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Ferrovia"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -11978,6 +12227,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -12224,7 +12537,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -12250,8 +12603,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -13176,8 +13530,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -13186,8 +13544,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -13209,6 +13571,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "FerroviaMagnetica", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -17658,7 +18024,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_1112242994242058769"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_7740060844461340664"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -17846,7 +18212,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1112242994242058769"><Properties><string name="Name">ChaveVFX</string><string name="Value">Ferrovia_Magnetica</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Sucata"><Properties><string name="Name">Sucata</string><string name="ToolTip">Junta o metal solto numa bola. R arremessa a bola; T faz a chuva de sucata cair no alvo.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Sucata_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.7</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Sucata_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Disco</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Bobina</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>0.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Bola</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Elo</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Sucata_Disco"><Properties><string name="Name">Disco</string><Vector3 name="size"><X>2.6</X><Y>0.5</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1104</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Bobina"><Properties><string name="Name">Bobina</string><Vector3 name="size"><X>2.2</X><Y>0.3</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Bola"><Properties><string name="Name">Bola</string><Vector3 name="size"><X>1.7</X><Y>1.7</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>0.494118</R><G>0.337255</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1104</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Elo"><Properties><string name="Name">Elo</string><Vector3 name="size"><X>0.18</X><Y>1.2</Y><Z>0.18</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Sucata"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Sucata_COLETAR_G"><Properties><string name="Name">COLETAR</string></Properties><Item class="Sound" referent="RV_MS_Sucata_COLETAR_1"><Properties><string name="Name">COLETAR_1</string><Content name="SoundId"><url>rbxassetid://933780081</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sucata_COLETAR_2"><Properties><string name="Name">COLETAR_2</string><Content name="SoundId"><url>rbxassetid://546410481</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_2_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sucata_COLETAR_3"><Properties><string name="Name">COLETAR_3</string><Content name="SoundId"><url>rbxassetid://743886825</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_3_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item></Item><Item class="Sound" referent="RV_MS_Sucata_ARREMESSAR"><Properties><string name="Name">ARREMESSAR</string><Content name="SoundId"><url>rbxassetid://181894961</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Sucata_CHUVA"><Properties><string name="Name">CHUVA</string><Content name="SoundId"><url>rbxassetid://6741488567</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Sucata"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Sucata"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Sucata_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Sucata_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Sucata</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Sucata_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Sucata_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Sucata"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Sucata"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Sucata_Sucata_Ser"><Properties><string name="Name">Sucata_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Sucata_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7740060844461340664"><Properties><string name="Name">ChaveVFX</string><string name="Value">Ferrovia_Magnetica</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Sucata"><Properties><string name="Name">Sucata</string><string name="ToolTip">Junta o metal solto numa bola. R arremessa a bola; T faz a chuva de sucata cair no alvo.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Sucata_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.7</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Sucata_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Disco</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>1.95</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Bobina</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>0.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Bola</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Sucata_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>0.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Sucata_Handle</Ref><Ref name="Part1">RV_MP_Sucata_Elo</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Sucata_Disco"><Properties><string name="Name">Disco</string><Vector3 name="size"><X>2.6</X><Y>0.5</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1104</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Bobina"><Properties><string name="Name">Bobina</string><Vector3 name="size"><X>2.2</X><Y>0.3</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Bola"><Properties><string name="Name">Bola</string><Vector3 name="size"><X>1.7</X><Y>1.7</Y><Z>1.7</Z></Vector3><Color3 name="Color3uint8"><R>0.494118</R><G>0.337255</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1104</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Sucata_Elo"><Properties><string name="Name">Elo</string><Vector3 name="size"><X>0.18</X><Y>1.2</Y><Z>0.18</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Sucata"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Sucata_COLETAR_G"><Properties><string name="Name">COLETAR</string></Properties><Item class="Sound" referent="RV_MS_Sucata_COLETAR_1"><Properties><string name="Name">COLETAR_1</string><Content name="SoundId"><url>rbxassetid://933780081</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sucata_COLETAR_2"><Properties><string name="Name">COLETAR_2</string><Content name="SoundId"><url>rbxassetid://546410481</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.95</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_2_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Sucata_COLETAR_3"><Properties><string name="Name">COLETAR_3</string><Content name="SoundId"><url>rbxassetid://743886825</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Sucata_COLETAR_3_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item></Item><Item class="Sound" referent="RV_MS_Sucata_ARREMESSAR"><Properties><string name="Name">ARREMESSAR</string><Content name="SoundId"><url>rbxassetid://181894961</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Sucata_CHUVA"><Properties><string name="Name">CHUVA</string><Content name="SoundId"><url>rbxassetid://6741488567</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Sucata"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Sucata"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Sucata_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Sucata_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Sucata</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Sucata_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Sucata_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Sucata"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Sucata"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Sucata_Sucata_Ser"><Properties><string name="Name">Sucata_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Sucata_Server_V1.lua
 -- Script de servidor — Sucata  (conjunto MAGNETISMO)
 --
 --   M1   junta o metal solto numa bola
@@ -17900,6 +18266,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Sucata"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -17953,6 +18324,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -18200,7 +18635,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -18226,8 +18701,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -19178,8 +19654,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -19188,8 +19668,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -19211,6 +19695,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "Sucata", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -23657,7 +24145,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_6343190669873497"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4370442871187900614"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -23845,7 +24333,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_6343190669873497"><Properties><string name="Name">ChaveVFX</string><string name="Value">Sucata</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Bobina"><Properties><string name="Name">Bobina de Tesla</string><string name="ToolTip">O arco salta de alvo em alvo. R planta a bobina que pulsa; T solta a descarga em todos os carregados.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Bobina_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.6</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Bobina_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.3</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoC</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_Toroide</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>0</X><Y>3.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_Arco</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Bobina_NucleoA"><Properties><string name="Name">NucleoA</string><Vector3 name="size"><X>1.5</X><Y>0.28</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_NucleoB"><Properties><string name="Name">NucleoB</string><Vector3 name="size"><X>1.3</X><Y>0.28</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_NucleoC"><Properties><string name="Name">NucleoC</string><Vector3 name="size"><X>1.1</X><Y>0.28</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_Toroide"><Properties><string name="Name">Toroide</string><Vector3 name="size"><X>2</X><Y>0.5</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_Arco"><Properties><string name="Name">Arco</string><Vector3 name="size"><X>0.9</X><Y>0.9</Y><Z>0.9</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Bobina"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Bobina_ARCO_G"><Properties><string name="Name">ARCO</string></Properties><Item class="Sound" referent="RV_MS_Bobina_ARCO_1"><Properties><string name="Name">ARCO_1</string><Content name="SoundId"><url>rbxassetid://80214468</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_2"><Properties><string name="Name">ARCO_2</string><Content name="SoundId"><url>rbxassetid://96478259</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_3"><Properties><string name="Name">ARCO_3</string><Content name="SoundId"><url>rbxassetid://96478567</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_4"><Properties><string name="Name">ARCO_4</string><Content name="SoundId"><url>rbxassetid://96478505</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_5"><Properties><string name="Name">ARCO_5</string><Content name="SoundId"><url>rbxassetid://96478346</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_6"><Properties><string name="Name">ARCO_6</string><Content name="SoundId"><url>rbxassetid://96478426</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Bobina_BOBINA"><Properties><string name="Name">BOBINA</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_DESCARGA"><Properties><string name="Name">DESCARGA</string><Content name="SoundId"><url>rbxassetid://2674547670</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Bobina"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Bobina"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Bobina_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_MV_Bobina_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Bobina</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Bobina_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Bobina_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Bobina"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Bobina"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Bobina_BobinadeTe"><Properties><string name="Name">BobinadeTesla_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BobinadeTesla_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4370442871187900614"><Properties><string name="Name">ChaveVFX</string><string name="Value">Sucata</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Bobina"><Properties><string name="Name">Bobina de Tesla</string><string name="ToolTip">O arco salta de alvo em alvo. R planta a bobina que pulsa; T solta a descarga em todos os carregados.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Bobina_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.6</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Bobina_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>1.9</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.3</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_NucleoC</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.8</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_Toroide</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Bobina_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>0</X><Y>3.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Bobina_Handle</Ref><Ref name="Part1">RV_MP_Bobina_Arco</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Bobina_NucleoA"><Properties><string name="Name">NucleoA</string><Vector3 name="size"><X>1.5</X><Y>0.28</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_NucleoB"><Properties><string name="Name">NucleoB</string><Vector3 name="size"><X>1.3</X><Y>0.28</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_NucleoC"><Properties><string name="Name">NucleoC</string><Vector3 name="size"><X>1.1</X><Y>0.28</Y><Z>1.1</Z></Vector3><Color3 name="Color3uint8"><R>0.768627</R><G>0.478431</G><B>0.243137</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_Toroide"><Properties><string name="Name">Toroide</string><Vector3 name="size"><X>2</X><Y>0.5</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Bobina_Arco"><Properties><string name="Name">Arco</string><Vector3 name="size"><X>0.9</X><Y>0.9</Y><Z>0.9</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Bobina"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Bobina_ARCO_G"><Properties><string name="Name">ARCO</string></Properties><Item class="Sound" referent="RV_MS_Bobina_ARCO_1"><Properties><string name="Name">ARCO_1</string><Content name="SoundId"><url>rbxassetid://80214468</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_2"><Properties><string name="Name">ARCO_2</string><Content name="SoundId"><url>rbxassetid://96478259</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_3"><Properties><string name="Name">ARCO_3</string><Content name="SoundId"><url>rbxassetid://96478567</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_4"><Properties><string name="Name">ARCO_4</string><Content name="SoundId"><url>rbxassetid://96478505</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_5"><Properties><string name="Name">ARCO_5</string><Content name="SoundId"><url>rbxassetid://96478346</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_ARCO_6"><Properties><string name="Name">ARCO_6</string><Content name="SoundId"><url>rbxassetid://96478426</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Bobina_BOBINA"><Properties><string name="Name">BOBINA</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Bobina_DESCARGA"><Properties><string name="Name">DESCARGA</string><Content name="SoundId"><url>rbxassetid://2674547670</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Bobina"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Bobina"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Bobina_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ASTRAL</string></Properties></Item><Item class="StringValue" referent="RV_MV_Bobina_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Bobina</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Bobina_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Bobina_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">0.8</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Bobina"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Bobina"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Bobina_BobinadeTe"><Properties><string name="Name">BobinadeTesla_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BobinadeTesla_Server_V1.lua
 -- Script de servidor — Bobina de Tesla  (conjunto MAGNETISMO)
 --
 --   M1   o arco salta de alvo em alvo
@@ -23899,6 +24387,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Bobina"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -23950,6 +24443,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -24196,7 +24753,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -24222,8 +24819,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -25129,8 +25727,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -25139,8 +25741,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -25162,6 +25768,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "BobinadeTesla", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -29597,7 +30207,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8768352306941774476"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_2512634657065673058"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -29785,7 +30395,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8768352306941774476"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bobina_de_Tesla</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Levitacao"><Properties><string name="Name">Levitacao</string><string name="ToolTip">Suspende o alvo no ar, sem controle. R faz voce flutuar; T inverte a gravidade de quem esta na area.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Levitacao_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.8</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Levitacao_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_DiscoBaixo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_DiscoAlto</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_Coluna</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_Suspensa</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Levitacao_DiscoBaixo"><Properties><string name="Name">DiscoBaixo</string><Vector3 name="size"><X>2.4</X><Y>0.35</Y><Z>2.4</Z></Vector3><Color3 name="Color3uint8"><R>0.227451</R><G>0.478431</G><B>0.886275</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_DiscoAlto"><Properties><string name="Name">DiscoAlto</string><Vector3 name="size"><X>2.4</X><Y>0.35</Y><Z>2.4</Z></Vector3><Color3 name="Color3uint8"><R>0.886275</R><G>0.243137</G><B>0.227451</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_Coluna"><Properties><string name="Name">Coluna</string><Vector3 name="size"><X>0.22</X><Y>2</Y><Z>0.22</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_Suspensa"><Properties><string name="Name">Suspensa</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Levitacao"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Levitacao_SUSPENDER_G"><Properties><string name="Name">SUSPENDER</string></Properties><Item class="Sound" referent="RV_MS_Levitacao_SUSPENDER_1"><Properties><string name="Name">SUSPENDER_1</string><Content name="SoundId"><url>rbxassetid://9114524356</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Levitacao_SUSPENDER_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Levitacao_SUSPENDER_2"><Properties><string name="Name">SUSPENDER_2</string><Content name="SoundId"><url>rbxassetid://5651577252</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Levitacao_FLUTUAR"><Properties><string name="Name">FLUTUAR</string><Content name="SoundId"><url>rbxassetid://127416781</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Levitacao_INVERTER"><Properties><string name="Name">INVERTER</string><Content name="SoundId"><url>rbxassetid://1846396833</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Levitacao"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Levitacao"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Levitacao_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Levitacao_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Levitacao</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Levitacao_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Levitacao_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Levitacao"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Levitacao"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Levitacao_Levitacao_"><Properties><string name="Name">Levitacao_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Levitacao_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2512634657065673058"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bobina_de_Tesla</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Levitacao"><Properties><string name="Name">Levitacao</string><string name="ToolTip">Suspende o alvo no ar, sem controle. R faz voce flutuar; T inverte a gravidade de quem esta na area.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Levitacao_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.8</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Levitacao_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_DiscoBaixo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_DiscoAlto</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_Coluna</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Levitacao_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Levitacao_Handle</Ref><Ref name="Part1">RV_MP_Levitacao_Suspensa</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Levitacao_DiscoBaixo"><Properties><string name="Name">DiscoBaixo</string><Vector3 name="size"><X>2.4</X><Y>0.35</Y><Z>2.4</Z></Vector3><Color3 name="Color3uint8"><R>0.227451</R><G>0.478431</G><B>0.886275</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_DiscoAlto"><Properties><string name="Name">DiscoAlto</string><Vector3 name="size"><X>2.4</X><Y>0.35</Y><Z>2.4</Z></Vector3><Color3 name="Color3uint8"><R>0.886275</R><G>0.243137</G><B>0.227451</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_Coluna"><Properties><string name="Name">Coluna</string><Vector3 name="size"><X>0.22</X><Y>2</Y><Z>0.22</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Levitacao_Suspensa"><Properties><string name="Name">Suspensa</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.862745</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Levitacao"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Levitacao_SUSPENDER_G"><Properties><string name="Name">SUSPENDER</string></Properties><Item class="Sound" referent="RV_MS_Levitacao_SUSPENDER_1"><Properties><string name="Name">SUSPENDER_1</string><Content name="SoundId"><url>rbxassetid://9114524356</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Levitacao_SUSPENDER_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Levitacao_SUSPENDER_2"><Properties><string name="Name">SUSPENDER_2</string><Content name="SoundId"><url>rbxassetid://5651577252</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Levitacao_FLUTUAR"><Properties><string name="Name">FLUTUAR</string><Content name="SoundId"><url>rbxassetid://127416781</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Levitacao_INVERTER"><Properties><string name="Name">INVERTER</string><Content name="SoundId"><url>rbxassetid://1846396833</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Levitacao"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Levitacao"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Levitacao_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">ARCANO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Levitacao_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Levitacao</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Levitacao_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Levitacao_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Levitacao"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Levitacao"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Levitacao_Levitacao_"><Properties><string name="Name">Levitacao_Server_V1</string><ProtectedString name="Source"><![CDATA[-- Levitacao_Server_V1.lua
 -- Script de servidor — Levitacao  (conjunto MAGNETISMO)
 --
 --   M1   suspende o alvo no ar
@@ -29839,6 +30449,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "Levitacao"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -29887,6 +30502,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -30134,7 +30813,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -30160,8 +30879,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -31101,8 +31821,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -31111,8 +31835,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -31134,6 +31862,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "Levitacao", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -35580,7 +36312,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4604425060044626926"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_4993513479977890687"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -35768,7 +36500,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4604425060044626926"><Properties><string name="Name">ChaveVFX</string><string name="Value">Levitacao</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Colapso"><Properties><string name="Name">Colapso Magnetico</string><string name="ToolTip">Marca o alvo com carga. R faz as cargas se atrairem; T e a singularidade, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Colapso_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>1.8</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Colapso_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_Halo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelC</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Colapso_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.9</X><Y>1.9</Y><Z>1.9</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_Halo"><Properties><string name="Name">Halo</string><Vector3 name="size"><X>2.2</X><Y>2.2</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.580392</R><G>0.376471</G><B>0.878431</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelA"><Properties><string name="Name">AnelA</string><Vector3 name="size"><X>3.2</X><Y>0.16</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelB"><Properties><string name="Name">AnelB</string><Vector3 name="size"><X>0.16</X><Y>3.2</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelC"><Properties><string name="Name">AnelC</string><Vector3 name="size"><X>3.2</X><Y>3.2</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Colapso"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Colapso_CARGA_G"><Properties><string name="Name">CARGA</string></Properties><Item class="Sound" referent="RV_MS_Colapso_CARGA_1"><Properties><string name="Name">CARGA_1</string><Content name="SoundId"><url>rbxassetid://175024455</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Colapso_CARGA_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_CARGA_2"><Properties><string name="Name">CARGA_2</string><Content name="SoundId"><url>rbxassetid://3932505023</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Colapso_CARGA_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_CARGA_3"><Properties><string name="Name">CARGA_3</string><Content name="SoundId"><url>rbxassetid://743886825</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_ATRAIR_CARGAS"><Properties><string name="Name">ATRAIR_CARGAS</string><Content name="SoundId"><url>rbxassetid://5405455343</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Colapso_SINGULARIDADE"><Properties><string name="Name">SINGULARIDADE</string><Content name="SoundId"><url>rbxassetid://18872474050</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.72</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Colapso"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Colapso"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Colapso_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Colapso_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Colapso</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Colapso_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Colapso_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.1</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Colapso"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Colapso"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MCUT_Colapso"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Colapso_ColapsoMag"><Properties><string name="Name">ColapsoMagnetico_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ColapsoMagnetico_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_4993513479977890687"><Properties><string name="Name">ChaveVFX</string><string name="Value">Levitacao</string></Properties></Item></Item><Item class="Tool" referent="RV_MT_Colapso"><Properties><string name="Name">Colapso Magnetico</string><string name="ToolTip">Marca o alvo com carga. R faz as cargas se atrairem; T e a singularidade, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_MP_Colapso_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>1.8</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_MW_Colapso_1"><Properties><string name="Name">SoldaM1</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_2"><Properties><string name="Name">SoldaM2</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_Halo</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_3"><Properties><string name="Name">SoldaM3</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelA</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_4"><Properties><string name="Name">SoldaM4</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelB</Ref></Properties></Item><Item class="Weld" referent="RV_MW_Colapso_5"><Properties><string name="Name">SoldaM5</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_MP_Colapso_Handle</Ref><Ref name="Part1">RV_MP_Colapso_AnelC</Ref></Properties></Item></Item><Item class="Part" referent="RV_MP_Colapso_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.9</X><Y>1.9</Y><Z>1.9</Z></Vector3><Color3 name="Color3uint8"><R>0.109804</R><G>0.101961</G><B>0.133333</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_Halo"><Properties><string name="Name">Halo</string><Vector3 name="size"><X>2.2</X><Y>2.2</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.580392</R><G>0.376471</G><B>0.878431</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelA"><Properties><string name="Name">AnelA</string><Vector3 name="size"><X>3.2</X><Y>0.16</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelB"><Properties><string name="Name">AnelB</string><Vector3 name="size"><X>0.16</X><Y>3.2</Y><Z>3.2</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_MP_Colapso_AnelC"><Properties><string name="Name">AnelC</string><Vector3 name="size"><X>3.2</X><Y>3.2</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>0.658824</R><G>0.690196</G><B>0.737255</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_MSFX_Colapso"><Properties><string name="Name">SFX</string></Properties><Item class="Folder" referent="RV_MS_Colapso_CARGA_G"><Properties><string name="Name">CARGA</string></Properties><Item class="Sound" referent="RV_MS_Colapso_CARGA_1"><Properties><string name="Name">CARGA_1</string><Content name="SoundId"><url>rbxassetid://175024455</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Colapso_CARGA_1_W"><Properties><string name="Name">Weight</string><float name="Value">3</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_CARGA_2"><Properties><string name="Name">CARGA_2</string><Content name="SoundId"><url>rbxassetid://3932505023</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties><Item class="NumberValue" referent="RV_MS_Colapso_CARGA_2_W"><Properties><string name="Name">Weight</string><float name="Value">2</float></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_CARGA_3"><Properties><string name="Name">CARGA_3</string><Content name="SoundId"><url>rbxassetid://743886825</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Sound" referent="RV_MS_Colapso_ATRAIR_CARGAS"><Properties><string name="Name">ATRAIR_CARGAS</string><Content name="SoundId"><url>rbxassetid://5405455343</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item><Item class="Sound" referent="RV_MS_Colapso_SINGULARIDADE"><Properties><string name="Name">SINGULARIDADE</string><Content name="SoundId"><url>rbxassetid://18872474050</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.72</float><float name="RollOffMaxDistance">280</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="Folder" referent="RV_MMOLD_Colapso"><Properties><string name="Name">Moldes</string></Properties><Item class="Part" referent="RV_MLIM_Colapso"><Properties><string name="Name">Limalha</string><Vector3 name="size"><X>0.08</X><Y>0.08</Y><Z>0.34</Z></Vector3><Color3 name="Color3uint8"><R>0.423529</R><G>0.447059</G><B>0.486275</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">true</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">1</float></Properties></Item></Item><Item class="StringValue" referent="RV_MV_Colapso_DamageC"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_MV_Colapso_ChaveRe"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Magnetismo_Colapso</string></Properties></Item><Item class="NumberValue" referent="RV_MV_Colapso_EnergyC"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_MV_Colapso_Recarga"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.1</float></Properties></Item><Item class="RemoteEvent" referent="RV_MVFX_Colapso"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MACAO_Colapso"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_MCUT_Colapso"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_MSC_Colapso_ColapsoMag"><Properties><string name="Name">ColapsoMagnetico_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ColapsoMagnetico_Server_V1.lua
 -- Script de servidor — Colapso Magnetico  (conjunto MAGNETISMO)
 --
 --   M1   marca o alvo com carga, ALTERNANDO o pólo
@@ -35823,6 +36555,11 @@ local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
 local ARQUETIPO = "Colapso"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	--- Força por unidade de massa, e ela é FINITA. `BodyPosition` com
 	--- `maxForce` infinito arrasta um prédio como arrasta um cubo, e por isso
 	--- nada feito com ele tem peso.
@@ -35870,6 +36607,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR, ultimoT = 0, 0, 0
 local ocupado = false
 local ativos = {}
@@ -36116,7 +36917,47 @@ end
 -- um novo por chamada deixa lixo pendurado na peça de outro jogador.
 --═══════════════════════════════════════════════════════════════
 
-local PREFIXO = "RV_" .. ARQUETIPO
+--═══════════════════════════════════════════════════════════════
+-- 🔒 O PREFIXO ISOLA POR INSTÂNCIA, NÃO SÓ POR ARQUÉTIPO
+--
+-- ⚠️ ELE ERA `"RV_" .. ARQUETIPO`, E O COMENTÁRIO ABAIXO MENTIA.
+--
+--    Eu tinha escrito que "duas Tools deste conjunto na mesma peça não
+--    desfazem uma à outra" — verdade, porque os arquétipos diferem. Mas o caso
+--    que importa é OUTRO: **dois jogadores com a MESMA Tool**.
+--
+--    Aí os dois prefixos são idênticos. O `soltarPeca()` de um varre a peça
+--    por `nome:sub(1, #PREFIXO) == PREFIXO` e ARRANCA o `AlignPosition` do
+--    outro — a caixa que o segundo jogador estava segurando cai no meio do
+--    ar, sem nada no log.
+--
+--    Pior: `pontoDe()` REUSA o attachment pelo nome, então os dois passariam a
+--    dividir o mesmo `Attachment` e a mesma constraint, com destinos
+--    diferentes brigando no solver.
+--
+--    Agora o prefixo carrega o `UserId` do dono e um TOKEN da instância da
+--    Tool. Dois jogadores nunca colidem; e a mesma pessoa com duas cópias da
+--    mesma Tool também não, porque o token é por instância.
+--
+--    `os.clock()` entra no token porque `UserId` sozinho não separa duas
+--    cópias, e `tostring(Tool)` devolve só o Name. Não precisa ser
+--    criptográfico: precisa ser único entre as Tools vivas de um servidor.
+--
+--    Revisão do Codex no PR #1, item P1.5.
+--═══════════════════════════════════════════════════════════════
+
+local TOKEN = string.format("%08x", math.floor(os.clock() * 1000) % 0xFFFFFFFF)
+local PREFIXO = "RV_" .. ARQUETIPO .. "_" .. TOKEN
+
+--- Chamado no `Equipped`: o `UserId` só existe quando há dono.
+---
+--- ⚠️ O prefixo muda AQUI, e por isso `soltarPeca` tem de ser chamado ANTES —
+---    o `desmontar()` do rodapé faz isso. Mudar o prefixo com constraint viva
+---    deixaria a antiga órfã, com nome que ninguém mais procura.
+local function fixarPrefixo()
+	local id = jogador and jogador.UserId or 0
+	PREFIXO = "RV_" .. ARQUETIPO .. "_" .. tostring(id) .. "_" .. TOKEN
+end
 
 local function gravidade()
 	local g = workspace.Gravity
@@ -36142,8 +36983,9 @@ end
 --- Tira TUDO que este arquétipo pendurou numa peça.
 ---
 --- É o oposto exato de `pontoDe` + as constraints, e é o que garante que a
---- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o nome da
---- Tool: duas Tools deste conjunto na mesma peça não desfazem uma à outra.
+--- peça de outro jogador volte a ser dela. O `PREFIXO` carrega o arquétipo, o
+--- `UserId` do dono E um token da instância — então nem duas Tools diferentes
+--- nem dois JOGADORES com a mesma Tool desfazem o trabalho um do outro.
 ---
 --- ⛔ Note o que ele NÃO faz: ele não toca na peça. Nada aqui apaga, esconde
 ---    nem redimensiona geometria do mapa — só remove o que esta Tool pendurou.
@@ -37133,8 +37975,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -37143,8 +37989,12 @@ end)
 --- As DUAS Extras chegam pelo MESMO remote. Qualquer coisa fora de "R" e "T"
 --- é descartada sem resposta.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 
 	if tecla == "R" then
 		if not pronto(ultimoR, CFG.RECARGA_R) then return end
@@ -37166,6 +38016,10 @@ Tool.Equipped:Connect(function()
 
 	rig = Animator.new(personagem, "ColapsoMagnetico", Poses,
 		Poses.SEQUENCIAS, Poses.TRACKS)
+	-- 🔒 o prefixo das constraints passa a carregar o UserId do dono: sem
+	--    isso, dois jogadores com a MESMA Tool arrancam as constraints um do
+	--    outro na mesma peça. Vem do BLOCO_FISICA, importado do Reality.
+	fixarPrefixo()
 	vigiar()
 end)
 
@@ -41961,7 +42815,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_2427816769629575800"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_1795830016684732012"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -42149,7 +43003,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2427816769629575800"><Properties><string name="Name">ChaveVFX</string><string name="Value">Colapso_Magnetico</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_1795830016684732012"><Properties><string name="Name">ChaveVFX</string><string name="Value">Colapso_Magnetico</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu

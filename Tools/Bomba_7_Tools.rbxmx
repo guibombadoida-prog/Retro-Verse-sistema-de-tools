@@ -47,6 +47,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 30,
 	RECARGA       = 1.4,
 	PRAZO         = 4.5,
@@ -68,6 +73,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -556,8 +625,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -567,8 +640,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -5146,7 +5223,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_772149557275399631"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_9117784604795215526"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -5334,7 +5411,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_772149557275399631"><Properties><string name="Name">ChaveVFX</string><string name="Value">Fila_de_Bombas</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Nuclear7"><Properties><string name="Name">Explosao Nuclear</string><string name="ToolTip">Ogiva no ponto mirado. R e o cogumelo, com poeira que fica queimando.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Nuclear7_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.6</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Nuclear7_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Corpo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>3.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Ponta</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Faixa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>0.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Aleta</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Nuclear7_Corpo"><Properties><string name="Name">Corpo</string><Vector3 name="size"><X>1.4</X><Y>3.2</Y><Z>1.4</Z></Vector3><Color3 name="Color3uint8"><R>0.933333</R><G>0.941176</G><B>0.956863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Ponta"><Properties><string name="Name">Ponta</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Faixa"><Properties><string name="Name">Faixa</string><Vector3 name="size"><X>1.6</X><Y>0.3</Y><Z>1.6</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.941176</G><B>0.588235</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Aleta"><Properties><string name="Name">Aleta</string><Vector3 name="size"><X>1.9</X><Y>0.7</Y><Z>0.14</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Nuclear7"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Nuclear7_OGIVA"><Properties><string name="Name">OGIVA</string><Content name="SoundId"><url>rbxassetid://387278135</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Nuclear7_NUCLEAR"><Properties><string name="Name">NUCLEAR</string><Content name="SoundId"><url>rbxassetid://180199793</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Nuclear7_VENTO"><Properties><string name="Name">VENTO</string><Content name="SoundId"><url>rbxassetid://9125402735</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Nuclear7_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Nuclear7_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Nuclear7</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Nuclear7_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Nuclear7_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.6</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Nuclear7"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Nuclear7"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Nuclear7_ExplosaoNu"><Properties><string name="Name">ExplosaoNuclear_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ExplosaoNuclear_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9117784604795215526"><Properties><string name="Name">ChaveVFX</string><string name="Value">Fila_de_Bombas</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Nuclear7"><Properties><string name="Name">Explosao Nuclear</string><string name="ToolTip">Ogiva no ponto mirado. R e o cogumelo, com poeira que fica queimando.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Nuclear7_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>1.6</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Nuclear7_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Corpo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>3.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Ponta</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Faixa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Nuclear7_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>0.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Nuclear7_Handle</Ref><Ref name="Part1">RV_BP_Nuclear7_Aleta</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Nuclear7_Corpo"><Properties><string name="Name">Corpo</string><Vector3 name="size"><X>1.4</X><Y>3.2</Y><Z>1.4</Z></Vector3><Color3 name="Color3uint8"><R>0.933333</R><G>0.941176</G><B>0.956863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Ponta"><Properties><string name="Name">Ponta</string><Vector3 name="size"><X>1</X><Y>1</Y><Z>1</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Faixa"><Properties><string name="Name">Faixa</string><Vector3 name="size"><X>1.6</X><Y>0.3</Y><Z>1.6</Z></Vector3><Color3 name="Color3uint8"><R>0.588235</R><G>0.941176</G><B>0.588235</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Nuclear7_Aleta"><Properties><string name="Name">Aleta</string><Vector3 name="size"><X>1.9</X><Y>0.7</Y><Z>0.14</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Nuclear7"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Nuclear7_OGIVA"><Properties><string name="Name">OGIVA</string><Content name="SoundId"><url>rbxassetid://387278135</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Nuclear7_NUCLEAR"><Properties><string name="Name">NUCLEAR</string><Content name="SoundId"><url>rbxassetid://180199793</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Nuclear7_VENTO"><Properties><string name="Name">VENTO</string><Content name="SoundId"><url>rbxassetid://9125402735</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Nuclear7_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Nuclear7_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Nuclear7</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Nuclear7_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Nuclear7_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.6</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Nuclear7"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Nuclear7"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Nuclear7_ExplosaoNu"><Properties><string name="Name">ExplosaoNuclear_Server_V1</string><ProtectedString name="Source"><![CDATA[-- ExplosaoNuclear_Server_V1.lua
 -- Script de servidor — Explosao Nuclear  (conjunto PODERES DE BOMBA)
 --
 --   M1   Ogiva
@@ -5383,6 +5460,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 85,
 	RECARGA       = 1.6,
 	VELOCIDADE    = 120,
@@ -5412,6 +5494,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -5906,8 +6052,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -5917,8 +6067,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -10505,7 +10659,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_9089390395580780401"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_8767261294702021047"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -10693,7 +10847,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9089390395580780401"><Properties><string name="Name">ChaveVFX</string><string name="Value">Explosao_Nuclear</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Coca"><Properties><string name="Name">Coca Explosiva</string><string name="ToolTip">Garrafa chacoalhada que sai voando pela propria espuma. R e o jato.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Coca_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>1.4</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Coca_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Garrafa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>3.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Gargalo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>3.75</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Tampa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Rotulo</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Coca_Garrafa"><Properties><string name="Name">Garrafa</string><Vector3 name="size"><X>1.2</X><Y>2.6</Y><Z>1.2</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Gargalo"><Properties><string name="Name">Gargalo</string><Vector3 name="size"><X>0.55</X><Y>0.9</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Tampa"><Properties><string name="Name">Tampa</string><Vector3 name="size"><X>0.62</X><Y>0.28</Y><Z>0.62</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Rotulo"><Properties><string name="Name">Rotulo</string><Vector3 name="size"><X>1.3</X><Y>0.9</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Coca"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Coca_CHACOALHA"><Properties><string name="Name">CHACOALHA</string><Content name="SoundId"><url>rbxassetid://1489917733</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Coca_ESTOURO"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://6741488567</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Coca_JATO"><Properties><string name="Name">JATO</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Coca_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Coca_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Coca</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Coca_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Coca_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Coca"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Coca"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Coca_CocaExplos"><Properties><string name="Name">CocaExplosiva_Server_V1</string><ProtectedString name="Source"><![CDATA[-- CocaExplosiva_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_8767261294702021047"><Properties><string name="Name">ChaveVFX</string><string name="Value">Explosao_Nuclear</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Coca"><Properties><string name="Name">Coca Explosiva</string><string name="ToolTip">Garrafa chacoalhada que sai voando pela propria espuma. R e o jato.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Coca_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>1.4</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Coca_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Garrafa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>3.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Gargalo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>3.75</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Tampa</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Coca_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Coca_Handle</Ref><Ref name="Part1">RV_BP_Coca_Rotulo</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Coca_Garrafa"><Properties><string name="Name">Garrafa</string><Vector3 name="size"><X>1.2</X><Y>2.6</Y><Z>1.2</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Gargalo"><Properties><string name="Name">Gargalo</string><Vector3 name="size"><X>0.55</X><Y>0.9</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.54902</R><G>0.117647</G><B>0.101961</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Tampa"><Properties><string name="Name">Tampa</string><Vector3 name="size"><X>0.62</X><Y>0.28</Y><Z>0.62</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Coca_Rotulo"><Properties><string name="Name">Rotulo</string><Vector3 name="size"><X>1.3</X><Y>0.9</Y><Z>1.3</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">272</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Coca"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Coca_CHACOALHA"><Properties><string name="Name">CHACOALHA</string><Content name="SoundId"><url>rbxassetid://1489917733</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.15</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Coca_ESTOURO"><Properties><string name="Name">ESTOURO</string><Content name="SoundId"><url>rbxassetid://6741488567</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Coca_JATO"><Properties><string name="Name">JATO</string><Content name="SoundId"><url>rbxassetid://145486992</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.25</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Coca_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Coca_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Coca</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Coca_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Coca_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Coca"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Coca"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Coca_CocaExplos"><Properties><string name="Name">CocaExplosiva_Server_V1</string><ProtectedString name="Source"><![CDATA[-- CocaExplosiva_Server_V1.lua
 -- Script de servidor — Coca Explosiva  (conjunto PODERES DE BOMBA)
 --
 --   M1   Garrafa
@@ -10742,6 +10896,11 @@ local Deposito   = require(Tool:WaitForChild("DepositoVFX"))
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 55,
 	RECARGA       = 1.2,
 	VOO           = 1.1,
@@ -10770,6 +10929,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -11260,8 +11483,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -11271,8 +11498,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -15845,7 +16076,7 @@ end]]></ProtectedString>
 					</Properties>
 				</Item>
 			</Item>
-			</Item></Item><Item class="ModuleScript" referent="RV_DEP_3364658626482320020"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+			</Item></Item><Item class="ModuleScript" referent="RV_DEP_2349984644025651677"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -16033,7 +16264,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3364658626482320020"><Properties><string name="Name">ChaveVFX</string><string name="Value">Coca_Explosiva</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Orbital"><Properties><string name="Name">Bomba Orbital</string><string name="ToolTip">Marca a zona com o farol. R chama a queda orbital, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Orbital_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Orbital_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Prato</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Orbital_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Haste</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Orbital_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Farol</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Orbital_Prato"><Properties><string name="Name">Prato</string><Vector3 name="size"><X>2.2</X><Y>0.2</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Orbital_Haste"><Properties><string name="Name">Haste</string><Vector3 name="size"><X>0.16</X><Y>2</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Orbital_Farol"><Properties><string name="Name">Farol</string><Vector3 name="size"><X>0.7</X><Y>0.7</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Orbital"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Orbital_MARCA"><Properties><string name="Name">MARCA</string><Content name="SoundId"><url>rbxassetid://1310929645</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Orbital_QUEDA"><Properties><string name="Name">QUEDA</string><Content name="SoundId"><url>rbxassetid://260281717</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Orbital_IMPACTO"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://165969964</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Orbital_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Orbital_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Orbital</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Orbital_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Orbital_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.1</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Orbital"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Orbital"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Orbital"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Orbital_BombaOrbit"><Properties><string name="Name">BombaOrbital_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombaOrbital_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2349984644025651677"><Properties><string name="Name">ChaveVFX</string><string name="Value">Coca_Explosiva</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Orbital"><Properties><string name="Name">Bomba Orbital</string><string name="ToolTip">Marca a zona com o farol. R chama a queda orbital, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Orbital_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.5</X><Y>2</Y><Z>0.5</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Orbital_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>1.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Prato</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Orbital_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Haste</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Orbital_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>3.6</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Orbital_Handle</Ref><Ref name="Part1">RV_BP_Orbital_Farol</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Orbital_Prato"><Properties><string name="Name">Prato</string><Vector3 name="size"><X>2.2</X><Y>0.2</Y><Z>2.2</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Orbital_Haste"><Properties><string name="Name">Haste</string><Vector3 name="size"><X>0.16</X><Y>2</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Orbital_Farol"><Properties><string name="Name">Farol</string><Vector3 name="size"><X>0.7</X><Y>0.7</Y><Z>0.7</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Orbital"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Orbital_MARCA"><Properties><string name="Name">MARCA</string><Content name="SoundId"><url>rbxassetid://1310929645</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.2</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Orbital_QUEDA"><Properties><string name="Name">QUEDA</string><Content name="SoundId"><url>rbxassetid://260281717</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Orbital_IMPACTO"><Properties><string name="Name">IMPACTO</string><Content name="SoundId"><url>rbxassetid://165969964</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Orbital_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Orbital_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Orbital</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Orbital_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Orbital_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.1</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Orbital"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Orbital"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Orbital"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Orbital_BombaOrbit"><Properties><string name="Name">BombaOrbital_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombaOrbital_Server_V1.lua
 -- Script de servidor — Bomba Orbital  (conjunto PODERES DE BOMBA)
 --
 --   M1   Marcar
@@ -16083,6 +16314,11 @@ local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 100,
 	RECARGA       = 1.1,
 	RAIO_FAROL    = 24,
@@ -16105,6 +16341,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -16631,8 +16931,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -16642,8 +16946,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -21572,7 +21880,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_3044500512390485303"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_3444282432483250530"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -21760,7 +22068,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3044500512390485303"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Orbital</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Implosao"><Properties><string name="Name">Bomba de Implosao</string><string name="ToolTip">Semeia o nucleo que puxa. R faz colapsar, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Implosao_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Implosao_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Implosao_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Aro</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Implosao_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Halo</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Implosao_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.5</X><Y>1.5</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Implosao_Aro"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>2.6</X><Y>0.22</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Implosao_Halo"><Properties><string name="Name">Halo</string><Vector3 name="size"><X>2</X><Y>2</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Implosao"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Implosao_SEMEIA"><Properties><string name="Name">SEMEIA</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Implosao_PUXA"><Properties><string name="Name">PUXA</string><Content name="SoundId"><url>rbxassetid://2162238374</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Implosao_COLAPSO"><Properties><string name="Name">COLAPSO</string><Content name="SoundId"><url>rbxassetid://3313098116</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Implosao_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">GRAVIDADE</string></Properties></Item><Item class="StringValue" referent="RV_BV_Implosao_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Implosao</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Implosao_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Implosao_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Implosao"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Implosao"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Implosao"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Implosao_BombadeImp"><Properties><string name="Name">BombadeImplosao_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombadeImplosao_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_3444282432483250530"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_Orbital</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Implosao"><Properties><string name="Name">Bomba de Implosao</string><string name="ToolTip">Semeia o nucleo que puxa. R faz colapsar, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Implosao_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.55</X><Y>2</Y><Z>0.55</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Implosao_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Nucleo</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Implosao_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Aro</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Implosao_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Implosao_Handle</Ref><Ref name="Part1">RV_BP_Implosao_Halo</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Implosao_Nucleo"><Properties><string name="Name">Nucleo</string><Vector3 name="size"><X>1.5</X><Y>1.5</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1568</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Implosao_Aro"><Properties><string name="Name">Aro</string><Vector3 name="size"><X>2.6</X><Y>0.22</Y><Z>2.6</Z></Vector3><Color3 name="Color3uint8"><R>0.776471</R><G>0.792157</G><B>0.823529</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Implosao_Halo"><Properties><string name="Name">Halo</string><Vector3 name="size"><X>2</X><Y>2</Y><Z>2</Z></Vector3><Color3 name="Color3uint8"><R>0.470588</R><G>0.784314</G><B>1</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Implosao"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Implosao_SEMEIA"><Properties><string name="Name">SEMEIA</string><Content name="SoundId"><url>rbxassetid://8578316223</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.1</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Implosao_PUXA"><Properties><string name="Name">PUXA</string><Content name="SoundId"><url>rbxassetid://2162238374</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">0.9</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Implosao_COLAPSO"><Properties><string name="Name">COLAPSO</string><Content name="SoundId"><url>rbxassetid://3313098116</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.8</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Implosao_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">GRAVIDADE</string></Properties></Item><Item class="StringValue" referent="RV_BV_Implosao_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Implosao</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Implosao_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Implosao_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.2</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Implosao"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Implosao"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Implosao"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Implosao_BombadeImp"><Properties><string name="Name">BombadeImplosao_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombadeImplosao_Server_V1.lua
 -- Script de servidor — Bomba de Implosao  (conjunto PODERES DE BOMBA)
 --
 --   M1   Semear
@@ -21810,6 +22118,11 @@ local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
 local ARQUETIPO = "GRAVIDADE"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 45,
 	RECARGA       = 1.2,
 	TEMPO_NUCLEO  = 5,
@@ -21836,6 +22149,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -22383,8 +22760,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -22394,8 +22775,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -27336,7 +27721,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_2293614960818537397"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_7026564140653470287"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -27524,7 +27909,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2293614960818537397"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_de_Implosao</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Corrente"><Properties><string name="Name">Bomba em Corrente</string><string name="ToolTip">Estopim que marca o primeiro. R dispara a reacao em cadeia, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Corrente_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>2.2</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Corrente_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0.9</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo1</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo2</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>-0.9</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo3</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>1.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Fio</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Corrente_Elo1"><Properties><string name="Name">Elo1</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Elo2"><Properties><string name="Name">Elo2</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Elo3"><Properties><string name="Name">Elo3</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Fio"><Properties><string name="Name">Fio</string><Vector3 name="size"><X>2.4</X><Y>0.1</Y><Z>0.1</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Corrente"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Corrente_ESTOPIM"><Properties><string name="Name">ESTOPIM</string><Content name="SoundId"><url>rbxassetid://2674547670</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Corrente_SALTO"><Properties><string name="Name">SALTO</string><Content name="SoundId"><url>rbxassetid://96478259</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.3</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Corrente_FIM"><Properties><string name="Name">FIM</string><Content name="SoundId"><url>rbxassetid://142070127</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Corrente_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Corrente_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Corrente</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Corrente_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Corrente_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Corrente"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Corrente"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Corrente"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Corrente_BombaemCor"><Properties><string name="Name">BombaemCorrente_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombaemCorrente_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7026564140653470287"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_de_Implosao</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Corrente"><Properties><string name="Name">Bomba em Corrente</string><string name="ToolTip">Estopim que marca o primeiro. R dispara a reacao em cadeia, com cena.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Corrente_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.45</X><Y>2.2</Y><Z>0.45</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Corrente_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0.9</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo1</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.1</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo2</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>-0.9</X><Y>1.5</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Elo3</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Corrente_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>1.7</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Corrente_Handle</Ref><Ref name="Part1">RV_BP_Corrente_Fio</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Corrente_Elo1"><Properties><string name="Name">Elo1</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Elo2"><Properties><string name="Name">Elo2</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Elo3"><Properties><string name="Name">Elo3</string><Vector3 name="size"><X>0.8</X><Y>0.8</Y><Z>0.8</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Corrente_Fio"><Properties><string name="Name">Fio</string><Vector3 name="size"><X>2.4</X><Y>0.1</Y><Z>0.1</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Corrente"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Corrente_ESTOPIM"><Properties><string name="Name">ESTOPIM</string><Content name="SoundId"><url>rbxassetid://2674547670</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.05</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Corrente_SALTO"><Properties><string name="Name">SALTO</string><Content name="SoundId"><url>rbxassetid://96478259</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.3</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Corrente_FIM"><Properties><string name="Name">FIM</string><Content name="SoundId"><url>rbxassetid://142070127</url></Content><float name="Volume">5</float><float name="PlaybackSpeed">0.85</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Corrente_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Corrente_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Corrente</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Corrente_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Corrente_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.0</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Corrente"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Corrente"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Corrente"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Corrente_BombaemCor"><Properties><string name="Name">BombaemCorrente_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombaemCorrente_Server_V1.lua
 -- Script de servidor — Bomba em Corrente  (conjunto PODERES DE BOMBA)
 --
 --   M1   Estopim
@@ -27574,6 +27959,11 @@ local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 20,
 	RECARGA       = 1.0,
 	RAIO_M1       = 12,
@@ -27599,6 +27989,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -28167,8 +28621,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -28178,8 +28636,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -33117,7 +33579,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_9199484360989607353"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_2789892554301383799"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -33305,7 +33767,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_9199484360989607353"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_em_Corrente</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Juizo"><Properties><string name="Name">Bomba do Juizo</string><string name="ToolTip">Comeca a contagem. R e o Juizo Final, com cena — a grande do conjunto.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Juizo_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.6</X><Y>1.8</Y><Z>0.6</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Juizo_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Esfera</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>-1.5</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Mostrador</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Cinta</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>4.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Pavio</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Juizo_Esfera"><Properties><string name="Name">Esfera</string><Vector3 name="size"><X>3</X><Y>3</Y><Z>3</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Mostrador"><Properties><string name="Name">Mostrador</string><Vector3 name="size"><X>1.5</X><Y>0.16</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Cinta"><Properties><string name="Name">Cinta</string><Vector3 name="size"><X>3.3</X><Y>0.3</Y><Z>3.3</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Pavio"><Properties><string name="Name">Pavio</string><Vector3 name="size"><X>0.16</X><Y>1.4</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Juizo"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Juizo_CONTAGEM"><Properties><string name="Name">CONTAGEM</string><Content name="SoundId"><url>rbxassetid://9125673453</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Juizo_JUIZO"><Properties><string name="Name">JUIZO</string><Content name="SoundId"><url>rbxassetid://95335614812989</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Juizo_ONDA"><Properties><string name="Name">ONDA</string><Content name="SoundId"><url>rbxassetid://4870579875</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Juizo_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Juizo_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Juizo</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Juizo_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Juizo_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.5</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Juizo"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Juizo"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Juizo"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Juizo_BombadoJui"><Properties><string name="Name">BombadoJuizo_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombadoJuizo_Server_V1.lua
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_2789892554301383799"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_em_Corrente</string></Properties></Item></Item><Item class="Tool" referent="RV_BT_Juizo"><Properties><string name="Name">Bomba do Juizo</string><string name="ToolTip">Comeca a contagem. R e o Juizo Final, com cena — a grande do conjunto.</string><bool name="RequiresHandle">true</bool><bool name="CanBeDropped">false</bool></Properties><Item class="Part" referent="RV_BP_Juizo_Handle"><Properties><string name="Name">Handle</string><Vector3 name="size"><X>0.6</X><Y>1.8</Y><Z>0.6</Z></Vector3><Color3 name="Color3uint8"><R>0.101961</R><G>0.0941176</G><B>0.109804</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties><Item class="Weld" referent="RV_BW_Juizo_1"><Properties><string name="Name">SoldaB1</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Esfera</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_2"><Properties><string name="Name">SoldaB2</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>-1.5</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Mostrador</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_3"><Properties><string name="Name">SoldaB3</string><CoordinateFrame name="C0"><X>0</X><Y>2.4</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Cinta</Ref></Properties></Item><Item class="Weld" referent="RV_BW_Juizo_4"><Properties><string name="Name">SoldaB4</string><CoordinateFrame name="C0"><X>0</X><Y>4.2</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Ref name="Part0">RV_BP_Juizo_Handle</Ref><Ref name="Part1">RV_BP_Juizo_Pavio</Ref></Properties></Item></Item><Item class="Part" referent="RV_BP_Juizo_Esfera"><Properties><string name="Name">Esfera</string><Vector3 name="size"><X>3</X><Y>3</Y><Z>3</Z></Vector3><Color3 name="Color3uint8"><R>0.282353</R><G>0.290196</G><B>0.321569</B></Color3><token name="formFactorRaw">1</token><token name="shape">0</token><token name="Material">1088</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Mostrador"><Properties><string name="Name">Mostrador</string><Vector3 name="size"><X>1.5</X><Y>0.16</Y><Z>1.5</Z></Vector3><Color3 name="Color3uint8"><R>0.823529</R><G>0.156863</G><B>0.156863</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Cinta"><Properties><string name="Name">Cinta</string><Vector3 name="size"><X>3.3</X><Y>0.3</Y><Z>3.3</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">2</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Part" referent="RV_BP_Juizo_Pavio"><Properties><string name="Name">Pavio</string><Vector3 name="size"><X>0.16</X><Y>1.4</Y><Z>0.16</Z></Vector3><Color3 name="Color3uint8"><R>1</R><G>0.541176</G><B>0.180392</B></Color3><token name="formFactorRaw">1</token><token name="shape">1</token><token name="Material">288</token><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="Massless">true</bool><bool name="CastShadow">false</bool><float name="Transparency">0</float></Properties></Item><Item class="Folder" referent="RV_BSFX_Juizo"><Properties><string name="Name">SFX</string></Properties><Item class="Sound" referent="RV_BS_Juizo_CONTAGEM"><Properties><string name="Name">CONTAGEM</string><Content name="SoundId"><url>rbxassetid://9125673453</url></Content><float name="Volume">4</float><float name="PlaybackSpeed">1.0</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Juizo_JUIZO"><Properties><string name="Name">JUIZO</string><Content name="SoundId"><url>rbxassetid://95335614812989</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.75</float><float name="RollOffMaxDistance">300</float></Properties></Item><Item class="Sound" referent="RV_BS_Juizo_ONDA"><Properties><string name="Name">ONDA</string><Content name="SoundId"><url>rbxassetid://4870579875</url></Content><float name="Volume">6</float><float name="PlaybackSpeed">0.7</float><float name="RollOffMaxDistance">300</float></Properties></Item></Item><Item class="StringValue" referent="RV_BV_Juizo_Damage"><Properties><string name="Name">DamageClass</string><string name="Value">EXPLOSIVO</string></Properties></Item><Item class="StringValue" referent="RV_BV_Juizo_ChaveR"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Bomba_Juizo</string></Properties></Item><Item class="NumberValue" referent="RV_BV_Juizo_Energy"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="RV_BV_Juizo_Recarg"><Properties><string name="Name">RecargaGlobal</string><float name="Value">1.5</float></Properties></Item><Item class="RemoteEvent" referent="RV_BVFX_Juizo"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BACAO_Juizo"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="RemoteEvent" referent="RV_BCUT_Juizo"><Properties><string name="Name">CutsceneRemote</string></Properties></Item><Item class="Script" referent="RV_BSC_Juizo_BombadoJui"><Properties><string name="Name">BombadoJuizo_Server_V1</string><ProtectedString name="Source"><![CDATA[-- BombadoJuizo_Server_V1.lua
 -- Script de servidor — Bomba do Juizo  (conjunto PODERES DE BOMBA)
 --
 --   M1   Contagem
@@ -33355,6 +33817,11 @@ local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
 local ARQUETIPO = "EXPLOSIVO"
 
 local CFG = {
+	--- 🔒 A fronteira do remote. `MIRA_MAX` corta mira absurda; o teto de
+	--- pedidos é o do SERVIDOR — o do cliente não vale nada, porque é o
+	--- cliente que manda o pacote.
+	MIRA_MAX = 400,
+	PEDIDOS_POR_SEG = 30,
 	ALCANCE       = 14,
 	RECARGA       = 1.5,
 	TEMPO_CONTA   = 3,
@@ -33380,6 +33847,70 @@ local CFG = {
 --═══════════════════════════════════════════════════════════════
 
 local jogador, personagem, humanoide, raiz, rig
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA, e o repositório inteiro dependia
+--    dele: eram 217 pontos que conferiam só o TIPO.
+--
+--    `Vector3.new(0/0, 0/0, 0/0)` é um `Vector3` legítimo para o `typeof`.
+--    Um cliente modificado manda isso, `.Unit` devolve NaN, e força NaN
+--    aplicada a uma peça envenena a assembly dela — o alvo trava, voa para
+--    coordenada absurda, ou o solver do motor engasga. Nenhum `pcall` pega,
+--    porque não há erro: a conta simplesmente não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN que funciona em Lua: NaN é o único valor
+--    que não é igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda
+--    na mesma linha.
+--
+-- E RATE LIMIT É DO SERVIDOR, não do cliente.
+--
+--    O `Client` já limita a 20 Hz, e isso não vale nada: quem manda o pacote
+--    é o cliente, e cliente modificado manda a 2 000 Hz. O limite que conta
+--    é o daqui.
+--═══════════════════════════════════════════════════════════════
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+---
+--- O corte por alcance não é só anticheat: mira a 5 000 studs faria o
+--- `noChao()` varrer 400 studs de raycast a partir de um ponto onde não há
+--- mapa, e a habilidade nasceria no vazio.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not raiz then return nil end
+	local delta = v - raiz.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > CFG.MIRA_MAX then
+		return raiz.Position + delta.Unit * CFG.MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem está abusando é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= CFG.PEDIDOS_POR_SEG
+end
 local ultimoPrimaria, ultimoR = 0, 0
 local ocupado = false
 local ativos = {}
@@ -33902,8 +34433,12 @@ local function podeAgir()
 end
 
 VFXRemote.OnServerEvent:Connect(function(quem, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if not pronto(ultimoPrimaria, CFG.RECARGA) then return end
 	ultimoPrimaria = os.clock()
 	primaria(mira)
@@ -33913,8 +34448,12 @@ end)
 --- fora de "R" é descartada sem resposta: confiar no cliente para dizer qual
 --- habilidade rodar seria dar a ele a escolha da recarga também.
 AcaoRemote.OnServerEvent:Connect(function(quem, tecla, mira)
-	if quem ~= jogador or not podeAgir() then return end
-	if typeof(mira) ~= "Vector3" then mira = frente() end
+	if quem ~= jogador then return end
+	-- 🔒 taxa PRIMEIRO: descartar cedo é o que impede um cliente modificado
+	--    de gastar CPU do servidor com trabalho que vai ser jogado fora.
+	if not taxaOk() then return end
+	mira = sanearMira(mira) or frente()
+	if not podeAgir() then return end
 	if tecla ~= "R" then return end
 	if not pronto(ultimoR, CFG.RECARGA_R) then return end
 	ultimoR = os.clock()
@@ -38843,7 +39382,7 @@ end
 
 if jogador.Character then ligarMorte(jogador.Character) end
 jogador.CharacterAdded:Connect(ligarMorte)
-]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_7705513063504848439"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
+]]></ProtectedString><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="RV_DEP_5928405083691243052"><Properties><string name="Name">DepositoVFX</string><ProtectedString name="Source"><![CDATA[-- DepositoVFX.lua
 -- ModuleScript "DepositoVFX" — filho da Tool, em TODAS elas
 --
 -- Implementa a REGRA Nº 2 (`DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md`):
@@ -39031,7 +39570,7 @@ function Deposito.ligar(tool)
 end
 
 return Deposito
-]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_7705513063504848439"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_do_Juizo</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
+]]></ProtectedString></Properties></Item><Item class="StringValue" referent="RV_CHV_5928405083691243052"><Properties><string name="Name">ChaveVFX</string><string name="Value">Bomba_do_Juizo</string></Properties></Item></Item><SharedStrings><SharedString md5="+qv2o0HSW+htH+ALwYQpiw==">Q1NHUEhTAAAAAEJMT0NL</SharedString><SharedString md5="4BNNqxFNMq+bqUYlzlnX/A==">Q1NHUEhTCAAAAAMAKLUv/WDwBtUYAIQdGwAAAKDUFCSNAQAANIAHAACzPerCAADIwXBd5MJC
 /v/HQUKqVUop0i2lWlWlCv7Kz7NVd7l4q+tS7hZqldvF5OKt8le5q/zLW1516y2ver9er9f/
 HwAA8RvlQpcHwkFit/A0zd+RQjmfhcH58rVBNf/ytcG0zDhCMoctbsLe1VFC1sTCwSjqD9wk
 6g9CPIQtbkJquBVCBwjCQWtO1BnC8Qw8QDG5M5PCdKJ/wQvFwsHU22gV0dtoQj23M5NCFLmu
