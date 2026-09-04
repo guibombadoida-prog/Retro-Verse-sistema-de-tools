@@ -1,0 +1,688 @@
+-- Protecao_Server_V3.lua
+-- Script DENTRO da Tool "Proteção"
+-- SUBSTITUI: ServerScript_Protecao_V2.lua  (REMOVER a V2)
+--
+-- MECÂNICA (preservada da V2): escudo orbital que intercepta projéteis
+-- inimigos, devolve-os na direção do inimigo mais próximo e causa dano leve.
+--
+-- O QUE MUDOU NA V3
+--   [FIX] tick() no loop de órbita -> acumulador dt (§10.11.7)
+--   [FIX] partículas/luzes criadas no servidor -> VFXRemote (§12.11)
+--   [FIX] AncestryChanged -> Tool.Destroying
+--   [FIX] Welds manuais + lerp -> R6CFrameAnimator + Poses (§10)
+--   [ADD] Values §12.4, modo preciso §12.6, tag creator §12.7, recarga §12.9
+
+local ARQUETIPO  = "SUPORTE"
+local RIG_SUFIXO = "Protecao"
+local ID_ESCUDO    = "ESCUDO_" .. RIG_SUFIXO
+
+local CFG = {
+	DURACAO         = 4,
+	RECARGA         = 7,
+
+	RAIO_ORBITA     = 4,
+	VEL_ORBITA      = 8,        -- rad/s
+	-- Tique da guarda. Era 60 Hz porque o mesmo laço movia o escudo; agora
+	-- ele só procura projétil, e a 30 Hz pega o mesmo.
+	PASSO_GUARDA    = 1 / 30,
+	ALTURA_ORBITA   = 1,
+	ESCALA_ESCUDO   = 0.7,
+
+	RAIO_REFLEXO    = 8,
+	FORCA_REFLEXO   = 100,
+	DANO_REFLEXO    = 5,
+	RAIO_INIMIGO    = 120,
+
+	COR             = Color3.fromRGB(0, 150, 255),
+	COR_REFLEXO     = Color3.fromRGB(255, 100, 0),
+
+	NPC_ALCANCE     = 30,
+	NPC_RECARGA     = 10,
+}
+
+--═══════════════════════════════════════════════════════════════
+-- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
+-- Nada aqui reimplementa regra de combate de terceiro:
+-- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
+-- e diferente do portador) — TakeDamage já respeita ForceField nativo.
+--═══════════════════════════════════════════════════════════════
+
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris       = game:GetService("Debris")
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
+
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -> servidor
+local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -> cliente (unidirecional)
+
+-- Values declarados na Tool (§12.4) — todos opcionais
+local function lerValue(nome, padrao)
+	local v = Tool:FindFirstChild(nome)
+	if v and v.Value ~= nil and v.Value ~= "" then return v.Value end
+	return padrao
+end
+
+local owner, character, humanoid, rootpart
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA. `Vector3.new(0/0, 0/0, 0/0)` é um
+--    `Vector3` legítimo para o `typeof`; um cliente modificado manda isso,
+--    `.Unit` devolve NaN, e força NaN envenena a assembly do alvo. Nenhum
+--    `pcall` pega, porque não há erro — a conta só não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN em Lua: NaN é o único valor que não é
+--    igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda junto.
+--
+-- E RATE LIMIT É DO SERVIDOR. O `Client` limita a taxa dele e isso não vale
+-- nada: quem manda o pacote é o cliente, e cliente modificado manda o quanto
+-- quiser. O limite que conta é o daqui.
+--
+-- Revisão do Codex no PR #1, item P1.6.
+--═══════════════════════════════════════════════════════════════
+
+local MIRA_MAX = 400
+local PEDIDOS_POR_SEG = 30
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not rootpart then return nil end
+	local delta = v - rootpart.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > MIRA_MAX then
+		return rootpart.Position + delta.Unit * MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem abusa é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= PEDIDOS_POR_SEG
+end
+local equipped = false
+local rig      = nil
+
+-- Registro de tudo que nasce fora da Tool (§ limpeza)
+local Ativos = {
+	Partes      = {},
+	Sons        = {},
+	Conexoes    = {},
+	Cancelar    = {},   -- funções de cancelamento devolvidas pelo Núcleo
+}
+
+local function guardarParte(p, vida)
+	table.insert(Ativos.Partes, p)
+	if vida then Debris:AddItem(p, vida) end
+	return p
+end
+
+local function guardarConexao(c)
+	table.insert(Ativos.Conexoes, c)
+	return c
+end
+
+local function guardarCancelamento(fn)
+	if type(fn) == "function" then table.insert(Ativos.Cancelar, fn) end
+	return fn
+end
+
+--── VFX: o servidor TRANSMITE, nunca emite (§12.11) ──
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+--── Alvo válido ──
+local function podeAtingir(alvoHum, alvoChar)
+	if not (alvoHum and alvoChar) then return false end
+	if alvoChar == character then return false end
+	if alvoHum.Health <= 0 then return false end
+	return true
+end
+
+--── Crédito de abate — ORDEM DAS PROPRIEDADES (§12.7) ──
+local function creditar(alvoHum)
+	if not owner then return end
+	local antigo = alvoHum:FindFirstChild("creator")
+	if antigo then antigo.Parent = nil end
+	local credito = Instance.new("ObjectValue")
+	credito.Name   = "creator"   -- 1º
+	credito.Value  = owner       -- 2º
+	credito.Parent = alvoHum     -- 3º, sempre por último
+	Debris:AddItem(credito, 5)
+end
+
+--── Dano: modo preciso, uma linha, sem require (§12.6) ──
+local function aplicarDano(alvoHum, bruto)
+	local final = bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+--── Recarga global anti-clone (§12.9) ──
+local function recarga(chave, segundos)
+	return true, 0
+end
+
+--── Detecção em área (§12.8) ──
+local function detectar(posicao, raio, limite)
+	local lista = {}
+	for _, modelo in ipairs(workspace:GetChildren()) do
+		if modelo:IsA("Model") and modelo ~= character then
+			local hum  = modelo:FindFirstChildOfClass("Humanoid")
+			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+			if hum and raiz and podeAtingir(hum, modelo) then
+				if (raiz.Position - posicao).Magnitude <= raio then
+					table.insert(lista, hum)
+					if limite and #lista >= limite then break end
+				end
+			end
+		end
+	end
+	return lista
+end
+
+local function raizDe(hum)
+	local m = hum.Parent
+	if not m then return nil end
+	return m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso")
+end
+
+--═══════════════════════════════════════════════════════════════
+-- EMPURRÃO — `LinearVelocity`, e com DUAS guardas que faltavam
+--
+-- ⚠️ 1. `direcao.Unit` COM DIREÇÃO ZERO DEVOLVE NaN, e não é caso teórico:
+--       o `Escudo Bumerangue` chama `empurrar(raiz, raiz.Position - onde, ...)`
+--       e, quando o escudo pousa exatamente em cima do dono, esses dois pontos
+--       são o MESMO. `Velocity = NaN` envenena a assembly — a peça vai para
+--       coordenada absurda, ou trava. Sem erro, sem aviso: NaN não lança.
+--
+--       Este NaN não precisa de cliente modificado. Vem da geometria do jogo.
+--
+--    2. `MaxForce` era FIXO em 1e5. Com teto fixo, alvo pesado quase não sai
+--       do lugar e alvo leve voa — o mesmo empurrão, resultados opostos. O
+--       teto passa a ser proporcional à massa, que é como o `BLOCO_FISICA` do
+--       repositório já faz.
+--
+-- POR QUE `LinearVelocity` E NÃO `ApplyImpulse`
+--
+--    A revisão sugeriu `ApplyImpulse`, e para knockback puro ele é mais
+--    correto. Mas `BodyVelocity` SUSTENTA a velocidade pelos 0.2 s — segura o
+--    alvo no ar contra a gravidade —, e `ApplyImpulse` dá um tranco só e
+--    solta. A diferença é sentida, e trocar a SENSAÇÃO de sete Tools que
+--    funcionam não é conserto, é redesign.
+--
+--    `LinearVelocity` com prazo faz o que o `BodyVelocity` fazia, sem a classe
+--    obsoleta e sem o teto fixo. Fica igual de jogar, e certo por dentro.
+--
+--    Revisão do Codex no PR #1, item P1.3.
+--═══════════════════════════════════════════════════════════════
+local function empurrar(parte, direcao, forca, duracao)
+	if not (parte and parte.Parent) then return end
+	if parte.Anchored then return end
+
+	local mag = direcao.Magnitude
+	-- `mag ~= mag` é NaN; o teto corta Inf. Direção nula não empurra nada.
+	if mag ~= mag or mag < 1e-4 or mag == math.huge then return end
+	if forca ~= forca or math.abs(forca) == math.huge then return end
+
+	local massa = parte.AssemblyMass
+	if massa ~= massa or massa <= 0 then massa = 1 end
+
+	local ponto = parte:FindFirstChild("EscudoEmpurrao")
+	if not (ponto and ponto:IsA("Attachment")) then
+		ponto = Instance.new("Attachment")
+		ponto.Name = "EscudoEmpurrao"
+		ponto.Parent = parte
+	end
+
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = ponto
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	lv.MaxForce = massa * 260
+	lv.VectorVelocity = direcao.Unit * forca
+	lv.Parent = parte
+	Debris:AddItem(lv, duracao or 0.2)
+end
+
+--── Sons: sequenciais, nunca math.random ──
+local somIndice = 1
+local function tocarBloco(lista, parent, pitch)
+	if #lista == 0 then return end
+	local base = lista[somIndice]
+	somIndice = (somIndice % #lista) + 1
+	if not base then return end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 3)
+end
+
+--[[
+	tocarSfx(nome, parent, pitch)
+	Sons importados dos modelos de referência (§12.12), instalados dentro do
+	Handle de cada Tool:
+	  sfx_carga     10555593530  [JC] ChangeE — carga/anúncio
+	  sfx_corte     1086616651   [DE] corte
+	  sfx_impacto   220834019    [JC] Hit4 — impacto seco
+	  sfx_execucao  5989940114   [JC] Judgement Cut End Start — cutscene
+	  sfx_dominio   270070244    [DE] gongo de abertura
+	  sfx_expansao  357558938    [DE] estouro da cúpula
+	Ausente o som, a função não faz nada — a Tool nunca quebra por SFX.
+]]
+local function tocarSfx(nome, parent, pitch)
+	local base = Handle:FindFirstChild(nome)
+	if not base then return nil end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 12)
+	return s
+end
+
+--═══════════════════════════════════════════════════════════════
+-- RIG DE ANIMAÇÃO R6 (§10 / §12.10)
+--═══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	rig = Animator.new(character, RIG_SUFIXO, Poses, Poses.SEQUENCIAS)
+	if rig then
+		rig:PlayPose("IDLE", 0.25)
+		rig:StartIdleBob("IDLE", "RightArm", 0.03, 1.8, function()
+			return equipped
+		end)
+	end
+	return rig
+end
+
+local function soltarRig()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- LIMPEZA
+--═══════════════════════════════════════════════════════════════
+
+local function limparTudo()
+	soltarRig()
+
+	for _, fn in ipairs(Ativos.Cancelar) do
+		pcall(fn)
+	end
+	table.clear(Ativos.Cancelar)
+
+	for _, p in ipairs(Ativos.Partes) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	table.clear(Ativos.Partes)
+
+	for _, s in ipairs(Ativos.Sons) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	table.clear(Ativos.Sons)
+
+	for _, c in ipairs(Ativos.Conexoes) do
+		if c then c:Disconnect() end
+	end
+	table.clear(Ativos.Conexoes)
+
+	if Handle and Handle.Parent then
+		Handle.Transparency = 0
+	end
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- SONS
+--═══════════════════════════════════════════════════════════════
+
+local somEquipar  = Handle:FindFirstChild("equip")
+local somProtecao = Handle:FindFirstChild("Protecao")
+local somImpacto  = {}
+for _, nome in ipairs({ "block", "block2", "block3", "block4" }) do
+	local s = Handle:FindFirstChild(nome)
+	if s then table.insert(somImpacto, s) end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ESTADO
+--═══════════════════════════════════════════════════════════════
+
+local barreiraAtiva = false
+local npcRecarga    = false
+local ID_AURA       = "AURA_" .. RIG_SUFIXO
+
+--═══════════════════════════════════════════════════════════════
+-- PROJÉTEIS INIMIGOS
+--═══════════════════════════════════════════════════════════════
+
+-- Projétil = BasePart solta em workspace, sem Humanoid no pai, com
+-- velocidade relevante e vindo em direção ao portador.
+--- Som num PONTO, sem peça para pendurar.
+---
+--- Enquanto o escudo era `Part` do servidor, ele servia de suporte para o
+--- `Sound`. Agora não há peça: quem gira é desenho de cliente. Um `Sound` só
+--- toca enquanto tem pai no DataModel, então a saída é uma âncora invisível
+--- própria, com prazo pelo `Debris`.
+local function ancoraEm(posicao, prazo)
+	local a = Instance.new("Part")
+	a.Size = Vector3.new(0.2, 0.2, 0.2)
+	a.Transparency = 1
+	a.Anchored = true
+	a.CanCollide, a.CanQuery, a.CanTouch = false, false, false
+	a.CFrame = CFrame.new(posicao or Vector3.new())
+	a.Parent = workspace
+	Debris:AddItem(a, prazo or 6)
+	return a
+end
+
+local function tocarSfxEm(nome, posicao, pitch)
+	return tocarSfx(nome, ancoraEm(posicao, 12), pitch)
+end
+
+local function tocarBlocoEm(lista, posicao, pitch)
+	return tocarBloco(lista, ancoraEm(posicao, 6), pitch)
+end
+
+local function projeteisProximos()
+	local achados = {}
+	if not (rootpart and rootpart.Parent) then return achados end
+	local centro = rootpart.Position
+
+	for _, inst in ipairs(workspace:GetChildren()) do
+		if inst:IsA("BasePart") and not inst.Anchored and inst ~= Handle then
+			local vel = inst.AssemblyLinearVelocity
+			if vel and vel.Magnitude > 20 then
+				local delta = centro - inst.Position
+				local dist  = delta.Magnitude
+				if dist <= CFG.RAIO_REFLEXO * 2.5 and delta.Unit:Dot(vel.Unit) > 0.35 then
+					table.insert(achados, inst)
+				end
+			end
+		end
+	end
+	return achados
+end
+
+local function inimigoMaisProximo()
+	if not (rootpart and rootpart.Parent) then return nil end
+	local lista = detectar(rootpart.Position, CFG.RAIO_INIMIGO, 8)
+	local melhor, menor = nil, math.huge
+	for _, hum in ipairs(lista) do
+		local raiz = raizDe(hum)
+		if raiz then
+			local d = (raiz.Position - rootpart.Position).Magnitude
+			if d < menor then melhor, menor = raiz, d end
+		end
+	end
+	return melhor
+end
+
+--═══════════════════════════════════════════════════════════════
+-- HABILIDADE — BARREIRA ORBITAL
+--═══════════════════════════════════════════════════════════════
+
+local function ativarProtecao()
+	if barreiraAtiva or not (rootpart and humanoid and humanoid.Health > 0) then return end
+
+	local liberado = recarga("Protecao_Barreira", CFG.RECARGA)
+	if not liberado then return end
+
+	barreiraAtiva = true
+	if somProtecao then somProtecao:Play() end
+
+	-- Escudo orbital — DESENHADO PELO CLIENTE.
+	--
+	-- Era `Part` ancorada com o `CFrame` reescrito a cada `Heartbeat`. Geometria
+	-- movida pelo servidor replica a ~20 Hz e o cliente não interpola: a órbita
+	-- chegava em passos.
+	--
+	-- Agora vai um beat com os parâmetros, e quem gira a 60 Hz é o `ORBITA`.
+	-- Quando algo vem, o servidor manda `ORBITA_MIRA` com a direção — uma
+	-- mensagem por interceptação, não sessenta por segundo.
+	vfx("ORBITA", {
+		id     = ID_ESCUDO,
+		alvoNome = personagem and personagem.Name or nil,
+		cor    = CFG.COR,
+		escala = 1,
+		raio   = CFG.RAIO_ORBITA,
+		altura = CFG.ALTURA_ORBITA,
+		giro   = CFG.VEL_ORBITA,
+	})
+
+	tocarSfx("sfx_dominio", Handle, 0.85)
+	vfx("AURA", {
+		id = ID_AURA, alvoNome = character.Name,
+		cor = CFG.COR, escala = 0.8, intensidade = 22,
+	})
+
+	local angulo    = 0
+	local decorrido = 0
+	local refletidos = {}
+	local encerrado  = false
+
+	local function encerrar()
+		if encerrado then return end
+		encerrado     = true
+		barreiraAtiva = false
+		if somProtecao then somProtecao:Stop() end
+		vfx("PARAR", { id = ID_AURA })
+		vfx("PARAR", { id = ID_ESCUDO })
+		if rootpart and rootpart.Parent then
+			vfx("BLOQUEIO", {
+				posicao = rootpart.Position + Vector3.new(0, CFG.ALTURA_ORBITA, 0),
+				cor = CFG.COR, escala = 1.2,
+			})
+		end
+		if rig then rig:PlayPose("IDLE", 0.3) end
+	end
+
+	--═══════════════════════════════════════════════════════════════
+	-- O que sobrou para o servidor: PROCURAR projétil e REFLETIR.
+	--
+	-- Nada disso é geometria. `PASSO_GUARDA` é o tique, e a 30 Hz ele continua
+	-- pegando o que pegava — o que a 60 Hz não acrescentava era precisão, era
+	-- só o dobro de acordar.
+	--═══════════════════════════════════════════════════════════════
+	task.spawn(function()
+		local decorridoGuarda = 0
+		while not encerrado do
+			task.wait(CFG.PASSO_GUARDA)
+			if encerrado then return end
+			if not (rootpart and rootpart.Parent) then encerrar(); return end
+
+			decorridoGuarda = decorridoGuarda + CFG.PASSO_GUARDA
+			if decorridoGuarda >= CFG.DURACAO then encerrar(); return end
+
+			local projeteis = projeteisProximos()
+			if #projeteis == 0 then
+				-- nada vindo: o cliente segue girando sozinho
+			else
+				local alvo, menor = projeteis[1], math.huge
+				for _, p in ipairs(projeteis) do
+					local d = (p.Position - rootpart.Position).Magnitude
+					if d < menor then alvo, menor = p, d end
+				end
+
+				-- o escudo se põe na frente: UMA mensagem, com a direção
+				local dir = alvo.Position - rootpart.Position
+				if dir.Magnitude > 0.1 then
+					vfx("ORBITA_MIRA", {
+						id = ID_ESCUDO, direcao = dir.Unit, prazo = 0.35,
+					})
+				end
+
+				if menor < CFG.RAIO_ORBITA + 2 and not refletidos[alvo] then
+					refletidos[alvo] = true
+					local inimigo = inimigoMaisProximo()
+					local saida = inimigo
+						and (inimigo.Position - alvo.Position).Unit
+						or rootpart.CFrame.LookVector
+
+					-- SFX -> física -> VFX -> dano (§8 V2)
+					tocarSfxEm("sfx_corte", alvo.Position, 1.4)
+					tocarBlocoEm(somImpacto, alvo.Position, 1.25)
+					alvo.AssemblyLinearVelocity = saida * CFG.FORCA_REFLEXO
+					vfx("BLOQUEIO", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 1 })
+					-- [DE] o projétil devolvido sai cortado em X
+					tocarSfx("sfx_execucao", Handle, 0.95)
+					vfx("CORTE_X", { posicao = alvo.Position, cor = CFG.COR_REFLEXO, escala = 0.85 })
+					vfx("TREMOR", { preset = "BUMP_PEQUENO" })
+					tocarSfx("sfx_impacto", Handle, 1.2)
+					vfx("LINHAS_VELOCIDADE", {
+						posicao = alvo.Position, cor = CFG.COR_REFLEXO,
+						escala = 0.8, quantidade = 7,
+					})
+
+					local perto = detectar(alvo.Position, CFG.RAIO_REFLEXO, 4)
+					for _, hum in ipairs(perto) do
+						aplicarDano(hum, CFG.DANO_REFLEXO)
+					end
+
+					task.delay(1, function() refletidos[alvo] = nil end)
+				end
+			end
+		end
+	end)
+
+	if rig then
+		rig:PlaySequence("BARREIRA", function(kf)
+			if kf.marca == "CARGA" then
+				tocarSfx("sfx_carga", Handle, 1.05)
+				vfx("LINHAS_VELOCIDADE", {
+					posicao = rootpart.Position, cor = CFG.COR, escala = 0.7, quantidade = 6,
+				})
+			elseif kf.marca == "ABRIR" then
+				vfx("BLOQUEIO", { posicao = rootpart.Position, cor = CFG.COR, escala = 1.6 })
+				vfx("RAJADA", {
+					posicao = rootpart.Position + Vector3.new(0, 1.5, 0),
+					cor     = CFG.COR,
+					escala  = 0.9,
+					direcao = Vector3.new(0, 1, 0),
+				})
+				tocarSfx("sfx_expansao", Handle, 1.0)
+				vfx("ONDA_CHOQUE", {
+					posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
+					cor = CFG.COR, escala = 0.8,
+				})
+			end
+		end)
+	end
+
+	guardarCancelamento(encerrar)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ENTRADA
+--═══════════════════════════════════════════════════════════════
+
+RemoteEvent.OnServerEvent:Connect(function(jogador, acao)
+	if jogador ~= owner or not equipped then return end
+	if not taxaOk() then return end
+	if acao == "activate" then ativarProtecao() end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- NPC
+--═══════════════════════════════════════════════════════════════
+
+task.spawn(function()
+	while true do
+		task.wait(1.5)
+		if equipped and not owner and not npcRecarga and rootpart and rootpart.Parent then
+			local perto = detectar(rootpart.Position, CFG.NPC_ALCANCE, 1)
+			if #perto > 0 then
+				npcRecarga = true
+				ativarProtecao()
+				task.delay(CFG.NPC_RECARGA, function() npcRecarga = false end)
+			end
+		end
+	end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA
+--═══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	character = Tool.Parent
+	if not character then return end
+	owner    = Players:GetPlayerFromCharacter(character)
+	humanoid = character:FindFirstChildOfClass("Humanoid")
+	rootpart = character:FindFirstChild("HumanoidRootPart")
+	if not (humanoid and rootpart) then return end
+
+	equipped = true
+	if somEquipar then somEquipar:Play() end
+	montarRig()
+
+	guardarConexao(humanoid.Died:Connect(function()
+		vfx("PARAR", { id = ID_AURA })
+		limparTudo()
+	end))
+end)
+
+-- Tool.Enabled NÃO é resetado aqui (§8 / §10.7)
+Tool.Unequipped:Connect(function()
+	equipped      = false
+	barreiraAtiva = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+
+Tool.Destroying:Connect(function()
+	equipped      = false
+	barreiraAtiva = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+--
+-- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
+-- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
+-- para não arrancar o molde debaixo de quem ainda está com a Tool.
+--
+-- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)

@@ -1,0 +1,629 @@
+-- EscudoSkate_Server_V3.lua
+-- Script DENTRO da Tool "Escudo Skate"
+-- SUBSTITUI: ServerScript_EscudoSkate_V2.lua  (REMOVER a V2)
+--
+-- MECÂNICA (preservada da V2): o escudo vai para o pé direito, o portador
+-- ganha velocidade e atropela quem estiver no caminho enquanto se move.
+--
+-- O QUE MUDOU NA V3
+--   [FIX] tick() no loop de contato -> acumulador dt (§10.11.7)
+--   [FIX] partículas/trail/luz criadas no servidor -> VFXRemote (§12.11)
+--   [FIX] AncestryChanged -> Tool.Destroying
+--   [FIX] Welds manuais + lerp -> R6CFrameAnimator + Poses (§10)
+--   [ADD] Values §12.4, modo preciso §12.6, tag creator §12.7, recarga §12.9
+--   [ADD] Rastro de poeira ritmado e onda de choque no atropelamento
+
+local ARQUETIPO  = "MELEE"
+local RIG_SUFIXO = "EscudoSkate"
+
+local CFG = {
+	DURACAO         = 5,
+	RECARGA         = 8,
+	BONUS_VELOCIDADE = 35,
+
+	DANO_CONTATO    = 10,
+	FORCA_EMPURRAO  = 60,
+	RAIO_CONTATO    = 4,
+	JANELA_CONTATO  = 0.5,
+
+	ESCALA_ESCUDO   = 0.5,
+	OFFSET_PE       = CFrame.new(0, -0.5, 0) * CFrame.Angles(math.rad(90), 0, 0),
+
+	VEL_MINIMA      = 5,        -- só atropela em movimento
+	INTERVALO_POEIRA = 0.28,
+
+	COR             = Color3.fromRGB(0, 200, 255),
+	COR_IMPACTO     = Color3.fromRGB(255, 150, 0),
+
+	NPC_ALCANCE     = 30,
+	NPC_RECARGA     = 10,
+}
+
+--═══════════════════════════════════════════════════════════════
+-- NÚCLEO COMPARTILHADO (§12.6 — modo preciso, sempre com guarda)
+-- Nada aqui reimplementa regra de combate de terceiro:
+-- ele decide. Quando não existe, a Tool cai num guard mínimo (alvo vivo
+-- e diferente do portador) — TakeDamage já respeita ForceField nativo.
+--═══════════════════════════════════════════════════════════════
+
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris       = game:GetService("Debris")
+
+local Tool   = script.Parent
+local Handle = Tool:WaitForChild("Handle")
+
+local Animator  = require(Tool:WaitForChild("R6CFrameAnimator"))
+local Poses     = require(Tool:WaitForChild("Poses"))
+local Deposito  = require(Tool:WaitForChild("DepositoVFX"))
+
+local RemoteEvent = Tool:WaitForChild("RemoteEvent")   -- entrada: cliente -> servidor
+local VFXRemote   = Tool:WaitForChild("VFXRemote")     -- saída: servidor -> cliente (unidirecional)
+
+-- Values declarados na Tool (§12.4) — todos opcionais
+local function lerValue(nome, padrao)
+	local v = Tool:FindFirstChild(nome)
+	if v and v.Value ~= nil and v.Value ~= "" then return v.Value end
+	return padrao
+end
+
+local owner, character, humanoid, rootpart
+
+--═══════════════════════════════════════════════════════════════
+-- 🔒 A FRONTEIRA DO REMOTE — o que chega do cliente é HOSTIL
+--
+-- ⚠️ `typeof(v) == "Vector3"` NÃO BASTA. `Vector3.new(0/0, 0/0, 0/0)` é um
+--    `Vector3` legítimo para o `typeof`; um cliente modificado manda isso,
+--    `.Unit` devolve NaN, e força NaN envenena a assembly do alvo. Nenhum
+--    `pcall` pega, porque não há erro — a conta só não tem resultado.
+--
+--    `n ~= n` é o único teste de NaN em Lua: NaN é o único valor que não é
+--    igual a si mesmo. O teto de 1e6 corta Inf e coordenada absurda junto.
+--
+-- E RATE LIMIT É DO SERVIDOR. O `Client` limita a taxa dele e isso não vale
+-- nada: quem manda o pacote é o cliente, e cliente modificado manda o quanto
+-- quiser. O limite que conta é o daqui.
+--
+-- Revisão do Codex no PR #1, item P1.6.
+--═══════════════════════════════════════════════════════════════
+
+local MIRA_MAX = 400
+local PEDIDOS_POR_SEG = 30
+
+local function numeroFinito(n)
+	return type(n) == "number" and n == n and math.abs(n) < 1e6
+end
+
+local function miraValida(v)
+	if typeof(v) ~= "Vector3" then return false end
+	return numeroFinito(v.X) and numeroFinito(v.Y) and numeroFinito(v.Z)
+end
+
+--- A mira SANEADA: finita, e dentro do alcance. `nil` se não presta.
+local function sanearMira(v)
+	if not miraValida(v) then return nil end
+	if not rootpart then return nil end
+	local delta = v - rootpart.Position
+	local dist = delta.Magnitude
+	if not numeroFinito(dist) then return nil end
+	if dist < 0.001 then return v end
+	if dist > MIRA_MAX then
+		return rootpart.Position + delta.Unit * MIRA_MAX
+	end
+	return v
+end
+
+--- Janela deslizante de um segundo. Estourou, o pacote é DESCARTADO em
+--- silêncio — responder a quem abusa é ensinar o que passou.
+local janelaAbriu, naJanela = 0, 0
+
+local function taxaOk()
+	local agora = os.clock()
+	if agora - janelaAbriu >= 1 then
+		janelaAbriu = agora
+		naJanela = 0
+	end
+	naJanela = naJanela + 1
+	return naJanela <= PEDIDOS_POR_SEG
+end
+local equipped = false
+local rig      = nil
+
+-- Registro de tudo que nasce fora da Tool (§ limpeza)
+local Ativos = {
+	Partes      = {},
+	Sons        = {},
+	Conexoes    = {},
+	Cancelar    = {},   -- funções de cancelamento devolvidas pelo Núcleo
+}
+
+local function guardarParte(p, vida)
+	table.insert(Ativos.Partes, p)
+	if vida then Debris:AddItem(p, vida) end
+	return p
+end
+
+local function guardarConexao(c)
+	table.insert(Ativos.Conexoes, c)
+	return c
+end
+
+local function guardarCancelamento(fn)
+	if type(fn) == "function" then table.insert(Ativos.Cancelar, fn) end
+	return fn
+end
+
+--── VFX: o servidor TRANSMITE, nunca emite (§12.11) ──
+local function vfx(tipo, dados)
+	VFXRemote:FireAllClients(tipo, dados)
+end
+
+--── Alvo válido ──
+local function podeAtingir(alvoHum, alvoChar)
+	if not (alvoHum and alvoChar) then return false end
+	if alvoChar == character then return false end
+	if alvoHum.Health <= 0 then return false end
+	return true
+end
+
+--── Crédito de abate — ORDEM DAS PROPRIEDADES (§12.7) ──
+local function creditar(alvoHum)
+	if not owner then return end
+	local antigo = alvoHum:FindFirstChild("creator")
+	if antigo then antigo.Parent = nil end
+	local credito = Instance.new("ObjectValue")
+	credito.Name   = "creator"   -- 1º
+	credito.Value  = owner       -- 2º
+	credito.Parent = alvoHum     -- 3º, sempre por último
+	Debris:AddItem(credito, 5)
+end
+
+--── Dano: modo preciso, uma linha, sem require (§12.6) ──
+local function aplicarDano(alvoHum, bruto)
+	local final = bruto
+	creditar(alvoHum)
+	alvoHum:TakeDamage(final)
+	return final
+end
+
+--── Recarga global anti-clone (§12.9) ──
+local function recarga(chave, segundos)
+	return true, 0
+end
+
+--── Detecção em área (§12.8) ──
+local function detectar(posicao, raio, limite)
+	local lista = {}
+	for _, modelo in ipairs(workspace:GetChildren()) do
+		if modelo:IsA("Model") and modelo ~= character then
+			local hum  = modelo:FindFirstChildOfClass("Humanoid")
+			local raiz = modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+			if hum and raiz and podeAtingir(hum, modelo) then
+				if (raiz.Position - posicao).Magnitude <= raio then
+					table.insert(lista, hum)
+					if limite and #lista >= limite then break end
+				end
+			end
+		end
+	end
+	return lista
+end
+
+local function raizDe(hum)
+	local m = hum.Parent
+	if not m then return nil end
+	return m:FindFirstChild("HumanoidRootPart") or m:FindFirstChild("Torso")
+end
+
+--═══════════════════════════════════════════════════════════════
+-- EMPURRÃO — `LinearVelocity`, e com DUAS guardas que faltavam
+--
+-- ⚠️ 1. `direcao.Unit` COM DIREÇÃO ZERO DEVOLVE NaN, e não é caso teórico:
+--       o `Escudo Bumerangue` chama `empurrar(raiz, raiz.Position - onde, ...)`
+--       e, quando o escudo pousa exatamente em cima do dono, esses dois pontos
+--       são o MESMO. `Velocity = NaN` envenena a assembly — a peça vai para
+--       coordenada absurda, ou trava. Sem erro, sem aviso: NaN não lança.
+--
+--       Este NaN não precisa de cliente modificado. Vem da geometria do jogo.
+--
+--    2. `MaxForce` era FIXO em 1e5. Com teto fixo, alvo pesado quase não sai
+--       do lugar e alvo leve voa — o mesmo empurrão, resultados opostos. O
+--       teto passa a ser proporcional à massa, que é como o `BLOCO_FISICA` do
+--       repositório já faz.
+--
+-- POR QUE `LinearVelocity` E NÃO `ApplyImpulse`
+--
+--    A revisão sugeriu `ApplyImpulse`, e para knockback puro ele é mais
+--    correto. Mas `BodyVelocity` SUSTENTA a velocidade pelos 0.2 s — segura o
+--    alvo no ar contra a gravidade —, e `ApplyImpulse` dá um tranco só e
+--    solta. A diferença é sentida, e trocar a SENSAÇÃO de sete Tools que
+--    funcionam não é conserto, é redesign.
+--
+--    `LinearVelocity` com prazo faz o que o `BodyVelocity` fazia, sem a classe
+--    obsoleta e sem o teto fixo. Fica igual de jogar, e certo por dentro.
+--
+--    Revisão do Codex no PR #1, item P1.3.
+--═══════════════════════════════════════════════════════════════
+local function empurrar(parte, direcao, forca, duracao)
+	if not (parte and parte.Parent) then return end
+	if parte.Anchored then return end
+
+	local mag = direcao.Magnitude
+	-- `mag ~= mag` é NaN; o teto corta Inf. Direção nula não empurra nada.
+	if mag ~= mag or mag < 1e-4 or mag == math.huge then return end
+	if forca ~= forca or math.abs(forca) == math.huge then return end
+
+	local massa = parte.AssemblyMass
+	if massa ~= massa or massa <= 0 then massa = 1 end
+
+	local ponto = parte:FindFirstChild("EscudoEmpurrao")
+	if not (ponto and ponto:IsA("Attachment")) then
+		ponto = Instance.new("Attachment")
+		ponto.Name = "EscudoEmpurrao"
+		ponto.Parent = parte
+	end
+
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = ponto
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	lv.MaxForce = massa * 260
+	lv.VectorVelocity = direcao.Unit * forca
+	lv.Parent = parte
+	Debris:AddItem(lv, duracao or 0.2)
+end
+
+--── Sons: sequenciais, nunca math.random ──
+local somIndice = 1
+local function tocarBloco(lista, parent, pitch)
+	if #lista == 0 then return end
+	local base = lista[somIndice]
+	somIndice = (somIndice % #lista) + 1
+	if not base then return end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 3)
+end
+
+--[[
+	tocarSfx(nome, parent, pitch)
+	Sons importados dos modelos de referência (§12.12), instalados dentro do
+	Handle de cada Tool:
+	  sfx_carga     10555593530  [JC] ChangeE — carga/anúncio
+	  sfx_corte     1086616651   [DE] corte
+	  sfx_impacto   220834019    [JC] Hit4 — impacto seco
+	  sfx_execucao  5989940114   [JC] Judgement Cut End Start — cutscene
+	  sfx_dominio   270070244    [DE] gongo de abertura
+	  sfx_expansao  357558938    [DE] estouro da cúpula
+	Ausente o som, a função não faz nada — a Tool nunca quebra por SFX.
+]]
+local function tocarSfx(nome, parent, pitch)
+	local base = Handle:FindFirstChild(nome)
+	if not base then return nil end
+	local s = base:Clone()
+	s.Parent        = parent or Handle
+	s.PlaybackSpeed = pitch or 1
+	s:Play()
+	table.insert(Ativos.Sons, s)
+	Debris:AddItem(s, 12)
+	return s
+end
+
+--═══════════════════════════════════════════════════════════════
+-- RIG DE ANIMAÇÃO R6 (§10 / §12.10)
+--═══════════════════════════════════════════════════════════════
+
+local function montarRig()
+	if rig then return rig end
+	rig = Animator.new(character, RIG_SUFIXO, Poses, Poses.SEQUENCIAS)
+	if rig then
+		rig:PlayPose("IDLE", 0.25)
+		rig:StartIdleBob("IDLE", "RightArm", 0.03, 1.8, function()
+			return equipped
+		end)
+	end
+	return rig
+end
+
+local function soltarRig()
+	if rig then
+		rig:Destroy()
+		rig = nil
+	end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- LIMPEZA
+--═══════════════════════════════════════════════════════════════
+
+local function limparTudo()
+	soltarRig()
+
+	for _, fn in ipairs(Ativos.Cancelar) do
+		pcall(fn)
+	end
+	table.clear(Ativos.Cancelar)
+
+	for _, p in ipairs(Ativos.Partes) do
+		if p and p.Parent then p.Parent = nil end
+	end
+	table.clear(Ativos.Partes)
+
+	for _, s in ipairs(Ativos.Sons) do
+		if s and s.Parent then s:Stop(); s.Parent = nil end
+	end
+	table.clear(Ativos.Sons)
+
+	for _, c in ipairs(Ativos.Conexoes) do
+		if c then c:Disconnect() end
+	end
+	table.clear(Ativos.Conexoes)
+
+	if Handle and Handle.Parent then
+		Handle.Transparency = 0
+	end
+end
+
+
+--═══════════════════════════════════════════════════════════════
+-- SONS
+--═══════════════════════════════════════════════════════════════
+
+local somEquipar = Handle:FindFirstChild("equip")
+local somImpacto = {}
+for _, nome in ipairs({ "block", "block2", "block3", "block4" }) do
+	local s = Handle:FindFirstChild(nome)
+	if s then table.insert(somImpacto, s) end
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ESTADO
+--═══════════════════════════════════════════════════════════════
+
+local skateAtivo = false
+local npcRecarga = false
+local ID_AURA    = "AURA_" .. RIG_SUFIXO
+
+--═══════════════════════════════════════════════════════════════
+-- HABILIDADE — SKATE
+--═══════════════════════════════════════════════════════════════
+
+local function ativarSkate()
+	-- O Skate tinha 440 linhas de pose e não tocava nenhuma. Skate é ESTADO,
+	-- não golpe: a gramática (regra 4) manda abrir imediato e sustentar, e é
+	-- assim que SKATE_IMPULSO está cronometrada — 7% de abertura, 93% deslizando.
+	if rig then
+		rig:PlaySequence("SKATE_IMPULSO")
+	end
+
+	if skateAtivo or not (rootpart and humanoid and humanoid.Health > 0) then return end
+
+	local pernaDireita = character:FindFirstChild("Right Leg")
+	if not pernaDireita then return end
+
+	local liberado = recarga("EscudoSkate_Skate", CFG.RECARGA)
+	if not liberado then return end
+
+	skateAtivo = true
+
+	-- Escudo soldado ao pé
+	local prancha = Handle:Clone()
+	prancha.Name         = "EscudoSkate"
+	prancha.CanCollide   = false
+	prancha.CanTouch     = false
+	prancha.CanQuery     = false
+	prancha.Anchored     = false
+	prancha.Massless     = true
+	prancha.Material     = Enum.Material.Neon
+	prancha.Color        = CFG.COR
+	prancha.Transparency = 0.1
+	for _, filho in ipairs(prancha:GetChildren()) do
+		if filho:IsA("Sound") then filho.Parent = nil end
+	end
+	local malha = prancha:FindFirstChildOfClass("SpecialMesh")
+	if malha then malha.Scale = malha.Scale * CFG.ESCALA_ESCUDO end
+	prancha.CFrame = pernaDireita.CFrame
+	prancha.Parent = workspace
+	guardarParte(prancha)
+
+	local solda = Instance.new("Weld")
+	solda.Name   = "SoldaSkate"
+	solda.Part0  = pernaDireita
+	solda.Part1  = prancha
+	solda.C0     = CFG.OFFSET_PE
+	solda.Parent = pernaDireita
+	guardarParte(solda)
+
+	tocarSfx("sfx_dominio", Handle, 0.85)
+	vfx("AURA", {
+		id = ID_AURA, alvoNome = character.Name,
+		cor = CFG.COR, escala = 0.7, intensidade = 30,
+	})
+
+	Handle.Transparency = 1
+	local velocidadeOriginal = humanoid.WalkSpeed
+	humanoid.WalkSpeed = velocidadeOriginal + CFG.BONUS_VELOCIDADE
+
+	local decorrido   = 0
+	local relogioPo   = 0
+	local ultimoDano  = {}
+	local encerrado   = false
+
+	local function encerrar()
+		if encerrado then return end
+		encerrado  = true
+		skateAtivo = false
+		if humanoid and humanoid.Parent then
+			humanoid.WalkSpeed = velocidadeOriginal
+		end
+		if solda and solda.Parent then solda.Parent = nil end
+		if prancha and prancha.Parent then
+			tocarSfx("sfx_execucao", Handle, 0.95)
+			vfx("POEIRA", { posicao = prancha.Position, cor = CFG.COR, escala = 1.2 })
+			prancha.Parent = nil
+		end
+		vfx("PARAR", { id = ID_AURA })
+		if Handle and Handle.Parent then Handle.Transparency = 0 end
+		if rig then rig:PlayPose("IDLE", 0.3) end
+	end
+
+	guardarConexao(RunService.Heartbeat:Connect(function(dt)
+		if encerrado then return end
+		if not (rootpart and rootpart.Parent and humanoid and humanoid.Health > 0) then
+			encerrar()
+			return
+		end
+
+		decorrido = decorrido + dt
+		if decorrido >= CFG.DURACAO then encerrar(); return end
+
+		local vel = rootpart.AssemblyLinearVelocity
+		if not vel or vel.Magnitude <= CFG.VEL_MINIMA then return end
+
+		-- Rastro de poeira ritmado (não a cada frame)
+		relogioPo = relogioPo + dt
+		if relogioPo >= CFG.INTERVALO_POEIRA then
+			relogioPo = 0
+			vfx("POEIRA", {
+				posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
+				cor     = CFG.COR,
+				escala  = 0.55,
+			})
+		end
+
+		local alvos = detectar(rootpart.Position, CFG.RAIO_CONTATO, 6)
+		for _, hum in ipairs(alvos) do
+			local marca = ultimoDano[hum] or -99
+			if decorrido - marca >= CFG.JANELA_CONTATO then
+				ultimoDano[hum] = decorrido
+				local raiz = raizDe(hum)
+				if raiz then
+					-- SFX -> física -> VFX -> dano (§8 V2)
+					tocarSfx("sfx_impacto", raiz, 1.35)
+					tocarBloco(somImpacto, raiz, 1.35)
+					empurrar(raiz, vel.Unit + Vector3.new(0, 0.35, 0), CFG.FORCA_EMPURRAO, 0.3)
+					vfx("IMPACTO", { posicao = raiz.Position, cor = CFG.COR_IMPACTO, escala = 1.2 })
+					vfx("LINHAS_VELOCIDADE", {
+						posicao = raiz.Position, cor = CFG.COR,
+						escala = 1, quantidade = 8,
+					})
+					vfx("TREMOR", { preset = "BUMP" })
+					aplicarDano(hum, CFG.DANO_CONTATO)
+				end
+			end
+		end
+	end))
+
+	if rig then
+		rig:PlayPose("SKATE", 0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tocarSfx("sfx_expansao", Handle, 1.0)
+		vfx("ONDA_CHOQUE", {
+			posicao = rootpart.Position - Vector3.new(0, 2.6, 0),
+			cor     = CFG.COR,
+			escala  = 0.7,
+		})
+		vfx("LINHAS_VELOCIDADE", {
+			posicao = rootpart.Position, cor = CFG.COR, escala = 1.1, quantidade = 12,
+		})
+		-- [JC] arranque: rajada para trás + destroços rasos
+		tocarSfx("sfx_carga", Handle, 1.3)
+		vfx("RAJADA", {
+			posicao = rootpart.Position - rootpart.CFrame.LookVector * 2,
+			cor     = CFG.COR,
+			escala  = 0.8,
+			direcao = -rootpart.CFrame.LookVector,
+		})
+		tocarSfx("sfx_corte", Handle, 1.15)
+		vfx("DESTROCOS", {
+			posicao    = rootpart.Position - Vector3.new(0, 2.8, 0),
+			cor        = CFG.COR,
+			escala     = 0.6,
+			quantidade = 9,
+			raio       = 10,
+		})
+		vfx("TREMOR", { preset = "BUMP_PEQUENO" })
+	end
+
+	guardarCancelamento(encerrar)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- ENTRADA
+--═══════════════════════════════════════════════════════════════
+
+RemoteEvent.OnServerEvent:Connect(function(jogador, acao)
+	if jogador ~= owner or not equipped then return end
+	if not taxaOk() then return end
+	if acao == "activate" then ativarSkate() end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- NPC
+--═══════════════════════════════════════════════════════════════
+
+task.spawn(function()
+	while true do
+		task.wait(1.5)
+		if equipped and not owner and not npcRecarga and rootpart and rootpart.Parent then
+			local perto = detectar(rootpart.Position, CFG.NPC_ALCANCE, 1)
+			if #perto > 0 then
+				npcRecarga = true
+				ativarSkate()
+				task.delay(CFG.NPC_RECARGA, function() npcRecarga = false end)
+			end
+		end
+	end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- CICLO DE VIDA
+--═══════════════════════════════════════════════════════════════
+
+Tool.Equipped:Connect(function()
+	character = Tool.Parent
+	if not character then return end
+	owner    = Players:GetPlayerFromCharacter(character)
+	humanoid = character:FindFirstChildOfClass("Humanoid")
+	rootpart = character:FindFirstChild("HumanoidRootPart")
+	if not (humanoid and rootpart) then return end
+
+	equipped = true
+	if somEquipar then somEquipar:Play() end
+	montarRig()
+
+	guardarConexao(humanoid.Died:Connect(function()
+		vfx("PARAR", { id = ID_AURA })
+		limparTudo()
+	end))
+end)
+
+-- Tool.Enabled NÃO é resetado aqui (§8 / §10.7)
+Tool.Unequipped:Connect(function()
+	equipped   = false
+	skateAtivo = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+
+Tool.Destroying:Connect(function()
+	equipped   = false
+	skateAtivo = false
+	vfx("PARAR", { id = ID_AURA })
+	limparTudo()
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA Nº 2 — o VFX sai da Tool quando ela chega ao jogador
+--
+-- Uma linha. O `DepositoVFX` liga o ciclo inteiro sozinho: instala na troca de
+-- pai (mochila OU mão), desinstala no `Tool.Destroying`, e conta as referências
+-- para não arrancar o molde debaixo de quem ainda está com a Tool.
+--
+-- Ver DIRETRIZES/REGRA_CICLO_DE_VIDA_DO_VFX.md
+--═══════════════════════════════════════════════════════════════
+
+Deposito.ligar(Tool)

@@ -1,0 +1,730 @@
+{
+ "Forma1": {
+  "GUARDA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "ATO_DE_DESAPARECER": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.4166666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-0.898, 0.463, -1.4) * CFrame.Angles(math.rad(89.988), math.rad(-4), math.rad(2.999))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.5833333333333334,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-0.952, 0.019, -0.958) * CFrame.Angles(math.rad(60.771), math.rad(-4.954), math.rad(0.668))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))"
+    }
+   }
+  ],
+  "FULL_HOUSE": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.6666666666666666,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.2, 1.5, 0) * CFrame.Angles(math.rad(-180), math.rad(0), math.rad(0))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.9166666666666666,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.436, 0.167, -0.48) * CFrame.Angles(math.rad(50.118), math.rad(-14.531), math.rad(3.435))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(49.881), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.25,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.284, 0.491, -1.045) * CFrame.Angles(math.rad(89.967), math.rad(-4.003), math.rad(-14.983))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(-24.94), math.rad(0))"
+    }
+   }
+  ],
+  "CARDNADO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.3333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.455, 1.244, 0.161) * CFrame.Angles(math.rad(178.102), math.rad(9.834), math.rad(10.163))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.4833333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.528, 1.223, 0.16) * CFrame.Angles(math.rad(177.416), math.rad(9.664), math.rad(15.017))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.6333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.454, 1.239, 0.16) * CFrame.Angles(math.rad(178.212), math.rad(9.841), math.rad(10.348))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "TELEPORTE": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "GARGALHADA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "CARTA_COLOSSAL": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.5,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.455, 1.243, 0.16) * CFrame.Angles(math.rad(178.242), math.rad(9.846), math.rad(10.151))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.7166666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.411, 1.183, 0.344) * CFrame.Angles(math.rad(-161.762), math.rad(12.693), math.rad(6.204))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.1166666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.472, 0.213, -0.667) * CFrame.Angles(math.rad(75.387), math.rad(-7.713), math.rad(13.5))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "BURACO_NEGRO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.25,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.455, 1.245, 0.162) * CFrame.Angles(math.rad(177.39), math.rad(9.77), math.rad(10.223))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   }
+  ],
+  "ESCUDO_DE_CARTAS": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.5833333333333334,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.439, 0.157, -0.471) * CFrame.Angles(math.rad(49.482), math.rad(-14.586), math.rad(3.362))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.1666666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.37, 0.497, -0.927) * CFrame.Angles(math.rad(90), math.rad(-4), math.rad(-20))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(-20), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.4166666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.439, 0.159, -0.476) * CFrame.Angles(math.rad(49.667), math.rad(-14.5), math.rad(3.271))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(24.786), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.5833333333333335,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.738, 0.094, 0.57) * CFrame.Angles(math.rad(-28.224), math.rad(16.499), math.rad(-37.259))",
+     "LeftArm": "CFrame.new(-1.376, 0.495, -0.926) * CFrame.Angles(math.rad(88.825), math.rad(-4.059), math.rad(-19.271))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(-18.735), math.rad(0))"
+    }
+   }
+  ],
+  "BOLA_DE_FOGO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.25,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.935, 0.296, 0.621) * CFrame.Angles(math.rad(19.871), math.rad(-14.022), math.rad(89.56))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-14.999), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.5,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.665, 0.5, -1.413) * CFrame.Angles(math.rad(89.998), math.rad(0.002), math.rad(-24.997))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(9.999), math.rad(14.999), math.rad(0))"
+    }
+   }
+  ],
+  "BOLA_DE_FOGO_IMENSA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.3333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.551, 1.298, -0.133) * CFrame.Angles(math.rad(-179.797), math.rad(-50), math.rad(0.094))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(49.98), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.5833333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.933, 0.318, 0.634) * CFrame.Angles(math.rad(19.521), math.rad(-14.41), math.rad(90.241))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-14.998), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.8333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.665, 0.5, -1.413) * CFrame.Angles(math.rad(89.998), math.rad(0.002), math.rad(-24.997))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(9.999), math.rad(14.999), math.rad(0))"
+    }
+   }
+  ],
+  "SOPRO_DO_DRAGAO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.25,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.935, 0.296, 0.621) * CFrame.Angles(math.rad(19.871), math.rad(-14.022), math.rad(89.56))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-14.999), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.3,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.939, 0.302, 0.624) * CFrame.Angles(math.rad(19.956), math.rad(-14.008), math.rad(89.849))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-10), math.rad(-15), math.rad(0))"
+    }
+   },
+   {
+    "t": 1.1333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(0.665, 0.5, -1.413) * CFrame.Angles(math.rad(90), math.rad(0), math.rad(-25))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(10), math.rad(15), math.rad(0))"
+    }
+   }
+  ],
+  "RAIO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.5, 0, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.2, 0) * CFrame.Angles(math.rad(0), math.rad(25), math.rad(0))"
+    }
+   },
+   {
+    "t": 0.25,
+    "juntas": {
+     "Head": "CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(0))",
+     "RightArm": "CFrame.new(1.994, 0.49, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(89.573))",
+     "LeftArm": "CFrame.new(-0.722, 0.074, 0.561) * CFrame.Angles(math.rad(-26.574), math.rad(-15.282), math.rad(37.711))",
+     "RightLeg": "CFrame.new(0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(10))",
+     "LeftLeg": "CFrame.new(-0.643, -1.918, 0) * CFrame.Angles(math.rad(0), math.rad(0), math.rad(-10))",
+     "HRP": "CFrame.new(0, -0.001, 0) * CFrame.Angles(math.rad(0), math.rad(89.691), math.rad(0))"
+    }
+   }
+  ]
+ },
+ "Forma2": {
+  "GUARDA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   }
+  ],
+  "CARTA_CEIFEIRA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 0.3333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0.005, 2.005, 0.037) * CFrame.Angles(math.rad(-2.019), math.rad(24.562), math.rad(-1.68))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.319, 1, -1.072) * CFrame.Angles(math.rad(109.327), math.rad(-21.372), math.rad(-32.018))",
+     "RightLeg": "CFrame.new(1.136, -2.079, -0.44) * CFrame.Angles(math.rad(-26.919), math.rad(-16.362), math.rad(3.895))",
+     "LeftLeg": "CFrame.new(-1.577, -1.913, -0.743) * CFrame.Angles(math.rad(23.261), math.rad(24.987), math.rad(-28.601))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.604), math.rad(-35.235), math.rad(6.974))"
+    }
+   },
+   {
+    "t": 0.5,
+    "juntas": {
+     "Head": "CFrame.new(0.01, 1.933, -0.184) * CFrame.Angles(math.rad(-18.281), math.rad(24.16), math.rad(5.042))",
+     "RightArm": "CFrame.new(0.828, 0.366, 1.292) * CFrame.Angles(math.rad(-101.796), math.rad(-27.609), math.rad(-74.92))",
+     "LeftArm": "CFrame.new(-2.32, 1.003, -1.073) * CFrame.Angles(math.rad(109.396), math.rad(-21.463), math.rad(-32.024))",
+     "RightLeg": "CFrame.new(0.976, -2.232, -0.068) * CFrame.Angles(math.rad(-26.9), math.rad(-16.361), math.rad(3.9))",
+     "LeftLeg": "CFrame.new(-1.64, -2.283, -0.188) * CFrame.Angles(math.rad(-6.149), math.rad(35.091), math.rad(-23.621))",
+     "HRP": "CFrame.new(-0.199, 0, 1.988) * CFrame.Angles(math.rad(7.338), math.rad(-28.758), math.rad(22.622))"
+    }
+   },
+   {
+    "t": 0.7,
+    "juntas": {
+     "Head": "CFrame.new(0.043, 2.007, 0.076) * CFrame.Angles(math.rad(3.592), math.rad(50.94), math.rad(3.809))",
+     "RightArm": "CFrame.new(1.311, 0.68, -1.064) * CFrame.Angles(math.rad(113.816), math.rad(-0.362), math.rad(-49.996))",
+     "LeftArm": "CFrame.new(-0.328, 0.74, -1.507) * CFrame.Angles(math.rad(116.05), math.rad(-0.806), math.rad(71.826))",
+     "RightLeg": "CFrame.new(0.981, -1.908, -0.982) * CFrame.Angles(math.rad(-18.951), math.rad(-20.984), math.rad(-17.809))",
+     "LeftLeg": "CFrame.new(-1.757, -2.084, -0.694) * CFrame.Angles(math.rad(50.187), math.rad(38.966), math.rad(-44.189))",
+     "HRP": "CFrame.new(-0.028, 0, 0.283) * CFrame.Angles(math.rad(-21.916), math.rad(-56.016), math.rad(-0.619))"
+    }
+   },
+   {
+    "t": 1.0333333333333332,
+    "juntas": {
+     "Head": "CFrame.new(0.043, 2.008, 0.078) * CFrame.Angles(math.rad(3.753), math.rad(51.09), math.rad(3.754))",
+     "RightArm": "CFrame.new(1.707, 0.969, -1.129) * CFrame.Angles(math.rad(125.548), math.rad(-5.65), math.rad(-9.14))",
+     "LeftArm": "CFrame.new(-0.339, 0.681, -1.429) * CFrame.Angles(math.rad(109.648), math.rad(-9.934), math.rad(55.303))",
+     "RightLeg": "CFrame.new(0.982, -1.906, -0.986) * CFrame.Angles(math.rad(-18.911), math.rad(-21.019), math.rad(-17.933))",
+     "LeftLeg": "CFrame.new(-1.758, -2.083, -0.698) * CFrame.Angles(math.rad(50.512), math.rad(38.94), math.rad(-44.311))",
+     "HRP": "CFrame.new(-0.001, 0, 0.011) * CFrame.Angles(math.rad(-30.701), math.rad(-60.051), math.rad(-8.44))"
+    }
+   }
+  ],
+  "ESFERA_DO_FIM": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 0.25,
+    "juntas": {
+     "Head": "CFrame.new(0.077, 1.962, -0.13) * CFrame.Angles(math.rad(-19.82), math.rad(33.614), math.rad(10.237))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.317, 0.73, -0.782) * CFrame.Angles(math.rad(96.692), math.rad(-10.377), math.rad(-22.064))",
+     "RightLeg": "CFrame.new(1.071, -2.294, 0.17) * CFrame.Angles(math.rad(-32.037), math.rad(-14.211), math.rad(4.863))",
+     "LeftLeg": "CFrame.new(-1.405, -2.171, -0.331) * CFrame.Angles(math.rad(-13.521), math.rad(35.152), math.rad(-7.537))",
+     "HRP": "CFrame.new(0, 0, 2.96) * CFrame.Angles(math.rad(32.865), math.rad(-45.831), math.rad(2.169))"
+    }
+   },
+   {
+    "t": 0.7166666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0.038, 1.902, -0.023) * CFrame.Angles(math.rad(-2.032), math.rad(-35.859), math.rad(1.284))",
+     "RightArm": "CFrame.new(0.487, 0.343, -1.032) * CFrame.Angles(math.rad(64.915), math.rad(-24.57), math.rad(-81.952))",
+     "LeftArm": "CFrame.new(-0.587, 0.12, -1.133) * CFrame.Angles(math.rad(69.321), math.rad(-26.268), math.rad(69.143))",
+     "RightLeg": "CFrame.new(1.58, -1.757, -0.819) * CFrame.Angles(math.rad(-13.305), math.rad(-48.877), math.rad(11.711))",
+     "LeftLeg": "CFrame.new(-1.093, -1.897, -0.9) * CFrame.Angles(math.rad(-26.747), math.rad(32.905), math.rad(17.306))",
+     "HRP": "CFrame.new(0, 0, 0.083) * CFrame.Angles(math.rad(-31.75), math.rad(37.192), math.rad(0.406))"
+    }
+   },
+   {
+    "t": 1.3,
+    "juntas": {
+     "Head": "CFrame.new(0.136, 1.895, -0.091) * CFrame.Angles(math.rad(-3.547), math.rad(34.541), math.rad(-2.904))",
+     "RightArm": "CFrame.new(2.336, 0.155, -0.332) * CFrame.Angles(math.rad(69.477), math.rad(-24.205), math.rad(68.485))",
+     "LeftArm": "CFrame.new(-2.484, 0.234, -0.156) * CFrame.Angles(math.rad(122.766), math.rad(31.298), math.rad(-87.939))",
+     "RightLeg": "CFrame.new(0.86, -1.695, -0.683) * CFrame.Angles(math.rad(-39.096), math.rad(-21.231), math.rad(8.056))",
+     "LeftLeg": "CFrame.new(-1.901, -2.021, -0.657) * CFrame.Angles(math.rad(32.249), math.rad(33.563), math.rad(-40.161))",
+     "HRP": "CFrame.new(0, 0, 0.001) * CFrame.Angles(math.rad(-9.124), math.rad(-29.775), math.rad(13.933))"
+    }
+   }
+  ],
+  "BARALHO_ESPECTRAL": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 2.5,
+    "juntas": {
+     "Head": "CFrame.new(0, 2.002, 0.026) * CFrame.Angles(math.rad(-2.898), math.rad(38.347), math.rad(2.27))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.466, 0.745, -0.474) * CFrame.Angles(math.rad(83.358), math.rad(-20.083), math.rad(-35.007))",
+     "RightLeg": "CFrame.new(1.123, -2.375, -0.131) * CFrame.Angles(math.rad(-44.219), math.rad(-16.774), math.rad(-1.073))",
+     "LeftLeg": "CFrame.new(-1.362, -2.081, -0.395) * CFrame.Angles(math.rad(-11.085), math.rad(42.432), math.rad(-5.015))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.6), math.rad(-39.9), math.rad(-0.6))"
+    }
+   }
+  ],
+  "INVOCACAO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 0.06666666666666667,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.038, 0.768, -0.509) * CFrame.Angles(math.rad(122.391), math.rad(-2.395), math.rad(-22.707))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 0.26666666666666666,
+    "juntas": {
+     "Head": "CFrame.new(0.043, 2.008, 0.078) * CFrame.Angles(math.rad(3.708), math.rad(50.883), math.rad(3.792))",
+     "RightArm": "CFrame.new(1.309, 0.681, -1.06) * CFrame.Angles(math.rad(113.807), math.rad(-0.221), math.rad(-50.037))",
+     "LeftArm": "CFrame.new(-0.331, 0.741, -1.507) * CFrame.Angles(math.rad(116.006), math.rad(-0.667), math.rad(71.863))",
+     "RightLeg": "CFrame.new(0.982, -1.907, -0.982) * CFrame.Angles(math.rad(-18.986), math.rad(-20.981), math.rad(-17.82))",
+     "LeftLeg": "CFrame.new(-1.754, -2.083, -0.701) * CFrame.Angles(math.rad(50.33), math.rad(38.899), math.rad(-44.09))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-28.109), math.rad(-53.06), math.rad(-6.08))"
+    }
+   },
+   {
+    "t": 0.6,
+    "juntas": {
+     "Head": "CFrame.new(0.043, 2.008, 0.078) * CFrame.Angles(math.rad(3.754), math.rad(51.089), math.rad(3.754))",
+     "RightArm": "CFrame.new(1.707, 0.969, -1.129) * CFrame.Angles(math.rad(125.547), math.rad(-5.65), math.rad(-9.14))",
+     "LeftArm": "CFrame.new(-0.339, 0.681, -1.429) * CFrame.Angles(math.rad(109.648), math.rad(-9.933), math.rad(55.303))",
+     "RightLeg": "CFrame.new(0.982, -1.906, -0.986) * CFrame.Angles(math.rad(-18.911), math.rad(-21.019), math.rad(-17.933))",
+     "LeftLeg": "CFrame.new(-1.758, -2.083, -0.698) * CFrame.Angles(math.rad(50.512), math.rad(38.94), math.rad(-44.311))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-30.96), math.rad(-59.925), math.rad(-8.67))"
+    }
+   }
+  ],
+  "FURIA_DO_MACHADO": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532))",
+     "RightArm": "CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972))",
+     "LeftArm": "CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21))",
+     "RightLeg": "CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869))",
+     "LeftLeg": "CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4))"
+    }
+   },
+   {
+    "t": 0.15,
+    "juntas": {
+     "Head": "CFrame.new(0.068, 2.006, 0.101) * CFrame.Angles(math.rad(4.565), math.rad(41.56), math.rad(3.095))",
+     "RightArm": "CFrame.new(2.155, 1.397, -0.617) * CFrame.Angles(math.rad(138.257), math.rad(44.804), math.rad(-1.525))",
+     "LeftArm": "CFrame.new(-2.192, 0.097, -0.593) * CFrame.Angles(math.rad(47.976), math.rad(-17.098), math.rad(-35.404))",
+     "RightLeg": "CFrame.new(1.196, -1.809, -0.93) * CFrame.Angles(math.rad(-18.901), math.rad(-20.973), math.rad(11.332))",
+     "LeftLeg": "CFrame.new(-1.432, -2.014, -0.959) * CFrame.Angles(math.rad(45.645), math.rad(31.864), math.rad(-26.936))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.488), math.rad(-40.75), math.rad(-28.28))"
+    }
+   },
+   {
+    "t": 0.3,
+    "juntas": {
+     "Head": "CFrame.new(0.095, 2.003, 0.14) * CFrame.Angles(math.rad(5.462), math.rad(28.49), math.rad(2.63))",
+     "RightArm": "CFrame.new(0.932, 1.322, -1.309) * CFrame.Angles(math.rad(142.845), math.rad(10.33), math.rad(-53.078))",
+     "LeftArm": "CFrame.new(-2.258, 0.137, 0.575) * CFrame.Angles(math.rad(-13.597), math.rad(26.857), math.rad(-28.932))",
+     "RightLeg": "CFrame.new(1.199, -1.808, -0.934) * CFrame.Angles(math.rad(-18.847), math.rad(-20.97), math.rad(11.536))",
+     "LeftLeg": "CFrame.new(-1.452, -2.001, -0.99) * CFrame.Angles(math.rad(-11.455), math.rad(39.857), math.rad(8.627))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-27.599), math.rad(-40.7), math.rad(16.148))"
+    }
+   }
+  ],
+  "PROCISSAO_DE_CARTAS": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(0.08, 2.023, 0.048) * CFrame.Angles(math.rad(-0.972), math.rad(14.59), math.rad(6.922))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.058, 0.43, -0.754) * CFrame.Angles(math.rad(87.174), math.rad(6.608), math.rad(-24.807))",
+     "RightLeg": "CFrame.new(1.064, -2, -0.194) * CFrame.Angles(math.rad(-32.837), math.rad(-16.665), math.rad(2.212))",
+     "LeftLeg": "CFrame.new(-0.907, -2.028, -1.08) * CFrame.Angles(math.rad(24.73), math.rad(24.757), math.rad(-11.398))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-21.3), math.rad(-14.9), math.rad(-0.5))"
+    }
+   },
+   {
+    "t": 0.3333333333333333,
+    "juntas": {
+     "Head": "CFrame.new(0.023, 2.005, 0.055) * CFrame.Angles(math.rad(-1.968), math.rad(-27.061), math.rad(1.058))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-2.353, 0.443, 0.326) * CFrame.Angles(math.rad(98.67), math.rad(0.653), math.rad(-114.328))",
+     "RightLeg": "CFrame.new(1.323, -2.009, -0.309) * CFrame.Angles(math.rad(-25.964), math.rad(-32.422), math.rad(2.795))",
+     "LeftLeg": "CFrame.new(-0.853, -1.941, -0.974) * CFrame.Angles(math.rad(-12.839), math.rad(26.606), math.rad(5.374))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-17.746), math.rad(28.056), math.rad(-12.978))"
+    }
+   },
+   {
+    "t": 0.7666666666666666,
+    "juntas": {
+     "Head": "CFrame.new(0.038, 2.009, 0.088) * CFrame.Angles(math.rad(10.445), math.rad(39.336), math.rad(-8.544))",
+     "RightArm": "CFrame.new(0.709, 0.205, 0.822) * CFrame.Angles(math.rad(-101.75), math.rad(-27.74), math.rad(-93.961))",
+     "LeftArm": "CFrame.new(-1.253, 0.752, -1.519) * CFrame.Angles(math.rad(98.886), math.rad(-0.337), math.rad(24.781))",
+     "RightLeg": "CFrame.new(0.926, -1.819, -0.307) * CFrame.Angles(math.rad(-63.229), math.rad(-29.312), math.rad(-17.349))",
+     "LeftLeg": "CFrame.new(-1.78, -1.868, -1.089) * CFrame.Angles(math.rad(48.066), math.rad(33.722), math.rad(-39.71))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-36.4), math.rad(-42.48), math.rad(4.026))"
+    }
+   },
+   {
+    "t": 1.0999999999999999,
+    "juntas": {
+     "Head": "CFrame.new(0.041, 1.965, 0.095) * CFrame.Angles(math.rad(24.454), math.rad(43.474), math.rad(-19.174))",
+     "RightArm": "CFrame.new(2.353, -0.045, 0.249) * CFrame.Angles(math.rad(26.991), math.rad(-39.131), math.rad(42.94))",
+     "LeftArm": "CFrame.new(-2.376, 1.372, -0.992) * CFrame.Angles(math.rad(102.586), math.rad(-36.182), math.rad(-43.442))",
+     "RightLeg": "CFrame.new(0.982, -1.905, -0.983) * CFrame.Angles(math.rad(-19.047), math.rad(-21.043), math.rad(-17.92))",
+     "LeftLeg": "CFrame.new(-1.759, -2.083, -0.7) * CFrame.Angles(math.rad(50.504), math.rad(38.924), math.rad(-44.296))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-30.621), math.rad(-56.256), math.rad(2.9))"
+    }
+   }
+  ],
+  "GARGALHADA": [
+   {
+    "t": 0.0,
+    "juntas": {
+     "Head": "CFrame.new(-0.003, 2.002, -0.004) * CFrame.Angles(math.rad(-3.925), math.rad(40.134), math.rad(2.532))",
+     "RightArm": "CFrame.new(2.413, 0.189, -0.103) * CFrame.Angles(math.rad(26.004), math.rad(-2.959), math.rad(47.972))",
+     "LeftArm": "CFrame.new(-2.383, 0.304, 0.266) * CFrame.Angles(math.rad(-5.78), math.rad(11.849), math.rad(-48.21))",
+     "RightLeg": "CFrame.new(0.875, -1.869, -0.559) * CFrame.Angles(math.rad(-24.193), math.rad(-20.324), math.rad(-8.869))",
+     "LeftLeg": "CFrame.new(-1.743, -2.049, -0.483) * CFrame.Angles(math.rad(45.814), math.rad(41.32), math.rad(-42.864))",
+     "HRP": "CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(-14.9), math.rad(-43.1), math.rad(4.4))"
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,107 @@
+-- Poses_Criacao_V1.lua
+-- ModuleScript "Poses" — Alvenaria  (conjunto CRIAÇÃO)
+--
+-- FORMATO V2 — juntas que o R6CFrameAnimator solda, e só elas:
+--   RightArm (1.5,0,0) · LeftArm (-1.5,0,0) · Head (0,1.5,0) · HRP () ·
+--   RightLeg (0.5,-2,0) · LeftLeg (-0.5,-2,0)
+--
+-- Sequência usa `time` / `style` / `dir` (V2), nunca `duracao` / `easing` (V1).
+--
+-- PERNA: quem solda perna é o animator, sob demanda, e é ele quem chama
+-- `ReleaseLegs` ao fim de toda sequência. Perna soldada permanentemente trava
+-- a caminhada — nenhuma pose daqui deve ser aplicada fora de sequência.
+--
+-- ESTA TOOL LIDERA POR `RightArm`.
+--
+-- A GRAMÁTICA: O GESTO VEM ANTES DA COISA
+--
+--   Os outros conjuntos animam um GOLPE — o corpo acelera até um ponto e o
+--   dano acontece ali. Criar tem dois tempos, e o segundo é o que importa: o
+--   gesto, e depois a PAUSA em que a coisa sobe.
+--
+--   Por isso o molde `erguer` tem o quadro mais longo num lugar onde nenhum
+--   outro molde do repositório põe um: DEPOIS do beat. A muralha não aparece
+--   no instante em que a mão sobe — ela aparece enquanto a mão fica parada lá
+--   em cima.
+--
+-- Gerado por FERRAMENTAS/gerar_poses_criacao.py. Editar aqui à mão faz as sete
+-- derivarem; edite o gerador.
+
+local P = {}
+
+P.MARTELO_ALTO = {
+	RightArm = CFrame.new(1.32, 0.76, 0.2) * CFrame.Angles(math.rad(-158), math.rad(-18), math.rad(30)),
+	LeftArm = CFrame.new(-1.44, 0.2, -0.4) * CFrame.Angles(math.rad(44), math.rad(16), math.rad(-18)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-18), math.rad(-14), math.rad(0)),
+	HRP = CFrame.new(0, 0.06, 0) * CFrame.Angles(math.rad(-10), math.rad(-24), math.rad(0)),
+}
+
+P.MARTELO_DESCE = {
+	RightArm = CFrame.new(1.46, -0.36, -0.66) * CFrame.Angles(math.rad(16), math.rad(-8), math.rad(-6)),
+	LeftArm = CFrame.new(-1.42, -0.1, -0.3) * CFrame.Angles(math.rad(22), math.rad(-10), math.rad(14)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(28), math.rad(10), math.rad(0)),
+	HRP = CFrame.new(0, -0.36, 0) * CFrame.Angles(math.rad(26), math.rad(18), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.72, -0.4) * CFrame.Angles(math.rad(-26), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.52, -1.84, 0.2) * CFrame.Angles(math.rad(14), math.rad(0), math.rad(0)),
+}
+
+P.IDLE = {
+	RightArm = CFrame.new(1.48, 0.08, -0.2) * CFrame.Angles(math.rad(20), math.rad(4), math.rad(6)),
+	LeftArm = CFrame.new(-1.49, 0.04, -0.08) * CFrame.Angles(math.rad(10), math.rad(-2), math.rad(-5)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-3), math.rad(-5), math.rad(0)),
+	HRP = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(0), math.rad(-7), math.rad(0)),
+}
+
+P.PALMAS_BAIXO = {
+	RightArm = CFrame.new(1.44, -0.14, -0.62) * CFrame.Angles(math.rad(46), math.rad(-16), math.rad(-22)),
+	LeftArm = CFrame.new(-1.44, -0.14, -0.62) * CFrame.Angles(math.rad(46), math.rad(16), math.rad(22)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(22), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, -0.26, 0) * CFrame.Angles(math.rad(18), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.8, -0.24) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.5, -1.8, -0.24) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
+}
+
+P.ERGUE = {
+	RightArm = CFrame.new(1.5, 0.7, -0.3) * CFrame.Angles(math.rad(142), math.rad(-12), math.rad(-16)),
+	LeftArm = CFrame.new(-1.5, 0.7, -0.3) * CFrame.Angles(math.rad(142), math.rad(12), math.rad(16)),
+	Head = CFrame.new(0, 1.5, 0) * CFrame.Angles(math.rad(-30), math.rad(0), math.rad(0)),
+	HRP = CFrame.new(0, 0.12, 0) * CFrame.Angles(math.rad(-16), math.rad(0), math.rad(0)),
+	RightLeg = CFrame.new(0.5, -1.9, 0.1) * CFrame.Angles(math.rad(6), math.rad(0), math.rad(0)),
+	LeftLeg = CFrame.new(-0.5, -1.9, 0.1) * CFrame.Angles(math.rad(6), math.rad(0), math.rad(0)),
+}
+
+--═══════════════════════════════════════════════════════════════
+-- SEQUÊNCIAS
+--═══════════════════════════════════════════════════════════════
+
+P.SEQUENCIAS = {
+
+	-- batida — 0.70 s
+	TIJOLO = {
+		{ pose = "MARTELO_ALTO", time = 0.16, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "MARTELO_DESCE", time = 0.09, style = "Quint", dir = "Out", marca = "GOLPE" },
+		{ pose = "MARTELO_DESCE", time = 0.13, style = "Sine", dir = "InOut" },
+		{ pose = "IDLE", time = 0.32, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- erguimento — 1.30 s
+	MURALHA = {
+		{ pose = "PALMAS_BAIXO", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMAS_BAIXO", time = 0.16, style = "Sine", dir = "InOut", marca = "SEGURA" },
+		{ pose = "ERGUE", time = 0.14, style = "Quint", dir = "Out", marca = "ERGUE" },
+		{ pose = "ERGUE", time = 0.46, style = "Sine", dir = "InOut", tremor = 0.026, freq = 15 },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+	-- erguimento — 1.30 s
+	TORRE = {
+		{ pose = "PALMAS_BAIXO", time = 0.2, style = "Back", dir = "In", marca = "CARGA" },
+		{ pose = "PALMAS_BAIXO", time = 0.16, style = "Sine", dir = "InOut", marca = "SEGURA" },
+		{ pose = "ERGUE", time = 0.14, style = "Quint", dir = "Out", marca = "ERGUE" },
+		{ pose = "ERGUE", time = 0.46, style = "Sine", dir = "InOut", tremor = 0.038, freq = 17 },
+		{ pose = "IDLE", time = 0.34, style = "Quad", dir = "Out", marca = "FIM" },
+	},
+
+}
+
+return P

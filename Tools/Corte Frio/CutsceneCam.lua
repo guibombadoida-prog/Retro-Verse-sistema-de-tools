@@ -1,0 +1,336 @@
+-- CutsceneCam.lua
+-- Script com RunContext = Client — conjunto DRAMA
+--
+-- POR QUE NÃO É LocalScript, E POR QUE AQUI ISSO MUDA A CENA
+--
+--   `GRAMATICA_CUTSCENE.md`, regra 2: **enquadramento POR ESPECTADOR**.
+--
+--     quem invoca  ->  vê o golpe de fora, o alvo no quadro
+--     quem é alvo  ->  vê a si mesmo sendo alcançado
+--
+--   Essa regra foi escrita a partir do `YorrSlayer` e **nunca tinha sido
+--   implementada** neste repositório, por um motivo simples: a `CutsceneCam`
+--   era LocalScript, e LocalScript dentro de Tool só roda para quem a segura.
+--   O alvo nunca executava o arquivo, então a metade da cena que era dele não
+--   existia.
+--
+--   `RunContext = Client` roda em TODO cliente, inclusive no do alvo. É o que
+--   torna a regra 2 possível sem tirar nada de dentro da Tool.
+--
+-- AS OUTRAS CINCO REGRAS
+--
+--   1. FOV é a técnica principal, não o movimento. Fecha na carga, ESTOURA no
+--      golpe. A amplitude escala com a intimidade: `Corte Frio` é execução a
+--      dois passos (44 -> 96, amplitude 52); o fatal da `Cortada Fatal` abre
+--      mais cedo e fecha mais (40 -> 104, amplitude 64).
+--   3. Aproximação EXPONENCIAL, nunca Tween bloqueante:
+--      `k = 1 - math.exp(-VELOC * dt)`. Independente de FPS, interrompível a
+--      qualquer quadro, e não trava nada.
+--   4. Estágio troca por TEMPO dentro do RenderStepped, não por espera.
+--   5. Tremor com ENVELOPE, e só na janela do golpe. Duas frequências que não
+--      são múltiplas (24 e 41), envelope que nasce forte e some sozinho.
+--   6. Pular é obrigatório, e é SÓ visual: segurar E por 1.5 s solta a câmera.
+--      O servidor segue no tempo dele — pular não adianta o dano.
+--
+-- E A SEXTA PORTA
+--
+--   A regra chama câmera presa de "o pior do repertório". Aqui ela é devolvida
+--   por: `Unequipped`, `Destroying`, `CharacterRemoving`, `Died`, prazo
+--   estourado, e o pulo. Seis portas, e a de prazo existe porque o servidor
+--   pode morrer no meio da cena e nunca mandar o `FIM`.
+--
+-- Gerado por FERRAMENTAS/gerar_servers_drama.py.
+
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInput  = game:GetService("UserInputService")
+
+local Tool           = script.Parent
+local jogador        = Players.LocalPlayer
+local CutsceneRemote = Tool:WaitForChild("CutsceneRemote")
+
+--═══════════════════════════════════════════════════════════════
+-- CFG — número mágico espalhado pelo corpo é violação
+--═══════════════════════════════════════════════════════════════
+
+local CFG = {
+	FOV_BASE   = 70,
+	VELOC_CAM  = 3.2,     -- da regra 3, medida no molde do YorrSlayer
+	VELOC_FOV  = 6.0,
+	SKIP_HOLD  = 1.5,     -- da regra 6
+	PRAZO      = 12,      -- teto de segurança, não cronômetro
+	TREMOR_A   = 24,      -- as duas frequências da regra 5: não são múltiplas
+	TREMOR_B   = 41,
+}
+
+--═══════════════════════════════════════════════════════════════
+-- OS ENQUADRAMENTOS, POR PAPEL E POR BEAT
+--
+-- `de` é offset no espaço do ANCORADOURO daquele papel:
+--   invocador -> ancora no portador, olha o alvo
+--   alvo      -> ancora em SI MESMO, e olha a PRÓPRIA cara
+--
+-- É a regra 2 inteira, e cabe nesta tabela.
+--═══════════════════════════════════════════════════════════════
+
+local QUADROS = {
+	INVOCADOR = {
+		CAMERA  = { de = Vector3.new(7, 3.2, 9),    olhar = "alvo",      fov = 62, tremor = false },
+		ENCARA  = { de = Vector3.new(3.4, 2.4, 5.2), olhar = "alvo",     fov = 52, tremor = false },
+		AVANCA  = { de = Vector3.new(2.2, 2.0, 3.2), olhar = "alvo",     fov = 46, tremor = false },
+		SEGURA  = { de = Vector3.new(1.6, 1.7, 2.4), olhar = "alvo",     fov = 44, tremor = true  },
+		CORTA   = { de = Vector3.new(6, 4.5, 8),     olhar = "alvo",     fov = 96, tremor = true  },
+		EXECUTA = { de = Vector3.new(7, 5, 9),       olhar = "alvo",     fov = 104, tremor = true },
+
+		-- ── o refazimento: a série de cortes e a cortada fatal ──────────
+		--
+		-- ERGUE e CARGA são a preparação da `Cortada Fatal`: a câmera SOBE
+		-- junto com a lâmina e vai fechando. É o oposto do que ela faz no
+		-- impacto, e é o contraste que faz o impacto ler como impacto.
+		ERGUE   = { de = Vector3.new(4.6, 4.4, 7.2), olhar = "alvo",     fov = 56, tremor = false },
+		CARGA   = { de = Vector3.new(3, 3.6, 5),     olhar = "alvo",     fov = 48, tremor = true  },
+
+		-- CORTE_1 e CORTE_3 são a série. Os dois trocam de LADO: o primeiro
+		-- pela direita, o terceiro pela esquerda. Corte consecutivo filmado
+		-- sempre do mesmo ponto vira um corte só piscando — a troca de eixo é
+		-- o que faz seis cortes lerem como seis.
+		CORTE_1 = { de = Vector3.new(2.6, 2.2, 3.4),  olhar = "alvo",    fov = 50, tremor = true  },
+		CORTE_3 = { de = Vector3.new(-2.8, 2.4, 3.6), olhar = "alvo",    fov = 52, tremor = true  },
+
+		-- e o último corte abre tudo, como o EXECUTA
+		ULTIMO  = { de = Vector3.new(6.5, 4.8, 8.5),  olhar = "alvo",    fov = 100, tremor = true },
+
+		-- FIM assenta antes de devolver. Sem ele a câmera volta no mesmo
+		-- quadro do impacto, e a cena termina sem respirar.
+		FIM     = { de = Vector3.new(7.5, 4, 10),     olhar = "alvo",    fov = 70, tremor = false },
+	},
+	ALVO = {
+		CAMERA  = { de = Vector3.new(-5, 3.4, 12),   olhar = "eu",       fov = 66, tremor = false },
+		ENCARA  = { de = Vector3.new(-3, 2.6, 8),    olhar = "eu",       fov = 56, tremor = false },
+		AVANCA  = { de = Vector3.new(-2, 2.2, 5.5),  olhar = "eu",       fov = 48, tremor = false },
+		SEGURA  = { de = Vector3.new(-1.4, 1.9, 4),  olhar = "eu",       fov = 44, tremor = true  },
+		CORTA   = { de = Vector3.new(-4, 4, 10),     olhar = "eu",       fov = 96, tremor = true  },
+		EXECUTA = { de = Vector3.new(-5, 4.6, 11),   olhar = "eu",       fov = 104, tremor = true },
+
+		-- A metade da regra 2 que é do ALVO. Mesmos beats, ancoradouro nele, e
+		-- olhando a PRÓPRIA cara: quem está sendo cortado seis vezes tem de ver
+		-- isso acontecendo com ele, não ver o outro trabalhando.
+		ERGUE   = { de = Vector3.new(-3.4, 3.8, 9),   olhar = "eu",      fov = 60, tremor = false },
+		CARGA   = { de = Vector3.new(-2.4, 3, 7),     olhar = "eu",      fov = 52, tremor = true  },
+		CORTE_1 = { de = Vector3.new(-2.2, 2.3, 5),   olhar = "eu",      fov = 54, tremor = true  },
+		CORTE_3 = { de = Vector3.new(2.4, 2.5, 5.2),  olhar = "eu",      fov = 56, tremor = true  },
+		ULTIMO  = { de = Vector3.new(-5.5, 4.4, 11.5), olhar = "eu",     fov = 100, tremor = true },
+		FIM     = { de = Vector3.new(-6, 3.6, 12),    olhar = "eu",      fov = 74, tremor = false },
+	},
+}
+
+--═══════════════════════════════════════════════════════════════
+-- ESTADO
+--═══════════════════════════════════════════════════════════════
+
+local camera = workspace.CurrentCamera
+local guardado = nil
+local ligacao, escuta, escutaSolta = nil, nil, nil
+local papel, nomePortador, nomeAlvo = nil, nil, nil
+local quadroAtual = nil
+local posAtual, focoAtual = nil, nil
+local relogio, desdeBeat = 0, 0
+local segurando = 0
+
+local function parteDe(nome)
+	if type(nome) ~= "string" or nome == "" then return nil end
+	local modelo = workspace:FindFirstChild(nome)
+	if not modelo then return nil end
+	return modelo:FindFirstChild("HumanoidRootPart") or modelo:FindFirstChild("Torso")
+end
+
+--═══════════════════════════════════════════════════════════════
+-- DEVOLVER A CÂMERA — o caminho que não pode falhar
+--═══════════════════════════════════════════════════════════════
+
+local function devolver()
+	if ligacao then ligacao:Disconnect() ligacao = nil end
+	if escuta then escuta:Disconnect() escuta = nil end
+	if escutaSolta then escutaSolta:Disconnect() escutaSolta = nil end
+	quadroAtual, papel = nil, nil
+	posAtual, focoAtual = nil, nil
+	segurando = 0
+
+	camera = workspace.CurrentCamera
+	if camera and guardado then
+		camera.CameraType  = guardado.tipo
+		camera.FieldOfView = guardado.fov
+		local personagem = jogador.Character
+		local humanoide = personagem and personagem:FindFirstChildOfClass("Humanoid")
+		if humanoide then camera.CameraSubject = humanoide end
+	end
+	guardado = nil
+end
+
+local function tomar()
+	camera = workspace.CurrentCamera
+	if not camera then return false end
+	if not guardado then
+		guardado = { tipo = camera.CameraType, fov = camera.FieldOfView }
+	end
+	camera.CameraType = Enum.CameraType.Scriptable
+	return true
+end
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA 5 — tremor com envelope, e só na janela do golpe
+--
+-- Duas frequências que não se repetem, com envelope que faz o tremor nascer
+-- forte e sumir sozinho. Zero `math.random`: os dois espectadores veem a mesma
+-- trepidação, e um `math.random` aqui faria a cena tremer diferente para cada
+-- um — o que lê como lag, não como impacto.
+--═══════════════════════════════════════════════════════════════
+
+local function tremor(t, idade)
+	local env = math.clamp(1 - idade * 1.6, 0, 1)
+	if env <= 0 then return Vector3.new() end
+	return Vector3.new(
+		math.sin(t * CFG.TREMOR_A) * 0.30 * env,
+		math.sin(t * CFG.TREMOR_B) * 0.16 * env,
+		math.sin(t * (CFG.TREMOR_A + 7)) * 0.12 * env)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- O TRILHO — regra 3: aproximação exponencial, nunca Tween bloqueante
+--═══════════════════════════════════════════════════════════════
+
+local function seguir()
+	if ligacao then return end
+	relogio, desdeBeat = 0, 0
+	ligacao = RunService.RenderStepped:Connect(function(dt)
+		relogio = relogio + dt
+		desdeBeat = desdeBeat + dt
+
+		-- regra 4: o estágio troca por TEMPO, e o prazo fecha a cena mesmo se
+		-- o servidor nunca mandar o FIM
+		if relogio > CFG.PRAZO then
+			devolver()
+			return
+		end
+		if not quadroAtual then return end
+
+		camera = workspace.CurrentCamera
+		if not camera then return end
+
+		local eu = jogador.Character
+			and (jogador.Character:FindFirstChild("HumanoidRootPart")
+				or jogador.Character:FindFirstChild("Torso"))
+		local portador = parteDe(nomePortador)
+		local alvo = parteDe(nomeAlvo)
+
+		local ancora = (papel == "ALVO" and (eu or alvo)) or portador
+		if not ancora then
+			devolver()
+			return
+		end
+
+		local foco = ancora
+		if quadroAtual.olhar == "alvo" then
+			foco = alvo or portador or ancora
+		elseif quadroAtual.olhar == "eu" then
+			foco = eu or ancora
+		end
+
+		local metaPos = ancora.CFrame:PointToWorldSpace(quadroAtual.de)
+		local metaFoco = foco.Position
+
+		posAtual = posAtual or metaPos
+		focoAtual = focoAtual or metaFoco
+
+		local k = 1 - math.exp(-CFG.VELOC_CAM * dt)
+		posAtual = posAtual:Lerp(metaPos, k)
+		focoAtual = focoAtual:Lerp(metaFoco, k)
+
+		local sacode = quadroAtual.tremor
+			and tremor(relogio, desdeBeat) or Vector3.new()
+
+		camera.CFrame = CFrame.new(posAtual + sacode, focoAtual)
+
+		-- regra 1: o FOV é a técnica. Também exponencial, e mais rápido que a
+		-- posição — o estouro tem de chegar antes da câmera terminar de andar.
+		local kf = 1 - math.exp(-CFG.VELOC_FOV * dt)
+		camera.FieldOfView = camera.FieldOfView
+			+ (quadroAtual.fov - camera.FieldOfView) * kf
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- REGRA 6 — pular é obrigatório, e é SÓ visual
+--═══════════════════════════════════════════════════════════════
+
+local function pular()
+	if escuta then return end
+	escuta = UserInput.InputBegan:Connect(function(entrada, digitando)
+		if digitando then return end
+		if entrada.KeyCode ~= Enum.KeyCode.E then return end
+		segurando = os.clock()
+		task.delay(CFG.SKIP_HOLD, function()
+			-- só solta se o E continuou pressionado o tempo todo
+			if segurando > 0 and os.clock() - segurando >= CFG.SKIP_HOLD - 0.05 then
+				devolver()
+			end
+		end)
+	end)
+	escutaSolta = UserInput.InputEnded:Connect(function(entrada)
+		if entrada.KeyCode == Enum.KeyCode.E then segurando = 0 end
+	end)
+end
+
+--═══════════════════════════════════════════════════════════════
+-- BEATS DO SERVIDOR
+--
+-- Um `FireClient` por espectador, com o PAPEL dele no payload. O servidor sabe
+-- quem invocou e quem é o alvo; o cliente só desenha o que lhe cabe.
+--═══════════════════════════════════════════════════════════════
+
+CutsceneRemote.OnClientEvent:Connect(function(evento, dados)
+	dados = dados or {}
+
+	if evento == "INICIO" then
+		papel = (dados.papel == "ALVO") and "ALVO" or "INVOCADOR"
+		nomePortador, nomeAlvo = dados.portador, dados.alvoNome
+		if not tomar() then return end
+		quadroAtual = QUADROS[papel][dados.nome or "CAMERA"]
+			or QUADROS[papel].CAMERA
+		posAtual, focoAtual = nil, nil
+		desdeBeat = 0
+		seguir()
+		pular()
+		return
+	end
+
+	if evento == "BEAT" then
+		if not (ligacao and papel) then return end
+		local novo = QUADROS[papel][dados.nome]
+		if novo then
+			quadroAtual = novo
+			desdeBeat = 0
+		end
+		return
+	end
+
+	if evento == "FIM" then
+		devolver()
+	end
+end)
+
+--═══════════════════════════════════════════════════════════════
+-- AS PORTAS DE SAÍDA
+--═══════════════════════════════════════════════════════════════
+
+Tool.Unequipped:Connect(devolver)
+Tool.Destroying:Connect(devolver)
+jogador.CharacterRemoving:Connect(devolver)
+
+local function ligarMorte(personagem)
+	local humanoide = personagem:FindFirstChildOfClass("Humanoid")
+	if humanoide then humanoide.Died:Connect(devolver) end
+end
+
+if jogador.Character then ligarMorte(jogador.Character) end
+jogador.CharacterAdded:Connect(ligarMorte)

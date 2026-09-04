@@ -1,0 +1,509 @@
+<?xml version='1.0' encoding='utf-8'?>
+<roblox xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Meta name="ExplicitAutoJoints">true</Meta><External>null</External><External>nil</External><Item class="Tool" referent="RBX880CCF3EA2264D758FDCAADCCE506E1A">
+		<Properties>
+			<bool name="CanBeDropped">false</bool>
+			<bool name="Enabled">true</bool>
+			<CoordinateFrame name="Grip">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<bool name="ManualActivationOnly">false</bool>
+			<bool name="RequiresHandle">true</bool>
+			<string name="ToolTip">Provoca. A Extra provoca a roda inteira</string>
+			<Content name="TextureId"><null /></Content>
+			<token name="LevelOfDetail">0</token>
+			<CoordinateFrame name="ModelMeshCFrame">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+				<R00>1</R00>
+				<R01>0</R01>
+				<R02>0</R02>
+				<R10>0</R10>
+				<R11>1</R11>
+				<R12>0</R12>
+				<R20>0</R20>
+				<R21>0</R21>
+				<R22>1</R22>
+			</CoordinateFrame>
+			<SharedString name="ModelMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<Vector3 name="ModelMeshSize">
+				<X>0</X>
+				<Y>0</Y>
+				<Z>0</Z>
+			</Vector3>
+			<token name="ModelStreamingMode">0</token>
+			<bool name="NeedsPivotMigration">false</bool>
+			<Ref name="PrimaryPart">null</Ref>
+			<float name="ScaleFactor">1</float>
+			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<OptionalCoordinateFrame name="WorldPivotData">
+				<CFrame>
+					<X>-195122480</X>
+					<Y>-68830264</Y>
+					<Z>-144560496</Z>
+					<R00>0.866025388</R00>
+					<R01>0</R01>
+					<R02>0.5</R02>
+					<R10>0</R10>
+					<R11>1</R11>
+					<R12>0</R12>
+					<R20>-0.5</R20>
+					<R21>0</R21>
+					<R22>0.866025388</R22>
+				</CFrame>
+			</OptionalCoordinateFrame>
+			<BinaryString name="AttributesSerialize" />
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">Humilhador</string>
+			<int64 name="SourceAssetId">16788107288</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+		</Properties>
+		<Item class="Script" referent="RBX874516B8BF344B79ACE100437F5174F5">
+			<Properties>
+				<ProtectedString name="Source">-- Humilhador - Script do Servidor
+
+local Tool = script.Parent
+local char
+local enabled = true
+local COOLDOWN = 2 -- Cooldown de 2 segundos entre usos
+local MAX_USES_PER_MINUTE = 10 -- Máximo de 10 usos por minuto
+local useTimes = {} -- Tabela para rastrear horários de uso
+
+-- Função para limpar usos antigos (mais de 1 minuto)
+local function cleanOldUses()
+	local currentTime = tick()
+	local newUseTimes = {}
+
+	for _, useTime in ipairs(useTimes) do
+		if currentTime - useTime &lt; 60 then
+			table.insert(newUseTimes, useTime)
+		end
+	end
+
+	useTimes = newUseTimes
+end
+
+Tool.Equipped:Connect(function()
+	char = Tool.Parent
+end)
+
+function onLeftDown()
+	-- Verificar se está habilitado
+	if not enabled then
+		return
+	end
+
+	-- Verificar se o personagem existe
+	if not char or not char:FindFirstChild('Head') then
+		return
+	end
+
+	-- Limpar usos antigos
+	cleanOldUses()
+
+	-- Verificar limite de usos por minuto
+	if #useTimes &gt;= MAX_USES_PER_MINUTE then
+		warn("Limite de usos atingido! Aguarde um momento.")
+		return
+	end
+
+	-- Desabilitar temporariamente
+	enabled = false
+
+	-- Registrar uso atual
+	table.insert(useTimes, tick())
+
+	-- Criar som
+	local boom = Instance.new("Sound")
+	boom.SoundId = "rbxassetid://7995127481"
+	boom.Volume = 3
+	boom.PlayOnRemove = true
+	boom.Parent = char:FindFirstChild('Head')
+	boom:Destroy()
+
+	-- Criar efeito visual
+	local part = script.heheheha:Clone()
+	part.Parent = char:FindFirstChild('Head')
+	part.mainz.Disabled = false
+
+	-- Limpar efeito após alguns segundos para evitar acúmulo
+	game:GetService("Debris"):AddItem(part, 5)
+
+	-- Reabilitar após cooldown
+	wait(COOLDOWN)
+	enabled = true
+end
+
+Tool.Activated:Connect(onLeftDown)
+
+-- Limpar tabela quando tool é desequipada
+Tool.Unequipped:Connect(function()
+	useTimes = {}
+	enabled = true
+end)</ProtectedString>
+				<bool name="Disabled">false</bool>
+				<Content name="LinkedSource"><null /></Content>
+				<token name="RunContext">0</token>
+				<string name="ScriptGuid">{8E5342CE-C32D-46A9-9288-1697CEB8F05F}</string>
+				<BinaryString name="AttributesSerialize" />
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Humilhador_Server_V1</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+			<Item class="BillboardGui" referent="RBX3F4110D56AD14779A4D0445212FFED60">
+				<Properties>
+					<bool name="Active">true</bool>
+					<Ref name="Adornee">null</Ref>
+					<bool name="AlwaysOnTop">true</bool>
+					<float name="Brightness">1.5</float>
+					<bool name="ClipsDescendants">true</bool>
+					<float name="DistanceLowerLimit">0</float>
+					<float name="DistanceUpperLimit">-1</float>
+					<Vector3 name="ExtentsOffset">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="ExtentsOffsetWorldSpace">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<float name="LightInfluence">0</float>
+					<float name="MaxDistance">200</float>
+					<Ref name="PlayerToHideFrom">null</Ref>
+					<UDim2 name="Size">
+						<XS>1.89999998</XS>
+						<XO>0</XO>
+						<YS>1.89999998</YS>
+						<YO>0</YO>
+					</UDim2>
+					<Vector2 name="SizeOffset">
+						<X>0</X>
+						<Y>0</Y>
+					</Vector2>
+					<Vector3 name="StudsOffset">
+						<X>0</X>
+						<Y>2</Y>
+						<Z>0</Z>
+					</Vector3>
+					<Vector3 name="StudsOffsetWorldSpace">
+						<X>0</X>
+						<Y>0</Y>
+						<Z>0</Z>
+					</Vector3>
+					<bool name="Enabled">true</bool>
+					<bool name="ResetOnSpawn">true</bool>
+					<token name="ZIndexBehavior">1</token>
+					<bool name="AutoLocalize">true</bool>
+					<Ref name="RootLocalizationTable">null</Ref>
+					<token name="SelectionBehaviorDown">0</token>
+					<token name="SelectionBehaviorLeft">0</token>
+					<token name="SelectionBehaviorRight">0</token>
+					<token name="SelectionBehaviorUp">0</token>
+					<bool name="SelectionGroup">false</bool>
+					<BinaryString name="AttributesSerialize" />
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">heheheha</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+				</Properties>
+				<Item class="Frame" referent="RBX50CE9649F0B44E7D9B9C49D83F0D5515">
+					<Properties>
+						<token name="Style">0</token>
+						<bool name="Active">false</bool>
+						<Vector2 name="AnchorPoint">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<token name="AutomaticSize">0</token>
+						<Color3 name="BackgroundColor3">
+							<R>0</R>
+							<G>0</G>
+							<B>0</B>
+						</Color3>
+						<float name="BackgroundTransparency">1</float>
+						<Color3 name="BorderColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<token name="BorderMode">0</token>
+						<int name="BorderSizePixel">1</int>
+						<bool name="ClipsDescendants">false</bool>
+						<bool name="Draggable">false</bool>
+						<token name="InputSink">0</token>
+						<bool name="Interactable">true</bool>
+						<int name="LayoutOrder">0</int>
+						<Ref name="NextSelectionDown">null</Ref>
+						<Ref name="NextSelectionLeft">null</Ref>
+						<Ref name="NextSelectionRight">null</Ref>
+						<Ref name="NextSelectionUp">null</Ref>
+						<UDim2 name="Position">
+							<XS>0</XS>
+							<XO>0</XO>
+							<YS>0.469999999</YS>
+							<YO>0</YO>
+						</UDim2>
+						<float name="Rotation">0</float>
+						<bool name="Selectable">false</bool>
+						<Ref name="SelectionImageObject">null</Ref>
+						<int name="SelectionOrder">0</int>
+						<UDim2 name="Size">
+							<XS>1</XS>
+							<XO>0</XO>
+							<YS>0.550000012</YS>
+							<YO>0</YO>
+						</UDim2>
+						<token name="SizeConstraint">0</token>
+						<bool name="Visible">true</bool>
+						<int name="ZIndex">1</int>
+						<bool name="AutoLocalize">true</bool>
+						<Ref name="RootLocalizationTable">null</Ref>
+						<token name="SelectionBehaviorDown">0</token>
+						<token name="SelectionBehaviorLeft">0</token>
+						<token name="SelectionBehaviorRight">0</token>
+						<token name="SelectionBehaviorUp">0</token>
+						<bool name="SelectionGroup">false</bool>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">Frame</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+					<Item class="UICorner" referent="RBXF1C5B44CE9FD4B88B0E5A8803D455967">
+						<Properties>
+							<UDim name="BottomLeftRadius">
+								<S>1</S>
+								<O>8</O>
+							</UDim>
+							<UDim name="BottomRightRadius">
+								<S>1</S>
+								<O>8</O>
+							</UDim>
+							<UDim name="TopLeftRadius">
+								<S>1</S>
+								<O>8</O>
+							</UDim>
+							<UDim name="TopRightRadius">
+								<S>1</S>
+								<O>8</O>
+							</UDim>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">UICorner</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+					</Item>
+					<Item class="Frame" referent="RBX2EE9A8A440E14DA6938CC5E4F394B98E">
+						<Properties>
+							<token name="Style">0</token>
+							<bool name="Active">false</bool>
+							<Vector2 name="AnchorPoint">
+								<X>0</X>
+								<Y>0</Y>
+							</Vector2>
+							<token name="AutomaticSize">0</token>
+							<Color3 name="BackgroundColor3">
+								<R>1</R>
+								<G>1</G>
+								<B>1</B>
+							</Color3>
+							<float name="BackgroundTransparency">1</float>
+							<Color3 name="BorderColor3">
+								<R>0.105882362</R>
+								<G>0.164705887</G>
+								<B>0.207843155</B>
+							</Color3>
+							<token name="BorderMode">0</token>
+							<int name="BorderSizePixel">1</int>
+							<bool name="ClipsDescendants">false</bool>
+							<bool name="Draggable">false</bool>
+							<token name="InputSink">0</token>
+							<bool name="Interactable">true</bool>
+							<int name="LayoutOrder">0</int>
+							<Ref name="NextSelectionDown">null</Ref>
+							<Ref name="NextSelectionLeft">null</Ref>
+							<Ref name="NextSelectionRight">null</Ref>
+							<Ref name="NextSelectionUp">null</Ref>
+							<UDim2 name="Position">
+								<XS>0.0250000004</XS>
+								<XO>0</XO>
+								<YS>0.0250000004</YS>
+								<YO>0</YO>
+							</UDim2>
+							<float name="Rotation">0</float>
+							<bool name="Selectable">false</bool>
+							<Ref name="SelectionImageObject">null</Ref>
+							<int name="SelectionOrder">0</int>
+							<UDim2 name="Size">
+								<XS>0.949999988</XS>
+								<XO>0</XO>
+								<YS>0.899999976</YS>
+								<YO>0</YO>
+							</UDim2>
+							<token name="SizeConstraint">0</token>
+							<bool name="Visible">true</bool>
+							<int name="ZIndex">2</int>
+							<bool name="AutoLocalize">true</bool>
+							<Ref name="RootLocalizationTable">null</Ref>
+							<token name="SelectionBehaviorDown">0</token>
+							<token name="SelectionBehaviorLeft">0</token>
+							<token name="SelectionBehaviorRight">0</token>
+							<token name="SelectionBehaviorUp">0</token>
+							<bool name="SelectionGroup">false</bool>
+							<BinaryString name="AttributesSerialize" />
+							<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+							<bool name="DefinesCapabilities">false</bool>
+							<string name="Name">Frame</string>
+							<int64 name="SourceAssetId">-1</int64>
+							<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						</Properties>
+						<Item class="UICorner" referent="RBXADC01C5EFCA4465A80662DAB4AFF19F8">
+							<Properties>
+								<UDim name="BottomLeftRadius">
+									<S>1</S>
+									<O>8</O>
+								</UDim>
+								<UDim name="BottomRightRadius">
+									<S>1</S>
+									<O>8</O>
+								</UDim>
+								<UDim name="TopLeftRadius">
+									<S>1</S>
+									<O>8</O>
+								</UDim>
+								<UDim name="TopRightRadius">
+									<S>1</S>
+									<O>8</O>
+								</UDim>
+								<BinaryString name="AttributesSerialize" />
+								<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+								<bool name="DefinesCapabilities">false</bool>
+								<string name="Name">UICorner</string>
+								<int64 name="SourceAssetId">-1</int64>
+								<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+							</Properties>
+						</Item>
+					</Item>
+				</Item>
+				<Item class="ImageLabel" referent="RBXF2EE7085F2B74B6F85E8D80A8D738F96">
+					<Properties>
+						<Content name="Image"><url>rbxassetid://9151506976</url></Content>
+						<Color3 name="ImageColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<Vector2 name="ImageRectOffset">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<Vector2 name="ImageRectSize">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<float name="ImageTransparency">1</float>
+						<token name="ResampleMode">0</token>
+						<token name="ScaleType">0</token>
+						<Rect2D name="SliceCenter">
+							<min>
+								<X>0</X>
+								<Y>0</Y>
+							</min>
+							<max>
+								<X>0</X>
+								<Y>0</Y>
+							</max>
+						</Rect2D>
+						<float name="SliceScale">1</float>
+						<UDim2 name="TileSize">
+							<XS>1</XS>
+							<XO>0</XO>
+							<YS>1</YS>
+							<YO>0</YO>
+						</UDim2>
+						<bool name="Active">false</bool>
+						<Vector2 name="AnchorPoint">
+							<X>0</X>
+							<Y>0</Y>
+						</Vector2>
+						<token name="AutomaticSize">0</token>
+						<Color3 name="BackgroundColor3">
+							<R>1</R>
+							<G>1</G>
+							<B>1</B>
+						</Color3>
+						<float name="BackgroundTransparency">1</float>
+						<Color3 name="BorderColor3">
+							<R>0.105882362</R>
+							<G>0.164705887</G>
+							<B>0.207843155</B>
+						</Color3>
+						<token name="BorderMode">0</token>
+						<int name="BorderSizePixel">1</int>
+						<bool name="ClipsDescendants">false</bool>
+						<bool name="Draggable">false</bool>
+						<token name="InputSink">0</token>
+						<bool name="Interactable">true</bool>
+						<int name="LayoutOrder">0</int>
+						<Ref name="NextSelectionDown">null</Ref>
+						<Ref name="NextSelectionLeft">null</Ref>
+						<Ref name="NextSelectionRight">null</Ref>
+						<Ref name="NextSelectionUp">null</Ref>
+						<UDim2 name="Position">
+							<XS>0</XS>
+							<XO>0</XO>
+							<YS>0</YS>
+							<YO>0</YO>
+						</UDim2>
+						<float name="Rotation">0</float>
+						<bool name="Selectable">false</bool>
+						<Ref name="SelectionImageObject">null</Ref>
+						<int name="SelectionOrder">0</int>
+						<UDim2 name="Size">
+							<XS>5</XS>
+							<XO>0</XO>
+							<YS>2</YS>
+							<YO>0</YO>
+						</UDim2>
+						<token name="SizeConstraint">0</token>
+						<bool name="Visible">true</bool>
+						<int name="ZIndex">1</int>
+						<bool name="AutoLocalize">true</bool>
+						<Ref name="RootLocalizationTable">null</Ref>
+						<token name="SelectionBehaviorDown">0</token>
+						<token name="SelectionBehaviorLeft">0</token>
+						<token name="SelectionBehaviorRight">0</token>
+						<token name="SelectionBehaviorUp">0</token>
+						<bool name="SelectionGroup">false</bool>
+						<BinaryString name="AttributesSerialize" />
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<string name="Name">ImageLabel</string>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					</Properties>
+				</Item>
+			</Item>
+		</Item>
+	<Item class="Part" referent="GU_HANDLE_05"><Properties><string name="Name">Handle</string><bool name="Anchored">false</bool><bool name="CanCollide">false</bool><bool name="CanTouch">false</bool><bool name="CanQuery">false</bool><bool name="Massless">true</bool><float name="Transparency">1</float><Vector3 name="size"><X>0.4</X><Y>0.4</Y><Z>0.4</Z></Vector3><CoordinateFrame name="CFrame"><X>0</X><Y>0</Y><Z>0</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame></Properties><Item class="Sound" referent="GU_SFX_05_0"><Properties><string name="Name">Provoca</string><Content name="SoundId"><url>rbxassetid://7995127481</url></Content><float name="Volume">2</float><float name="PlaybackSpeed">1</float><float name="RollOffMaxDistance">120</float><bool name="Looped">false</bool></Properties></Item></Item><Item class="StringValue" referent="GU_Damage_05"><Properties><string name="Name">DamageClass</string><string name="Value">Suporte</string></Properties></Item><Item class="StringValue" referent="GU_ChaveR_05"><Properties><string name="Name">ChaveRecarga</string><string name="Value">Guest_Humilhador</string></Properties></Item><Item class="NumberValue" referent="GU_Energy_05"><Properties><string name="Name">EnergyCost</string><float name="Value">0</float></Properties></Item><Item class="NumberValue" referent="GU_Recarg_05"><Properties><string name="Name">RecargaGlobal</string><float name="Value">4</float></Properties></Item><Item class="RemoteEvent" referent="GU_VFXR_05"><Properties><string name="Name">VFXRemote</string></Properties></Item><Item class="RemoteEvent" referent="GU_ACAO_05"><Properties><string name="Name">AcaoRemote</string></Properties></Item><Item class="Script" referent="GU_Client_05"><Properties><string name="Name">Client</string><ProtectedString name="Source" /><token name="RunContext">2</token></Properties></Item><Item class="ModuleScript" referent="GU_R6CFrameAn_05"><Properties><string name="Name">R6CFrameAnimator</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="GU_Poses_05"><Properties><string name="Name">Poses</string><ProtectedString name="Source" /></Properties></Item><Item class="ModuleScript" referent="GU_VFXModule_05"><Properties><string name="Name">VFXModule</string><ProtectedString name="Source" /></Properties></Item></Item>
+	<SharedStrings><SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA==" /></SharedStrings></roblox>
