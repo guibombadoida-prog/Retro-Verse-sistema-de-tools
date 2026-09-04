@@ -711,6 +711,23 @@ CONJUNTOS = [
         "Levitacao",
         "Colapso Magnetico",
     ]),
+    # 7 Tools autorais de PODER DE FOGO, o sexto conjunto autoral. Duas
+    # habilidades por Tool: primaria em `Tool.Activated` e uma Extra na tecla
+    # R. O fio que atravessa as sete e a QUEIMADURA: um Attribute que ACUMULA
+    # camadas no alvo (`RV_FogoCamadas` / `RV_FogoExpira`), com teto, ao
+    # contrario da polaridade binaria do Magnetismo. `Lanca Chamas` carrega a
+    # queimadura, `Muralha de Fogo` a acumula por permanencia, `Inferno` a
+    # espalha para os vizinhos, e `Fenix` e a unica que CURA — e cura pelas
+    # camadas do proprio conjurador. Sem cutscene.
+    ("Fogo_7_Tools.rbxmx", "Fogo", [
+        "Brasa",
+        "Lanca Chamas",
+        "Bola de Fogo",
+        "Muralha de Fogo",
+        "Meteoro",
+        "Fenix",
+        "Inferno",
+    ]),
     ("Reality_7_Tools.rbxmx", "Reality", [
         "Lapada Seca",
         "Canhao Satelite",

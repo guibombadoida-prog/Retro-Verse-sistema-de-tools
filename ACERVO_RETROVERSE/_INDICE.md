@@ -1,6 +1,6 @@
 # _INDICE — Acervo Retro-Verse
 
-> **136 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
+> **143 Tools no repositório**: 7 de `Danilo_Escudos_V4`, 5 de `Astral_Peria`,
 > 6 de `Bomba_V4`, 7 de `Xester_Forma1`, 7 de `Xester_Forma2_O_Despertar`,
 > 7 de `Guest_Tools`, 7 de `Calebe_Tools` (GRAVIDADE), 7 de `Drama`,
 > 7 de `Faker_Tools`, **7 de `Noob_Despertado`** e as
@@ -87,6 +87,34 @@
 >
 > Ele **não deposita VFX novo**: as sete camadas do `VFXModule_Magnetismo` são
 > `Part` em código, mais um molde de agulha por Tool.
+>
+> **7 do `Poder de Fogo` — o SEXTO conjunto autoral.** Sem modelo de origem:
+> geometria primitiva soldada em `FERRAMENTAS/preparar_fogo.py`, e **15 `SoundId`
+> distintos do catálogo** em 23 `Sound`, sendo 7 grupos de variação. M1 + R em
+> cada — duas habilidades por Tool, catorze ao todo. Sem cutscene.
+>
+> A **queimadura** atravessa as sete, e ela ACUMULA. Onde a polaridade do
+> Magnetismo era binária (NORTE ou SUL), aqui `RV_FogoCamadas` é um contador com
+> teto de 5 e `RV_FogoExpira` é o prazo — cada camada soma dano e some sozinha.
+> Três Tools ALIMENTAM o contador (`Lanca Chamas` por jato, `Muralha de Fogo`
+> por permanência, `Inferno` por contágio ao vizinho) e três COBRAM: a combustão
+> do `Lanca Chamas` fere **por camada** e não faz nada em alvo não queimado, e a
+> `Fenix` — a única que CURA no repositório — cura pelas camadas do **próprio
+> conjurador**, o que só a torna útil depois de o jogador ter se queimado.
+>
+> O que ele acrescenta ao repertório são as **três temperaturas**: todo efeito é
+> a mesma forma em três camadas simultâneas com física própria — núcleo branco
+> parado, labareda laranja rápida e torta, fumaça cinza lenta que dura 3× mais.
+> Fogo de uma cor só lê como plástico laranja; a fumaça sobrevivendo à chama é o
+> que faz a cena parecer quente depois de acabar.
+>
+> A gramática das poses segue a mesma ideia: **o corpo se afasta do que ele
+> mesmo acende** — a cabeça vira 12° a 26°, o braço estende mais que nas outras
+> famílias, e o coice é para trás E para baixo. `RENASCER`, da `Fenix`, é a
+> exceção deliberada: é a única em que o corpo se abre para a chama.
+>
+> Ele **não deposita VFX novo**: as sete camadas do `VFXModule_Fogo` são `Part`
+> Neon em código, mais um molde de fagulha por Tool.
 >
 > ⛔ **A origem, `reality_tools.rbxmx`, tem TRÊS vetores de execução remota** —
 > `assetimport.org` via `HttpService` na `Physics Gun`, `require(206209239)` no
